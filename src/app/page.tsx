@@ -1,66 +1,39 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import Link from "next/link";
+
+const pages = [
+  { href: "/waiter", label: "Waiter POS", description: "Create orders and complete sales" },
+  { href: "/kitchen", label: "Kitchen Board", description: "Receive and complete prep tickets" },
+  { href: "/admin", label: "Admin Daily Totals", description: "Track total sales by waiter" },
+];
 
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main
+      className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 px-4 py-8"
+      style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
+    >
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Cafeteria POS</p>
+          <h1 className="text-2xl font-bold text-slate-900">Control Center</h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Open each role page in separate tabs/devices for live WebSocket sync.
           </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        </header>
+
+        <section className="grid gap-3 md:grid-cols-3">
+          {pages.map((page) => (
+            <Link
+              key={page.href}
+              href={page.href}
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md transition hover:-translate-y-0.5 hover:border-[#4F7CFF]"
+            >
+              <p className="text-base font-bold text-slate-800">{page.label}</p>
+              <p className="mt-1 text-sm text-slate-600">{page.description}</p>
+            </Link>
+          ))}
+        </section>
+      </div>
+    </main>
   );
 }

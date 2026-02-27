@@ -3,15 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev-all.js",
+    "dev:next": "next dev -H 0.0.0.0",
+    "dev:ws": "node scripts/kitchen-ws-server.js",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ws:server": "node scripts/kitchen-ws-server.js"
   },
   "dependencies": {
+    "@prisma/client": "^7.4.1",
+    "@tailwindcss/postcss": "^4.2.1",
     "next": "16.1.6",
+    "postcss": "^8.5.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "tailwindcss": "^4.2.1",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -19,6 +27,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "typescript": "^5"
+    "install": "^0.13.0",
+    "npm": "^11.11.0",
+    "prisma": "^7.4.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

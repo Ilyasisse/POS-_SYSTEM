@@ -1,0 +1,278 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  CASHIER
+  WAITER
+  COOK
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEOUT
+  DELIVERY
+}
+
+enum OrderStatus {
+  OPEN
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phoneNumber        String   @unique
+  fullName     String
+  role         UserRole @default(CASHIER)
+  pinHash      String?  // optional: cashier PIN login
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  shifts       Shift[]
+  orders       Order[]  @relation("OrderCashier")
+  payments     Payment[]
+
+  @@index([role, isActive])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@index([isActive, sortOrder])
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  sku          String?  @unique
+  description  String?
+  imageUrl     String?
+  isActive     Boolean  @default(true)
+
+  // Pricing stored in cents to avoid float issues
+  priceCents   Int
+  costCents    Int?     // optional cost tracking
+
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id])
+
+  // Optional inventory tracking
+  trackStock   Boolean  @default(false)
+  stockQty     Int      @default(0)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orderItems   OrderItem[]
+  productModifierGroups Modifier[]
+
+  @@index([categoryId, isActive])
+  @@index([trackStock, stockQty])
+}
+
+model ModifierGroup {
+  id         String   @id @default(cuid())
+  name       String
+  isRequired Boolean  @default(false)
+  minSelect  Int      @default(0)
+  maxSelect  Int      @default(1)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  modifiers  Modifier[]
+  productModifierGroups Modifier[]
+
+  @@unique([name])
+  @@index([isActive])
+}
+
+model Modifier {
+  id         String   @id @default(cuid())
+
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  groupName  String   // e.g. "Milk Options", "Extras"
+
+  name       String   // e.g. "Oat Milk"
+  priceCents Int      @default(0)
+
+  minSelect  Int      @default(0)  // group-level rule
+  maxSelect  Int      @default(1)
+
+  isRequired Boolean  @default(false)
+  isActive   Boolean  @default(true)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orderItemModifiers OrderItemModifier[]
+
+  @@index([productId])
+  @@index([groupName])
+}
+model Table {
+  id        String   @id @default(cuid())
+  name      String   @unique // e.g. "T1", "Table 4"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+
+  @@index([isActive])
+}
+
+model Discount {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  isPercent    Boolean  @default(true)
+  value        Int      // if percent: 0-100, if fixed: cents
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders       Order[]
+
+  @@index([isActive])
+}
+
+
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   Int         @default(autoincrement()) @unique // simple ticket number
+  type          OrderType   @default(DINE_IN)
+  status        OrderStatus @default(OPEN)
+
+  tableId       String?
+  table         Table?      @relation(fields: [tableId], references: [id])
+
+  cashierId     String?
+  cashier       User?       @relation("OrderCashier", fields: [cashierId], references: [id])
+
+  notes         String?
+
+  // Totals in cents
+  subtotalCents Int         @default(0)
+  discountId    String?
+  discount      Discount?   @relation(fields: [discountId], references: [id])
+  discountCents Int         @default(0)
+
+  taxCents      Int         @default(0)
+
+  totalCents    Int         @default(0)
+
+  items         OrderItem[]
+  payments      Payment[]
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([cashierId, createdAt])
+  @@index([tableId, createdAt])
+}
+
+model OrderItem {
+  id           String   @id @default(cuid())
+  orderId      String
+  productId    String
+  qty          Int
+  // Snapshot price at time of sale
+  unitPriceCents Int
+  lineTotalCents Int      @default(0)
+
+  notes        String?
+
+  order        Order    @relation(fields: [orderId], references: [id])
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  modifiers    OrderItemModifier[]
+
+  createdAt    DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderItemModifier {
+  id           String   @id @default(cuid())
+  orderItemId  String
+  modifierId   String
+  qty          Int      @default(1)
+  // Snapshot modifier price
+  priceCents   Int      @default(0)
+
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id])
+  modifier     Modifier  @relation(fields: [modifierId], references: [id], onDelete: Restrict)
+
+  @@unique([orderItemId, modifierId])
+  @@index([modifierId])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  cashierId     String?
+  method        PaymentMethod
+  amountCents   Int
+
+  reference     String?       // last4, transaction id, etc.
+  createdAt     DateTime      @default(now())
+
+  order         Order          @relation(fields: [orderId], references: [id])
+  cashier       User?          @relation(fields: [cashierId], references: [id])
+
+  @@index([createdAt])
+  @@index([orderId])
+  @@index([cashierId, createdAt])
+}
+
+model Shift {
+  id              String   @id @default(cuid())
+  userId          String
+  openedAt        DateTime @default(now())
+  closedAt        DateTime?
+
+  openingCashCents Int      @default(0)
+  closingCashCents Int?
+  notes           String?
+
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@index([openedAt])
+  @@index([userId, openedAt])
+}
+        
