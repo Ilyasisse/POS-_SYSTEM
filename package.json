@@ -6,15 +6,17 @@
     "dev": "node scripts/dev-all.js",
     "dev:next": "next dev -H 0.0.0.0",
     "dev:ws": "node scripts/kitchen-ws-server.js",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "ws:server": "node scripts/kitchen-ws-server.js"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
     "@tailwindcss/postcss": "^4.2.1",
     "next": "16.1.6",
+    "pg": "^8.19.0",
     "postcss": "^8.5.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -35,3 +37,4 @@
     "typescript": "^5.9.3"
   }
 }
+

@@ -94,7 +94,7 @@ model Product {
   updatedAt    DateTime @updatedAt
 
   orderItems   OrderItem[]
-  productModifierGroups Modifier[]
+  modifiers    Modifier[]
 
   @@index([categoryId, isActive])
   @@index([trackStock, stockQty])
@@ -111,7 +111,6 @@ model ModifierGroup {
   updatedAt  DateTime @updatedAt
 
   modifiers  Modifier[]
-  productModifierGroups Modifier[]
 
   @@unique([name])
   @@index([isActive])
@@ -122,6 +121,9 @@ model Modifier {
 
   productId  String
   product    Product  @relation(fields: [productId], references: [id])
+
+  modifierGroupId String?
+  modifierGroup   ModifierGroup? @relation(fields: [modifierGroupId], references: [id])
 
   groupName  String   // e.g. "Milk Options", "Extras"
 
@@ -140,6 +142,7 @@ model Modifier {
   orderItemModifiers OrderItemModifier[]
 
   @@index([productId])
+  @@index([modifierGroupId])
   @@index([groupName])
 }
 model Table {
