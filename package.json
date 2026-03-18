@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev-all.js",
+    "dev": "next dev",
     "dev:next": "next dev -H 0.0.0.0",
+    "socket" :"tsx src/server/socket-server.ts",
     "dev:ws": "node scripts/kitchen-ws-server.js",
     "build": "prisma generate && next build",
     "start": "next start",
@@ -14,6 +15,8 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.99.1",
     "@tailwindcss/postcss": "^4.2.1",
     "next": "16.1.6",
     "pg": "^8.19.0",
@@ -37,4 +40,3 @@
     "typescript": "^5.9.3"
   }
 }
-

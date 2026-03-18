@@ -1,36 +1,33 @@
 export type KitchenTicketStatus = "new" | "in_progress" | "done";
 
+export type KitchenStation = "KITCHEN" | "BARISTA";
+
 export type KitchenTicketItem = {
   id: string;
   name: string;
   quantity: number;
+  station: KitchenStation;
 };
 
 export type KitchenTicket = {
   id: string;
-  receiptNo: number;
+  orderId: string;
+  orderNumber: number;
   createdAt: string;
-  note: string | null;
   status: KitchenTicketStatus;
+  note?: string;
+  assignedBaristaId?: string | null;
   items: KitchenTicketItem[];
-};
-
-export type SaleRecord = {
-  id: string;
-  receiptNo: number;
-  waiterName: string;
-  total: number;
-  createdAt: string;
 };
 
 export type KitchenSocketMessage =
   | {
-      type: "NEW_ORDER";
-      payload: KitchenTicket;
-    }
-  | {
       type: "ORDER_SNAPSHOT";
       payload: KitchenTicket[];
+    }
+  | {
+      type: "NEW_ORDER";
+      payload: KitchenTicket;
     }
   | {
       type: "UPDATE_ORDER_STATUS";
@@ -38,28 +35,13 @@ export type KitchenSocketMessage =
         id: string;
         status: KitchenTicketStatus;
       };
-    }
-  | {
-      type: "NEW_SALE";
-      payload: SaleRecord;
-    }
-  | {
-      type: "SALES_SNAPSHOT";
-      payload: {
-        day: string;
-        sales: SaleRecord[];
-      };
     };
 
-export function getKitchenSocketUrl() {
-  const configuredUrl = process.env.NEXT_PUBLIC_KITCHEN_WS_URL;
-  if (configuredUrl && configuredUrl.trim().length > 0) {
-    return configuredUrl.trim();
-  }
-  if (typeof window !== "undefined") {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const host = window.location.hostname || "localhost";
-    return `${protocol}://${host}:8080`;
-  }
-  return "ws://localhost:8080";
+export function getKitchenSocketUrl(station?: string) {
+  const base =
+    process.env.NEXT_PUBLIC_KITCHEN_SOCKET_URL ?? "ws://localhost:3001";
+
+  if (!station) return `${base}/api/kitchen/ws`;
+
+  return `${base}/api/kitchen/ws?station=${encodeURIComponent(station)}`;
 }
