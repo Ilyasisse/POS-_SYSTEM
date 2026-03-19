@@ -106,13 +106,13 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
 
   async function handleCompleteSale() {
     if (cart.length === 0) {
-      setStatusMessage("Add items before completing the sale.");
+      setStatusMessage("Ku dar alaabo ka hor intaadan iibka dhammayn.");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      setStatusMessage("Processing sale...");
+      setStatusMessage("Iibka waa la farsameynayaa...");
 
       const payload = {
         items: cart.map((item) => ({
@@ -139,7 +139,7 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Failed to complete sale.");
+        throw new Error(data?.error || "Iibka lama dhammaystiri karin.");
       }
 
       setLastReceipt(data.receipt ?? null);
@@ -150,10 +150,10 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
 
       clearCart();
       setOrderNote("");
-      setStatusMessage("Sale completed successfully.");
+      setStatusMessage("Iibka si guul leh ayuu u dhammaaday.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Something went wrong.",
+        error instanceof Error ? error.message : "Waxbaa khaldamay.",
       );
     } finally {
       setIsSubmitting(false);
@@ -207,7 +207,7 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
   }
 
   if (loading) {
-    return <p className="p-6">Loading...</p>;
+    return <p className="p-6">Waa la soo gelinayaa...</p>;
   }
 
   return (

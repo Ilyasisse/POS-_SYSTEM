@@ -26,7 +26,7 @@ export default function SignOutButton() {
       disabled={!supabase}
       className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
     >
-      Sign out
+      Ka bax
     </button>
   );
 }

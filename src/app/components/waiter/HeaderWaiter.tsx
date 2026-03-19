@@ -13,7 +13,7 @@ export default function HeaderWaiter({ fullName }: HeaderWaiterProps) {
       <div>
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-blue-100">
-            Waiter
+            Adeege
           </p>
           <h1 className="text-xl font-bold md:text-2xl">
             MAASH ALLAH CAFE
@@ -22,7 +22,7 @@ export default function HeaderWaiter({ fullName }: HeaderWaiterProps) {
 
         {/* ✅ Waiter Name */}
         <div className="mt-2 text-left text-sm">
-          <p className="text-xs text-blue-100">Waiter Name</p>
+          <p className="text-xs text-blue-100">Magaca adeegaha</p>
           <p className="text-sm font-semibold text-white">
             {fullName}
           </p>

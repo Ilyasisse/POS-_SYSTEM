@@ -13,7 +13,9 @@ export default function ProductQuickItems({
 }: ProductQuickItemsProps) {
   return (
     <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3">
-      <p className="mb-2 text-sm font-semibold text-slate-700">Quick Items</p>
+      <p className="mb-2 text-sm font-semibold text-slate-700">
+        Alaabo degdeg ah
+      </p>
 
       <div className="flex flex-wrap gap-2">
         {products.map((product) => (

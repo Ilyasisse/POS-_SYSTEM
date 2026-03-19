@@ -11,6 +11,7 @@ import {
   type KitchenViewerRole,
 } from "@/lib/kitchen-socket";
 import { parseKitchenMessage } from "@/app/components/kitchen/kitchen-utils";
+import { translateKitchenStationName } from "@/lib/ui-text";
 
 type SocketStatus = "connecting" | "connected" | "disconnected";
 
@@ -57,8 +58,8 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         setSocketStatus("connected");
         setStatusMessage(
           station
-            ? `Connected to ${station} kitchen queue.`
-            : "Connected. Waiting for orders...",
+            ? `Waxaa lagu xirmay safka jikada ee ${translateKitchenStationName(station)}.`
+            : "Waa lagu xirmay. Dalabyo ayaa la sugayaa...",
         );
       };
 
@@ -99,7 +100,9 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
             return [filteredTicket, ...withoutExisting];
           });
 
-          setStatusMessage(`New ticket #${filteredTicket.orderNumber} received.`);
+          setStatusMessage(
+            `Tigidh cusub #${filteredTicket.orderNumber} waa la helay.`,
+          );
           return;
         }
 
@@ -126,7 +129,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         if (disposed) return;
 
         setSocketStatus("disconnected");
-        setStatusMessage("Socket disconnected. Retrying...");
+        setStatusMessage("Xiriirku wuu go'ay. Dib ayaa loo isku dayayaa...");
         reconnectTimerRef.current = window.setTimeout(connect, 1500);
       };
     };
@@ -164,7 +167,9 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
 
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setStatusMessage("Unable to sync update. Kitchen socket is offline.");
+      setStatusMessage(
+        "Lama waafajin karo cusboonaysiinta. Xiriirka jikada wuu maqan yahay.",
+      );
       return;
     }
 

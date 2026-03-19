@@ -44,9 +44,11 @@ export function useWaiterSocket(socketUrl: string) {
 
           const count = pendingTicketsRef.current.length;
           pendingTicketsRef.current = [];
-          setStatusMessage(`Reconnected. Synced ${count} queued ticket(s).`);
+          setStatusMessage(
+            `Xiriirkii wuu soo laabtay. ${count} tigidh saf ku jiray waa la waafajiyay.`,
+          );
         } else {
-          setStatusMessage("Connected to kitchen.");
+          setStatusMessage("Jikada waa lagu xirmay.");
         }
       };
 
@@ -58,7 +60,7 @@ export function useWaiterSocket(socketUrl: string) {
         if (disposed) return;
 
         setSocketStatus("disconnected");
-        setStatusMessage("Kitchen socket disconnected. Retrying...");
+        setStatusMessage("Xiriirka jikada wuu go'ay. Dib ayaa loo isku dayayaa...");
         reconnectTimerRef.current = window.setTimeout(connect, 1500);
       };
     };
@@ -83,7 +85,7 @@ export function useWaiterSocket(socketUrl: string) {
 
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       pendingTicketsRef.current.push(ticket);
-      setStatusMessage("Kitchen offline. Ticket queued.");
+      setStatusMessage("Jikadu khadka kama saarna. Tigidhka saf ayaa loo geliyay.");
       return;
     }
 
@@ -94,7 +96,7 @@ export function useWaiterSocket(socketUrl: string) {
       })
     );
 
-    setStatusMessage(`Ticket #${ticket.orderNumber} sent to kitchen.`);
+    setStatusMessage(`Tigidhka #${ticket.orderNumber} waxaa loo diray jikada.`);
   };
 
   return {

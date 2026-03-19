@@ -91,21 +91,21 @@ export default function ModifierModal({
       if (count < min) {
         errors[group.id] =
           min === 1
-            ? "Please choose at least 1 option."
-            : `Please choose at least ${min} options.`;
+            ? "Fadlan dooro ugu yaraan 1 ikhtiyaar."
+            : `Fadlan dooro ugu yaraan ${min} ikhtiyaar.`;
         continue;
       }
 
       if (count > max) {
         errors[group.id] =
           max === 1
-            ? "You can only choose 1 option."
-            : `You can choose up to ${max} options.`;
+            ? "Waxaad dooran kartaa hal ikhtiyaar oo keliya."
+            : `Waxaad dooran kartaa ugu badnaan ${max} ikhtiyaar.`;
       }
     }
 
     if (requiresBaristaAssignment(product) && !selectedBaristaId) {
-      errors.barista = "Select the barista who should receive this item.";
+      errors.barista = "Dooro baristaha qaadanaya sheygan.";
     }
 
     return errors;
@@ -164,18 +164,20 @@ export default function ModifierModal({
     const min = getMinSelect(group);
     const max = getMaxSelect(group);
 
-    if (min === 0 && max === 1) return "(Optional, choose up to one)";
-    if (min === 1 && max === 1) return "(Choose one)";
-    if (min === 0 && max > 1) return `(Optional, choose up to ${max})`;
-    if (min === max) return `(Choose ${min})`;
-    return `(Choose ${min} to ${max})`;
+    if (min === 0 && max === 1) return "(Ikhtiyaari, dooro ugu badnaan hal)";
+    if (min === 1 && max === 1) return "(Dooro hal)";
+    if (min === 0 && max > 1) {
+      return `(Ikhtiyaari, dooro ugu badnaan ${max})`;
+    }
+    if (min === max) return `(Dooro ${min})`;
+    return `(Dooro ${min} ilaa ${max})`;
   }
 
   function handleConfirm() {
     if (!product) return;
 
     if (!isValid) {
-      alert("Please fix the selections before continuing.");
+      alert("Fadlan sax xulashooyinka ka hor intaadan sii wadin.");
       return;
     }
 
@@ -196,7 +198,7 @@ export default function ModifierModal({
             <div>
               <h2 className="text-xl font-bold">{product.name}</h2>
               <p className="text-sm text-slate-500">
-                Configure this item before adding it to the order.
+                Habee sheygan ka hor inta aan dalabka lagu darin.
               </p>
             </div>
 
@@ -214,18 +216,18 @@ export default function ModifierModal({
                 <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <div className="mb-3">
                     <h3 className="font-semibold text-slate-900">
-                      Assign barista
+                      U qoondee barista
                     </h3>
                     <p className="text-sm text-slate-600">
-                      This product routes to the BARISTA station. Choose who
-                      should receive it.
+                      Badeecaddan waxay aadeysaa qeybta BARISTA. Dooro qofka
+                      qaadanaya.
                     </p>
                   </div>
 
                   {baristas.length === 0 ? (
                     <p className="text-sm text-red-600">
-                      No active baristas were found. Add an active BARISTA user
-                      before sending this item.
+                      Barista shaqeynaya lama helin. Ku dar isticmaale BARISTA
+                      firfircoon ka hor inta aan sheygan la dirin.
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -280,7 +282,9 @@ export default function ModifierModal({
               ) : null}
 
               {modifierGroups.length === 0 ? (
-                <p className="text-sm text-slate-500">No modifiers available.</p>
+                <p className="text-sm text-slate-500">
+                  Wax-ka-beddel lama heli karo.
+                </p>
               ) : (
                 modifierGroups.map((group) => {
                   const groupSelected = selected[group.id] || [];

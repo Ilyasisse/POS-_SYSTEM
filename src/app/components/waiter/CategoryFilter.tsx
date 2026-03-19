@@ -22,7 +22,7 @@ export default function CategoryFilter({
             : "bg-white text-slate-700 hover:bg-blue-100"
         }`}
       >
-        All
+        Dhammaan
       </button>
 
       {categories.map((category) => (
