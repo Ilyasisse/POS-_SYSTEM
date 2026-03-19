@@ -1,44 +1,45 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import type { Station, UserRole } from "@prisma/client";
 
-type AllowedRole =
-  | "ADMIN"
-  | "WAITER"
-  | "KITCHEN"
-  | "BARISTA"
-  | "CASHIER"
-  | string;
-
-export async function requireRole(allowedRoles: AllowedRole[]) {
+export async function requireRole(
+  allowedRoles: UserRole[],
+  allowedStations?: Station[]
+) {
   const supabase = await createClient();
 
   const {
-    data: { user },
-    error: authError,
+    data: { user: authUser },
   } = await supabase.auth.getUser();
 
-  if (authError || !user) {
+  if (!authUser) {
     redirect("/login");
   }
 
-  const staffUser = await prisma.user.findUnique({
-    where: {
-      id: user.id,
-    },
+  const user = await prisma.user.findUnique({
+    where: { id: authUser.id },
   });
 
-  if (!staffUser) {
-    redirect("/login?error=staff-not-found");
+  if (!user || !user.isActive) {
+    redirect("/login?error=staff_not_found");
   }
 
-  if (!staffUser.isActive) {
-    redirect("/login?error=inactive");
-  }
-
-  if (!allowedRoles.includes(staffUser.role)) {
+  if (!allowedRoles.includes(user.role)) {
     redirect("/login?error=unauthorized");
   }
 
-  return staffUser;
+  if (
+    allowedStations &&
+    allowedStations.length > 0 &&
+    user.role !== "ADMIN" &&
+    !(
+      (user.role === "BARISTA" && allowedStations.includes("BARISTA")) ||
+      (user.station && allowedStations.includes(user.station))
+    )
+  ) {
+    redirect("/login?error=unauthorized");
+  }
+
+  return user;
 }

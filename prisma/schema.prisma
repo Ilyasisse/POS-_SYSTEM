@@ -9,15 +9,15 @@ datasource db {
 model User {
   id            String      @id
   phoneNumber   String?     @unique
-  email         String      @unique
   fullName      String
   role          UserRole    @default(CASHIER)
   isActive      Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  email         String      @unique
   station       Station?
-  
   orders        Order[]     @relation("Cashier")
+  waiterOrders  Order[]     @relation("WaiterOrders")
   assignedItems OrderItem[] @relation("AssignedOrderItems")
   payments      Payment[]
   shifts        Shift[]
@@ -113,12 +113,14 @@ model Order {
   status      OrderStatus @default(OPEN)
   tableId     String?
   cashierId   String?
+  waiterId    String?
   notes       String?
   total       Decimal
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  closedAt    DateTime
+  closedAt    DateTime?
   cashier     User?       @relation("Cashier", fields: [cashierId], references: [id])
+  waiter      User?       @relation("WaiterOrders", fields: [waiterId], references: [id])
   table       Table?      @relation(fields: [tableId], references: [id])
   orderItems  OrderItem[]
   payments    Payment[]
@@ -126,6 +128,7 @@ model Order {
   @@index([status])
   @@index([createdAt])
   @@index([cashierId, createdAt])
+  @@index([waiterId, createdAt])
   @@index([tableId, createdAt])
 }
 
@@ -202,6 +205,7 @@ enum UserRole {
   WAITER
   COOK
   BARISTA
+  Cabitaan
 }
 
 enum OrderType {
@@ -224,6 +228,8 @@ enum PaymentMethod {
 }
 
 enum Station {
-  KITCHEN
+  CUNTO_SOOMAALI
+  FAST_FOOD
+  CABITAAN
   BARISTA
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import type { KitchenTicket } from "@/lib/kitchen-socket";
+import type { KitchenStation, KitchenTicket } from "@/lib/kitchen-socket";
 import KitchenEmptyState from "./KitchenEmptyState";
 import KitchenHeader from "./KitchenHeader";
 import KitchenStatusBanner from "./KitchenStatusBanner";
@@ -9,7 +8,7 @@ import KitchenTicketList from "./KitchenTicketList";
 import { useKitchenSocket } from "@/hooks/useKitchenSocket";
 
 type KitchenClientProps = {
-  station?: string;
+  station?: KitchenStation;
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
@@ -26,38 +25,13 @@ export default function KitchenClient({
     socketStatus,
     statusMessage,
     updateTicketStatus,
-  } = useKitchenSocket({ station });
+  } = useKitchenSocket({
+    station,
+    currentUserId,
+    currentUserRole,
+  });
 
-  const visibleTickets = useMemo(() => {
-    return activeTickets
-      .map((ticket) => {
-        const visibleItems = ticket.items.filter((item) => {
-          if (station === "KITCHEN") {
-            return item.station === "KITCHEN";
-          }
-
-          if (station === "BARISTA") {
-            const assignedToMe =
-              !ticket.assignedBaristaId ||
-              ticket.assignedBaristaId === currentUserId;
-
-            return item.station === "BARISTA" && assignedToMe;
-          }
-
-          return true;
-        });
-
-        if (visibleItems.length === 0) {
-          return null;
-        }
-
-        return {
-          ...ticket,
-          items: visibleItems,
-        };
-      })
-      .filter((ticket): ticket is KitchenTicket => ticket !== null);
-  }, [activeTickets, currentUserId, station]);
+  const visibleTickets: KitchenTicket[] = activeTickets;
 
   return (
     <main

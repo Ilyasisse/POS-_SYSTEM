@@ -1,3 +1,4 @@
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -18,10 +19,10 @@ export async function createClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            // ignored in server components where setting cookies may not be allowed
+            // ignored in Server Components if cookies can't be set there
           }
         },
       },
-    },
+    }
   );
 }

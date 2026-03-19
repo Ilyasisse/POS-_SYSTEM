@@ -79,6 +79,7 @@ export default async function AdminCategoriesPage({
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="px-3 py-2 font-semibold">Name</th>
+                  <th className="px-3 py-2 font-semibold">Station</th>
                   <th className="px-3 py-2 font-semibold">Sort Order</th>
                   <th className="px-3 py-2 font-semibold">Active</th>
                   <th className="px-3 py-2 font-semibold">Actions</th>
@@ -89,7 +90,7 @@ export default async function AdminCategoriesPage({
                 {categoriesList.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-3 py-6 text-center text-slate-500"
                     >
                       No categories found.
@@ -100,6 +101,10 @@ export default async function AdminCategoriesPage({
                     <tr key={category.id} className="border-b border-slate-100">
                       <td className="px-3 py-2 font-semibold text-slate-700">
                         {category.name}
+                      </td>
+
+                      <td className="px-3 py-2">
+                        {category.station ?? "-"}
                       </td>
 
                       <td className="px-3 py-2">{category.sortOrder}</td>

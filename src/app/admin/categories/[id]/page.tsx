@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteCategory, updateCategory } from "../actions";
+import { KITCHEN_STATIONS } from "@/lib/kitchen-socket";
 
 type CategoryDetailsPageProps = {
   params: Promise<{
@@ -62,6 +63,25 @@ export default async function CategoryDetailsPage({
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 required
               />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium">Station</label>
+              <select
+                name="station"
+                defaultValue={category.station ?? ""}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                required
+              >
+                <option value="" disabled>
+                  Select station
+                </option>
+                {KITCHEN_STATIONS.map((station) => (
+                  <option key={station} value={station}>
+                    {station}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

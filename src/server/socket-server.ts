@@ -2,45 +2,101 @@ import { WebSocketServer, WebSocket } from "ws";
 import type {
   KitchenSocketMessage,
   KitchenTicket,
+  KitchenTicketFilter,
+} from "../lib/kitchen-socket";
+import {
+  filterKitchenTicketsByStation,
+  normalizeKitchenTicket,
 } from "../lib/kitchen-socket";
 
 const wss = new WebSocketServer({ port: 3001 });
 
 let tickets: KitchenTicket[] = [];
+const clientFilters = new WeakMap<WebSocket, KitchenTicketFilter>();
 
-function broadcast(message: KitchenSocketMessage) {
-  const data = JSON.stringify(message);
+function resolveClientFilter(requestUrl?: string | null): KitchenTicketFilter {
+  const url = new URL(requestUrl ?? "/", "ws://localhost:3001");
 
+  return {
+    station: url.searchParams.get("station"),
+    userId: url.searchParams.get("userId"),
+    role: url.searchParams.get("role"),
+  };
+}
+
+function send(client: WebSocket, message: KitchenSocketMessage) {
+  if (client.readyState !== WebSocket.OPEN) {
+    return;
+  }
+
+  client.send(JSON.stringify(message));
+}
+
+function sendSnapshot(client: WebSocket) {
+  const filter = clientFilters.get(client);
+
+  send(client, {
+    type: "ORDER_SNAPSHOT",
+    payload: filterKitchenTicketsByStation(tickets, filter),
+  });
+}
+
+function broadcastTicket(ticket: KitchenTicket) {
   for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
+    const filter = clientFilters.get(client);
+    const filteredTicket = filterKitchenTicketsByStation([ticket], filter)[0];
+
+    if (!filteredTicket) {
+      continue;
     }
+
+    send(client, {
+      type: "NEW_ORDER",
+      payload: filteredTicket,
+    });
   }
 }
 
-wss.on("connection", (ws) => {
-  console.log("Socket client connected");
+function broadcastStatus(message: KitchenSocketMessage) {
+  for (const client of wss.clients) {
+    send(client, message);
+  }
+}
 
-  const snapshotMessage: KitchenSocketMessage = {
-    type: "ORDER_SNAPSHOT",
-    payload: tickets.filter((ticket) => ticket.status !== "done"),
-  };
+wss.on("connection", (ws, request) => {
+  const filter = resolveClientFilter(request.url);
 
-  ws.send(JSON.stringify(snapshotMessage));
+  clientFilters.set(ws, filter);
+  sendSnapshot(ws);
 
   ws.on("message", (raw) => {
     try {
       const message = JSON.parse(raw.toString()) as KitchenSocketMessage;
 
       if (message.type === "NEW_ORDER") {
-        const incoming = message.payload;
+        const incoming = normalizeKitchenTicket(message.payload);
+
+        if (!incoming) {
+          return;
+        }
 
         tickets = [incoming, ...tickets.filter((ticket) => ticket.id !== incoming.id)];
+        broadcastTicket(incoming);
+        return;
+      }
 
-        broadcast({
-          type: "NEW_ORDER",
-          payload: incoming,
-        });
+      if (message.type === "ORDER_SNAPSHOT") {
+        const incomingTickets = Array.isArray(message.payload)
+          ? message.payload
+              .map(normalizeKitchenTicket)
+              .filter((ticket): ticket is KitchenTicket => ticket !== null)
+          : [];
+
+        tickets = incomingTickets;
+
+        for (const client of wss.clients) {
+          sendSnapshot(client);
+        }
 
         return;
       }
@@ -49,12 +105,10 @@ wss.on("connection", (ws) => {
         const { id, status } = message.payload;
 
         tickets = tickets
-          .map((ticket) =>
-            ticket.id === id ? { ...ticket, status } : ticket
-          )
+          .map((ticket) => (ticket.id === id ? { ...ticket, status } : ticket))
           .filter((ticket) => ticket.status !== "done");
 
-        broadcast({
+        broadcastStatus({
           type: "UPDATE_ORDER_STATUS",
           payload: { id, status },
         });
@@ -65,7 +119,7 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    console.log("Socket client disconnected");
+    clientFilters.delete(ws);
   });
 
   ws.on("error", (error) => {

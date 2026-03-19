@@ -8,13 +8,27 @@ export async function GET() {
         isActive: true,
       },
       include: {
-        category: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            station: true,
+          },
+        },
         modifiers: {
           where: {
             isActive: true,
           },
           include: {
-            modifierGroup: true,
+            modifierGroup: {
+              select: {
+                id: true,
+                name: true,
+                isRequired: true,
+                minSelect: true,
+                maxSelect: true,
+              },
+            },
           },
         },
       },
@@ -24,44 +38,83 @@ export async function GET() {
     });
 
     const formattedProducts = products.map((product) => {
-      const groupMap = new Map();
+      const groupMap = new Map<
+        string,
+        {
+          id: string;
+          name: string;
+          required: boolean;
+          minSelect: number;
+          maxSelect: number;
+          multiple: boolean;
+          options: {
+            id: string;
+            name: string;
+            price: number;
+          }[];
+        }
+      >();
 
-      for (const modifier of product.modifiers) {
+      for (const modifier of product.modifiers ?? []) {
         const group = modifier.modifierGroup;
+
+        if (!group) {
+          continue;
+        }
 
         if (!groupMap.has(group.id)) {
           groupMap.set(group.id, {
             id: group.id,
             name: group.name,
-            required: group.isRequired,
-            minSelect: group.minSelect,
-            maxSelect: group.maxSelect,
-            multiple: group.maxSelect > 1,
+            required: Boolean(group.isRequired),
+            minSelect: Number(group.minSelect ?? 0),
+            maxSelect: Number(group.maxSelect ?? 1),
+            multiple: Number(group.maxSelect ?? 1) > 1,
             options: [],
           });
         }
 
-        groupMap.get(group.id).options.push({
+        groupMap.get(group.id)?.options.push({
           id: modifier.id,
           name: modifier.name,
-          price: Number(modifier.price),
+          price: Number(modifier.price ?? 0),
         });
       }
 
       return {
-        ...product,
-        price: Number(product.price),
-        cost: product.cost ? Number(product.cost) : null,
+        id: product.id,
+        name: product.name,
+        price: Number(product.price ?? 0),
+        cost: product.cost != null ? Number(product.cost) : null,
+        isActive: product.isActive,
+        sku: product.sku ?? null,
+        description: product.description ?? null,
+        trackStock: Boolean(product.trackStock),
+        stockQty: Number(product.stockQty ?? 0),
+        imageUrl: product.imageUrl ?? null,
+        isPopular: Boolean(product.isPopular),
+        category: product.category
+          ? {
+              id: product.category.id,
+              name: product.category.name,
+              station: product.category.station ?? null,
+            }
+          : null,
         modifierGroups: Array.from(groupMap.values()),
       };
     });
 
     return NextResponse.json(formattedProducts);
   } catch (error) {
-    console.error("GET /api/GET/Product error:", error);
+    console.error("GET /api/GET/Product/all error:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch active products" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch active products",
+      },
       { status: 500 }
     );
   }

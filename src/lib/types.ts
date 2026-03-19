@@ -1,13 +1,23 @@
+import type { KitchenStation } from "@/lib/kitchen-socket";
+
 export enum PaymentMethod {
   MYCASH = "MYCASH",
   GOLIS = "GOLIS",
-  DAHABSHIIL = "DAHABSHIIL",
+  DAHABSHIIL = "Dahabshiil",
   OTHER = "OTHER",
 }
 
 export type SocketStatus = "connecting" | "connected" | "disconnected";
 
-export type Station = "KITCHEN" | "BARISTA" | null;
+export type Station = KitchenStation | null;
+
+export type StaffSummary = {
+  id: string;
+  fullName: string;
+  email?: string | null;
+  role?: string;
+  station?: Station;
+};
 
 export type ModifierOption = {
   id: string;
@@ -19,16 +29,8 @@ export type ModifierGroup = {
   id: string;
   name: string;
   required: boolean;
-  multiple: boolean;
-  options: ModifierOption[];
-};
-
-export type ModifierGroupForWaiter = {
-  id: string;
-  name: string;
-  required: boolean;
-  minSelect: number;
-  maxSelect: number;
+  minSelect?: number;
+  maxSelect?: number;
   multiple: boolean;
   options: ModifierOption[];
 };
@@ -68,6 +70,7 @@ export type SelectedModifierLine = {
   optionId: string;
   optionName: string;
   price: number;
+  qty: number;
 };
 
 export type CartLine = {
@@ -79,8 +82,11 @@ export type CartLine = {
   imageUrl?: string;
   sku?: string;
   finalPrice?: number;
-  selectedModifiers?: SelectedModifierLine[];
+  lineTotal?: number;
+  selectedModifiers: SelectedModifierLine[];
   station?: Station;
+  assignedUserId?: string | null;
+  assignedUserName?: string | null;
   product: {
     id: string;
     name: string;
@@ -92,13 +98,25 @@ export type CartLine = {
   };
 };
 
+export type ReceiptSnapshotLine = {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  finalPrice: number;
+  station?: Station;
+  selectedModifiers: SelectedModifierLine[];
+  assignedUserId?: string | null;
+  assignedUserName?: string | null;
+};
+
 export type ReceiptSnapshot = {
   receiptNo: number;
   createdAt: string;
   waiterName: string;
   orderNote: string;
   total: number;
-  lines: CartLine[];
+  lines: ReceiptSnapshotLine[];
 };
 
 export type Payment = {

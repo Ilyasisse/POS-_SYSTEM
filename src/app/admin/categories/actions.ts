@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { normalizeKitchenStation } from "@/lib/kitchen-socket";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -8,6 +9,9 @@ export async function createCategory(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const sortOrder = Number(formData.get("sortOrder") || 0);
   const isActive = formData.get("isActive") === "on";
+  const station = normalizeKitchenStation(
+    String(formData.get("station") || "").trim() || null,
+  );
 
   if (!name) {
     throw new Error("Category name is required.");
@@ -22,6 +26,7 @@ export async function createCategory(formData: FormData) {
       name,
       sortOrder,
       isActive,
+      station: station ?? null,
     },
   });
 
@@ -34,6 +39,9 @@ export async function updateCategory(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const sortOrder = Number(formData.get("sortOrder") || 0);
   const isActive = formData.get("isActive") === "on";
+  const station = normalizeKitchenStation(
+    String(formData.get("station") || "").trim() || null,
+  );
 
   if (!id) {
     throw new Error("Category id is required.");
@@ -53,6 +61,7 @@ export async function updateCategory(formData: FormData) {
       name,
       sortOrder,
       isActive,
+      station: station ?? null,
     },
   });
 

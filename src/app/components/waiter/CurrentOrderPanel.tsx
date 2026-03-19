@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import type { CartLine, ReceiptSnapshot, SocketStatus } from "@/lib/types";
 import CartItemCard from "./CartItemCard";
 import PaymentMethodSelector from "./PaymentMethodSelector";
 import ReceiptPreview from "./ReceiptPreview";
-
-type Barista = {
-  id: string;
-  fullName: string;
-  phoneNumber: string;
-};
 
 type CurrentOrderPanelProps = {
   cart: CartLine[];
@@ -23,7 +16,7 @@ type CurrentOrderPanelProps = {
   onChangeQuantity: (cartKey: string, delta: number) => void;
   total: number;
   onClear: () => void;
-  onCompleteSale: (selectedBaristaId: string | null) => void;
+  onCompleteSale: () => void;
   isSubmitting: boolean;
   statusMessage: string;
   lastReceipt: ReceiptSnapshot | null;
@@ -49,52 +42,7 @@ export default function CurrentOrderPanel({
   statusMessage,
   lastReceipt,
 }: CurrentOrderPanelProps) {
-  const [baristas, setBaristas] = useState<Barista[]>([]);
-  const [selectedBaristaId, setSelectedBaristaId] = useState("");
-  const [loadingBaristas, setLoadingBaristas] = useState(true);
-
   const isDisabled = isSubmitting || cart.length === 0;
-
-  useEffect(() => {
-    async function fetchBaristas() {
-      try {
-        setLoadingBaristas(true);
-
-        const res = await fetch("/api/users/baristas", {
-          method: "GET",
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || "Failed to fetch baristas");
-        }
-
-        const data: Barista[] = await res.json();
-        setBaristas(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Error loading baristas:", error);
-        setBaristas([]);
-      } finally {
-        setLoadingBaristas(false);
-      }
-    }
-
-    fetchBaristas();
-  }, []);
-
-  const hasBaristaItems = useMemo(() => {
-    return cart.some((item) => item.product?.category?.station === "BARISTA");
-  }, [cart]);
-
-  function handleCompleteSale() {
-    if (hasBaristaItems && !selectedBaristaId) {
-      alert("Please select a barista before sending the order.");
-      return;
-    }
-
-    onCompleteSale(hasBaristaItems ? selectedBaristaId : null);
-  }
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40">
@@ -129,27 +77,6 @@ export default function CurrentOrderPanel({
           ))
         )}
       </div>
-
-      {hasBaristaItems && (
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-slate-600">
-            Select barista for drink items
-          </label>
-
-          <select
-            value={selectedBaristaId}
-            onChange={(event) => setSelectedBaristaId(event.target.value)}
-            disabled={loadingBaristas || isSubmitting}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-slate-100"
-          >
-            {baristas.map((barista) => (
-              <option key={barista.id} value={barista.id}>
-                {barista.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
 
       <label className="block">
         <span className="mb-1 block text-sm font-semibold text-slate-600">
@@ -190,7 +117,7 @@ export default function CurrentOrderPanel({
 
         <button
           type="button"
-          onClick={handleCompleteSale}
+          onClick={onCompleteSale}
           className="min-h-11 rounded-lg bg-[#2E7D32] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           disabled={isDisabled}
         >

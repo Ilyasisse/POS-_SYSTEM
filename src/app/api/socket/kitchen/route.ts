@@ -1,110 +1,112 @@
-import { NextRequest } from "next/server";
-import type { KitchenSocketMessage } from "@/lib/kitchen-socket";
-
-type KitchenClient = WebSocket;
+import { NextRequest, NextResponse } from "next/server";
+import type { KitchenSocketMessage, KitchenTicket } from "@/lib/kitchen-socket";
+import {
+  filterKitchenTicketsByStation,
+  normalizeKitchenTicket,
+} from "@/lib/kitchen-socket";
 
 const globalForKitchen = globalThis as unknown as {
-  kitchenClients?: Set<KitchenClient>;
-  kitchenTickets?: Array<{
-    id: string;
-    receiptNo: number;
-    createdAt: string;
-    status: "new" | "in_progress" | "done";
-    note?: string;
-    items: {
-      id: string;
-      name: string;
-      quantity: number;
-    }[];
-  }>;
+  kitchenTickets?: KitchenTicket[];
 };
-
-if (!globalForKitchen.kitchenClients) {
-  globalForKitchen.kitchenClients = new Set();
-}
 
 if (!globalForKitchen.kitchenTickets) {
   globalForKitchen.kitchenTickets = [];
 }
 
-function broadcast(message: KitchenSocketMessage) {
-  const serialized = JSON.stringify(message);
+function resolveFilter(req: NextRequest) {
+  return {
+    station: req.nextUrl.searchParams.get("station"),
+    userId: req.nextUrl.searchParams.get("userId"),
+    role: req.nextUrl.searchParams.get("role"),
+  };
+}
 
-  for (const client of globalForKitchen.kitchenClients!) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(serialized);
-    }
-  }
+function snapshotForRequest(req: NextRequest) {
+  return filterKitchenTicketsByStation(
+    globalForKitchen.kitchenTickets ?? [],
+    resolveFilter(req),
+  );
 }
 
 export async function GET(req: NextRequest) {
-  const upgradeHeader = req.headers.get("upgrade");
+  const filter = resolveFilter(req);
 
-  if (upgradeHeader !== "websocket") {
-    return new Response("Expected websocket", { status: 400 });
-  }
+  return NextResponse.json({
+    ok: true,
+    type: "ORDER_SNAPSHOT",
+    station: filter.station ?? null,
+    tickets: snapshotForRequest(req),
+  });
+}
 
-  const { socket, response } = Deno.upgradeWebSocket(req as unknown as Request);
+export async function POST(req: NextRequest) {
+  try {
+    const message = (await req.json()) as KitchenSocketMessage;
 
-  socket.onopen = () => {
-    globalForKitchen.kitchenClients!.add(socket);
+    if (message.type === "NEW_ORDER") {
+      const incoming = normalizeKitchenTicket(message.payload);
 
-    const snapshot: KitchenSocketMessage = {
-      type: "ORDER_SNAPSHOT",
-      payload: globalForKitchen.kitchenTickets!.filter(
-        (ticket) => ticket.status !== "done",
-      ),
-    };
-
-    socket.send(JSON.stringify(snapshot));
-  };
-
-  socket.onmessage = (event:any) => {
-    try {
-      const message = JSON.parse(String(event.data)) as KitchenSocketMessage;
-
-      if (message.type === "NEW_ORDER") {
-        const incoming = message.payload;
-
-        globalForKitchen.kitchenTickets = [
-          incoming,
-          ...globalForKitchen.kitchenTickets!.filter(
-            (ticket) => ticket.id !== incoming.id,
-          ),
-        ];
-
-        broadcast({
-          type: "NEW_ORDER",
-          payload: incoming,
-        });
-
-        return;
-      }
-
-      if (message.type === "UPDATE_ORDER_STATUS") {
-        const { id, status } = message.payload;
-
-        globalForKitchen.kitchenTickets = globalForKitchen.kitchenTickets!.map(
-          (ticket) => (ticket.id === id ? { ...ticket, status } : ticket),
+      if (!incoming) {
+        return NextResponse.json(
+          { ok: false, message: "Invalid kitchen ticket." },
+          { status: 400 },
         );
-
-        broadcast({
-          type: "UPDATE_ORDER_STATUS",
-          payload: { id, status },
-        });
       }
-    } catch (error) {
-      console.error("Kitchen socket message error:", error);
+
+      globalForKitchen.kitchenTickets = [
+        incoming,
+        ...(globalForKitchen.kitchenTickets ?? []).filter(
+          (ticket) => ticket.id !== incoming.id,
+        ),
+      ];
+
+      return NextResponse.json({
+        ok: true,
+        type: "NEW_ORDER",
+        ticket: incoming,
+      });
     }
-  };
 
-  socket.onclose = () => {
-    globalForKitchen.kitchenClients!.delete(socket);
-  };
+    if (message.type === "ORDER_SNAPSHOT") {
+      const incomingTickets = Array.isArray(message.payload)
+        ? message.payload
+            .map(normalizeKitchenTicket)
+            .filter((ticket): ticket is KitchenTicket => ticket !== null)
+        : [];
 
-  socket.onerror = () => {
-    globalForKitchen.kitchenClients!.delete(socket);
-  };
+      globalForKitchen.kitchenTickets = incomingTickets;
 
-  return response;
+      return NextResponse.json({
+        ok: true,
+        type: "ORDER_SNAPSHOT",
+        tickets: globalForKitchen.kitchenTickets,
+      });
+    }
+
+    if (message.type === "UPDATE_ORDER_STATUS") {
+      const { id, status } = message.payload;
+
+      globalForKitchen.kitchenTickets = (globalForKitchen.kitchenTickets ?? []).map(
+        (ticket) => (ticket.id === id ? { ...ticket, status } : ticket),
+      );
+
+      return NextResponse.json({
+        ok: true,
+        type: "UPDATE_ORDER_STATUS",
+        payload: { id, status },
+      });
+    }
+
+    return NextResponse.json(
+      { ok: false, message: "Unsupported message type." },
+      { status: 400 },
+    );
+  } catch (error) {
+    console.error("Kitchen route error:", error);
+
+    return NextResponse.json(
+      { ok: false, message: "Invalid request body." },
+      { status: 400 },
+    );
+  }
 }

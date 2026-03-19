@@ -2,21 +2,28 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  filterKitchenTicketByStation,
   getKitchenSocketUrl,
+  normalizeKitchenStation,
   type KitchenSocketMessage,
   type KitchenTicket,
   type KitchenTicketStatus,
+  type KitchenViewerRole,
 } from "@/lib/kitchen-socket";
 import { parseKitchenMessage } from "@/app/components/kitchen/kitchen-utils";
 
 type SocketStatus = "connecting" | "connected" | "disconnected";
 
 type UseKitchenSocketOptions = {
-  station?: string;
+  station?: string | null;
+  currentUserId?: string | null;
+  currentUserRole?: KitchenViewerRole | null;
 };
 
 export function useKitchenSocket(options?: UseKitchenSocketOptions) {
-  const station = options?.station;
+  const station = normalizeKitchenStation(options?.station);
+  const currentUserId = options?.currentUserId ?? null;
+  const currentUserRole = options?.currentUserRole ?? null;
 
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [socketStatus, setSocketStatus] = useState<SocketStatus>("connecting");
@@ -33,7 +40,11 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
 
       setSocketStatus("connecting");
 
-      const socketUrl = getKitchenSocketUrl(station);
+      const socketUrl = getKitchenSocketUrl({
+        station,
+        userId: currentUserId,
+        role: currentUserRole,
+      });
       const ws = new WebSocket(socketUrl);
       socketRef.current = ws;
 
@@ -44,7 +55,11 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         }
 
         setSocketStatus("connected");
-        setStatusMessage("Connected. Waiting for orders...");
+        setStatusMessage(
+          station
+            ? `Connected to ${station} kitchen queue.`
+            : "Connected. Waiting for orders...",
+        );
       };
 
       ws.onmessage = (event) => {
@@ -52,24 +67,39 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         if (!incoming) return;
 
         if (incoming.type === "ORDER_SNAPSHOT") {
-          const active = incoming.payload.filter(
-            (ticket) => ticket.status !== "done",
+          setTickets(
+            incoming.payload
+              .map((ticket) =>
+                filterKitchenTicketByStation(ticket, {
+                  station,
+                  userId: currentUserId,
+                  role: currentUserRole,
+                }),
+              )
+              .filter((ticket): ticket is KitchenTicket => ticket !== null),
           );
-          setTickets(active);
           return;
         }
 
         if (incoming.type === "NEW_ORDER") {
-          setTickets((current) => {
-            const withoutExisting = current.filter(
-              (ticket) => ticket.id !== incoming.payload.id,
-            );
-            return [incoming.payload, ...withoutExisting];
+          const filteredTicket = filterKitchenTicketByStation(incoming.payload, {
+            station,
+            userId: currentUserId,
+            role: currentUserRole,
           });
 
-          setStatusMessage(
-            `New ticket #${incoming.payload.orderNumber} received.`,
-          );
+          if (!filteredTicket) {
+            return;
+          }
+
+          setTickets((current) => {
+            const withoutExisting = current.filter(
+              (ticket) => ticket.id !== filteredTicket.id,
+            );
+            return [filteredTicket, ...withoutExisting];
+          });
+
+          setStatusMessage(`New ticket #${filteredTicket.orderNumber} received.`);
           return;
         }
 
@@ -114,7 +144,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         socketRef.current.close();
       }
     };
-  }, [station]);
+  }, [currentUserId, currentUserRole, station]);
 
   const activeTickets = useMemo(
     () => tickets.filter((ticket) => ticket.status !== "done"),

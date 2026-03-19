@@ -328,9 +328,6 @@ export async function POST(request: Request) {
           cashier: {
             connect: { id: currentUser.id },
           },
-          waiter: {
-            connect: { id: currentUser.id },
-          },
         },
       });
 

@@ -1,30 +1,58 @@
 "use client";
 
 import { useState } from "react";
-import type { CartLine, Product, SelectedModifierLine } from "@/lib/types";
+import type { CartLine, Product, SelectedModifierLine, Station } from "@/lib/types";
 
-type ProductWithModifiers = Product & {
+type ProductWithConfiguration = Product & {
   finalPrice?: number;
   selectedModifiers?: SelectedModifierLine[];
+  assignedUserId?: string | null;
+  assignedUserName?: string | null;
+  station?: Station;
 };
 
-function buildCartLineKey(product: ProductWithModifiers) {
-  const modifierKey = Array.isArray(product.selectedModifiers)
-    ? product.selectedModifiers
-        .map((modifier) => modifier.optionId)
-        .sort()
-        .join("_")
-    : "";
+function buildModifierSignature(modifiers: SelectedModifierLine[]) {
+  return modifiers
+    .map((modifier) => `${modifier.optionId}:${modifier.qty}`)
+    .sort()
+    .join("|");
+}
 
-  return `${product.id}__${modifierKey}`;
+export function buildCartLineKey(product: {
+  id: string;
+  station?: Station;
+  assignedUserId?: string | null;
+  selectedModifiers?: SelectedModifierLine[];
+}) {
+  const modifierSignature = buildModifierSignature(
+    Array.isArray(product.selectedModifiers) ? product.selectedModifiers : [],
+  );
+  const station = product.station ?? "NO_STATION";
+  const assignedUserId = product.assignedUserId ?? "UNASSIGNED";
+
+  return [product.id, station, assignedUserId, modifierSignature].join("__");
+}
+
+function calculateLineTotal(unitPrice: number, quantity: number) {
+  return Number(unitPrice) * quantity;
 }
 
 export function useWaiterCart() {
   const [cart, setCart] = useState<CartLine[]>([]);
 
-  const addToCart = (product: ProductWithModifiers) => {
+  const addToCart = (product: ProductWithConfiguration) => {
     setCart((current) => {
-      const cartKey = buildCartLineKey(product);
+      const station = product.station ?? product.category?.station ?? null;
+      const selectedModifiers = Array.isArray(product.selectedModifiers)
+        ? product.selectedModifiers
+        : [];
+      const unitPrice = Number(product.finalPrice ?? product.price);
+      const cartKey = buildCartLineKey({
+        id: product.id,
+        station,
+        assignedUserId: product.assignedUserId ?? null,
+        selectedModifiers,
+      });
 
       const existing = current.find((item) => item.cartKey === cartKey);
 
@@ -37,17 +65,25 @@ export function useWaiterCart() {
             name: product.name,
             product,
             price: Number(product.price),
-            finalPrice: Number(product.finalPrice ?? product.price),
+            finalPrice: unitPrice,
+            lineTotal: unitPrice,
             sku: product.sku ?? "",
             quantity: 1,
-            selectedModifiers: product.selectedModifiers ?? [],
+            station,
+            selectedModifiers,
+            assignedUserId: product.assignedUserId ?? null,
+            assignedUserName: product.assignedUserName ?? null,
           },
         ];
       }
 
       return current.map((item) =>
         item.cartKey === cartKey
-          ? { ...item, quantity: item.quantity + 1 }
+          ? {
+              ...item,
+              quantity: item.quantity + 1,
+              lineTotal: calculateLineTotal(unitPrice, item.quantity + 1),
+            }
           : item,
       );
     });
@@ -56,11 +92,22 @@ export function useWaiterCart() {
   const changeQuantity = (cartKey: string, delta: number) => {
     setCart((current) =>
       current
-        .map((item) =>
-          item.cartKey === cartKey
-            ? { ...item, quantity: item.quantity + delta }
-            : item,
-        )
+        .map((item) => {
+          if (item.cartKey !== cartKey) {
+            return item;
+          }
+
+          const nextQuantity = item.quantity + delta;
+
+          return {
+            ...item,
+            quantity: nextQuantity,
+            lineTotal: calculateLineTotal(
+              Number(item.finalPrice ?? item.price),
+              nextQuantity,
+            ),
+          };
+        })
         .filter((item) => item.quantity > 0),
     );
   };

@@ -26,6 +26,7 @@ export async function GET() {
         id: true,
         fullName: true,
         role: true,
+        station: true,
         isActive: true,
       },
     });

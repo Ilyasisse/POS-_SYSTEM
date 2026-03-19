@@ -1,8 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getKitchenSocketUrl, KitchenStation } from "@/lib/kitchen-socket";
-import type { Product, ReceiptSnapshot } from "@/lib/types";
+import { getKitchenSocketUrl } from "@/lib/kitchen-socket";
+import type {
+  Product,
+  ReceiptSnapshot,
+  SelectedModifierLine,
+  Station,
+} from "@/lib/types";
 import HeaderWaiter from "../waiter/HeaderWaiter";
 import ProductQuickItems from "./ProductQuickItems";
 import CategoryFilter from "./CategoryFilter";
@@ -16,25 +21,35 @@ import { useWaiterData } from "@/hooks/useWaiterData";
 
 type SelectedModifiers = Record<string, string[]>;
 
-export type SelectedModifierLine = {
-  groupId: string;
-  groupName: string;
-  optionId: string;
-  optionName: string;
-  price: number;
-};
-
-type ProductWithModifiers = Product & {
+type ProductWithConfiguration = Product & {
+  station?: Station;
   selectedModifiers?: SelectedModifierLine[];
   finalPrice?: number;
+  assignedUserId?: string | null;
+  assignedUserName?: string | null;
 };
 
-export default function WaiterPage() {
+type WaiterPageProps = {
+  fullName: string;
+};
+
+function requiresBaristaAssignment(product: Product) {
+  return product.category?.station === "BARISTA";
+}
+
+function requiresConfiguration(product: Product) {
+  return (
+    requiresBaristaAssignment(product) ||
+    (Array.isArray(product.modifierGroups) && product.modifierGroups.length > 0)
+  );
+}
+
+export default function WaiterPage({ fullName }: WaiterPageProps) {
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
   const { socketStatus, statusMessage, setStatusMessage, sendKitchenTicket } =
     useWaiterSocket(socketUrl);
 
-  const { products, categories, paymentMethods, loading, productsAll } =
+  const { products, categories, paymentMethods, loading, productsAll, baristas } =
     useWaiterData();
 
   const { cart, addToCart, changeQuantity, clearCart, calculateCartTotal } =
@@ -69,21 +84,27 @@ export default function WaiterPage() {
     );
   });
 
-  function handleProductClick(product: Product) {
-    const modifierGroups = Array.isArray(product.modifierGroups)
-      ? product.modifierGroups
-      : [];
+  function closeConfigurationModal() {
+    setSelectedProduct(null);
+    setIsModifierModalOpen(false);
+  }
 
-    if (modifierGroups.length > 0) {
+  function handleProductClick(product: Product) {
+    if (requiresConfiguration(product)) {
       setSelectedProduct(product);
       setIsModifierModalOpen(true);
       return;
     }
 
-    addToCart(product);
+    addToCart({
+      ...product,
+      station: product.category?.station ?? null,
+      selectedModifiers: [],
+      finalPrice: Number(product.price),
+    });
   }
 
-  async function handleCompleteSale(selectedBaristaId: string | null) {
+  async function handleCompleteSale() {
     if (cart.length === 0) {
       setStatusMessage("Add items before completing the sale.");
       return;
@@ -93,28 +114,18 @@ export default function WaiterPage() {
       setIsSubmitting(true);
       setStatusMessage("Processing sale...");
 
-      const total = calculateCartTotal();
-
       const payload = {
         items: cart.map((item) => ({
           productId: item.id,
-          productName: item.name,
           qty: item.quantity,
-          unitPrice: Number(item.finalPrice ?? item.price),
-          lineTotal: Number(item.finalPrice ?? item.price) * item.quantity,
-          modifiers: Array.isArray(item.selectedModifiers)
-            ? item.selectedModifiers.map((modifier) => ({
-                modifierId: modifier.optionId,
-                modifierName: modifier.optionName,
-                price: Number(modifier.price),
-                qty: 1,
-              }))
-            : [],
+          assignedBaristaId: item.assignedUserId ?? null,
+          modifiers: item.selectedModifiers.map((modifier) => ({
+            modifierId: modifier.optionId,
+            qty: modifier.qty,
+          })),
         })),
-        total,
         paymentMethod: selectedPayment,
         notes: orderNote,
-        selectedBaristaId,
       };
 
       const response = await fetch("/api/orders/complete-sale", {
@@ -133,39 +144,9 @@ export default function WaiterPage() {
 
       setLastReceipt(data.receipt ?? null);
 
-      sendKitchenTicket({
-        id: data.order.id,
-        orderId: data.order.id,
-        orderNumber: data.order.orderNumber,
-        createdAt: new Date().toISOString(),
-        status: "new",
-        note: orderNote,
-        assignedBaristaId: selectedBaristaId,
-        items: cart
-          .map((item, index) => {
-            const station = item.product?.category?.station;
-
-            let kitchenStation: KitchenStation | null = null;
-
-            if (station === "KITCHEN") {
-              kitchenStation = "KITCHEN";
-            } else if (station === "BARISTA") {
-              kitchenStation = "BARISTA";
-            }
-
-            if (!kitchenStation) {
-              return null;
-            }
-
-            return {
-              id: `${item.id}-${index}`,
-              name: item.name,
-              quantity: item.quantity,
-              station: kitchenStation,
-            };
-          })
-          .filter((item): item is NonNullable<typeof item> => item !== null),
-      });
+      if (data.kitchenTicket) {
+        sendKitchenTicket(data.kitchenTicket);
+      }
 
       clearCart();
       setOrderNote("");
@@ -182,41 +163,47 @@ export default function WaiterPage() {
   function handleModifierConfirm(
     product: Product,
     selectedModifiers: SelectedModifiers,
+    assignedBaristaId: string | null,
   ) {
     const modifierGroups = Array.isArray(product.modifierGroups)
       ? product.modifierGroups
       : [];
 
-    const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap(
-      (group) =>
-        group.options
-          .filter((option) =>
-            (selectedModifiers[group.id] || []).includes(option.id),
-          )
-          .map((option) => ({
-            groupId: group.id,
-            groupName: group.name,
-            optionId: option.id,
-            optionName: option.name,
-            price: Number(option.price),
-          })),
+    const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap((group) =>
+      group.options
+        .filter((option) =>
+          (selectedModifiers[group.id] || []).includes(option.id),
+        )
+        .map((option) => ({
+          groupId: group.id,
+          groupName: group.name,
+          optionId: option.id,
+          optionName: option.name,
+          price: Number(option.price),
+          qty: 1,
+        })),
     );
 
     const modifiersTotal = modifierLines.reduce(
-      (sum, modifier) => sum + Number(modifier.price),
+      (sum, modifier) => sum + Number(modifier.price) * modifier.qty,
       0,
     );
+    const assignedBarista =
+      assignedBaristaId != null
+        ? baristas.find((barista) => barista.id === assignedBaristaId) ?? null
+        : null;
 
-    const productWithModifiers: ProductWithModifiers = {
+    const productWithConfiguration: ProductWithConfiguration = {
       ...product,
+      station: product.category?.station ?? null,
       selectedModifiers: modifierLines,
       finalPrice: Number(product.price) + modifiersTotal,
+      assignedUserId: assignedBarista?.id ?? null,
+      assignedUserName: assignedBarista?.fullName ?? null,
     };
 
-    addToCart(productWithModifiers as Product);
-
-    setSelectedProduct(null);
-    setIsModifierModalOpen(false);
+    addToCart(productWithConfiguration);
+    closeConfigurationModal();
   }
 
   if (loading) {
@@ -230,7 +217,7 @@ export default function WaiterPage() {
     >
       <div className="mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[1.6fr_1fr]">
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-blue-200/30">
-          <HeaderWaiter />
+          <HeaderWaiter fullName={fullName} />
 
           <ProductQuickItems
             products={products}
@@ -277,12 +264,11 @@ export default function WaiterPage() {
       </div>
 
       <ModifierModal
+        key={`${selectedProduct?.id ?? "empty"}-${isModifierModalOpen ? "open" : "closed"}`}
         open={isModifierModalOpen}
         product={selectedProduct}
-        onClose={() => {
-          setSelectedProduct(null);
-          setIsModifierModalOpen(false);
-        }}
+        baristas={baristas}
+        onClose={closeConfigurationModal}
         onConfirm={handleModifierConfirm}
       />
     </main>

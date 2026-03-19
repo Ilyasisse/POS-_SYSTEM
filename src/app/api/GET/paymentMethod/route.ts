@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { PaymentMethod } from "@prisma/client";
 
 export async function GET() {
   try {
-    const payments = await prisma.payment.findMany({});
-    const products = await prisma.product.findMany({});
-    const product_fix = await prisma.product.updateMany({
-     data:{
-      isActive: false      
-     }
-    })
-    return NextResponse.json({ payments, products , product_fix });
+    return NextResponse.json(Object.values(PaymentMethod));
   } catch (error) {
-    console.error("API ERROR:", error);
+    console.error("GET /api/GET/paymentMethod error:", error);
+
     return NextResponse.json(
-      { error: "Failed to fetch products" },
+      { error: "Failed to fetch payment methods" },
       { status: 500 },
     );
   }

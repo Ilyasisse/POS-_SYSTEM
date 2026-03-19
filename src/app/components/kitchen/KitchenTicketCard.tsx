@@ -25,6 +25,11 @@ export default function KitchenTicketCard({
           <p className="text-xs text-slate-400">
             {new Date(ticket.createdAt).toLocaleTimeString("en-US")}
           </p>
+          {ticket.waiterName ? (
+            <p className="mt-1 text-xs font-semibold text-amber-300">
+              Waiter: {ticket.waiterName}
+            </p>
+          ) : null}
         </div>
 
         <span
@@ -41,10 +46,34 @@ export default function KitchenTicketCard({
           items.map((item) => (
             <div
               key={`${ticket.id}-${item.id}`}
-              className="flex items-center justify-between rounded-lg bg-slate-700/60 px-3 py-2"
+              className="rounded-lg bg-slate-700/60 px-3 py-2"
             >
-              <p className="text-sm font-semibold text-slate-100">{item.name}</p>
-              <p className="text-sm font-bold text-blue-300">x{item.quantity}</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-100">
+                  {item.name}
+                </p>
+                <p className="text-sm font-bold text-blue-300">x{item.quantity}</p>
+              </div>
+
+              {item.assignedUserName ? (
+                <p className="mt-1 text-xs text-amber-200">
+                  Assigned to: {item.assignedUserName}
+                </p>
+              ) : null}
+
+              {item.modifiers.length > 0 ? (
+                <div className="mt-2 space-y-1 rounded-md bg-slate-800/70 px-2 py-2">
+                  {item.modifiers.map((modifier) => (
+                    <div
+                      key={`${item.id}-${modifier.id}`}
+                      className="flex items-center justify-between text-xs text-slate-300"
+                    >
+                      <span>+ {modifier.name}</span>
+                      <span>x{modifier.qty}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))
         )}

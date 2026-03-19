@@ -22,48 +22,7 @@ async function main() {
   // -----------------------------
   // Users
   // -----------------------------
-  const [admin, manager, cashier, waiter, cook] = await prisma.$transaction([
-    prisma.user.create({
-      data: {
-        phoneNumber: "7028702",
-        fullName: "Ilyas Ahmed Isse",
-        role: "ADMIN",
-        isActive: true,
-      },
-    }),
-    prisma.user.create({
-      data: {
-        phoneNumber: "7796071",
-        fullName: "Amina Kheyr Maxamuud",
-        role: UserRole.MANAGER,
-        isActive: true,
-      },
-    }),
-    prisma.user.create({
-      data: {
-        phoneNumber: "7734167",
-        fullName: "Cabdi Cayanab",
-        role: UserRole.CASHIER,
-        isActive: true,
-      },
-    }),
-    prisma.user.create({
-      data: {
-        phoneNumber: "5303629",
-        fullName: "Abshir Cabdixamid Axmed",
-        role: UserRole.WAITER,
-        isActive: true,
-      },
-    }),
-    prisma.user.create({
-      data: {
-        phoneNumber: "7280049",
-        fullName: "Yaxaye Sugaw Maxamuud",
-        role: UserRole.COOK,
-        isActive: true,
-      },
-    }),
-  ]);
+ ;
 
   // -----------------------------
   // Tables
@@ -85,6 +44,7 @@ async function main() {
     data: {
       name: "Drinks",
       sortOrder: 3,
+      station: "CABITAAN",
     },
   });
 
@@ -92,6 +52,7 @@ async function main() {
     data: {
       name: "Fast Food",
       sortOrder: 4,
+      station: "FAST_FOOD",
     },
   });
 
@@ -99,6 +60,7 @@ async function main() {
     data: {
       name: "SomailFood",
       sortOrder: 5,
+      station: "CUNTO_SOOMAALI",
     },
   });
 
@@ -106,6 +68,7 @@ async function main() {
     data: {
       name: "Macmacaan",
       sortOrder: 2,
+      station: "CABITAAN",
     },
   });
 
@@ -113,6 +76,7 @@ async function main() {
     data: {
       name: "Tea",
       sortOrder: 1,
+      station: "CABITAAN",
     },
   });
 
@@ -120,6 +84,7 @@ async function main() {
     data: {
       name: "Coffee",
       sortOrder: 6,
+      station: "CABITAAN",
     },
   });
 
@@ -2760,58 +2725,12 @@ if (!table1) {
   throw new Error("No table found for seeded dine-in order")
 }
 
-const order = await prisma.order.create({
-  data: {
-    type: OrderType.DINE_IN,
-    status: OrderStatus.PAID,
-    tableId: table1.id,
-    cashierId: cashier.id,
-    notes: "Seed demo order",
-    total: 13.5,
-    closedAt: new Date(),
 
-    orderItems: {
-      create: [
-        {
-          productId: latte.id,
-          productName: latte.name,
-          qty: 1,
-          unitPrice: latte.price,
-          lineTotal: latte.price,
-        },
-        {
-          productId: croissant.id,
-          productName: croissant.name,
-          qty: 2,
-          unitPrice: croissant.price,
-          lineTotal: croissant.price.toNumber() * 2,
-        },
-      ],
-    },
-
-    payments: {
-      create: [
-        {
-          cashierId: cashier.id,
-          method: PaymentMethod.GOLIS,
-          amountPaid: 13.5,
-          reference: "seed",
-        },
-      ],
-    },
-  },
-  include: { orderItems: true, payments: true },
-})
 
   // -----------------------------
   // Shift
   // -----------------------------
-  await prisma.shift.create({
-    data: {
-      userId: cashier.id,
-      openingAmount: 20000,
-    },
-  });
+
 
   console.log("✅ Seed completed (no tax).");
 }
