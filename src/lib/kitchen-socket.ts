@@ -313,7 +313,9 @@ export function stationFromPathSegment(
   return normalizeKitchenStation(station);
 }
 
-export function getKitchenSocketUrl(filter?: string | KitchenTicketFilter | null) {
+export function getKitchenSocketUrl(
+  filter?: string | KitchenTicketFilter | null
+) {
   const base =
     process.env.NEXT_PUBLIC_KITCHEN_SOCKET_URL ?? "ws://localhost:3001";
 
@@ -335,5 +337,6 @@ export function getKitchenSocketUrl(filter?: string | KitchenTicketFilter | null
 
   const query = params.toString();
 
-  return query ? `${base}/api/kitchen/ws?${query}` : `${base}/api/kitchen/ws`;
+  // ✅ FIX: remove /api/kitchen/ws
+  return query ? `${base}?${query}` : base;
 }
