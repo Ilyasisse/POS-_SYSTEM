@@ -282,6 +282,11 @@ function redirectByRoleAndStation(
     return;
   }
 
+  if (role === "CABITAAN" || role === "Cabitaan") {
+    router.replace("/kitchen/cabitaan");
+    return;
+  }
+
   if (role === "COOK") {
     if (station === "BARISTA") {
       router.replace("/kitchen/barista");

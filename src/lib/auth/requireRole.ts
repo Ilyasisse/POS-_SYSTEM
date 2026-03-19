@@ -25,18 +25,27 @@ export async function requireRole(
     redirect("/login?error=staff_not_found");
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const isCabitaanRole =
+    user.role === "Cabitaan" ||
+    (user.role as string) === "CABITAAN";
+
+  if (!allowedRoles.includes(user.role) && !(isCabitaanRole && allowedRoles.includes("Cabitaan"))) {
     redirect("/login?error=unauthorized");
   }
+
+  const effectiveStation =
+    user.station ??
+    (user.role === "BARISTA"
+      ? "BARISTA"
+      : isCabitaanRole
+        ? "CABITAAN"
+        : null);
 
   if (
     allowedStations &&
     allowedStations.length > 0 &&
     user.role !== "ADMIN" &&
-    !(
-      (user.role === "BARISTA" && allowedStations.includes("BARISTA")) ||
-      (user.station && allowedStations.includes(user.station))
-    )
+    !(effectiveStation && allowedStations.includes(effectiveStation))
   ) {
     redirect("/login?error=unauthorized");
   }

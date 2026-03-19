@@ -4,7 +4,9 @@ export type UserRole =
   | "CASHIER"
   | "WAITER"
   | "COOK"
-  | "BARISTA";
+  | "BARISTA"
+  | "CABITAAN"
+  | "Cabitaan";
 
 export type AppUser = {
   id: string;
@@ -16,6 +18,8 @@ export type AppUser = {
 };
 
 export function getDefaultRouteForUser(user: AppUser) {
+  const isCabitaanRole = user.role === "CABITAAN" || user.role === "Cabitaan";
+
   if (user.role === "ADMIN" || user.role === "MANAGER") {
     return "/admin";
   }
@@ -32,6 +36,10 @@ export function getDefaultRouteForUser(user: AppUser) {
     return "/kitchen/barista";
   }
 
+  if (isCabitaanRole || user.station === "CABITAAN") {
+    return "/kitchen/cabitaan";
+  }
+
   if (user.role === "COOK" && user.station === "FAST_FOOD") {
     return "/kitchen/fast-food";
   }
@@ -44,6 +52,8 @@ export function getDefaultRouteForUser(user: AppUser) {
 }
 
 export function canAccessPath(pathname: string, user: AppUser) {
+  const isCabitaanRole = user.role === "CABITAAN" || user.role === "Cabitaan";
+
   if (pathname.startsWith("/admin")) {
     return user.role === "ADMIN" || user.role === "MANAGER";
   }
@@ -57,7 +67,12 @@ export function canAccessPath(pathname: string, user: AppUser) {
   }
 
   if (pathname.startsWith("/kitchen")) {
-    return user.role === "ADMIN" || user.role === "BARISTA" || user.role === "COOK";
+    return (
+      user.role === "ADMIN" ||
+      user.role === "BARISTA" ||
+      user.role === "COOK" ||
+      isCabitaanRole
+    );
   }
 
   return true;

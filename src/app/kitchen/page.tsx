@@ -2,7 +2,7 @@ import KitchenClient from "@/app/components/kitchen/KitchenClient";
 import { requireRole } from "@/lib/auth/requireRole";
 
 export default async function KitchenPage() {
-  const currentUser = await requireRole(["COOK", "BARISTA", "ADMIN"]);
+  const currentUser = await requireRole(["COOK", "BARISTA", "Cabitaan", "ADMIN"]);
 
   return (
     <KitchenClient

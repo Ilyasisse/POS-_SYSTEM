@@ -19,7 +19,10 @@ export default async function KitchenStationPage({
     notFound();
   }
 
-  const currentUser = await requireRole(["ADMIN", "BARISTA", "COOK"], [station]);
+  const currentUser = await requireRole(
+    ["ADMIN", "BARISTA", "COOK", "Cabitaan"],
+    [station]
+  );
 
   return (
     <KitchenClient
