@@ -36,13 +36,24 @@ export default function LoginPageClient() {
   }, [searchParams]);
 
   useEffect(() => {
+    const supabaseClient = supabase;
+
+    if (!supabaseClient) {
+      setCheckingSession(false);
+      setError(
+        "Supabase environment variables are missing. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.",
+      );
+      return;
+    }
+
+    const client = supabaseClient;
     let mounted = true;
 
     async function checkExistingSession() {
       try {
         const {
           data: { user },
-        } = await supabase.auth.getUser();
+        } = await client.auth.getUser();
 
         if (!mounted) return;
 
@@ -82,6 +93,12 @@ export default function LoginPageClient() {
     setLoading(true);
 
     try {
+      if (!supabase) {
+        throw new Error(
+          "Supabase environment variables are missing. Update the Vercel project settings and redeploy.",
+        );
+      }
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -229,7 +246,7 @@ export default function LoginPageClient() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !supabase}
             className="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-60"
           >
             {loading ? "Signing in..." : "Sign In"}

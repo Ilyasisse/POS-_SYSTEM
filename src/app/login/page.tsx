@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import LoginPageClient from "./LoginPageClient";
 
+export const dynamic = "force-dynamic";
+
 function LoginFallback() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
