@@ -20,15 +20,15 @@ export default function KitchenTicketCard({
     <article className="rounded-2xl border border-slate-700 bg-slate-800/70 p-4 shadow-lg shadow-black/25">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-slate-300">
-            Tigidh #{ticket.orderNumber}
+          <p className="text-md font-semibold text-slate-300">
+            Ticket #{ticket.orderNumber}
           </p>
-          <p className="text-xs text-slate-400">
-            {new Date(ticket.createdAt).toLocaleTimeString("so-SO")}
+          <p className="text-sm text-slate-400">
+            {new Date(ticket.createdAt).toLocaleTimeString("en-US")}
           </p>
           {ticket.waiterName ? (
-            <p className="mt-1 text-xs font-semibold text-amber-300">
-              Adeege: {ticket.waiterName}
+            <p className="mt-1 text-md font-semibold text-amber-300">
+              Waiter: {ticket.waiterName}
             </p>
           ) : null}
         </div>
@@ -42,7 +42,7 @@ export default function KitchenTicketCard({
 
       <div className="space-y-2">
         {items.length === 0 ? (
-          <p className="text-sm text-slate-400">Wax alaab ah ma jiraan</p>
+          <p className="text-sm text-slate-400">No items</p>
         ) : (
           items.map((item) => (
             <div
@@ -56,12 +56,7 @@ export default function KitchenTicketCard({
                 <p className="text-sm font-bold text-blue-300">x{item.quantity}</p>
               </div>
 
-              {item.assignedUserName ? (
-                <p className="mt-1 text-xs text-amber-200">
-                  Loo qoondeeyay: {item.assignedUserName}
-                </p>
-              ) : null}
-
+            
               {item.modifiers.length > 0 ? (
                 <div className="mt-2 space-y-1 rounded-md bg-slate-800/70 px-2 py-2">
                   {item.modifiers.map((modifier) => (
@@ -82,7 +77,7 @@ export default function KitchenTicketCard({
 
       {ticket.note ? (
         <p className="mt-3 rounded-lg border border-amber-700/50 bg-amber-900/25 px-3 py-2 text-xs text-amber-200">
-          Fiiro: {ticket.note}
+          Note: {ticket.note}
         </p>
       ) : null}
 
@@ -101,7 +96,7 @@ export default function KitchenTicketCard({
             onClick={() => onUpdateStatus(ticket.id, "new")}
             className="min-h-11 rounded-lg bg-slate-600 text-sm font-semibold text-white"
           >
-            Dib u fur
+            Dib fur
           </button>
         )}
 
@@ -110,7 +105,7 @@ export default function KitchenTicketCard({
           onClick={() => onUpdateStatus(ticket.id, "done")}
           className="min-h-11 rounded-lg bg-green-600 text-sm font-semibold text-white"
         >
-          Dhamee
+          Dhammaay
         </button>
       </div>
     </article>

@@ -22,7 +22,7 @@ export default function CategoryFilter({
             : "bg-white text-slate-700 hover:bg-blue-100"
         }`}
       >
-        Dhammaan
+       Wax walba
       </button>
 
       {categories.map((category) => (

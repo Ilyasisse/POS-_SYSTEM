@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getKitchenSocketUrl } from "@/lib/kitchen-socket";
 import type {
   Product,
@@ -31,6 +32,8 @@ type ProductWithConfiguration = Product & {
 
 type WaiterPageProps = {
   fullName: string;
+  totalSales: number;
+  nextSalesResetAt: string;
 };
 
 function requiresBaristaAssignment(product: Product) {
@@ -44,7 +47,12 @@ function requiresConfiguration(product: Product) {
   );
 }
 
-export default function WaiterPage({ fullName }: WaiterPageProps) {
+export default function WaiterPage({
+  fullName,
+  totalSales,
+  nextSalesResetAt,
+}: WaiterPageProps) {
+  const router = useRouter();
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
   const { socketStatus, statusMessage, setStatusMessage, sendKitchenTicket } =
     useWaiterSocket(socketUrl);
@@ -65,6 +73,32 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
 
   const [lastReceipt, setLastReceipt] = useState<ReceiptSnapshot | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentTotalSales, setCurrentTotalSales] = useState(totalSales);
+
+  useEffect(() => {
+    setCurrentTotalSales(totalSales);
+  }, [totalSales]);
+
+  useEffect(() => {
+    const resetAt = new Date(nextSalesResetAt).getTime();
+    const delay = resetAt - Date.now();
+
+    if (Number.isNaN(resetAt)) {
+      return;
+    }
+
+    if (delay <= 0) {
+      router.refresh();
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCurrentTotalSales(0);
+      router.refresh();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [nextSalesResetAt, router]);
 
   const filteredProducts =
     selectedCategory === "All"
@@ -106,13 +140,13 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
 
   async function handleCompleteSale() {
     if (cart.length === 0) {
-      setStatusMessage("Ku dar alaabo ka hor intaadan iibka dhammayn.");
+      setStatusMessage("Add items before completing the sale.");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      setStatusMessage("Iibka waa la farsameynayaa...");
+      setStatusMessage("Processing sale...");
 
       const payload = {
         items: cart.map((item) => ({
@@ -139,10 +173,13 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || "Iibka lama dhammaystiri karin.");
+        throw new Error(data?.error || "The sale could not be completed.");
       }
 
       setLastReceipt(data.receipt ?? null);
+      setCurrentTotalSales(
+        (current) => current + Number(data.receipt?.total ?? 0),
+      );
 
       if (data.kitchenTicket) {
         sendKitchenTicket(data.kitchenTicket);
@@ -150,10 +187,10 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
 
       clearCart();
       setOrderNote("");
-      setStatusMessage("Iibka si guul leh ayuu u dhammaaday.");
+      setStatusMessage("Sale completed successfully.");
     } catch (error) {
       setStatusMessage(
-        error instanceof Error ? error.message : "Waxbaa khaldamay.",
+        error instanceof Error ? error.message : "Something went wrong.",
       );
     } finally {
       setIsSubmitting(false);
@@ -207,7 +244,7 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
   }
 
   if (loading) {
-    return <p className="p-6">Waa la soo gelinayaa...</p>;
+    return <p className="p-6">Loading...</p>;
   }
 
   return (
@@ -217,7 +254,7 @@ export default function WaiterPage({ fullName }: WaiterPageProps) {
     >
       <div className="mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[1.6fr_1fr]">
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-blue-200/30">
-          <HeaderWaiter fullName={fullName} />
+          <HeaderWaiter fullName={fullName} totalSales={currentTotalSales} />
 
           <ProductQuickItems
             products={products}

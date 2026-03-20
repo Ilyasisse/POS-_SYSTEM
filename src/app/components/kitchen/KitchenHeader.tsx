@@ -24,12 +24,12 @@ export default function KitchenHeader({
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800/80 p-4">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-          Bandhigga jikada
+          Shaashadda Jikada
         </p>
         <h1 className="text-2xl font-bold">
           {station
-            ? `Dalabaadka ${translateKitchenStationName(station)}`
-            : "Dalabaadka tooska ah"}
+            ? `${translateKitchenStationName(station)} Orders`
+            : "Live Orders"}
         </h1>
       </div>
 
@@ -38,7 +38,7 @@ export default function KitchenHeader({
       <div className="flex flex-wrap items-center gap-2">
         <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-right">
           <p className="text-xs uppercase tracking-wide text-slate-400">
-            Waxaad ku gashay
+            Signed In
           </p>
           <p className="text-sm font-semibold text-slate-100">
             {currentUserName}
@@ -61,7 +61,7 @@ export default function KitchenHeader({
         </span>
 
         <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold uppercase">
-          Saf {queueCount}
+          Safka {queueCount}
         </span>
       </div>
     </header>

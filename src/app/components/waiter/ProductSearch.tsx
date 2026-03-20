@@ -10,12 +10,12 @@ export default function ProductSearch({
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-semibold text-slate-600">
-        Raadi shey ama SKU
+        Raadi magaca dalabka ama SKU
       </span>
       <input
         value={searchTerm}
         onChange={(event) => onSearchTermChange(event.target.value)}
-        placeholder="Raadi badeecad..."
+        placeholder="Raadi dalab..."
         className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
       />
     </label>

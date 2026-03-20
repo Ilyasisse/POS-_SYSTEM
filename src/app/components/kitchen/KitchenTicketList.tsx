@@ -14,7 +14,7 @@ export default function KitchenTicketList({
   onUpdateStatus,
 }: KitchenTicketListProps) {
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <section className="flex flex-col-reverse gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
       {tickets.map((ticket) => (
         <KitchenTicketCard
           key={ticket.id}

@@ -7,11 +7,11 @@ import type { SocketStatus } from "@/lib/types";
 export function translateSocketStatus(status: SocketStatus): string {
   switch (status) {
     case "connected":
-      return "Xiran";
+      return "Connected";
     case "connecting":
-      return "Isku xiraya";
+      return "Connecting";
     case "disconnected":
-      return "Go'an";
+      return "Disconnected";
     default:
       return status;
   }
@@ -24,13 +24,13 @@ export function translateKitchenStationName(
     case "BARISTA":
       return "Barista";
     case "CABITAAN":
-      return "Cabitaan";
+      return "Beverages";
     case "FAST_FOOD":
-      return "Cunto Degdeg ah";
+      return "Fast Food";
     case "CUNTO_SOOMAALI":
-      return "Cunto Soomaali";
+      return "Somali Food";
     default:
-      return "Jiko";
+      return "Kitchen";
   }
 }
 
@@ -39,11 +39,11 @@ export function translateKitchenTicketStatus(
 ): string {
   switch (status) {
     case "new":
-      return "Cusub";
+      return "New";
     case "in_progress":
-      return "Socda";
+      return "In Progress";
     case "done":
-      return "Dhammaystiran";
+      return "Done";
     default:
       return status;
   }
@@ -52,16 +52,16 @@ export function translateKitchenTicketStatus(
 export function translateUserRole(role?: string | null): string {
   switch (role) {
     case "ADMIN":
-      return "Maamule";
+      return "Admin";
     case "WAITER":
-      return "Adeege";
+      return "Waiter";
     case "BARISTA":
       return "Barista";
     case "COOK":
-      return "Cunto kariye";
+      return "Cook";
     case "Cabitaan":
     case "CABITAAN":
-      return "Cabitaan";
+      return "Beverages";
     default:
       return role ?? "";
   }
@@ -70,7 +70,7 @@ export function translateUserRole(role?: string | null): string {
 export function translatePaymentMethod(method: string): string {
   switch (method) {
     case "OTHER":
-      return "Kale";
+      return "Other";
     default:
       return method;
   }

@@ -10,7 +10,7 @@ export default function ProductGrid({
   onAddToCart,
 }: ProductGridProps) {
   return (
-    <div className="grid max-h-[55vh] grid-cols-2 gap-3 overflow-y-auto pr-1 md:grid-cols-3">
+    <div className="grid  grid-cols-2 gap-3 overflow-y-auto pr-1 md:grid-cols-3">
       {products.map((item) => (
         <button
           key={item.id}

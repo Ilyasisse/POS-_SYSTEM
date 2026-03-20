@@ -91,21 +91,21 @@ export default function ModifierModal({
       if (count < min) {
         errors[group.id] =
           min === 1
-            ? "Fadlan dooro ugu yaraan 1 ikhtiyaar."
-            : `Fadlan dooro ugu yaraan ${min} ikhtiyaar.`;
+            ? "Fadlan dooro 1"
+            : `Fadlan dooro ${min} `;
         continue;
       }
 
       if (count > max) {
         errors[group.id] =
           max === 1
-            ? "Waxaad dooran kartaa hal ikhtiyaar oo keliya."
-            : `Waxaad dooran kartaa ugu badnaan ${max} ikhtiyaar.`;
+            ? "Waxaad dooran kartaa 1"
+            : `Waxaad dooran kartaa ${max} `;
       }
     }
 
     if (requiresBaristaAssignment(product) && !selectedBaristaId) {
-      errors.barista = "Dooro baristaha qaadanaya sheygan.";
+      errors.barista = "Dooro barista-ka";
     }
 
     return errors;
@@ -164,10 +164,10 @@ export default function ModifierModal({
     const min = getMinSelect(group);
     const max = getMaxSelect(group);
 
-    if (min === 0 && max === 1) return "(Ikhtiyaari, dooro ugu badnaan hal)";
+    if (min === 0 && max === 1) return "(dooro ugu badnaan hal)";
     if (min === 1 && max === 1) return "(Dooro hal)";
     if (min === 0 && max > 1) {
-      return `(Ikhtiyaari, dooro ugu badnaan ${max})`;
+      return `(dooro ugu badnaan hal ${max})`;
     }
     if (min === max) return `(Dooro ${min})`;
     return `(Dooro ${min} ilaa ${max})`;
@@ -177,7 +177,7 @@ export default function ModifierModal({
     if (!product) return;
 
     if (!isValid) {
-      alert("Fadlan sax xulashooyinka ka hor intaadan sii wadin.");
+      alert("Fadlan sax doorashooyinka");
       return;
     }
 
@@ -198,7 +198,7 @@ export default function ModifierModal({
             <div>
               <h2 className="text-xl font-bold">{product.name}</h2>
               <p className="text-sm text-slate-500">
-                Habee sheygan ka hor inta aan dalabka lagu darin.
+                Habeey order-ka
               </p>
             </div>
 
@@ -206,7 +206,7 @@ export default function ModifierModal({
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
             >
-              Xir
+             Xir
             </button>
           </div>
 
@@ -216,18 +216,14 @@ export default function ModifierModal({
                 <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <div className="mb-3">
                     <h3 className="font-semibold text-slate-900">
-                      U qoondee barista
+                      Dooro barista-ka
                     </h3>
-                    <p className="text-sm text-slate-600">
-                      Badeecaddan waxay aadeysaa qeybta BARISTA. Dooro qofka
-                      qaadanaya.
-                    </p>
                   </div>
 
                   {baristas.length === 0 ? (
                     <p className="text-sm text-red-600">
-                      Barista shaqeynaya lama helin. Ku dar isticmaale BARISTA
-                      firfircoon ka hor inta aan sheygan la dirin.
+                      No active barista was found. Add an active BARISTA user
+                      before sending this item.
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -249,11 +245,6 @@ export default function ModifierModal({
                               <p className="font-medium text-slate-900">
                                 {barista.fullName}
                               </p>
-                              {barista.email ? (
-                                <p className="text-sm text-slate-500">
-                                  {barista.email}
-                                </p>
-                              ) : null}
                             </div>
 
                             <div
@@ -283,7 +274,7 @@ export default function ModifierModal({
 
               {modifierGroups.length === 0 ? (
                 <p className="text-sm text-slate-500">
-                  Wax-ka-beddel lama heli karo.
+                  Ma jiraan modifiers.
                 </p>
               ) : (
                 modifierGroups.map((group) => {
@@ -320,7 +311,7 @@ export default function ModifierModal({
                               <div>
                                 <p className="font-medium">{option.name}</p>
                                 <p className="text-sm text-slate-500">
-                                  +${Number(option.price).toFixed(2)}
+                                  ${Number(option.price).toFixed(2)}
                                 </p>
                               </div>
 
@@ -362,7 +353,7 @@ export default function ModifierModal({
               onClick={handleConfirm}
               className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
             >
-              Ku dar
+             Ku dar dalab
             </button>
           </div>
         </div>

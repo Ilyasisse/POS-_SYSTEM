@@ -17,7 +17,7 @@ export default function PaymentMethodSelector({
   return (
     <div className="rounded-xl border border-slate-200 p-3 text-sm">
       <p className="mb-2 font-semibold text-slate-700">
-        Habka lacag-bixinta
+        Habka Lacag Bixinta
       </p>
 
       <div className="grid grid-cols-3 gap-2">

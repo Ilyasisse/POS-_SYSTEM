@@ -58,8 +58,8 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         setSocketStatus("connected");
         setStatusMessage(
           station
-            ? `Waxaa lagu xirmay safka jikada ee ${translateKitchenStationName(station)}.`
-            : "Waa lagu xirmay. Dalabyo ayaa la sugayaa...",
+            ? `Connected to the ${translateKitchenStationName(station)} kitchen queue.`
+            : "Connected. Waiting for orders...",
         );
       };
 
@@ -101,7 +101,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
           });
 
           setStatusMessage(
-            `Tigidh cusub #${filteredTicket.orderNumber} waa la helay.`,
+            `New ticket #${filteredTicket.orderNumber} received`,
           );
           return;
         }
@@ -129,7 +129,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         if (disposed) return;
 
         setSocketStatus("disconnected");
-        setStatusMessage("Xiriirku wuu go'ay. Dib ayaa loo isku dayayaa...");
+        setStatusMessage("Connection lost. Reconnecting...");
         reconnectTimerRef.current = window.setTimeout(connect, 1500);
       };
     };
@@ -168,7 +168,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       setStatusMessage(
-        "Lama waafajin karo cusboonaysiinta. Xiriirka jikada wuu maqan yahay.",
+        "Unable to sync the update. The kitchen connection is offline.",
       );
       return;
     }
