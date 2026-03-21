@@ -91,6 +91,15 @@ function buildKitchenTicketItems(
   );
 }
 
+function buildKitchenTicketStationStatuses(
+  items: KitchenTicketItem[],
+): KitchenTicket["stationStatuses"] {
+  return items.reduce<KitchenTicket["stationStatuses"]>((accumulator, item) => {
+    accumulator[item.station] = "new";
+    return accumulator;
+  }, {});
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -393,6 +402,7 @@ export async function POST(request: Request) {
             orderNumber: result.order.orderNumber,
             createdAt: result.order.createdAt.toISOString(),
             status: "new",
+            stationStatuses: buildKitchenTicketStationStatuses(kitchenTicketItems),
             note: body.notes ?? null,
             waiterId: currentUser.id,
             waiterName: currentUser.fullName,

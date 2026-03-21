@@ -32,6 +32,7 @@ export default function KitchenClient({
   });
 
   const visibleTickets: KitchenTicket[] = activeTickets;
+  const canUpdateStatus = Boolean(station);
 
   return (
     <main
@@ -55,6 +56,7 @@ export default function KitchenClient({
           <KitchenTicketList
             tickets={visibleTickets}
             onUpdateStatus={updateTicketStatus}
+            canUpdateStatus={canUpdateStatus}
           />
         )}
       </div>

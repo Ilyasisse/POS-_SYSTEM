@@ -8,11 +8,13 @@ import { translateKitchenTicketStatus } from "@/lib/ui-text";
 type KitchenTicketCardProps = {
   ticket: KitchenTicket;
   onUpdateStatus: (id: string, status: KitchenTicketStatus) => void;
+  canUpdateStatus?: boolean;
 };
 
 export default function KitchenTicketCard({
   ticket,
   onUpdateStatus,
+  canUpdateStatus = true,
 }: KitchenTicketCardProps) {
   const items = Array.isArray(ticket.items) ? ticket.items : [];
 
@@ -81,33 +83,39 @@ export default function KitchenTicketCard({
         </p>
       ) : null}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        {ticket.status === "new" ? (
-          <button
-            type="button"
-            onClick={() => onUpdateStatus(ticket.id, "in_progress")}
-            className="min-h-11 rounded-lg bg-blue-600 text-sm font-semibold text-white"
-          >
-            Bilow
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onUpdateStatus(ticket.id, "new")}
-            className="min-h-11 rounded-lg bg-slate-600 text-sm font-semibold text-white"
-          >
-            Dib fur
-          </button>
-        )}
+      {canUpdateStatus ? (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {ticket.status === "new" ? (
+            <button
+              type="button"
+              onClick={() => onUpdateStatus(ticket.id, "in_progress")}
+              className="min-h-11 rounded-lg bg-blue-600 text-sm font-semibold text-white"
+            >
+              Bilow
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onUpdateStatus(ticket.id, "new")}
+              className="min-h-11 rounded-lg bg-slate-600 text-sm font-semibold text-white"
+            >
+              Dib fur
+            </button>
+          )}
 
-        <button
-          type="button"
-          onClick={() => onUpdateStatus(ticket.id, "done")}
-          className="min-h-11 rounded-lg bg-green-600 text-sm font-semibold text-white"
-        >
-          Dhammaay
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => onUpdateStatus(ticket.id, "done")}
+            className="min-h-11 rounded-lg bg-green-600 text-sm font-semibold text-white"
+          >
+            Dhammaay
+          </button>
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-slate-400">
+          Open a specific station queue to update this ticket.
+        </p>
+      )}
     </article>
   );
 }

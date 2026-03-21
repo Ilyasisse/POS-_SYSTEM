@@ -8,6 +8,9 @@ export const KITCHEN_STATIONS = [
 export type KitchenStation = (typeof KITCHEN_STATIONS)[number];
 
 export type KitchenTicketStatus = "new" | "in_progress" | "done";
+export type KitchenTicketStationStatuses = Partial<
+  Record<KitchenStation, KitchenTicketStatus>
+>;
 
 export type KitchenViewerRole = "ADMIN" | "BARISTA" | "COOK" | string;
 
@@ -34,6 +37,7 @@ export type KitchenTicket = {
   orderNumber: number;
   createdAt: string;
   status: KitchenTicketStatus;
+  stationStatuses: KitchenTicketStationStatuses;
   note?: string | null;
   waiterId?: string | null;
   waiterName?: string | null;
@@ -53,6 +57,7 @@ export type KitchenSocketMessage =
       type: "UPDATE_ORDER_STATUS";
       payload: {
         id: string;
+        station: KitchenStation;
         status: KitchenTicketStatus;
       };
     };
@@ -61,6 +66,7 @@ type KitchenTicketModifierLike = Partial<KitchenTicketModifier>;
 
 type KitchenTicketLike = Partial<KitchenTicket> & {
   receiptNo?: number;
+  stationStatuses?: Partial<Record<string, KitchenTicketStatus>>;
   items?: Array<
     Partial<KitchenTicketItem> & {
       station?: string | null;
@@ -117,6 +123,95 @@ function normalizeTicketModifier(
   };
 }
 
+function isKitchenTicketStatus(value: unknown): value is KitchenTicketStatus {
+  return value === "new" || value === "in_progress" || value === "done";
+}
+
+function getUniqueStations(items: KitchenTicketItem[]): KitchenStation[] {
+  return Array.from(
+    new Set(
+      items
+        .map((item) => item?.station)
+        .filter((station): station is KitchenStation => Boolean(station)),
+    ),
+  );
+}
+
+function normalizeKitchenTicketStationStatuses(
+  stationStatuses: Partial<Record<string, KitchenTicketStatus>> | null | undefined,
+  items: KitchenTicketItem[],
+  fallbackStatus?: unknown,
+): KitchenTicketStationStatuses {
+  const resolvedFallback = isKitchenTicketStatus(fallbackStatus)
+    ? fallbackStatus
+    : "new";
+
+  return getUniqueStations(items).reduce<KitchenTicketStationStatuses>(
+    (accumulator, station) => {
+      const candidate = stationStatuses?.[station];
+      accumulator[station] = isKitchenTicketStatus(candidate)
+        ? candidate
+        : resolvedFallback;
+      return accumulator;
+    },
+    {},
+  );
+}
+
+export function getKitchenTicketStatusForItems(
+  ticket: Pick<KitchenTicket, "items" | "stationStatuses" | "status">,
+  items: KitchenTicketItem[] = ticket.items,
+): KitchenTicketStatus {
+  const safeItems = Array.isArray(items) ? items : [];
+  const stationStatuses =
+    ticket &&
+    typeof ticket === "object" &&
+    ticket.stationStatuses &&
+    typeof ticket.stationStatuses === "object"
+      ? ticket.stationStatuses
+      : {};
+  const stations = getUniqueStations(safeItems);
+
+  if (stations.length === 0) {
+    return isKitchenTicketStatus(ticket?.status) ? ticket.status : "new";
+  }
+
+  const statuses = stations.map(
+    (station) => stationStatuses[station] ?? "new",
+  );
+
+  if (statuses.every((status) => status === "done")) {
+    return "done";
+  }
+
+  if (statuses.every((status) => status === "new")) {
+    return "new";
+  }
+
+  return "in_progress";
+}
+
+export function setKitchenTicketStationStatus(
+  ticket: KitchenTicket,
+  station: KitchenStation,
+  status: KitchenTicketStatus,
+): KitchenTicket {
+  const stationStatuses = {
+    ...(ticket.stationStatuses ?? {}),
+    [station]: status,
+  };
+
+  const nextTicket = {
+    ...ticket,
+    stationStatuses,
+  };
+
+  return {
+    ...nextTicket,
+    status: getKitchenTicketStatusForItems(nextTicket),
+  };
+}
+
 export function isKitchenStation(value: string): value is KitchenStation {
   return KITCHEN_STATIONS.includes(value as KitchenStation);
 }
@@ -155,6 +250,10 @@ export function normalizeKitchenTicketItem(
     modifiers?: KitchenTicketModifierLike[] | null;
   },
 ): KitchenTicketItem | null {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
   const station = normalizeKitchenStation(item.station);
 
   if (!station || !item.id || !item.name) {
@@ -181,6 +280,10 @@ export function normalizeKitchenTicketItem(
 }
 
 export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket | null {
+  if (!ticket || typeof ticket !== "object") {
+    return null;
+  }
+
   const orderId = ticket.orderId ?? ticket.id;
   const orderNumber = Number(ticket.orderNumber ?? ticket.receiptNo);
   const normalizedItems = Array.isArray(ticket.items)
@@ -197,19 +300,28 @@ export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket
     return null;
   }
 
-  return {
+  const stationStatuses = normalizeKitchenTicketStationStatuses(
+    ticket.stationStatuses,
+    normalizedItems,
+    ticket.status,
+  );
+
+  const normalizedTicket: KitchenTicket = {
     id: String(ticket.id),
     orderId: String(orderId),
     orderNumber: Number(orderNumber),
     createdAt: String(ticket.createdAt ?? new Date().toISOString()),
-    status:
-      ticket.status === "in_progress" || ticket.status === "done"
-        ? ticket.status
-        : "new",
+    status: "new",
+    stationStatuses,
     note: ticket.note ? String(ticket.note) : null,
     waiterId: ticket.waiterId ? String(ticket.waiterId) : null,
     waiterName: ticket.waiterName ? String(ticket.waiterName) : null,
     items: normalizedItems,
+  };
+
+  return {
+    ...normalizedTicket,
+    status: getKitchenTicketStatusForItems(normalizedTicket),
   };
 }
 
@@ -219,14 +331,20 @@ export function filterKitchenTicketByStation(
   userId?: string | null,
   role?: KitchenViewerRole | null,
 ): KitchenTicket | null {
-  const filter = resolveFilter(stationOrFilter, userId, role);
-  const normalizedStation = normalizeKitchenStation(filter.station);
+  const normalizedTicket = normalizeKitchenTicket(ticket);
 
-  if (ticket.status === "done") {
+  if (!normalizedTicket) {
     return null;
   }
 
-  let items = Array.isArray(ticket.items) ? ticket.items : [];
+  const filter = resolveFilter(stationOrFilter, userId, role);
+  const normalizedStation = normalizeKitchenStation(filter.station);
+
+  if (normalizedTicket.status === "done") {
+    return null;
+  }
+
+  let items = Array.isArray(normalizedTicket.items) ? normalizedTicket.items : [];
 
   if (normalizedStation) {
     items = items.filter((item) => item.station === normalizedStation);
@@ -244,8 +362,15 @@ export function filterKitchenTicketByStation(
     return null;
   }
 
+  const visibleStatus = getKitchenTicketStatusForItems(normalizedTicket, items);
+
+  if (visibleStatus === "done") {
+    return null;
+  }
+
   return {
-    ...ticket,
+    ...normalizedTicket,
+    status: visibleStatus,
     items,
   };
 }

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   filterKitchenTicketByStation,
   getKitchenSocketUrl,
+  getKitchenTicketStatusForItems,
   normalizeKitchenStation,
+  setKitchenTicketStationStatus,
   type KitchenSocketMessage,
   type KitchenTicket,
   type KitchenTicketStatus,
@@ -25,6 +27,11 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
   const station = normalizeKitchenStation(options?.station);
   const currentUserId = options?.currentUserId ?? null;
   const currentUserRole = options?.currentUserRole ?? null;
+  const filterOptions = {
+    station,
+    userId: currentUserId,
+    role: currentUserRole,
+  };
 
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [socketStatus, setSocketStatus] = useState<SocketStatus>("connecting");
@@ -72,9 +79,9 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
             incoming.payload
               .map((ticket) =>
                 filterKitchenTicketByStation(ticket, {
-                  station,
-                  userId: currentUserId,
-                  role: currentUserRole,
+                  station: filterOptions.station,
+                  userId: filterOptions.userId,
+                  role: filterOptions.role,
                 }),
               )
               .filter((ticket): ticket is KitchenTicket => ticket !== null),
@@ -84,9 +91,9 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
 
         if (incoming.type === "NEW_ORDER") {
           const filteredTicket = filterKitchenTicketByStation(incoming.payload, {
-            station,
-            userId: currentUserId,
-            role: currentUserRole,
+            station: filterOptions.station,
+            userId: filterOptions.userId,
+            role: filterOptions.role,
           });
 
           if (!filteredTicket) {
@@ -107,16 +114,26 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         }
 
         if (incoming.type === "UPDATE_ORDER_STATUS") {
-          const { id, status } = incoming.payload;
+          const { id, station: updatedStation, status } = incoming.payload;
 
           setTickets((current) => {
-            if (status === "done") {
-              return current.filter((ticket) => ticket.id !== id);
-            }
+            return current.reduce<KitchenTicket[]>((accumulator, ticket) => {
+              if (ticket.id !== id) {
+                accumulator.push(ticket);
+                return accumulator;
+              }
 
-            return current.map((ticket) =>
-              ticket.id === id ? { ...ticket, status } : ticket,
-            );
+              const nextTicket = filterKitchenTicketByStation(
+                setKitchenTicketStationStatus(ticket, updatedStation, status),
+                filterOptions,
+              );
+
+              if (nextTicket) {
+                accumulator.push(nextTicket);
+              }
+
+              return accumulator;
+            }, []);
           });
         }
       };
@@ -147,22 +164,40 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         socketRef.current.close();
       }
     };
-  }, [currentUserId, currentUserRole, station]);
+  }, [filterOptions.role, filterOptions.station, filterOptions.userId]);
 
   const activeTickets = useMemo(
-    () => tickets.filter((ticket) => ticket.status !== "done"),
+    () =>
+      tickets.filter(
+        (ticket) => getKitchenTicketStatusForItems(ticket, ticket.items) !== "done",
+      ),
     [tickets],
   );
 
   const updateTicketStatus = (id: string, status: KitchenTicketStatus) => {
-    setTickets((current) => {
-      if (status === "done") {
-        return current.filter((ticket) => ticket.id !== id);
-      }
+    if (!station) {
+      setStatusMessage("Open a station queue to change ticket status.");
+      return;
+    }
 
-      return current.map((ticket) =>
-        ticket.id === id ? { ...ticket, status } : ticket,
-      );
+    setTickets((current) => {
+      return current.reduce<KitchenTicket[]>((accumulator, ticket) => {
+        if (ticket.id !== id) {
+          accumulator.push(ticket);
+          return accumulator;
+        }
+
+        const nextTicket = filterKitchenTicketByStation(
+          setKitchenTicketStationStatus(ticket, station, status),
+          filterOptions,
+        );
+
+        if (nextTicket) {
+          accumulator.push(nextTicket);
+        }
+
+        return accumulator;
+      }, []);
     });
 
     const socket = socketRef.current;
@@ -175,7 +210,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
 
     const message: KitchenSocketMessage = {
       type: "UPDATE_ORDER_STATUS",
-      payload: { id, status },
+      payload: { id, station, status },
     };
 
     socket.send(JSON.stringify(message));

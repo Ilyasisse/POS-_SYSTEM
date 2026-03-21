@@ -6,7 +6,10 @@ import type {
 } from "../lib/kitchen-socket";
 import {
   filterKitchenTicketsByStation,
+  getKitchenTicketStatusForItems,
   normalizeKitchenTicket,
+  normalizeKitchenStation,
+  setKitchenTicketStationStatus,
 } from "../lib/kitchen-socket";
 
 const wss = new WebSocketServer({ port: 3001 });
@@ -102,15 +105,24 @@ wss.on("connection", (ws, request) => {
       }
 
       if (message.type === "UPDATE_ORDER_STATUS") {
-        const { id, status } = message.payload;
+        const { id, station, status } = message.payload;
+        const normalizedStation = normalizeKitchenStation(station);
+
+        if (!normalizedStation) {
+          return;
+        }
 
         tickets = tickets
-          .map((ticket) => (ticket.id === id ? { ...ticket, status } : ticket))
-          .filter((ticket) => ticket.status !== "done");
+          .map((ticket) =>
+            ticket.id === id
+              ? setKitchenTicketStationStatus(ticket, normalizedStation, status)
+              : ticket,
+          )
+          .filter((ticket) => getKitchenTicketStatusForItems(ticket) !== "done");
 
         broadcastStatus({
           type: "UPDATE_ORDER_STATUS",
-          payload: { id, status },
+          payload: { id, station: normalizedStation, status },
         });
       }
     } catch (error) {
