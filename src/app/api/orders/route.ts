@@ -326,6 +326,16 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
+      id: crypto.randomUUID(),
+      productName: line.productName,
+      qty: line.qty,
+      station: line.station,
+      assignedUserId: line.assignedBaristaId,
+      assignedUserName: line.assignedBaristaName,
+      modifiers: line.modifiers,
+    }));
+
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
@@ -340,42 +350,33 @@ export async function POST(request: Request) {
         },
       });
 
-      const savedOrderItems: SavedOrderItemForTicket[] = [];
-
-      for (const line of preparedLines) {
-        const orderItem = await tx.orderItem.create({
-          data: {
-            orderId: order.id,
-            productId: line.productId,
-            productName: line.productName,
-            qty: line.qty,
-            unitPrice: toDecimal(line.unitPrice),
-            lineTotal: toDecimal(line.lineTotal),
-            station: line.station,
-            assignedUserId: line.assignedBaristaId,
-          },
-        });
-
-        if (line.modifiers.length > 0) {
-          await tx.orderItemModifier.createMany({
-            data: line.modifiers.map((modifier) => ({
-              orderItemId: orderItem.id,
-              modifierId: modifier.optionId,
-              modifierName: modifier.optionName,
-              qty: modifier.qty,
-              price: toDecimal(modifier.price),
-            })),
-          });
-        }
-
-        savedOrderItems.push({
-          id: orderItem.id,
-          productName: orderItem.productName,
-          qty: orderItem.qty,
-          station: orderItem.station,
+      await tx.orderItem.createMany({
+        data: preparedLines.map((line, index) => ({
+          id: savedOrderItems[index]?.id ?? crypto.randomUUID(),
+          orderId: order.id,
+          productId: line.productId,
+          productName: line.productName,
+          qty: line.qty,
+          unitPrice: toDecimal(line.unitPrice),
+          lineTotal: toDecimal(line.lineTotal),
+          station: line.station,
           assignedUserId: line.assignedBaristaId,
-          assignedUserName: line.assignedBaristaName,
-          modifiers: line.modifiers,
+        })),
+      });
+
+      const modifierRows = preparedLines.flatMap((line, index) =>
+        line.modifiers.map((modifier) => ({
+          orderItemId: savedOrderItems[index]?.id ?? "",
+          modifierId: modifier.optionId,
+          modifierName: modifier.optionName,
+          qty: modifier.qty,
+          price: toDecimal(modifier.price),
+        })),
+      );
+
+      if (modifierRows.length > 0) {
+        await tx.orderItemModifier.createMany({
+          data: modifierRows,
         });
       }
 
@@ -390,7 +391,7 @@ export async function POST(request: Request) {
       });
 
       return { order, savedOrderItems };
-    });
+    }, { timeout: 15000, maxWait: 5000 });
 
     const kitchenTicketItems = buildKitchenTicketItems(result.savedOrderItems);
 

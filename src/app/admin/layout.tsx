@@ -8,7 +8,7 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const currentUser = await requireRole(["ADMIN"]);
+  const currentUser = await requireRole(["ADMIN", "MANAGER"]);
 
   return (
     <div>

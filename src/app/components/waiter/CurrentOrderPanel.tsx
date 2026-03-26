@@ -15,6 +15,7 @@ type CurrentOrderPanelProps = {
   selectedPayment: string;
   onSelectPayment: (method: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
+  onRemoveItem: (cartKey: string) => void;
   total: number;
   onClear: () => void;
   onCompleteSale: () => void;
@@ -36,6 +37,7 @@ export default function CurrentOrderPanel({
   selectedPayment,
   onSelectPayment,
   onChangeQuantity,
+  onRemoveItem,
   total,
   onClear,
   onCompleteSale,
@@ -74,6 +76,7 @@ export default function CurrentOrderPanel({
               key={line.cartKey}
               line={line}
               onChangeQuantity={onChangeQuantity}
+              onRemove={onRemoveItem}
             />
           ))
         )}

@@ -1,13 +1,7 @@
 // prisma/seed.ts
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import {
-  PrismaClient,
-  PaymentMethod,
-  OrderStatus,
-  OrderType,
-  UserRole,
-} from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 
@@ -99,71 +93,70 @@ async function main() {
   // Products
   // -----------------------------
 
-  const [coffee, latte, cappuccino, croissant, sandwich, cheesecake] =
-    await prisma.$transaction([
-      prisma.product.create({
-        data: {
-          name: "Coffee",
-          sku: "DRK-001",
-          price: 350,
-          cost: 0,
-          categoryId: drinks.id,
-          isActive: true,
-          trackStock: false,
-          stockQty: 0,
-        },
-      }),
-      prisma.product.create({
-        data: {
-          name: "Latte",
-          sku: "DRK-002",
-          price: 4.5,
-          cost: 0,
-          categoryId: drinks.id,
-          isActive: true,
-        },
-      }),
-      prisma.product.create({
-        data: {
-          name: "Cappuccino",
-          sku: "DRK-003",
-          price: 5,
-          cost: 0,
-          categoryId: drinks.id,
-          isActive: true,
-        },
-      }),
-      prisma.product.create({
-        data: {
-          name: "Croissant",
-          sku: "FOD-001",
-          price: 4.5,
-          cost: 0,
-          categoryId: SomailFood.id,
-          isActive: true,
-        },
-      }),
-      prisma.product.create({
-        data: {
-          name: "Sandwich",
-          sku: "FOD-002",
-          price: 8.5,
-          cost: 0,
-          categoryId: SomailFood.id,
-          isActive: true,
-        },
-      }),
-      prisma.product.create({
-        data: {
-          name: "Cheesecake",
-          sku: "FOD-003",
-          price: 6,
-          cost: 0,
-          categoryId: SomailFood.id,
-          isActive: true,
-        },
-      }),
-    ]);
+  await prisma.$transaction([
+    prisma.product.create({
+      data: {
+        name: "Coffee",
+        sku: "DRK-001",
+        price: 350,
+        cost: 0,
+        categoryId: drinks.id,
+        isActive: true,
+        trackStock: false,
+        stockQty: 0,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Latte",
+        sku: "DRK-002",
+        price: 4.5,
+        cost: 0,
+        categoryId: drinks.id,
+        isActive: true,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Cappuccino",
+        sku: "DRK-003",
+        price: 5,
+        cost: 0,
+        categoryId: drinks.id,
+        isActive: true,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Croissant",
+        sku: "FOD-001",
+        price: 4.5,
+        cost: 0,
+        categoryId: SomailFood.id,
+        isActive: true,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Sandwich",
+        sku: "FOD-002",
+        price: 8.5,
+        cost: 0,
+        categoryId: SomailFood.id,
+        isActive: true,
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Cheesecake",
+        sku: "FOD-003",
+        price: 6,
+        cost: 0,
+        categoryId: SomailFood.id,
+        isActive: true,
+      },
+    }),
+  ]);
 
   const productSeedData = [
     {

@@ -27,11 +27,14 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
   const station = normalizeKitchenStation(options?.station);
   const currentUserId = options?.currentUserId ?? null;
   const currentUserRole = options?.currentUserRole ?? null;
-  const filterOptions = {
-    station,
-    userId: currentUserId,
-    role: currentUserRole,
-  };
+  const filterOptions = useMemo(
+    () => ({
+      station,
+      userId: currentUserId,
+      role: currentUserRole,
+    }),
+    [currentUserId, currentUserRole, station],
+  );
 
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
   const [socketStatus, setSocketStatus] = useState<SocketStatus>("connecting");
@@ -164,7 +167,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         socketRef.current.close();
       }
     };
-  }, [filterOptions.role, filterOptions.station, filterOptions.userId]);
+  }, [currentUserId, currentUserRole, filterOptions, station]);
 
   const activeTickets = useMemo(
     () =>

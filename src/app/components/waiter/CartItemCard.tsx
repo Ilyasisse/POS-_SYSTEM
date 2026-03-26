@@ -3,6 +3,7 @@ import type { CartLine } from "@/lib/types";
 type CartItemCardProps = {
   line: CartLine;
   onChangeQuantity: (cartKey: string, delta: number) => void;
+  onRemove: (cartKey: string) => void;
 };
 
 function roundToTwo(num: number): number {
@@ -12,6 +13,7 @@ function roundToTwo(num: number): number {
 export default function CartItemCard({
   line,
   onChangeQuantity,
+  onRemove,
 }: CartItemCardProps) {
   const modifiers = Array.isArray(line.selectedModifiers)
     ? line.selectedModifiers
@@ -65,23 +67,33 @@ export default function CartItemCard({
         </div>
       ) : null}
 
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onChangeQuantity(line.cartKey, -1)}
+            className="min-h-9 min-w-9 rounded-md bg-slate-100 px-2 text-sm font-bold text-slate-700"
+          >
+            -
+          </button>
+          <span className="w-7 text-center text-sm font-semibold">
+            {line.quantity}
+          </span>
+          <button
+            type="button"
+            onClick={() => onChangeQuantity(line.cartKey, 1)}
+            className="min-h-9 min-w-9 rounded-md bg-slate-100 px-2 text-sm font-bold text-slate-700"
+          >
+            +
+          </button>
+        </div>
+
         <button
           type="button"
-          onClick={() => onChangeQuantity(line.cartKey, -1)}
-          className="min-h-9 min-w-9 rounded-md bg-slate-100 px-2 text-sm font-bold text-slate-700"
+          onClick={() => onRemove(line.cartKey)}
+          className="min-h-9 rounded-md bg-red-50 px-3 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
         >
-          -
-        </button>
-        <span className="w-7 text-center text-sm font-semibold">
-          {line.quantity}
-        </span>
-        <button
-          type="button"
-          onClick={() => onChangeQuantity(line.cartKey, 1)}
-          className="min-h-9 min-w-9 rounded-md bg-slate-100 px-2 text-sm font-bold text-slate-700"
-        >
-          +
+          Remove
         </button>
       </div>
     </div>

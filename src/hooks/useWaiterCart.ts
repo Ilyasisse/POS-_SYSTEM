@@ -116,6 +116,10 @@ export function useWaiterCart() {
     setCart([]);
   };
 
+  const removeFromCart = (cartKey: string) => {
+    setCart((current) => current.filter((item) => item.cartKey !== cartKey));
+  };
+
   const calculateCartTotal = () => {
     return cart.reduce(
       (total, item) =>
@@ -128,6 +132,7 @@ export function useWaiterCart() {
     cart,
     addToCart,
     changeQuantity,
+    removeFromCart,
     clearCart,
     calculateCartTotal,
   };

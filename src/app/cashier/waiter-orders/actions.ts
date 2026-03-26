@@ -155,6 +155,10 @@ export async function deleteWaiterOrderItem(formData: FormData) {
     redirect(returnPath);
   }
 
+  const deletedUnitPrice = Number(selectedItem.unitPrice);
+  const nextItemQuantity = selectedItem.qty - 1;
+  const nextItemLineTotal = deletedUnitPrice * nextItemQuantity;
+
   const undoSnapshot: DeletedOrderItemSnapshot = {
     undoId: crypto.randomUUID(),
     deletedAt: new Date().toISOString(),
@@ -177,9 +181,9 @@ export async function deleteWaiterOrderItem(formData: FormData) {
       id: selectedItem.id,
       productId: selectedItem.productId,
       productName: selectedItem.productName,
-      qty: selectedItem.qty,
-      unitPrice: Number(selectedItem.unitPrice),
-      lineTotal: Number(selectedItem.lineTotal),
+      qty: 1,
+      unitPrice: deletedUnitPrice,
+      lineTotal: deletedUnitPrice,
       createdAt: selectedItem.createdAt.toISOString(),
       assignedUserId: selectedItem.assignedUserId,
       station: selectedItem.station,
@@ -203,19 +207,42 @@ export async function deleteWaiterOrderItem(formData: FormData) {
   };
 
   await prisma.$transaction(async (tx) => {
-    await tx.orderItemModifier.deleteMany({
-      where: {
-        orderItemId,
-      },
-    });
+    if (nextItemQuantity <= 0) {
+      await tx.orderItemModifier.deleteMany({
+        where: {
+          orderItemId,
+        },
+      });
 
-    await tx.orderItem.delete({
-      where: {
-        id: orderItemId,
-      },
-    });
+      await tx.orderItem.delete({
+        where: {
+          id: orderItemId,
+        },
+      });
+    } else {
+      await tx.orderItem.update({
+        where: {
+          id: orderItemId,
+        },
+        data: {
+          qty: nextItemQuantity,
+          lineTotal: toDecimal(nextItemLineTotal),
+        },
+      });
+    }
 
-    const remainingItems = order.orderItems.filter((item) => item.id !== orderItemId);
+    const remainingItems =
+      nextItemQuantity <= 0
+        ? order.orderItems.filter((item) => item.id !== orderItemId)
+        : order.orderItems.map((item) =>
+            item.id === orderItemId
+              ? {
+                  ...item,
+                  qty: nextItemQuantity,
+                  lineTotal: toDecimal(nextItemLineTotal),
+                }
+              : item,
+          );
 
     if (remainingItems.length === 0) {
       await tx.payment.deleteMany({
@@ -275,15 +302,8 @@ export async function deleteWaiterOrderItem(formData: FormData) {
   const existingSnapshots = parseDeletedOrderItemSnapshots(
     cookieStore.get(CASHIER_DELETED_ORDER_ITEM_COOKIE)?.value,
   );
-  const dedupedSnapshots = existingSnapshots.filter(
-    (snapshot) =>
-      !(
-        snapshot.order.id === undoSnapshot.order.id &&
-        snapshot.item.id === undoSnapshot.item.id
-      ),
-  );
 
-  setUndoCookie(cookieStore, [undoSnapshot, ...dedupedSnapshots]);
+  setUndoCookie(cookieStore, [undoSnapshot, ...existingSnapshots]);
 
   revalidateCashierViews();
   redirect(returnPath);
@@ -322,6 +342,13 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
       select: {
         id: true,
         total: true,
+        orderItems: {
+          select: {
+            id: true,
+            qty: true,
+            lineTotal: true,
+          },
+        },
         payments: {
           select: {
             id: true,
@@ -403,37 +430,55 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
       return;
     }
 
-    await tx.orderItem.create({
-      data: {
-        id: snapshot.item.id,
-        orderId: snapshot.order.id,
-        productId: snapshot.item.productId,
-        productName: snapshot.item.productName,
-        qty: snapshot.item.qty,
-        unitPrice: toDecimal(snapshot.item.unitPrice),
-        lineTotal: toDecimal(snapshot.item.lineTotal),
-        createdAt: new Date(snapshot.item.createdAt),
-        assignedUserId: snapshot.item.assignedUserId,
-        station: snapshot.item.station as
-          | "CUNTO_SOOMAALI"
-          | "FAST_FOOD"
-          | "CABITAAN"
-          | "BARISTA"
-          | null,
-      },
-    });
+    const existingOrderItem = existingOrder.orderItems.find(
+      (item) => item.id === snapshot.item.id,
+    );
 
-    if (snapshot.item.modifiers.length > 0) {
-      await tx.orderItemModifier.createMany({
-        data: snapshot.item.modifiers.map((modifier) => ({
-          id: modifier.id,
-          orderItemId: snapshot.item.id,
-          modifierId: modifier.modifierId,
-          modifierName: modifier.modifierName,
-          qty: modifier.qty,
-          price: toDecimal(modifier.price),
-        })),
+    if (existingOrderItem) {
+      await tx.orderItem.update({
+        where: {
+          id: snapshot.item.id,
+        },
+        data: {
+          qty: existingOrderItem.qty + snapshot.item.qty,
+          lineTotal: toDecimal(
+            Number(existingOrderItem.lineTotal) + Number(snapshot.item.lineTotal),
+          ),
+        },
       });
+    } else {
+      await tx.orderItem.create({
+        data: {
+          id: snapshot.item.id,
+          orderId: snapshot.order.id,
+          productId: snapshot.item.productId,
+          productName: snapshot.item.productName,
+          qty: snapshot.item.qty,
+          unitPrice: toDecimal(snapshot.item.unitPrice),
+          lineTotal: toDecimal(snapshot.item.lineTotal),
+          createdAt: new Date(snapshot.item.createdAt),
+          assignedUserId: snapshot.item.assignedUserId,
+          station: snapshot.item.station as
+            | "CUNTO_SOOMAALI"
+            | "FAST_FOOD"
+            | "CABITAAN"
+            | "BARISTA"
+            | null,
+        },
+      });
+
+      if (snapshot.item.modifiers.length > 0) {
+        await tx.orderItemModifier.createMany({
+          data: snapshot.item.modifiers.map((modifier) => ({
+            id: modifier.id,
+            orderItemId: snapshot.item.id,
+            modifierId: modifier.modifierId,
+            modifierName: modifier.modifierName,
+            qty: modifier.qty,
+            price: toDecimal(modifier.price),
+          })),
+        });
+      }
     }
 
     const recalculatedTotal =

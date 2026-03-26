@@ -5,17 +5,22 @@ import SignOutButton from "../SignOutButton";
 
 type HeaderWaiterProps = {
   fullName: string;
-  totalSales: number;
+  balanceAmount: number;
 };
 
 function formatMoney(value: number) {
-  return `$${value.toFixed(2)}`;
+  return `${value < 0 ? "-$" : "$"}${Math.abs(value).toFixed(2)}`;
 }
 
 export default function HeaderWaiter({
   fullName,
-  totalSales,
+  balanceAmount,
 }: HeaderWaiterProps) {
+  const balancePillClass =
+    balanceAmount < 0
+      ? "bg-red-500"
+      : "bg-green-500";
+
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#4F7CFF] px-4 py-3 text-white">
       <div>
@@ -35,12 +40,14 @@ export default function HeaderWaiter({
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3 p-4">
-        <div className="rounded-full bg-green-500 px-4 py-2 text-right shadow-sm ring-1 ring-white/20 backdrop-blur-sm">
+        <div
+          className={`rounded-full px-4 py-2 text-right shadow-sm ring-1 ring-white/20 backdrop-blur-sm ${balancePillClass}`}
+        >
           <p className="text-[10px] uppercase tracking-[0.18em] text-blue-100">
-            Iibka
+            Balance
           </p>
           <p className="text-sm font-bold text-white">
-            {formatMoney(totalSales)}
+            {formatMoney(balanceAmount)}
           </p>
         </div>
         <SignOutButton />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
+import AutoSubmitSelect from "@/app/components/AutoSubmitSelect";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
@@ -148,7 +149,7 @@ export default async function CashierWaiterOrdersPage({
             <span className="mb-1 block text-sm font-medium text-slate-700">
               Kabalyeeri
             </span>
-            <select
+            <AutoSubmitSelect
               name="waiterId"
               defaultValue={selectedWaiterId}
               className="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none focus:border-blue-500"
@@ -162,15 +163,8 @@ export default async function CashierWaiterOrdersPage({
                   </option>
                 ))
               )}
-            </select>
+            </AutoSubmitSelect>
           </label>
-
-          <button
-            type="submit"
-            className="rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
-          >
-            Eeg dalabyada
-          </button>
         </form>
       </div>
 
@@ -337,29 +331,36 @@ export default async function CashierWaiterOrdersPage({
                       <td className="px-4 py-3">
                         <div className="space-y-2">
                           {order.orderItems.map((item) => (
-                            <form key={item.id} action={deleteWaiterOrderItem}>
-                              <input
-                                type="hidden"
-                                name="orderId"
-                                value={order.id}
-                              />
-                              <input
-                                type="hidden"
-                                name="orderItemId"
-                                value={item.id}
-                              />
-                              <input
-                                type="hidden"
-                                name="waiterId"
-                                value={selectedWaiterId}
-                              />
-                              <button
-                                type="submit"
-                                className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                              >
-                                Delete {item.productName}
-                              </button>
-                            </form>
+                            <div key={item.id} className="space-y-2">
+                              {Array.from({ length: item.qty }).map((_, unitIndex) => (
+                                <form
+                                  key={`${item.id}-${unitIndex}`}
+                                  action={deleteWaiterOrderItem}
+                                >
+                                  <input
+                                    type="hidden"
+                                    name="orderId"
+                                    value={order.id}
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="orderItemId"
+                                    value={item.id}
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="waiterId"
+                                    value={selectedWaiterId}
+                                  />
+                                  <button
+                                    type="submit"
+                                    className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                                  >
+                                    Delete 1 {item.productName}
+                                  </button>
+                                </form>
+                              ))}
+                            </div>
                           ))}
                         </div>
                       </td>
