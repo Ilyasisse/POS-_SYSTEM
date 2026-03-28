@@ -81,8 +81,8 @@ export async function updateProduct(formData: FormData) {
   });
 
   revalidatePath("/admin/products");
-  revalidatePath(`/admin/products/${id}`);
-  redirect(`/admin/products/${id}`);
+  revalidatePath(`/admin/products`);
+  redirect(`/admin/products`);
 }
 
 export async function deleteProduct(formData: FormData) {

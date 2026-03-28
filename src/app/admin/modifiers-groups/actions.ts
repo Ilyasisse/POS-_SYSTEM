@@ -40,8 +40,8 @@ export async function updateModifierGroup(formData: FormData) {
     },
   });
 
-  revalidatePath("/admin/modifier-groups");
-  redirect(`/admin/modifier-groups/${id}`);
+  revalidatePath("/admin/modifiers-groups");
+  redirect(`/admin/modifiers-groups`);
 }
 
 export async function deleteModifierGroup(formData: FormData) {

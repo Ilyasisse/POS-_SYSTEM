@@ -44,7 +44,7 @@ export default function WaiterPageSkeleton() {
           <div className="h-12 animate-pulse rounded-xl border border-slate-200 bg-white" />
 
           <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-1 md:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
+            {Array.from({ length: 12 }).map((_, index) => (
               <div
                 key={index}
                 className="animate-pulse min-h-28 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm"
