@@ -16,6 +16,7 @@ type CurrentOrderPanelProps = {
   onSelectPayment: (method: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
   onRemoveItem: (cartKey: string) => void;
+  onPlayOrder: () => void;
   total: number;
   onClear: () => void;
   onCompleteSale: () => void;
@@ -38,6 +39,7 @@ export default function CurrentOrderPanel({
   onSelectPayment,
   onChangeQuantity,
   onRemoveItem,
+  onPlayOrder,
   total,
   onClear,
   onCompleteSale,
@@ -49,23 +51,38 @@ export default function CurrentOrderPanel({
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold text-slate-800">Dalabka Hadda</h2>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Dalabka Hadda</h2>
+          <p className="text-sm text-slate-500">
+            Hubi qoraalka ama ciyaar codka la duubay ka hor dirista.
+          </p>
+        </div>
 
-        <span
-          className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${
-            socketStatus === "connected"
-              ? "bg-green-100 text-green-700"
-              : socketStatus === "connecting"
-                ? "bg-amber-100 text-amber-700"
-                : "bg-red-100 text-red-700"
-          }`}
-        >
-          {translateSocketStatus(socketStatus)}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={onPlayOrder}
+            disabled={cart.length === 0}
+            className="min-h-10 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Ciyaar codka dalabka
+          </button>
+          <span
+            className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${
+              socketStatus === "connected"
+                ? "bg-green-100 text-green-700"
+                : socketStatus === "connecting"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-red-100 text-red-700"
+            }`}
+          >
+            {translateSocketStatus(socketStatus)}
+          </span>
+        </div>
       </div>
 
-      <div className=" space-y-2 overflow-y-auto pr-1">
+      <div className="space-y-2 overflow-y-auto pr-1">
         {cart.length === 0 ? (
           <p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-500">
             Fadlan marka hore dalbo
@@ -83,9 +100,9 @@ export default function CurrentOrderPanel({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-semibold text-slate-600">
-         Qoraallada Dalabka
-        </span>
+          <span className="mb-1 block text-sm font-semibold text-slate-600">
+            Qoraallada Dalabka
+          </span>
         <textarea
           value={orderNote}
           onChange={(event) => onOrderNoteChange(event.target.value)}

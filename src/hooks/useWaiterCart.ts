@@ -65,6 +65,7 @@ export function useWaiterCart() {
             name: product.name,
             product,
             price: Number(product.price),
+            pronunciationAudioUrl: product.pronunciationAudioUrl ?? null,
             finalPrice: unitPrice,
             lineTotal: unitPrice,
             sku: product.sku ?? "",

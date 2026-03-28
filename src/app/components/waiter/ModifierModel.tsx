@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Product, StaffSummary } from "@/lib/types";
+import { playPronunciationSegments } from "@/lib/waiter-pronunciation";
 
 type SelectedModifiers = Record<string, string[]>;
 
@@ -9,6 +10,7 @@ type ModifierOption = {
   id: string;
   name: string;
   price: number;
+  pronunciationAudioUrl?: string | null;
 };
 
 type ModifierGroup = {
@@ -46,6 +48,7 @@ export default function ModifierModal({
 }: ModifierModalProps) {
   const [selected, setSelected] = useState<SelectedModifiers>({});
   const [selectedBaristaId, setSelectedBaristaId] = useState<string>("");
+  const [pronunciationStatus, setPronunciationStatus] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -112,6 +115,19 @@ export default function ModifierModal({
   }, [modifierGroups, product, selected, selectedBaristaId]);
 
   const isValid = Object.keys(validationErrors).length === 0;
+  const selectedSummary = useMemo(() => {
+    return modifierGroups.flatMap((group) => {
+      const selectedOptionIds = selected[group.id] || [];
+
+      return group.options
+        .filter((option) => selectedOptionIds.includes(option.id))
+        .map((option) => ({
+          groupName: group.name,
+          optionName: option.name,
+          price: Number(option.price),
+        }));
+    });
+  }, [modifierGroups, selected]);
 
   function toggleOption(group: ModifierGroup, optionId: string) {
     setSelected((prev) => {
@@ -188,34 +204,107 @@ export default function ModifierModal({
     );
   }
 
+  function handlePlayModifier(option: ModifierOption) {
+    void playPronunciationSegments([
+      {
+        url: option.pronunciationAudioUrl ?? "",
+        label: option.name,
+      },
+    ]).then((message) => {
+      setPronunciationStatus(message ?? "");
+    });
+  }
+
   if (!open || !product) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 p-4">
       <div className="flex h-full items-center justify-center">
         <div className="flex h-[90vh] w-full max-w-xl flex-col rounded-2xl bg-white shadow-xl">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
-            <div>
-              <h2 className="text-xl font-bold">{product.name}</h2>
-              <p className="text-sm text-slate-500">
-                Habeey order-ka
-              </p>
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-linear-to-r from-slate-50 via-white to-blue-50 p-6">
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-2xl font-black leading-tight text-slate-900">
+                  {product.name}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">Habeey order-ka</p>
+              </div>
             </div>
 
             <button
+              type="button"
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-3 py-1 text-sm hover:bg-slate-50"
             >
-             Xir
+              Xir
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
+              {pronunciationStatus ? (
+                <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+                  {pronunciationStatus}
+                </p>
+              ) : null}
+
+              <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-600">
+                      Waxaad Dooratay
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Hubi doorashooyinka ka hor inta aadan ku darin dalabka.
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                    {selectedSummary.length} la doortay
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {selectedBaristaId ? (
+                    <div className="rounded-xl border border-amber-200 bg-white px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                        Barista
+                      </p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {baristas.find((barista) => barista.id === selectedBaristaId)
+                          ?.fullName ?? "Barista lama helin"}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {selectedSummary.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-500">
+                      Weli wax modifier ah lama dooran.
+                    </p>
+                  ) : (
+                    selectedSummary.map((item) => (
+                      <div
+                        key={`${item.groupName}-${item.optionName}`}
+                        className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            {item.optionName}
+                          </p>
+                          <p className="text-xs text-slate-500">{item.groupName}</p>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-emerald-700">
+                          +${item.price.toFixed(2)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+
               {requiresBaristaAssignment(product) ? (
                 <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <div className="mb-3">
-                    <h3 className="font-semibold text-slate-900">
+                    <h3 className="text-base font-semibold text-slate-900">
                       Dooro barista-ka
                     </h3>
                   </div>
@@ -235,14 +324,14 @@ export default function ModifierModal({
                             key={barista.id}
                             type="button"
                             onClick={() => setSelectedBaristaId(barista.id)}
-                            className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
+                            className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
                               checked
-                                ? "border-amber-500 bg-white"
+                                ? "border-amber-500 bg-white shadow-sm"
                                 : "border-amber-200 hover:bg-white"
                             }`}
                           >
                             <div>
-                              <p className="font-medium text-slate-900">
+                              <p className="text-base font-semibold text-slate-900">
                                 {barista.fullName}
                               </p>
                             </div>
@@ -282,14 +371,22 @@ export default function ModifierModal({
                   const groupError = validationErrors[group.id];
 
                   return (
-                    <div key={group.id}>
-                      <div className="mb-2 flex items-center gap-2">
-                        <h3 className="font-semibold">{group.name}</h3>
+                    <div
+                      key={group.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-bold text-slate-900">
+                          {group.name}
+                        </h3>
                         {getMinSelect(group) > 0 ? (
                           <span className="text-sm text-red-500">*</span>
                         ) : null}
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs font-medium text-slate-500">
                           {getSelectionHint(group)}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                          {groupSelected.length} selected
                         </span>
                       </div>
 
@@ -298,35 +395,57 @@ export default function ModifierModal({
                           const checked = groupSelected.includes(option.id);
 
                           return (
-                            <button
+                            <div
                               key={option.id}
-                              type="button"
-                              onClick={() => toggleOption(group, option.id)}
-                              className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
+                              className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
                                 checked
-                                  ? "border-blue-600 bg-blue-50"
+                                  ? "border-blue-600 bg-blue-50 shadow-sm"
                                   : "border-slate-200 hover:bg-slate-50"
                               }`}
                             >
-                              <div>
-                                <p className="font-medium">{option.name}</p>
-                                <p className="text-sm text-slate-500">
-                                  ${Number(option.price).toFixed(2)}
-                                </p>
-                              </div>
-
-                              <div
-                                className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                                  checked
-                                    ? "border-blue-600"
-                                    : "border-slate-400"
-                                }`}
+                              <button
+                                type="button"
+                                onClick={() => toggleOption(group, option.id)}
+                                className="flex flex-1 items-center justify-between gap-3 text-left"
                               >
-                                {checked ? (
-                                  <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                                ) : null}
-                              </div>
-                            </button>
+                                <div>
+                                  <p className="text-base font-semibold text-slate-900">
+                                    {option.name}
+                                  </p>
+                                  <p className="mt-1 text-sm font-medium text-slate-500">
+                                    ${Number(option.price).toFixed(2)}
+                                  </p>
+                                </div>
+
+                                <div
+                                  className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                                    checked
+                                      ? "border-blue-600"
+                                      : "border-slate-400"
+                                  }`}
+                                >
+                                  {checked ? (
+                                    <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                                  ) : null}
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handlePlayModifier(option)}
+                                aria-label={`Play pronunciation for ${option.name}`}
+                                title={`Play pronunciation for ${option.name}`}
+                                className="ml-3 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                              >
+                                <svg
+                                  aria-hidden="true"
+                                  viewBox="0 0 24 24"
+                                  className="h-4 w-4 fill-current"
+                                >
+                                  <path d="M14.86 4.53a1.25 1.25 0 0 1 2.14.88v13.18a1.25 1.25 0 0 1-2.14.88l-3.77-3.72H7.75A2.75 2.75 0 0 1 5 13V11a2.75 2.75 0 0 1 2.75-2.75h3.34l3.77-3.72ZM18.53 8.97a.75.75 0 0 1 1.06.03 4.93 4.93 0 0 1 0 7 .75.75 0 1 1-1.09-1.03 3.43 3.43 0 0 0 0-4.94.75.75 0 0 1 .03-1.06Zm-1.96 1.71a.75.75 0 0 1 1.06.03 2.52 2.52 0 0 1 0 3.58.75.75 0 1 1-1.09-1.03 1.02 1.02 0 0 0 0-1.52.75.75 0 0 1 .03-1.06Z" />
+                                </svg>
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -343,6 +462,7 @@ export default function ModifierModal({
 
           <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
             <button
+              type="button"
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-4 py-2 hover:bg-slate-50"
             >
@@ -350,10 +470,11 @@ export default function ModifierModal({
             </button>
 
             <button
+              type="button"
               onClick={handleConfirm}
               className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
             >
-             Ku dar dalab
+              Ku dar dalab
             </button>
           </div>
         </div>

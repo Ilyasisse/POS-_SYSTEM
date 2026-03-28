@@ -47,6 +47,7 @@ model Product {
   sku         String?     @unique
   description String?
   imageUrl    String?
+  pronunciationAudioUrl String?
   isActive    Boolean     @default(true)
   isPopular   Boolean     @default(false)
   price       Decimal
@@ -84,6 +85,7 @@ model Modifier {
   modifierGroupId    String
   name               String
   price              Decimal
+  pronunciationAudioUrl String?
   isActive           Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteProduct, updateProduct } from "../actions";
+import PronunciationRecorder from "@/app/components/admin/PronunciationRecorder";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -110,6 +111,13 @@ export default async function ProductDetailsPage({
               />
               Track Stock
             </label>
+
+            <PronunciationRecorder
+              inputName="pronunciationAudioUrl"
+              entityType="product"
+              label={product.name}
+              currentUrl={product.pronunciationAudioUrl}
+            />
 
             <div className="flex gap-3 pt-2">
               <button

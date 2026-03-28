@@ -51,6 +51,7 @@ export async function GET() {
             id: string;
             name: string;
             price: number;
+            pronunciationAudioUrl: string | null;
           }[];
         }
       >();
@@ -78,6 +79,7 @@ export async function GET() {
           id: modifier.id,
           name: modifier.name,
           price: Number(modifier.price ?? 0),
+          pronunciationAudioUrl: modifier.pronunciationAudioUrl ?? null,
         });
       }
 
@@ -92,6 +94,7 @@ export async function GET() {
         trackStock: Boolean(product.trackStock),
         stockQty: Number(product.stockQty ?? 0),
         imageUrl: product.imageUrl ?? null,
+        pronunciationAudioUrl: product.pronunciationAudioUrl ?? null,
         isPopular: Boolean(product.isPopular),
         category: product.category
           ? {

@@ -9,6 +9,9 @@ export async function createModifier(formData: FormData) {
   const price = Number(formData.get("price") || 0);
   const isActive = formData.get("isActive") === "on";
   const modifierGroupId = String(formData.get("modifierGroupId") || "").trim();
+  const pronunciationAudioUrl = String(
+    formData.get("pronunciationAudioUrl") || "",
+  ).trim();
 
   const productIds = formData
     .getAll("productIds")
@@ -38,6 +41,7 @@ export async function createModifier(formData: FormData) {
           isActive,
           productId,
           modifierGroupId,
+          pronunciationAudioUrl: pronunciationAudioUrl || null,
         },
       })
     )
@@ -54,6 +58,9 @@ export async function updateModifier(formData: FormData) {
   const isActive = formData.get("isActive") === "on";
   const productId = String(formData.get("productId") || "").trim();
   const modifierGroupId = String(formData.get("modifierGroupId") || "").trim();
+  const pronunciationAudioUrl = String(
+    formData.get("pronunciationAudioUrl") || "",
+  ).trim();
 
   if (!id) {
     throw new Error("Modifier id is required.");
@@ -83,6 +90,7 @@ export async function updateModifier(formData: FormData) {
       isActive,
       productId,
       modifierGroupId,
+      pronunciationAudioUrl: pronunciationAudioUrl || null,
     },
   });
 

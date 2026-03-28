@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createProduct } from "../actions";
+import PronunciationRecorder from "@/app/components/admin/PronunciationRecorder";
 
 export default async function NewProductPage() {
   const categories = await prisma.category.findMany({
@@ -72,6 +73,12 @@ export default async function NewProductPage() {
               <input name="trackStock" type="checkbox" />
               Track Stock
             </label>
+
+            <PronunciationRecorder
+              inputName="pronunciationAudioUrl"
+              entityType="product"
+              label="Product pronunciation"
+            />
 
             <div className="flex gap-3 pt-2">
               <button

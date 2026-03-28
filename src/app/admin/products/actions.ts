@@ -9,6 +9,9 @@ export async function createProduct(formData: FormData) {
   const price = Number(formData.get("price") || 0);
   const trackStock = formData.get("trackStock") === "on";
   const categoryId = String(formData.get("categoryId") || "").trim();
+  const pronunciationAudioUrl = String(
+    formData.get("pronunciationAudioUrl") || "",
+  ).trim();
 
   if (!name) {
     throw new Error("Product name is required.");
@@ -27,6 +30,7 @@ export async function createProduct(formData: FormData) {
       name,
       price,
       trackStock,
+      pronunciationAudioUrl: pronunciationAudioUrl || null,
       category: {
         connect: { id: categoryId },
       },
@@ -43,6 +47,9 @@ export async function updateProduct(formData: FormData) {
   const price = Number(formData.get("price") || 0);
   const trackStock = formData.get("trackStock") === "on";
   const categoryId = String(formData.get("categoryId") || "").trim();
+  const pronunciationAudioUrl = String(
+    formData.get("pronunciationAudioUrl") || "",
+  ).trim();
 
   if (!id) {
     throw new Error("Product id is required.");
@@ -66,6 +73,7 @@ export async function updateProduct(formData: FormData) {
       name,
       price,
       trackStock,
+      pronunciationAudioUrl: pronunciationAudioUrl || null,
       category: {
         connect: { id: categoryId },
       },

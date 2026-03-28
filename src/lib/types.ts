@@ -23,6 +23,7 @@ export type ModifierOption = {
   id: string;
   name: string;
   price: number;
+  pronunciationAudioUrl?: string | null;
 };
 
 export type ModifierGroup = {
@@ -55,6 +56,7 @@ export type Product = {
   trackStock: boolean;
   stockQty: number;
   imageUrl?: string | null;
+  pronunciationAudioUrl?: string | null;
   isPopular: boolean;
   modifierGroups?: ModifierGroup[];
   category?: {
@@ -71,6 +73,7 @@ export type SelectedModifierLine = {
   optionName: string;
   price: number;
   qty: number;
+  pronunciationAudioUrl?: string | null;
 };
 
 export type CartLine = {
@@ -81,6 +84,7 @@ export type CartLine = {
   quantity: number;
   imageUrl?: string;
   sku?: string;
+  pronunciationAudioUrl?: string | null;
   finalPrice?: number;
   lineTotal?: number;
   selectedModifiers: SelectedModifierLine[];
@@ -90,6 +94,7 @@ export type CartLine = {
   product: {
     id: string;
     name: string;
+    pronunciationAudioUrl?: string | null;
     category?: {
       id: string;
       name: string;

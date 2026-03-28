@@ -12,20 +12,32 @@ export default function ProductQuickItems({
   onAddToCart,
 }: ProductQuickItemsProps) {
   return (
-    <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3">
-      <p className="mb-2 text-sm font-semibold text-slate-700">
+    <div className="rounded-2xl border border-blue-100 bg-linear-to-r from-blue-50 via-sky-50 to-white p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
         Dalab Degdeg ah
       </p>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {products.map((product) => (
           <button
             key={product.id}
             type="button"
             onClick={() => onAddToCart(product)}
-            className="min-h-11 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-100"
+            className="rounded-xl border border-blue-100 bg-white px-3 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50"
           >
-            {product.name} | ${product.price}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-800">{product.name}</p>
+                {product.category?.name ? (
+                  <p className="mt-1 text-xs font-medium text-slate-500">
+                    {product.category.name}
+                  </p>
+                ) : null}
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                ${Number(product.price).toFixed(2)}
+              </span>
+            </div>
           </button>
         ))}
       </div>

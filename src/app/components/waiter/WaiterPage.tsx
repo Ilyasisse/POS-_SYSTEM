@@ -21,6 +21,11 @@ import { useWaiterCart } from "@/hooks/useWaiterCart";
 import { useWaiterSocket } from "@/hooks/useWaiterSocket";
 import { useWaiterData } from "@/hooks/useWaiterData";
 import type { UserRole } from "@/lib/auth/roles";
+import {
+  buildFullOrderPronunciationSegments,
+  cancelPronunciationPlayback,
+  playPronunciationSegments,
+} from "@/lib/waiter-pronunciation";
 
 type SelectedModifiers = Record<string, string[]>;
 
@@ -282,6 +287,34 @@ export default function WaiterPage({
     });
   }
 
+  function handlePlayProduct(product: Product) {
+    void playPronunciationSegments([
+      {
+        url: product.pronunciationAudioUrl ?? "",
+        label: product.name,
+      },
+    ]).then((message) => {
+      if (message) {
+        setStatusMessage(message);
+      }
+    });
+  }
+
+  function handlePlayFullOrder() {
+    if (cart.length === 0) {
+      setStatusMessage("Marka hore dooro wax la akhriyo.");
+      return;
+    }
+
+    void playPronunciationSegments(
+      buildFullOrderPronunciationSegments(cart),
+    ).then((message) => {
+      if (message) {
+        setStatusMessage(message);
+      }
+    });
+  }
+
   async function handleCompleteSale() {
     if (!currentCanPlaceOrders) {
       setStatusMessage(
@@ -297,6 +330,7 @@ export default function WaiterPage({
     }
 
     try {
+      cancelPronunciationPlayback();
       setIsSubmitting(true);
       setStatusMessage("Processing sale...");
 
@@ -370,6 +404,7 @@ export default function WaiterPage({
           optionName: option.name,
           price: Number(option.price),
           qty: 1,
+          pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
         })),
     );
 
@@ -434,6 +469,7 @@ export default function WaiterPage({
           <ProductGrid
             products={searchedProducts}
             onAddToCart={handleProductClick}
+            onPlayPronunciation={handlePlayProduct}
           />
         </section>
 
@@ -447,8 +483,10 @@ export default function WaiterPage({
           onSelectPayment={setSelectedPayment}
           onChangeQuantity={changeQuantity}
           onRemoveItem={removeFromCart}
+          onPlayOrder={handlePlayFullOrder}
           total={calculateCartTotal()}
           onClear={() => {
+            cancelPronunciationPlayback();
             clearCart();
             setOrderNote("");
             setStatusMessage("");

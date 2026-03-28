@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createModifier } from "../actions";
+import PronunciationRecorder from "@/app/components/admin/PronunciationRecorder";
 
 export default async function NewModifierPage() {
   const [products, modifierGroups] = await Promise.all([
@@ -114,6 +115,12 @@ export default async function NewModifierPage() {
               <input name="isActive" type="checkbox" defaultChecked />
               Active
             </label>
+
+            <PronunciationRecorder
+              inputName="pronunciationAudioUrl"
+              entityType="modifier"
+              label="Modifier pronunciation"
+            />
 
             <div className="flex gap-3 pt-2">
               <button
