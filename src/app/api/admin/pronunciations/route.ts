@@ -1,10 +1,12 @@
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
-const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "pronunciations");
+const LEGACY_UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "pronunciations");
+const PRONUNCIATION_BUCKET =
+  process.env.SUPABASE_PRONUNCIATION_BUCKET?.trim() || "pronunciations";
 
 function slugifyLabel(value: string) {
   const slug = value
@@ -23,8 +25,7 @@ function getExtension(contentType: string) {
   return "webm";
 }
 
-async function ensureAdminUser() {
-  const supabase = await createClient();
+async function ensureAdminUser(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -43,28 +44,73 @@ async function ensureAdminUser() {
   });
 }
 
-async function removePreviousUpload(previousUrl: string) {
+function getLegacyAbsolutePath(previousUrl: string) {
   if (!previousUrl.startsWith("/uploads/pronunciations/")) {
-    return;
+    return null;
   }
 
   const relativePath = previousUrl.replace(/^\/+/, "");
   const absolutePath = path.join(process.cwd(), "public", relativePath);
 
-  if (!absolutePath.startsWith(UPLOAD_ROOT)) {
-    return;
+  if (!absolutePath.startsWith(LEGACY_UPLOAD_ROOT)) {
+    return null;
+  }
+
+  return absolutePath;
+}
+
+function getStoragePathFromPublicUrl(previousUrl: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!supabaseUrl) {
+    return null;
   }
 
   try {
-    await unlink(absolutePath);
+    const publicPrefix = new URL(
+      `/storage/v1/object/public/${PRONUNCIATION_BUCKET}/`,
+      supabaseUrl,
+    ).toString();
+
+    if (!previousUrl.startsWith(publicPrefix)) {
+      return null;
+    }
+
+    return decodeURIComponent(previousUrl.slice(publicPrefix.length));
   } catch {
-    // Ignore missing or already-removed files.
+    return null;
   }
+}
+
+async function removePreviousUpload(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  previousUrl: string,
+) {
+  const legacyAbsolutePath = getLegacyAbsolutePath(previousUrl);
+
+  if (legacyAbsolutePath) {
+    try {
+      await unlink(legacyAbsolutePath);
+    } catch {
+      // Ignore missing or already-removed files.
+    }
+
+    return;
+  }
+
+  const storagePath = getStoragePathFromPublicUrl(previousUrl);
+
+  if (!storagePath) {
+    return;
+  }
+
+  await supabase.storage.from(PRONUNCIATION_BUCKET).remove([storagePath]);
 }
 
 export async function POST(request: Request) {
   try {
-    const currentUser = await ensureAdminUser();
+    const supabase = await createClient();
+    const currentUser = await ensureAdminUser(supabase);
 
     if (
       !currentUser ||
@@ -98,18 +144,34 @@ export async function POST(request: Request) {
     const safeEntityType = entityType === "modifier" ? "modifier" : "product";
     const extension = getExtension(file.type);
     const fileName = `${Date.now()}-${slugifyLabel(label)}.${extension}`;
-    const targetDirectory = path.join(UPLOAD_ROOT, safeEntityType);
-    const absolutePath = path.join(targetDirectory, fileName);
+    const storagePath = `${safeEntityType}/${fileName}`;
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    await mkdir(targetDirectory, { recursive: true });
-    await writeFile(absolutePath, Buffer.from(await file.arrayBuffer()));
+    const { error: uploadError } = await supabase.storage
+      .from(PRONUNCIATION_BUCKET)
+      .upload(storagePath, fileBuffer, {
+        contentType: file.type || "audio/webm",
+        upsert: false,
+      });
 
-    if (previousUrl) {
-      await removePreviousUpload(previousUrl);
+    if (uploadError) {
+      throw new Error(
+        uploadError.message.includes("Bucket not found")
+          ? `Supabase storage bucket "${PRONUNCIATION_BUCKET}" was not found.`
+          : uploadError.message,
+      );
     }
 
+    if (previousUrl) {
+      await removePreviousUpload(supabase, previousUrl);
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(PRONUNCIATION_BUCKET)
+      .getPublicUrl(storagePath);
+
     return NextResponse.json({
-      url: `/uploads/pronunciations/${safeEntityType}/${fileName}`,
+      url: publicUrlData.publicUrl,
     });
   } catch (error) {
     console.error("POST /api/admin/pronunciations error:", error);
