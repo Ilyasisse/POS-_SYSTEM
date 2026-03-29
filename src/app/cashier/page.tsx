@@ -14,7 +14,6 @@ import {
 import {
   closeWaiterBalanceFromCashier,
   reopenWaiterBalanceFromCashier,
-  resetWaiterShiftTestData,
   saveWaiterOpeningBalance,
 } from "./actions";
 
@@ -99,12 +98,6 @@ function getBalanceStatusMessage(balanceStatus?: string) {
       return {
         tone: "error" as const,
         message: "The balance could not be reopened.",
-      };
-    case "reset_test_data":
-      return {
-        tone: "success" as const,
-        message:
-          "Testing reset completed. Today's waiter shifts and waiter orders were cleared.",
       };
     default:
       return null;
@@ -261,27 +254,6 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="text-sm text-slate-500">
           Select a waiter below to manage shifts and balances.
-        </div>
-      </div>
-
-      <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-red-900">Testing Reset</h2>
-            <p className="text-sm text-red-700">
-              This clears today&apos;s waiter shifts and today&apos;s waiter
-              orders so balances return to zero.
-            </p>
-          </div>
-
-          <form action={resetWaiterShiftTestData}>
-            <button
-              type="submit"
-              className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
-            >
-              Reset All Shifts and Balances
-            </button>
-          </form>
         </div>
       </div>
 

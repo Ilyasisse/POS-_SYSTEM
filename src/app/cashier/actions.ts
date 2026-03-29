@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
-import { getCashierBusinessDayRange } from "@/lib/cashier-business-day";
 import {
   closeWaiterBusinessDayShift,
   openWaiterBusinessDayShift,
@@ -129,93 +128,4 @@ export async function reopenWaiterBalanceFromCashier(formData: FormData) {
   }
 
   redirect(buildReturnPath(waiterId, balanceStatus));
-}
-
-export async function resetWaiterShiftTestData() {
-  await requireRole(["CASHIER", "ADMIN"]);
-
-  const { start, end } = getCashierBusinessDayRange();
-
-  await prisma.$transaction(async (tx) => {
-    const orders = await tx.order.findMany({
-      where: {
-        waiterId: {
-          not: null,
-        },
-        createdAt: {
-          gte: start,
-          lt: end,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const orderIds = orders.map((order) => order.id);
-
-    if (orderIds.length > 0) {
-      const orderItems = await tx.orderItem.findMany({
-        where: {
-          orderId: {
-            in: orderIds,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      const orderItemIds = orderItems.map((item) => item.id);
-
-      if (orderItemIds.length > 0) {
-        await tx.orderItemModifier.deleteMany({
-          where: {
-            orderItemId: {
-              in: orderItemIds,
-            },
-          },
-        });
-      }
-
-      await tx.orderItem.deleteMany({
-        where: {
-          orderId: {
-            in: orderIds,
-          },
-        },
-      });
-
-      await tx.payment.deleteMany({
-        where: {
-          orderId: {
-            in: orderIds,
-          },
-        },
-      });
-
-      await tx.order.deleteMany({
-        where: {
-          id: {
-            in: orderIds,
-          },
-        },
-      });
-    }
-
-    await tx.shift.deleteMany({
-      where: {
-        waiter: {
-          role: "WAITER",
-        },
-        openedAt: {
-          gte: start,
-          lt: end,
-        },
-      },
-    });
-  });
-
-  refreshCashierAndWaiterViews();
-  redirect("/cashier?balanceStatus=reset_test_data");
 }
