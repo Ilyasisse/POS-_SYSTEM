@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const revalidate = 60;
+
 export async function GET() {
   try {
     const baristas = await prisma.user.findMany({
@@ -18,14 +20,18 @@ export async function GET() {
       orderBy: {
         fullName: "asc",
       },
+      take: 50,
     });
 
-    return NextResponse.json(baristas);
+    return NextResponse.json(baristas, { status: 200 });
   } catch (error) {
-    console.error("Failed to fetch baristas:", error);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to fetch baristas:", error);
+    }
+
     return NextResponse.json(
       { error: "Failed to fetch baristas" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

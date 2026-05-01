@@ -25,7 +25,7 @@ export default function CategoryFilter({
               : "bg-white text-slate-700 hover:bg-blue-100"
           }`}
         >
-          Wax walba
+          All
         </button>
       ) : null}
 
