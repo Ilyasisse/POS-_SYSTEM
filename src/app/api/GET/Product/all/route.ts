@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const revalidate = 300; // cache for 5 minutes
+
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        cost: true,
+        isActive: true,
+        sku: true,
+        description: true,
+        trackStock: true,
+        stockQty: true,
+        imageUrl: true,
+        pronunciationAudioUrl: true,
+        isPopular: true,
+
         category: {
           select: {
             id: true,
@@ -15,11 +30,14 @@ export async function GET() {
             station: true,
           },
         },
+
         modifiers: {
-          where: {
-            isActive: true,
-          },
-          include: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            pronunciationAudioUrl: true,
             modifierGroup: {
               select: {
                 id: true,
@@ -38,64 +56,42 @@ export async function GET() {
     });
 
     const formattedProducts = products.map((product) => {
-      const groupMap = new Map<
-        string,
-        {
-          id: string;
-          name: string;
-          required: boolean;
-          minSelect: number;
-          maxSelect: number;
-          multiple: boolean;
-          options: {
-            id: string;
-            name: string;
-            price: number;
-            pronunciationAudioUrl: string | null;
-          }[];
-        }
-      >();
+      const groupMap = new Map();
 
-      for (const modifier of product.modifiers ?? []) {
+      for (const modifier of product.modifiers) {
         const group = modifier.modifierGroup;
+        if (!group) continue;
 
-        if (!group) {
-          continue;
-        }
+        let existingGroup = groupMap.get(group.id);
 
-        if (!groupMap.has(group.id)) {
-          groupMap.set(group.id, {
+        if (!existingGroup) {
+          existingGroup = {
             id: group.id,
             name: group.name,
-            required: Boolean(group.isRequired),
-            minSelect: Number(group.minSelect ?? 0),
-            maxSelect: Number(group.maxSelect ?? 1),
-            multiple: Number(group.maxSelect ?? 1) > 1,
+            required: !!group.isRequired,
+            minSelect: group.minSelect ?? 0,
+            maxSelect: group.maxSelect ?? 1,
+            multiple: (group.maxSelect ?? 1) > 1,
             options: [],
-          });
+          };
+          groupMap.set(group.id, existingGroup);
         }
 
-        groupMap.get(group.id)?.options.push({
+        existingGroup.options.push({
           id: modifier.id,
           name: modifier.name,
-          price: Number(modifier.price ?? 0),
+          price: modifier.price ?? 0,
           pronunciationAudioUrl: modifier.pronunciationAudioUrl ?? null,
         });
       }
 
       return {
-        id: product.id,
-        name: product.name,
-        price: Number(product.price ?? 0),
-        cost: product.cost != null ? Number(product.cost) : null,
-        isActive: product.isActive,
-        sku: product.sku ?? null,
-        description: product.description ?? null,
-        trackStock: Boolean(product.trackStock),
-        stockQty: Number(product.stockQty ?? 0),
-        imageUrl: product.imageUrl ?? null,
-        pronunciationAudioUrl: product.pronunciationAudioUrl ?? null,
-        isPopular: Boolean(product.isPopular),
+        ...product,
+        price: product.price ?? 0,
+        cost: product.cost ?? null,
+        trackStock: !!product.trackStock,
+        stockQty: product.stockQty ?? 0,
+        isPopular: !!product.isPopular,
         category: product.category
           ? {
               id: product.category.id,
@@ -109,15 +105,12 @@ export async function GET() {
 
     return NextResponse.json(formattedProducts);
   } catch (error) {
-    console.error("GET /api/GET/Product/all error:", error);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("GET /api/products error:", error);
+    }
 
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch active products",
-      },
+      { error: "Failed to fetch products" },
       { status: 500 }
     );
   }

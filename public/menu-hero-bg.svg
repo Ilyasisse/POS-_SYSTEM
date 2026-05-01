@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Cafe hero background</title>
+  <desc id="desc">A warm coffee scene with latte art and a milk pour for the menu hero background.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#140905" />
+      <stop offset="40%" stop-color="#2d170e" />
+      <stop offset="72%" stop-color="#4b2615" />
+      <stop offset="100%" stop-color="#160a06" />
+    </linearGradient>
+    <radialGradient id="glowLeft" cx="22%" cy="32%" r="42%">
+      <stop offset="0%" stop-color="#9c5b28" stop-opacity="0.72" />
+      <stop offset="55%" stop-color="#62341a" stop-opacity="0.26" />
+      <stop offset="100%" stop-color="#1a0c07" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowRight" cx="78%" cy="38%" r="32%">
+      <stop offset="0%" stop-color="#e2b26f" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#1a0c07" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="stream" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffaf2" />
+      <stop offset="100%" stop-color="#e4d0b3" />
+    </linearGradient>
+    <linearGradient id="cup" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eadbc8" />
+      <stop offset="60%" stop-color="#c8b395" />
+      <stop offset="100%" stop-color="#8d775f" />
+    </linearGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b2114" />
+      <stop offset="100%" stop-color="#6b3b1f" />
+    </linearGradient>
+    <filter id="blurLarge" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="26" />
+    </filter>
+    <filter id="blurSoft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" />
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)" />
+  <rect width="1600" height="900" fill="url(#glowLeft)" />
+  <rect width="1600" height="900" fill="url(#glowRight)" />
+
+  <ellipse cx="1220" cy="760" rx="520" ry="86" fill="#1b0e09" fill-opacity="0.55" />
+  <path d="M615 900 C 845 710, 1210 680, 1600 762 L 1600 900 Z" fill="url(#table)" opacity="0.92" />
+
+  <g opacity="0.82" filter="url(#blurLarge)">
+    <circle cx="310" cy="258" r="112" fill="#8a4d22" />
+    <circle cx="980" cy="176" r="84" fill="#d3a56b" />
+    <circle cx="1330" cy="320" r="88" fill="#8d4d29" />
+  </g>
+
+  <g opacity="0.88">
+    <path d="M1240 58 C 1352 122, 1405 194, 1396 290 C 1388 374, 1300 426, 1208 382 C 1146 352, 1096 290, 1088 216 C 1080 142, 1138 82, 1240 58 Z" fill="#0e0706" />
+    <path d="M1216 90 C 1308 138, 1358 194, 1350 260 C 1341 334, 1264 372, 1188 340 C 1136 318, 1097 270, 1090 216 C 1084 152, 1134 106, 1216 90 Z" fill="#20110c" />
+  </g>
+
+  <path d="M1198 88 C 1226 204, 1232 286, 1215 408 C 1206 474, 1190 538, 1180 598" fill="none" stroke="url(#stream)" stroke-width="34" stroke-linecap="round" filter="url(#blurSoft)" opacity="0.96" />
+
+  <g transform="translate(0 8)">
+    <ellipse cx="1074" cy="618" rx="224" ry="88" fill="#efe1cc" />
+    <ellipse cx="1072" cy="617" rx="178" ry="60" fill="#8e5629" />
+    <ellipse cx="1071" cy="624" rx="156" ry="46" fill="#b7773c" />
+    <path d="M958 620 C 995 580, 1034 580, 1070 624 C 1104 666, 1146 666, 1184 620" fill="none" stroke="#f7e9d5" stroke-width="7" stroke-linecap="round" />
+    <path d="M986 626 C 1018 596, 1042 596, 1070 626 C 1098 656, 1124 656, 1155 626" fill="none" stroke="#f7e9d5" stroke-width="5" stroke-linecap="round" />
+  </g>
+
+  <g>
+    <path d="M876 622 C 868 760, 1252 770, 1242 622 C 1236 527, 884 527, 876 622 Z" fill="url(#cup)" />
+    <path d="M1243 616 C 1315 618, 1342 696, 1286 732" fill="none" stroke="#a48c71" stroke-width="28" stroke-linecap="round" />
+    <path d="M1243 616 C 1298 618, 1319 683, 1277 709" fill="none" stroke="#d8c3a8" stroke-width="16" stroke-linecap="round" />
+    <ellipse cx="1062" cy="794" rx="338" ry="44" fill="#1a0d08" fill-opacity="0.48" />
+  </g>
+
+  <g fill="#120906" opacity="0.92">
+    <path d="M999 700 C 1014 678, 1033 665, 1065 664 C 1096 663, 1119 676, 1131 700 C 1092 690, 1038 690, 999 700 Z" />
+    <path d="M1058 653 C 1048 639, 1047 626, 1057 614 C 1068 626, 1068 639, 1058 653 Z" />
+    <path d="M986 710 L 1138 710 L 1134 718 L 989 718 Z" />
+  </g>
+
+  <g opacity="0.58">
+    <path d="M1414 318 C 1518 370, 1556 442, 1532 514 C 1516 562, 1468 602, 1390 590 C 1332 580, 1268 534, 1240 476 C 1207 408, 1240 342, 1315 309 C 1350 292, 1387 298, 1414 318 Z" fill="#522a18" />
+    <path d="M1402 332 C 1487 377, 1521 437, 1500 495 C 1488 532, 1453 566, 1394 558 C 1348 551, 1298 516, 1275 470 C 1245 414, 1273 365, 1338 337 C 1366 325, 1387 326, 1402 332 Z" fill="#764026" />
+  </g>
+
+  <g opacity="0.55">
+    <path d="M254 210 C 300 186, 352 188, 393 224 C 367 241, 330 247, 283 241 C 259 238, 240 228, 254 210 Z" fill="#6e3e21" />
+  </g>
+</svg>
