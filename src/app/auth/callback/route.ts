@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
+import { syncGoogleCustomer } from "@/lib/auth/syncGoogleCustomer";
 import { createClient } from "@/lib/supabase/server";
 
-const LOCAL_CUSTOMER_ORIGIN = "http://localhost:3000";
+function getRedirectOrigin(request: Request, requestUrl: URL) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+
+  if (!forwardedHost) {
+    return requestUrl.origin;
+  }
+
+  const forwardedProto =
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+    "https";
+
+  return `${forwardedProto}://${forwardedHost}`;
+}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+  const redirectOrigin = getRedirectOrigin(request, requestUrl);
   const code = requestUrl.searchParams.get("code");
   let next = requestUrl.searchParams.get("next") ?? "/menu";
 
@@ -17,22 +31,32 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      if (next === "/menu") {
-        return NextResponse.redirect(`${LOCAL_CUSTOMER_ORIGIN}${next}`);
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        return NextResponse.redirect(
+          `${redirectOrigin}/login?error=google-signin-failed`,
+        );
       }
 
-      const forwardedHost = request.headers.get("x-forwarded-host");
-      const isLocalEnv = process.env.NODE_ENV === "development";
+      try {
+        await syncGoogleCustomer(user);
+      } catch (error) {
+        console.error("Failed to sync Google customer:", error);
 
-      if (!isLocalEnv && forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+        return NextResponse.redirect(
+          `${redirectOrigin}/login?error=google-signin-failed`,
+        );
       }
 
-      return NextResponse.redirect(`${requestUrl.origin}${next}`);
+      return NextResponse.redirect(`${redirectOrigin}${next}`);
     }
   }
 
   return NextResponse.redirect(
-    `${requestUrl.origin}/login?error=google-signin-failed`,
+    `${redirectOrigin}/login?error=google-signin-failed`,
   );
 }

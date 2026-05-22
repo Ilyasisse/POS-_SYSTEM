@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Mash Allah cafe",
   description: "Mash Allah ",
   icons:{
-    icon:"/logo.png"
+    icon:"/newer_logo.png"
   }
 };
 

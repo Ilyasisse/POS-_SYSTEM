@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 const LEGACY_UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "pronunciations");
 const PRONUNCIATION_BUCKET =
   process.env.SUPABASE_PRONUNCIATION_BUCKET?.trim() || "pronunciations";
-
+  
 function slugifyLabel(value: string) {
   const slug = value
     .toLowerCase()

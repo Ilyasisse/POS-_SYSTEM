@@ -5,7 +5,7 @@ function formatRole(role: string) {
 }
 
 export default async function StaffPage() {
-  const staff = await prisma.user.findMany({
+  const userRows = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
     include: {
       _count: {
@@ -17,6 +17,7 @@ export default async function StaffPage() {
       },
     },
   });
+  const staff = userRows.filter((member) => member.role !== "CUSTOMER");
 
   const activeStaff = staff.filter((member) => member.isActive).length;
   const kitchenStaff = staff.filter((member) =>
@@ -61,6 +62,7 @@ export default async function StaffPage() {
               {kitchenStaff}
             </h2>
           </div>
+
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">

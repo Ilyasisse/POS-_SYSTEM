@@ -11,7 +11,7 @@ export async function getCurrentUser() {
   } = await supabase.auth.getUser();
 
   if (authError || !authUser) {
-    redirect("/login");
+    redirect("/staff-login");
   }
 
   const { data: appUser, error: appUserError } = await supabase
@@ -21,11 +21,11 @@ export async function getCurrentUser() {
     .single<AppUser>();
 
   if (appUserError || !appUser) {
-    redirect("/login");
+    redirect("/staff-login?error=staff_not_found");
   }
 
   if (!appUser.isActive) {
-    redirect("/login");
+    redirect("/staff-login?error=inactive");
   }
 
   return appUser;

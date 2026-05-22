@@ -7,7 +7,7 @@ export default async function AdminPage() {
     productCount,
     modifierCount,
     modifierGroupCount,
-    staffCount,
+    userRows,
     tableCount,
     openOrdersCount,
   ] = await Promise.all([
@@ -15,7 +15,11 @@ export default async function AdminPage() {
     prisma.product.count(),
     prisma.modifier.count(),
     prisma.modifierGroup.count(),
-    prisma.user.count(),
+    prisma.user.findMany({
+      select: {
+        role: true,
+      },
+    }),
     prisma.table.count(),
     prisma.order.count({
       where: {
@@ -23,6 +27,7 @@ export default async function AdminPage() {
       },
     }),
   ]);
+  const staffCount = userRows.filter((user) => user.role !== "CUSTOMER").length;
 
   const sections = [
     {
@@ -36,6 +41,12 @@ export default async function AdminPage() {
       title: "Products",
       value: productCount,
       description: "Manage items, pricing, category links, and stock tracking.",
+    },
+    {
+      href: "/admin/inventory",
+      title: "Inventory",
+      value: null,
+      description: "Track stock levels, supply adjustments, and WhatsApp alerts.",
     },
     {
       href: "/admin/modifiers",

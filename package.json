@@ -9,8 +9,7 @@
     "dev:ws": "node scripts/kitchen-ws-server.js",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint",
-    "ws:server": "node scripts/kitchen-ws-server.js"
+    "lint": "eslint"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",
@@ -24,6 +23,7 @@
     "postcss": "^8.5.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "resend": "^6.12.3",
     "tailwindcss": "^4.2.1",
     "ws": "^8.19.0"
   },

@@ -14,7 +14,7 @@ export async function requireRole(
   } = await supabase.auth.getUser();
 
   if (!authUser) {
-    redirect("/login");
+    redirect("/staff-login");
   }
 
   const user = await prisma.user.findUnique({
@@ -22,7 +22,7 @@ export async function requireRole(
   });
 
   if (!user || !user.isActive) {
-    redirect("/login?error=staff_not_found");
+    redirect("/staff-login?error=staff_not_found");
   }
 
   const isCabitaanRole =
@@ -30,7 +30,7 @@ export async function requireRole(
     (user.role as string) === "CABITAAN";
 
   if (!allowedRoles.includes(user.role) && !(isCabitaanRole && allowedRoles.includes("Cabitaan"))) {
-    redirect("/login?error=unauthorized");
+    redirect("/staff-login?error=unauthorized");
   }
 
   const effectiveStation =
@@ -47,7 +47,7 @@ export async function requireRole(
     user.role !== "ADMIN" &&
     !(effectiveStation && allowedStations.includes(effectiveStation))
   ) {
-    redirect("/login?error=unauthorized");
+    redirect("/staff-login?error=unauthorized");
   }
 
   return user;

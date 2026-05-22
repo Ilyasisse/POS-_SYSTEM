@@ -2,129 +2,90 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { PaymentMethod, Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
-import {
-  closeWaiterBusinessDayShift,
-  openWaiterBusinessDayShift,
-  reopenWaiterBusinessDayShift,
-} from "@/lib/waiter-shifts";
 
-function buildReturnPath(
-  waiterId: string,
-  balanceStatus: string,
-) {
-  const params = new URLSearchParams();
+const PAYMENT_METHODS = new Set<PaymentMethod>([
+  "MYCASH",
+  "GOLIS",
+  "Dahabshiil",
+  "OTHER",
+]);
 
-  if (waiterId) {
-    params.set("waiterId", waiterId);
-  }
-
-  if (balanceStatus) {
-    params.set("balanceStatus", balanceStatus);
-  }
-
-  return params.size > 0 ? `/cashier?${params.toString()}` : "/cashier";
+function isPaymentMethod(value: string): value is PaymentMethod {
+  return PAYMENT_METHODS.has(value as PaymentMethod);
 }
 
-function parseAmount(value: FormDataEntryValue | null) {
-  const parsedAmount = Number(String(value ?? "").trim());
-
-  return Number.isFinite(parsedAmount) ? parsedAmount : null;
+function toDecimal(value: number) {
+  return new Prisma.Decimal(value);
 }
 
-function refreshCashierAndWaiterViews() {
+function refreshCashierTableViews() {
   revalidatePath("/cashier");
-  revalidatePath("/cashier/reports");
-  revalidatePath("/cashier/waiter-orders");
+  revalidatePath("/cashier/order");
+  revalidatePath("/manager");
   revalidatePath("/admin/reports");
-  revalidatePath("/waiter");
-  revalidatePath("/kitchen");
 }
 
-export async function saveWaiterOpeningBalance(formData: FormData) {
-  await requireRole(["CASHIER", "ADMIN"]);
+export async function payOpenTableOrdersFromCashier(formData: FormData) {
+  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
 
-  const waiterId = String(formData.get("waiterId") ?? "").trim();
-  const openingAmount = parseAmount(formData.get("openingAmount")) ?? 0;
+  const tableId = String(formData.get("tableId") ?? "").trim();
+  const paymentMethod = String(formData.get("paymentMethod") ?? "").trim();
 
-  if (!waiterId) {
-    redirect(buildReturnPath(waiterId, "invalid_opening_amount"));
+  if (!tableId || !isPaymentMethod(paymentMethod)) {
+    redirect("/cashier?paymentStatus=invalid_payment");
   }
 
-  let balanceStatus = "opening_saved";
+  let paymentStatus = "payment_saved";
 
   try {
-    const result = await openWaiterBusinessDayShift(waiterId, openingAmount);
+    const orders = await prisma.order.findMany({
+      where: {
+        tableId,
+        status: "OPEN",
+        type: "DINE_IN",
+      },
+      select: {
+        id: true,
+        total: true,
+      },
+    });
 
-    refreshCashierAndWaiterViews();
-    balanceStatus =
-      result.mode === "created" ? "opening_saved" : "opening_updated";
+    if (orders.length === 0) {
+      paymentStatus = "order_not_open";
+    } else {
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.createMany({
+          data: orders.map((order) => ({
+            orderId: order.id,
+            cashierId: currentUser.id,
+            cashierName: currentUser.fullName,
+            method: paymentMethod,
+            amountPaid: toDecimal(Number(order.total)),
+          })),
+        });
+
+        await tx.order.updateMany({
+          where: {
+            id: {
+              in: orders.map((order) => order.id),
+            },
+          },
+          data: {
+            status: "PAID",
+            closedAt: new Date(),
+          },
+        });
+      });
+
+      refreshCashierTableViews();
+    }
   } catch (error) {
-    console.error("Failed to save opening balance:", error);
-    balanceStatus =
-      error instanceof Error
-        ? error.message.includes("already been closed today")
-          ? "shift_already_closed"
-          : error.message.includes("Waiter not found")
-            ? "waiter_not_found"
-            : "opening_failed"
-        : "opening_failed";
+    console.error("Failed to pay open table orders:", error);
+    paymentStatus = "payment_failed";
   }
 
-  redirect(buildReturnPath(waiterId, balanceStatus));
-}
-
-export async function closeWaiterBalanceFromCashier(formData: FormData) {
-  await requireRole(["CASHIER", "ADMIN"]);
-
-  const waiterId = String(formData.get("waiterId") ?? "").trim();
-  const closingAmount = parseAmount(formData.get("closingAmount"));
-
-  if (!waiterId || closingAmount == null) {
-    redirect(buildReturnPath(waiterId, "invalid_closing_amount"));
-  }
-
-  let balanceStatus = "closing_saved";
-
-  try {
-    await closeWaiterBusinessDayShift(waiterId, closingAmount);
-
-    refreshCashierAndWaiterViews();
-  } catch (error) {
-    console.error("Failed to save closing balance:", error);
-    balanceStatus =
-      error instanceof Error &&
-      error.message.includes("There is no open balance")
-        ? "no_open_shift"
-        : "closing_failed";
-  }
-
-  redirect(buildReturnPath(waiterId, balanceStatus));
-}
-
-export async function reopenWaiterBalanceFromCashier(formData: FormData) {
-  await requireRole(["CASHIER", "ADMIN"]);
-
-  const waiterId = String(formData.get("waiterId") ?? "").trim();
-
-  if (!waiterId) {
-    redirect(buildReturnPath(waiterId, "reopen_failed"));
-  }
-
-  let balanceStatus = "reopened_saved";
-
-  try {
-    await reopenWaiterBusinessDayShift(waiterId);
-
-    refreshCashierAndWaiterViews();
-  } catch (error) {
-    console.error("Failed to reopen closing balance:", error);
-    balanceStatus =
-      error instanceof Error &&
-      error.message.includes("There is no closed balance")
-        ? "no_closed_shift"
-        : "reopen_failed";
-  }
-
-  redirect(buildReturnPath(waiterId, balanceStatus));
+  redirect(`/cashier?paymentStatus=${paymentStatus}`);
 }

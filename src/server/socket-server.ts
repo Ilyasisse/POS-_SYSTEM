@@ -9,6 +9,7 @@ import {
   getKitchenTicketStatusForItems,
   normalizeKitchenTicket,
   normalizeKitchenStation,
+  setKitchenTicketPickupStatus,
   setKitchenTicketStationStatus,
 } from "../lib/kitchen-socket";
 
@@ -112,17 +113,58 @@ wss.on("connection", (ws, request) => {
           return;
         }
 
-        tickets = tickets
-          .map((ticket) =>
-            ticket.id === id
-              ? setKitchenTicketStationStatus(ticket, normalizedStation, status)
-              : ticket,
-          )
-          .filter((ticket) => getKitchenTicketStatusForItems(ticket) !== "done");
+        const previousTicket = tickets.find((ticket) => ticket.id === id);
+        const nextTicket = previousTicket
+          ? setKitchenTicketStationStatus(previousTicket, normalizedStation, status)
+          : null;
+
+        tickets = tickets.map((ticket) =>
+          ticket.id === id && nextTicket ? nextTicket : ticket,
+        );
 
         broadcastStatus({
           type: "UPDATE_ORDER_STATUS",
           payload: { id, station: normalizedStation, status },
+        });
+
+        if (nextTicket && getKitchenTicketStatusForItems(nextTicket) === "done") {
+          broadcastTicket(nextTicket);
+        }
+      }
+
+      if (message.type === "UPDATE_PICKUP_STATUS") {
+        const {
+          id,
+          pickupStatus,
+          claimedByWaiterId,
+          claimedByWaiterName,
+        } = message.payload;
+        const previousTicket = tickets.find((ticket) => ticket.id === id);
+
+        if (!previousTicket) {
+          return;
+        }
+
+        const nextTicket = setKitchenTicketPickupStatus(
+          previousTicket,
+          pickupStatus,
+          claimedByWaiterId,
+          claimedByWaiterName,
+        );
+
+        tickets =
+          pickupStatus === "delivered"
+            ? tickets.filter((ticket) => ticket.id !== id)
+            : tickets.map((ticket) => (ticket.id === id ? nextTicket : ticket));
+
+        broadcastStatus({
+          type: "UPDATE_PICKUP_STATUS",
+          payload: {
+            id,
+            pickupStatus,
+            claimedByWaiterId,
+            claimedByWaiterName,
+          },
         });
       }
     } catch (error) {

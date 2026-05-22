@@ -10,6 +10,7 @@ export function getDefaultRouteForUser(user: AppUser) {
   if (user.role === "MANAGER") return "/manager";
   if (user.role === "CASHIER") return "/cashier";
   if (user.role === "WAITER") return "/waiter";
+  if (user.role === "CUSTOMER") return "/menu";
   if (user.role === "BARISTA" || user.station === "BARISTA") {
     return "/kitchen/barista";
   }
@@ -26,5 +27,5 @@ export function getDefaultRouteForUser(user: AppUser) {
     return "/kitchen/cunto-soomaali";
   }
 
-  return "/login";
+  return "/staff-login";
 }

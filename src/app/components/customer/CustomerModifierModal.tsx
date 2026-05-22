@@ -3,12 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ModifierGroup, Product, StaffSummary } from "@/lib/types";
 import {
-  getCustomerModifierGroups,
-  getCustomerProductImage,
-} from "./customer-fallbacks";
-import {
   buildModifierLines,
   formatCurrency,
+  getProductImage,
+  getProductModifierGroups,
   type SelectedModifiersMap,
 } from "./customer-order-utils";
 
@@ -76,12 +74,9 @@ export default function CustomerModifierModal({
   }, [open]);
 
   const modifierGroups = useMemo(
-    () => (product ? getCustomerModifierGroups(product) : []),
+    () => (product ? getProductModifierGroups(product) : []),
     [product],
   );
-  const usingFallbackModifiers =
-    product != null &&
-    (!Array.isArray(product.modifierGroups) || product.modifierGroups.length === 0);
 
   const selectedLines = useMemo(
     () => (product ? buildModifierLines(product, selected) : []),
@@ -99,7 +94,8 @@ export default function CustomerModifierModal({
   }, [product, selectedLines]);
 
   const errors = useMemo(() => {
-    return modifierGroups.reduce<Record<string, string>>((accumulator, group) => {
+  return modifierGroups.reduce<Record<string, string>>(
+    (accumulator, group) => {
       const count = (selected[group.id] || []).length;
       const min = getMinSelect(group);
       const max = getMaxSelect(group);
@@ -113,8 +109,10 @@ export default function CustomerModifierModal({
       }
 
       return accumulator;
-    }, {});
-  }, [modifierGroups, selected]);
+    },
+    {}
+  );
+}, [modifierGroups, selected]);
 
   const hasBaristaRequirement =
     product?.category?.station === "BARISTA" && !selectedBaristaId;
@@ -175,26 +173,33 @@ export default function CustomerModifierModal({
         <div
           data-aos="fade"
           data-aos-duration="200"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4 backdrop-blur-md sm:p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-3 backdrop-blur-md sm:p-6"
           onClick={onClose}
         >
           <div
             data-aos="zoom-in"
             data-aos-duration="240"
-            className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-[#f6efe6] text-stone-900 shadow-[0_45px_140px_rgba(28,16,10,0.45)]"
+            className="relative flex max-h-[95vh] w-full max-w-6xl flex-col overflow-y-auto rounded-[1.75rem] border border-white/10 bg-[#f6efe6] text-stone-900 shadow-[0_45px_140px_rgba(28,16,10,0.45)] sm:rounded-[2rem]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="grid flex-1 overflow-hidden lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="relative min-h-[16rem] overflow-hidden bg-[linear-gradient(145deg,#2b1f18_0%,#4f2e1f_45%,#925d2d_100%)] p-6 text-white sm:p-8">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(245,158,11,0.18),transparent_26%)]" />
+            <div className="grid flex-1 items-start lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white lg:min-h-[32rem]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getProductImage(product)}
+                  alt={product.name}
+                  className="absolute inset-0 h-full w-full object-cover object-center"
+                />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,12,8,0.25)_0%,rgba(20,12,8,0.42)_28%,rgba(20,12,8,0.78)_70%,rgba(20,12,8,0.92)_100%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(245,158,11,0.18),transparent_28%)]" />
                 <div className="relative flex h-full flex-col justify-between">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start justify-between gap-4 p-5 sm:p-7">
                     <div>
                       <p className="text-xs uppercase tracking-[0.32em] text-amber-200/90">
                         Customize Item
                       </p>
                       <h2
-                        className="mt-3 max-w-md text-4xl leading-tight sm:text-5xl"
+                        className="mt-3 max-w-md text-3xl leading-tight sm:text-4xl lg:text-5xl"
                         style={{
                           fontFamily:
                             '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
@@ -207,53 +212,36 @@ export default function CustomerModifierModal({
                     <button
                       type="button"
                       onClick={onClose}
-                      className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+                      className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:px-4"
                     >
                       Close
                     </button>
                   </div>
 
-                  <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="max-w-md">
-                      <p className="text-sm leading-6 text-stone-100/80">
+                  <div className="  pl-5 pt-30 pr-0.5 text-right">
+                    <div className=" sm:w-2 rounded-[25px] sm:border border-white/10 sm:bg-black/20 bg-transparent p-4 sm:backdrop-blur-sm">
+                      <p className="text-sm leading-6 text-stone-100/80 hidden sm:block">
                         {product.description?.trim() ||
                           "Choose the details that make this item exactly how you want it."}
                       </p>
-                      <p className="mt-4 text-sm uppercase tracking-[0.22em] text-amber-100/70">
+                      <p className="mt-4 text-sm uppercase tracking-[0.22em] text-amber-100/70 ">
                         Base price
                       </p>
                       <p className="mt-1 text-3xl font-semibold text-amber-100">
                         {formatCurrency(Number(product.price))}
                       </p>
                     </div>
-
-                    <div className="h-40 w-full max-w-xs overflow-hidden rounded-[1.5rem] border border-white/10 bg-black/10 shadow-2xl sm:h-48">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={getCustomerProductImage(product)}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex max-h-[92vh] flex-col overflow-hidden bg-[#f9f4ee]">
-                <div className="border-b border-stone-200 px-6 py-5">
+              <div className="flex flex-col bg-[#f9f4ee]">
+                <div className="border-b border-stone-200 px-4 py-4 sm:px-6 hidden sm:block">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="rounded-full bg-stone-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white">
                       {modifierGroups.length} groups
                     </span>
-                    {usingFallbackModifiers ? (
-                      <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-900">
-                        Placeholder options
-                      </span>
-                    ) : (
-                      <span className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-900">
-                        Live POS modifiers
-                      </span>
-                    )}
+                  
                   </div>
                   <p className="mt-3 text-sm leading-6 text-stone-600">
                     Pick your size, extras, and finishing touches. Your total
@@ -261,7 +249,7 @@ export default function CustomerModifierModal({
                   </p>
                 </div>
 
-                <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                <div className="flex-1 space-y-4 px-4 py-4 sm:px-6 sm:py-5">
                   {modifierGroups.map((group, groupIndex) => (
                     <section
                       key={group.id}
@@ -356,7 +344,7 @@ export default function CustomerModifierModal({
                   ) : null}
                 </div>
 
-                <div className="border-t border-stone-200 bg-white px-6 py-5">
+                <div className="sticky bottom-0 z-10 border-t border-stone-200 bg-white px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.24em] text-stone-500">

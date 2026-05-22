@@ -6,7 +6,8 @@ export type UserRole =
   | "COOK"
   | "BARISTA"
   | "CABITAAN"
-  | "Cabitaan";
+  | "Cabitaan"
+  | "CUSTOMER";
 
 export type AppUser = {
   id: string;
@@ -20,8 +21,12 @@ export type AppUser = {
 export function getDefaultRouteForUser(user: AppUser) {
   const isCabitaanRole = user.role === "CABITAAN" || user.role === "Cabitaan";
 
-  if (user.role === "ADMIN" || user.role === "MANAGER") {
+  if (user.role === "ADMIN") {
     return "/admin";
+  }
+
+  if (user.role === "MANAGER") {
+    return "/manager";
   }
 
   if (user.role === "CASHIER") {
@@ -30,6 +35,10 @@ export function getDefaultRouteForUser(user: AppUser) {
 
   if (user.role === "WAITER") {
     return "/waiter";
+  }
+
+  if (user.role === "CUSTOMER") {
+    return "/menu";
   }
 
   if (user.role === "BARISTA" || user.station === "BARISTA") {
@@ -58,12 +67,20 @@ export function canAccessPath(pathname: string, user: AppUser) {
     return user.role === "ADMIN" || user.role === "MANAGER";
   }
 
+  if (pathname.startsWith("/manager")) {
+    return user.role === "ADMIN" || user.role === "MANAGER";
+  }
+
   if (pathname.startsWith("/cashier")) {
     return user.role === "CASHIER";
   }
 
   if (pathname.startsWith("/waiter")) {
     return user.role === "WAITER";
+  }
+
+  if (pathname.startsWith("/menu") || pathname.startsWith("/customer")) {
+    return user.role === "CUSTOMER";
   }
 
   if (pathname.startsWith("/kitchen")) {

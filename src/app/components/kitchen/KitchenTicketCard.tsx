@@ -28,6 +28,16 @@ export default function KitchenTicketCard({
           <p className="text-sm text-slate-400">
             {new Date(ticket.createdAt).toLocaleTimeString("en-US")}
           </p>
+          {ticket.tableName ? (
+            <p className="mt-1 text-lg font-bold text-emerald-300">
+              Table: {ticket.tableName}
+            </p>
+          ) : null}
+          {ticket.cashierName ? (
+            <p className="mt-1 text-sm font-semibold text-slate-300">
+              Cashier: {ticket.cashierName}
+            </p>
+          ) : null}
           {ticket.waiterName ? (
             <p className="mt-1 text-md font-semibold text-amber-300">
               Waiter: {ticket.waiterName}

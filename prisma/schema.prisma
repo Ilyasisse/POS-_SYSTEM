@@ -55,14 +55,54 @@ model Product {
   categoryId  String
   trackStock  Boolean     @default(false)
   stockQty    Int         @default(0)
+  lowStockThreshold Int    @default(5)
+  inventoryAlertStatus InventoryAlertStatus @default(OK)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   modifiers   Modifier[]
   orderItems  OrderItem[]
+  inventoryMovements InventoryMovement[]
   category    Category    @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
+  @@index([trackStock, inventoryAlertStatus])
   @@index([price, name])
+}
+
+model InventorySupply {
+  id                   String               @id @default(cuid())
+  name                 String
+  unit                 String               @default("unit")
+  stockQty             Int                  @default(0)
+  lowStockThreshold    Int                  @default(5)
+  inventoryAlertStatus InventoryAlertStatus @default(OK)
+  isActive             Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  movements            InventoryMovement[]
+
+  @@unique([name, unit])
+  @@index([isActive, inventoryAlertStatus])
+}
+
+model InventoryMovement {
+  id            String           @id @default(cuid())
+  productId     String?
+  supplyId      String?
+  itemName      String
+  itemType      String
+  delta         Int
+  quantityBefore Int
+  quantityAfter  Int
+  reason        String
+  note          String?
+  createdAt     DateTime         @default(now())
+  product       Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  supply        InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([supplyId, createdAt])
+  @@index([createdAt])
 }
 
 model ModifierGroup {
@@ -208,6 +248,7 @@ enum UserRole {
   COOK
   BARISTA
   Cabitaan
+  CUSTOMER
 }
 
 enum OrderType {
@@ -227,6 +268,12 @@ enum PaymentMethod {
   GOLIS
   Dahabshiil
   OTHER
+}
+
+enum InventoryAlertStatus {
+  OK
+  LOW
+  OUT
 }
 
 enum Station {

@@ -1,31 +1,70 @@
+// Defines the shape/type of one menu product item
 export type MenuProduct = {
+  // Unique product ID
   id: string;
+
+  // Product name shown to the customer
   name: string;
+
+  // Product description shown on the menu card
   description: string;
+
+  // Product price as a number
   price: number;
+
+  // Human-readable category name like "Coffee"
   categoryName: string;
+
+  // URL-safe category name like "coffee"
   categorySlug: string;
+
+  // Product image URL, or null if no image exists
   imageUrl: string | null;
+
+  // Marks product as popular
   isPopular: boolean;
+
+  // Used to rank best-selling products
   bestSellerScore: number;
 };
 
+// Defines the shape/type of one menu category
 export type MenuCategory = {
+  // Unique category ID
   id: string;
+
+  // Category name shown to customers
   name: string;
+
+  // URL-safe category name
   slug: string;
+
+  // Products inside this category
   products: MenuProduct[];
 };
 
+// Defines the full menu data structure
 export type MenuData = {
+  // Cafe name shown on the menu page
   cafeName: string;
+
+  // Hero background image for menu page
   heroImage: string;
+
+  // All menu categories
   categories: MenuCategory[];
+
+  // All menu products
   products: MenuProduct[];
+
+  // Products shown in featured section
   featuredItems: MenuProduct[];
+
+  // Tells if data came from database or fallback
   hasLiveData: boolean;
 };
 
+// Controls the display order of categories
 const CATEGORY_ORDER = [
   "Coffee",
   "Tea",
@@ -35,12 +74,15 @@ const CATEGORY_ORDER = [
   "Drinks",
 ] as const;
 
+// Creates a lookup map to quickly find category order number
 const CATEGORY_ORDER_LOOKUP = new Map(
   CATEGORY_ORDER.map((name, index) => [name.toLowerCase(), index]),
 );
 
+// Stores the hero image path
 const heroImage = "/menu-hero-bg.png";
 
+// Backup menu items used if database data is unavailable
 const placeholderItems: Array<{
   id: string;
   name: string;
@@ -171,6 +213,7 @@ const placeholderItems: Array<{
   },
 ];
 
+// Escapes special characters so text is safe inside SVG
 function escapeSvgText(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -180,12 +223,14 @@ function escapeSvgText(value: string) {
     .replace(/'/g, "&#39;");
 }
 
+// Converts raw SVG code into a browser-usable image URL
 function svgToDataUri(svg: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
     svg.replace(/\s+/g, " ").trim(),
   )}`;
 }
 
+// Converts category/product text into a clean slug
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -194,23 +239,30 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+// Gets the sorting rank for a category
 function categoryRank(name: string) {
   const normalized = name.trim().toLowerCase();
   return CATEGORY_ORDER_LOOKUP.get(normalized) ?? CATEGORY_ORDER.length + 1;
 }
 
+// Makes sure image URLs are valid
 function resolveAssetUrl(value?: string | null) {
   if (!value) {
     return null;
   }
 
-  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:")) {
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("data:")
+  ) {
     return value;
   }
 
   return value.startsWith("/") ? value : `/${value}`;
 }
 
+// Builds fallback SVG artwork for a product when no real image exists
 function buildCategoryArt(categoryName: string, productName: string) {
   const palettes: Record<string, [string, string, string]> = {
     coffee: ["#3a1f12", "#b9783b", "#f3d6b3"],
@@ -221,8 +273,9 @@ function buildCategoryArt(categoryName: string, productName: string) {
     drinks: ["#352012", "#d98b38", "#ffe2b8"],
   };
 
-  const [primary, secondary, highlight] =
-    palettes[categoryName.trim().toLowerCase()] ?? ["#352012", "#ba7437", "#f4dcc0"];
+  const [primary, secondary, highlight] = palettes[
+    categoryName.trim().toLowerCase()
+  ] ?? ["#352012", "#ba7437", "#f4dcc0"];
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
@@ -258,6 +311,7 @@ function buildCategoryArt(categoryName: string, productName: string) {
   return svgToDataUri(svg);
 }
 
+// Groups products into their categories
 function groupCategories(products: MenuProduct[]) {
   const groups = new Map<string, MenuCategory>();
 
@@ -280,6 +334,7 @@ function groupCategories(products: MenuProduct[]) {
 
   return Array.from(groups.values()).sort((left, right) => {
     const rankDiff = categoryRank(left.name) - categoryRank(right.name);
+
     if (rankDiff !== 0) {
       return rankDiff;
     }
@@ -288,6 +343,7 @@ function groupCategories(products: MenuProduct[]) {
   });
 }
 
+// Builds backup menu data when database data is unavailable
 function buildFallbackMenuData(): MenuData {
   const products = placeholderItems.map((item, index) => {
     const categorySlug = slugify(item.categoryName);
@@ -312,13 +368,12 @@ function buildFallbackMenuData(): MenuData {
     heroImage,
     categories,
     products,
-    featuredItems: products
-      .filter((product) => product.isPopular)
-      .slice(0, 4),
+    featuredItems: products.filter((product) => product.isPopular).slice(0, 4),
     hasLiveData: false,
   };
 }
 
+// Loads real menu data from the database using Prisma
 async function loadLiveMenuData(): Promise<MenuData | null> {
   if (!process.env.DATABASE_URL) {
     return null;
@@ -347,6 +402,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
           },
         },
       }),
+
       prisma.orderItem.groupBy({
         by: ["productId"],
         _sum: {
@@ -402,7 +458,10 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
     }
 
     const categories = groupCategories(products);
-    const featuredSource = products.some((product) => product.bestSellerScore > 0)
+
+    const featuredSource = products.some(
+      (product) => product.bestSellerScore > 0,
+    )
       ? products.filter((product) => product.bestSellerScore > 0)
       : products.some((product) => product.isPopular)
         ? products.filter((product) => product.isPopular)
@@ -422,9 +481,9 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
   }
 }
 
+// Main function exported to the menu page
 export async function getMenuData(): Promise<MenuData> {
   const liveData = await loadLiveMenuData();
+
   return liveData ?? buildFallbackMenuData();
 }
-
-

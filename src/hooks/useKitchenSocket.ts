@@ -6,9 +6,11 @@ import {
   getKitchenSocketUrl,
   getKitchenTicketStatusForItems,
   normalizeKitchenStation,
+  setKitchenTicketPickupStatus,
   setKitchenTicketStationStatus,
   type KitchenSocketMessage,
   type KitchenTicket,
+  type KitchenTicketPickupStatus,
   type KitchenTicketStatus,
   type KitchenViewerRole,
 } from "@/lib/kitchen-socket";
@@ -20,13 +22,17 @@ type SocketStatus = "connecting" | "connected" | "disconnected";
 type UseKitchenSocketOptions = {
   station?: string | null;
   currentUserId?: string | null;
+  currentUserName?: string | null;
   currentUserRole?: KitchenViewerRole | null;
 };
 
 export function useKitchenSocket(options?: UseKitchenSocketOptions) {
   const station = normalizeKitchenStation(options?.station);
   const currentUserId = options?.currentUserId ?? null;
+  const currentUserName = options?.currentUserName ?? null;
   const currentUserRole = options?.currentUserRole ?? null;
+  const isWaiterPickupViewer =
+    !station && (currentUserRole === "WAITER" || currentUserRole === "ADMIN");
   const filterOptions = useMemo(
     () => ({
       station,
@@ -138,6 +144,45 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
               return accumulator;
             }, []);
           });
+          return;
+        }
+
+        if (incoming.type === "UPDATE_PICKUP_STATUS") {
+          const {
+            id,
+            pickupStatus,
+            claimedByWaiterId,
+            claimedByWaiterName,
+          } = incoming.payload;
+
+          setTickets((current) => {
+            return current.reduce<KitchenTicket[]>((accumulator, ticket) => {
+              if (ticket.id !== id) {
+                accumulator.push(ticket);
+                return accumulator;
+              }
+
+              if (pickupStatus === "delivered") {
+                return accumulator;
+              }
+
+              const nextTicket = filterKitchenTicketByStation(
+                setKitchenTicketPickupStatus(
+                  ticket,
+                  pickupStatus,
+                  claimedByWaiterId,
+                  claimedByWaiterName,
+                ),
+                filterOptions,
+              );
+
+              if (nextTicket) {
+                accumulator.push(nextTicket);
+              }
+
+              return accumulator;
+            }, []);
+          });
         }
       };
 
@@ -171,10 +216,17 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
 
   const activeTickets = useMemo(
     () =>
-      tickets.filter(
-        (ticket) => getKitchenTicketStatusForItems(ticket, ticket.items) !== "done",
-      ),
-    [tickets],
+      isWaiterPickupViewer
+        ? tickets.filter(
+            (ticket) =>
+              getKitchenTicketStatusForItems(ticket, ticket.items) === "done" &&
+              ticket.pickupStatus !== "delivered",
+          )
+        : tickets.filter(
+            (ticket) =>
+              getKitchenTicketStatusForItems(ticket, ticket.items) !== "done",
+          ),
+    [isWaiterPickupViewer, tickets],
   );
 
   const updateTicketStatus = (id: string, status: KitchenTicketStatus) => {
@@ -219,11 +271,82 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
     socket.send(JSON.stringify(message));
   };
 
+  const updatePickupStatus = (
+    id: string,
+    pickupStatus: KitchenTicketPickupStatus,
+  ) => {
+    if (!isWaiterPickupViewer) {
+      setStatusMessage("Only the waiter pickup display can update delivery.");
+      return;
+    }
+
+    const ticket = tickets.find((candidate) => candidate.id === id);
+
+    if (
+      pickupStatus === "delivered" &&
+      ticket?.claimedByWaiterId &&
+      ticket.claimedByWaiterId !== currentUserId &&
+      currentUserRole !== "ADMIN"
+    ) {
+      setStatusMessage("This ticket is claimed by another waiter.");
+      return;
+    }
+
+    const claimedByWaiterId =
+      pickupStatus === "claimed" ? currentUserId : ticket?.claimedByWaiterId;
+    const claimedByWaiterName =
+      pickupStatus === "claimed" ? currentUserName : ticket?.claimedByWaiterName;
+
+    setTickets((current) => {
+      return current.reduce<KitchenTicket[]>((accumulator, currentTicket) => {
+        if (currentTicket.id !== id) {
+          accumulator.push(currentTicket);
+          return accumulator;
+        }
+
+        if (pickupStatus === "delivered") {
+          return accumulator;
+        }
+
+        accumulator.push(
+          setKitchenTicketPickupStatus(
+            currentTicket,
+            pickupStatus,
+            claimedByWaiterId,
+            claimedByWaiterName,
+          ),
+        );
+        return accumulator;
+      }, []);
+    });
+
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      setStatusMessage(
+        "Unable to sync the pickup update. The kitchen connection is offline.",
+      );
+      return;
+    }
+
+    const message: KitchenSocketMessage = {
+      type: "UPDATE_PICKUP_STATUS",
+      payload: {
+        id,
+        pickupStatus,
+        claimedByWaiterId,
+        claimedByWaiterName,
+      },
+    };
+
+    socket.send(JSON.stringify(message));
+  };
+
   return {
     tickets,
     activeTickets,
     socketStatus,
     statusMessage,
     updateTicketStatus,
+    updatePickupStatus,
   };
 }

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import type { KitchenSocketMessage, KitchenTicket } from "@/lib/kitchen-socket";
 import {
   filterKitchenTicketsByStation,
-  getKitchenTicketStatusForItems,
   normalizeKitchenTicket,
   normalizeKitchenStation,
+  setKitchenTicketPickupStatus,
   setKitchenTicketStationStatus,
 } from "@/lib/kitchen-socket";
 
@@ -102,13 +102,48 @@ export async function POST(req: NextRequest) {
           ticket.id === id
             ? setKitchenTicketStationStatus(ticket, normalizedStation, status)
             : ticket,
-        )
-        .filter((ticket) => getKitchenTicketStatusForItems(ticket) !== "done");
+        );
 
       return NextResponse.json({
         ok: true,
         type: "UPDATE_ORDER_STATUS",
         payload: { id, station: normalizedStation, status },
+      });
+    }
+
+    if (message.type === "UPDATE_PICKUP_STATUS") {
+      const {
+        id,
+        pickupStatus,
+        claimedByWaiterId,
+        claimedByWaiterName,
+      } = message.payload;
+
+      globalForKitchen.kitchenTickets =
+        pickupStatus === "delivered"
+          ? (globalForKitchen.kitchenTickets ?? []).filter(
+              (ticket) => ticket.id !== id,
+            )
+          : (globalForKitchen.kitchenTickets ?? []).map((ticket) =>
+              ticket.id === id
+                ? setKitchenTicketPickupStatus(
+                    ticket,
+                    pickupStatus,
+                    claimedByWaiterId,
+                    claimedByWaiterName,
+                  )
+                : ticket,
+            );
+
+      return NextResponse.json({
+        ok: true,
+        type: "UPDATE_PICKUP_STATUS",
+        payload: {
+          id,
+          pickupStatus,
+          claimedByWaiterId,
+          claimedByWaiterName,
+        },
       });
     }
 

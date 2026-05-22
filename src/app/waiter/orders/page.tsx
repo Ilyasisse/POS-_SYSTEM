@@ -1,10 +1,14 @@
-export default function WaiterOrdersPage() {
+import { requireRole } from "@/lib/auth/requireRole";
+import WaiterPickupPage from "@/app/components/waiter/WaiterPickupPage";
+
+export default async function WaiterOrdersPage() {
+  const currentUser = await requireRole(["WAITER", "ADMIN"]);
+
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold">Waiter Orders</h1>
-      <p className="mt-2 text-sm text-slate-600">
-        This page will show active waiter orders.
-      </p>
-    </main>
+    <WaiterPickupPage
+      currentUserId={currentUser.id}
+      currentUserName={currentUser.fullName}
+      currentUserRole={currentUser.role}
+    />
   );
 }

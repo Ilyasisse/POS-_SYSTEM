@@ -11,7 +11,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
 
   if (!authUser) {
-    return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(new URL("/staff-login", process.env.NEXT_PUBLIC_APP_URL));
   }
 
   const user = await prisma.user.findUnique({
@@ -20,7 +20,7 @@ export async function GET() {
 
   if (!user || !user.isActive) {
     return NextResponse.redirect(
-      new URL("/login?error=staff_not_found", process.env.NEXT_PUBLIC_APP_URL)
+      new URL("/staff-login?error=staff_not_found", process.env.NEXT_PUBLIC_APP_URL)
     );
   }
 

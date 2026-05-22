@@ -18,7 +18,7 @@ export async function GET() {
       );
     }
 
-    const staffUser = await prisma.user.findUnique({
+    const appUser = await prisma.user.findUnique({
       where: {
         id: user.id,
       },
@@ -31,21 +31,21 @@ export async function GET() {
       },
     });
 
-    if (!staffUser) {
+    if (!appUser) {
       return NextResponse.json(
-        { error: "Staff account not found" },
+        { error: "User account not found" },
         { status: 404 }
       );
     }
 
-    if (!staffUser.isActive) {
+    if (!appUser.isActive) {
       return NextResponse.json(
-        { error: "Staff account is inactive" },
+        { error: "User account is inactive" },
         { status: 403 }
       );
     }
 
-    return NextResponse.json(staffUser);
+    return NextResponse.json(appUser);
   } catch (error) {
     console.error("GET /api/me error:", error);
 

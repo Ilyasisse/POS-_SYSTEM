@@ -28,6 +28,7 @@ export default function KitchenClient({
   } = useKitchenSocket({
     station,
     currentUserId,
+    currentUserName,
     currentUserRole,
   });
 

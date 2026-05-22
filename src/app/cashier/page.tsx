@@ -2,102 +2,50 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
 import SignOutButton from "../components/SignOutButton";
-import AutoSubmitSelect from "../components/AutoSubmitSelect";
-import {
-  buildWaiterShiftSummary,
-  getWaiterNextOpeningAmount,
-} from "@/lib/waiter-shifts";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
 } from "@/lib/cashier-business-day";
-import {
-  closeWaiterBalanceFromCashier,
-  reopenWaiterBalanceFromCashier,
-  saveWaiterOpeningBalance,
-} from "./actions";
+import { payOpenTableOrdersFromCashier } from "./actions";
 
 type CashierPageProps = {
   searchParams?: Promise<{
-    waiterId?: string;
-    balanceStatus?: string;
+    paymentStatus?: string;
   }>;
 };
 
-function formatMoney(value: number | null) {
-  if (value == null) {
-    return "--";
-  }
-
+function formatMoney(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-function getBalanceStatusMessage(balanceStatus?: string) {
-  switch (balanceStatus) {
-    case "opening_saved":
+function formatDateTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getPaymentStatusMessage(paymentStatus?: string) {
+  switch (paymentStatus) {
+    case "payment_saved":
       return {
         tone: "success" as const,
-        message: "The opening balance has been saved.",
+        message: "The table total has been paid and closed.",
       };
-    case "opening_updated":
-      return {
-        tone: "success" as const,
-        message: "The opening balance has been updated.",
-      };
-    case "closing_saved":
-      return {
-        tone: "success" as const,
-        message: "The closing balance has been saved.",
-      };
-    case "reopened_saved":
-      return {
-        tone: "success" as const,
-        message: "The balance has been reopened.",
-      };
-    case "invalid_opening_amount":
+    case "invalid_payment":
       return {
         tone: "error" as const,
-        message: "Please enter a valid opening balance.",
+        message: "Select a valid table and payment method.",
       };
-    case "invalid_closing_amount":
+    case "order_not_open":
       return {
         tone: "error" as const,
-        message: "Please enter a valid closing balance.",
+        message: "This table no longer has open orders.",
       };
-    case "shift_already_closed":
+    case "payment_failed":
       return {
         tone: "error" as const,
-        message: "This waiter's balance has already been closed today.",
-      };
-    case "waiter_not_found":
-      return {
-        tone: "error" as const,
-        message: "The selected waiter could not be found.",
-      };
-    case "no_open_shift":
-      return {
-        tone: "error" as const,
-        message: "There is no open balance for this waiter.",
-      };
-    case "no_closed_shift":
-      return {
-        tone: "error" as const,
-        message: "There is no closed balance for this waiter.",
-      };
-    case "opening_failed":
-      return {
-        tone: "error" as const,
-        message: "The opening balance could not be saved.",
-      };
-    case "closing_failed":
-      return {
-        tone: "error" as const,
-        message: "The closing balance could not be saved.",
-      };
-    case "reopen_failed":
-      return {
-        tone: "error" as const,
-        message: "The balance could not be reopened.",
+        message: "The payment could not be saved.",
       };
     default:
       return null;
@@ -107,480 +55,232 @@ function getBalanceStatusMessage(balanceStatus?: string) {
 export default async function CashierPage({ searchParams }: CashierPageProps) {
   const currentUser = await requireRole(["CASHIER", "ADMIN"]);
   const params = await searchParams;
+  const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
   const businessDayLabel = formatCashierBusinessDayRange(
     businessDayStart,
     businessDayEnd,
   );
-  const balanceNotice = getBalanceStatusMessage(params?.balanceStatus);
 
-  const waiters = await prisma.user.findMany({
+  const tables = await prisma.table.findMany({
     where: {
-      role: "WAITER",
       isActive: true,
-    },
-    select: {
-      id: true,
-      fullName: true,
-      email: true,
-      role: true,
-      waiterOrders: {
-        where: {
+      orders: {
+        some: {
+          status: "OPEN",
+          type: "DINE_IN",
           createdAt: {
             gte: businessDayStart,
             lt: businessDayEnd,
           },
         },
-        select: {
-          id: true,
-          total: true,
-          createdAt: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
       },
-      shifts: {
+    },
+    orderBy: { name: "asc" },
+    include: {
+      orders: {
         where: {
-          openedAt: {
+          status: "OPEN",
+          type: "DINE_IN",
+          createdAt: {
             gte: businessDayStart,
             lt: businessDayEnd,
           },
         },
-        select: {
-          id: true,
-          openingAmount: true,
-          closingAmount: true,
-          openedAt: true,
-          closedAt: true,
+        orderBy: { createdAt: "desc" },
+        include: {
+          cashier: { select: { fullName: true } },
+          orderItems: {
+            select: {
+              id: true,
+              productName: true,
+              qty: true,
+            },
+            orderBy: { createdAt: "asc" },
+          },
         },
-        orderBy: {
-          openedAt: "desc",
-        },
-        take: 1,
       },
     },
-    orderBy: {
-      fullName: "asc",
-    },
   });
 
-  const summaries = waiters.map((waiter) => {
-    const totalOrders = waiter.waiterOrders.length;
-    const totalSales = waiter.waiterOrders.reduce(
-      (sum, order) => sum + Number(order.total || 0),
-      0,
-    );
-    const shiftSummary = buildWaiterShiftSummary(waiter.shifts[0] ?? null, totalSales);
-
-    return {
-      id: waiter.id,
-      fullName: waiter.fullName,
-      email: waiter.email,
-      role: waiter.role,
-      totalOrders,
-      totalSales,
-      shiftSummary,
-    };
-  });
-
-  const filteredSummaries = summaries.filter((staff) => staff.totalOrders > 0);
-
-  const selectedWaiterId = waiters.some((waiter) => waiter.id === params?.waiterId)
-    ? (params?.waiterId ?? "")
-    : (waiters[0]?.id ?? "");
-  const selectedWaiterSummary =
-    summaries.find((summary) => summary.id === selectedWaiterId) ?? null;
-  const recommendedOpeningAmount = selectedWaiterId
-    ? await getWaiterNextOpeningAmount(selectedWaiterId)
-    : 0;
-  const openingAmountDefaultValue =
-    selectedWaiterSummary?.shiftSummary.status === "open"
-      ? selectedWaiterSummary.shiftSummary.openingAmount
-      : recommendedOpeningAmount;
-  const selectedWaiterHasOpenShift =
-    selectedWaiterSummary?.shiftSummary.status === "open";
-  const selectedWaiterIsClosed =
-    selectedWaiterSummary?.shiftSummary.status === "closed";
-  const showNextShiftCarryOver =
-    Boolean(selectedWaiterIsClosed) && recommendedOpeningAmount < 0;
-
-  const grandTotalOrders = filteredSummaries.reduce(
-    (sum, staff) => sum + staff.totalOrders,
-    0,
+  const openOrders = tables.flatMap((table) =>
+    table.orders.map((order) => ({
+      ...order,
+      tableName: table.name,
+    })),
   );
-  const grandTotalSales = filteredSummaries.reduce(
-    (sum, staff) => sum + staff.totalSales,
+  const openOrderTotal = openOrders.reduce(
+    (sum, order) => sum + Number(order.total),
     0,
   );
 
   return (
-    <main className="p-6">
-      <div className="mb-6 flex items-center justify-between gap-4">
+    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard-ka Cashier</h1>
+          <h1 className="text-2xl font-bold">Cashier table settlement</h1>
           <p className="mt-2 text-lg text-slate-700">
             Welcome {currentUser.fullName}
           </p>
           <p className="text-sm text-slate-500">
-            Maalinta cashier-ka: {businessDayLabel}
+            Business day: {businessDayLabel}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/cashier/waiter-orders"
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            href="/cashier/order"
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
-            Dalabyada Waiter-ka
+            New table order
           </Link>
           <SignOutButton />
         </div>
       </div>
 
-      {balanceNotice ? (
+      {paymentNotice ? (
         <div
           className={`mb-6 rounded-2xl px-4 py-3 text-sm font-medium ${
-            balanceNotice.tone === "success"
+            paymentNotice.tone === "success"
               ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
               : "border border-red-200 bg-red-50 text-red-700"
           }`}
         >
-          {balanceNotice.message}
+          {paymentNotice.message}
         </div>
       ) : null}
 
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="text-sm text-slate-500">
-          Select a waiter below to manage shifts and balances.
-        </div>
-      </div>
-
-      <div className="mb-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-slate-900">
-              Waiter balance management
-            </h2>
-            <p className="text-sm text-slate-500">
-              Select a waiter, enter the opening balance, then close the balance.
-            </p>
-          </div>
-
-          <form className="grid gap-3 md:grid-cols-[1.2fr_0.8fr_auto] md:items-end">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-slate-700">
-                Waiter
-              </span>
-              <AutoSubmitSelect
-                name="waiterId"
-                defaultValue={selectedWaiterId}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none focus:border-blue-500"
-              >
-                {waiters.length === 0 ? (
-                  <option value="">No waiters found</option>
-                ) : (
-                  waiters.map((waiter) => (
-                    <option key={waiter.id} value={waiter.id}>
-                      {waiter.fullName}
-                    </option>
-                  ))
-                )}
-              </AutoSubmitSelect>
-            </label>
-
-            <div className="text-sm text-slate-500 md:pb-2">
-              {selectedWaiterSummary ? (
-                <p>
-                  Today&apos;s sales:{" "}
-                  <span className="font-semibold text-slate-800">
-                    {formatMoney(selectedWaiterSummary.totalSales)}
-                  </span>
-                </p>
-              ) : (
-                <p>Select a waiter to manage the balance.</p>
-              )}
-            </div>
-          </form>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <form
-              action={saveWaiterOpeningBalance}
-              className="rounded-xl border border-slate-200 p-4"
-            >
-              <input type="hidden" name="waiterId" value={selectedWaiterId} />
-              <input
-                type="hidden"
-                name="openingAmount"
-                value={openingAmountDefaultValue.toFixed(2)}
-              />
-              <div>
-                <span className="mb-1 block text-sm font-medium text-slate-700">
-                  Starting balance
-                </span>
-                <div className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3">
-                  <p className="text-lg font-semibold text-slate-900">
-                    {formatMoney(openingAmountDefaultValue)}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Defaults to $0.00, or yesterday&apos;s negative carry-over
-                    if one exists.
-                  </p>
-                  {showNextShiftCarryOver ? (
-                    <p className="mt-2 text-xs font-semibold text-red-600">
-                      Next shift carry-over: {formatMoney(recommendedOpeningAmount)}
-                    </p>
-                  ) : null}
-                  {selectedWaiterIsClosed ? (
-                    <p className="mt-2 text-xs text-amber-700">
-                      This shift is already closed. Start shift will be available on the next business day.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={
-                  !selectedWaiterId ||
-                  Boolean(selectedWaiterIsClosed) ||
-                  Boolean(selectedWaiterHasOpenShift)
-                }
-                className="mt-4 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                Start shift
-              </button>
-            </form>
-
-            <form
-              action={closeWaiterBalanceFromCashier}
-              className="rounded-xl border border-slate-200 p-4"
-            >
-              <input type="hidden" name="waiterId" value={selectedWaiterId} />
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-slate-700">
-                  Closing balance
-                </span>
-                <input
-                  type="number"
-                  name="closingAmount"
-                  step="0.01"
-                  defaultValue={
-                    selectedWaiterSummary?.shiftSummary.closingAmount?.toFixed(2) ??
-                    selectedWaiterSummary?.shiftSummary.expectedClosingAmount?.toFixed(2) ??
-                    ""
-                  }
-                  className="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none focus:border-blue-500"
-                  placeholder="0.00"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={!selectedWaiterId || Boolean(selectedWaiterIsClosed)}
-                className="mt-4 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                Close balance
-              </button>
-
-              {selectedWaiterIsClosed ? (
-                <button
-                  type="submit"
-                  formAction={reopenWaiterBalanceFromCashier}
-                  className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 font-semibold text-amber-800 hover:bg-amber-100"
-                >
-                  Reopen balance
-                </button>
-              ) : null}
-            </form>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">
-            Selected waiter summary
-          </h2>
-          {selectedWaiterSummary ? (
-            <div className="mt-4 space-y-3">
-              <div className="rounded-xl bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                  Waiter
-                </p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {selectedWaiterSummary.fullName}
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                    Opening
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {selectedWaiterSummary.shiftSummary.status === "not_opened"
-                      ? "--"
-                      : formatMoney(selectedWaiterSummary.shiftSummary.openingAmount)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                    Status
-                  </p>
-                  <p className="mt-1 text-lg font-semibold capitalize text-slate-900">
-                    {selectedWaiterSummary.shiftSummary.status}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                    Sales
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatMoney(selectedWaiterSummary.totalSales)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                    Expected close
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatMoney(
-                      selectedWaiterSummary.shiftSummary.expectedClosingAmount,
-                    )}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                    Closing
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatMoney(selectedWaiterSummary.shiftSummary.closingAmount)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
-                    Difference
-                  </p>
-                  <p
-                    className={`mt-1 text-lg font-semibold ${
-                      selectedWaiterSummary.shiftSummary.variance != null &&
-                      selectedWaiterSummary.shiftSummary.variance < 0
-                        ? "text-red-600"
-                        : "text-slate-900"
-                    }`}
-                  >
-                    {formatMoney(selectedWaiterSummary.shiftSummary.variance)}
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-sm text-slate-500">
-                Suggested next opening:{" "}
-                <span
-                  className={`font-semibold ${
-                    recommendedOpeningAmount < 0
-                      ? "text-red-600"
-                      : "text-slate-800"
-                  }`}
-                >
-                  {formatMoney(recommendedOpeningAmount)}
-                </span>
-              </p>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-slate-500">
-              No waiter selected.
-            </p>
-          )}
-        </div>
-      </div>
-
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Shaqaale leh dalabyo</p>
-          <h2 className="mt-2 text-2xl font-bold">
-            {filteredSummaries.length}
-          </h2>
+          <p className="text-sm text-slate-500">Occupied tables</p>
+          <h2 className="mt-2 text-2xl font-bold">{tables.length}</h2>
         </div>
-
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Totalka Dalabyada</p>
-          <h2 className="mt-2 text-2xl font-bold">{grandTotalOrders}</h2>
+          <p className="text-sm text-slate-500">Open orders</p>
+          <h2 className="mt-2 text-2xl font-bold">{openOrders.length}</h2>
         </div>
-
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Totalka libka</p>
+          <p className="text-sm text-slate-500">Open order total</p>
           <h2 className="mt-2 text-2xl font-bold">
-            ${grandTotalSales.toFixed(2)}
+            {formatMoney(openOrderTotal)}
           </h2>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {filteredSummaries.length === 0 ? (
-          <div className="p-6 text-sm text-slate-500">Dalab ma jiro</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 font-semibold text-slate-700">
-                    Magac
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">
-                    Dalabyo
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">
-                    iibka
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">
-                    Opening
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">
-                    Difference
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredSummaries.map((staff) => (
-                  <tr key={staff.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3 font-medium">{staff.fullName}</td>
-                    <td className="px-4 py-3">{staff.totalOrders}</td>
-                    <td className="px-4 py-3">
-                      ${staff.totalSales.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {staff.shiftSummary.status === "not_opened"
-                        ? "--"
-                        : formatMoney(staff.shiftSummary.openingAmount)}
-                    </td>
-                    <td className="px-4 py-3 capitalize">
-                      {staff.shiftSummary.status}
-                    </td>
-                    <td
-                      className={`px-4 py-3 ${
-                        staff.shiftSummary.variance != null &&
-                        staff.shiftSummary.variance < 0
-                          ? "font-semibold text-red-600"
-                          : ""
-                      }`}
-                    >
-                      {formatMoney(staff.shiftSummary.variance)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {tables.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600 shadow-sm md:col-span-2 xl:col-span-3">
+            <h2 className="text-lg font-bold text-slate-900">
+              No occupied tables
+            </h2>
+            <p className="mt-2">
+              Tables appear here only after an unpaid table order is sent. Use
+              New table order to start service for an active table.
+            </p>
           </div>
+        ) : (
+          tables.map((table) => {
+            const tableTotal = table.orders.reduce(
+              (sum, order) => sum + Number(order.total),
+              0,
+            );
+
+            return (
+              <article
+                key={table.id}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-500">Table</p>
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      {table.name}
+                    </h2>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase text-amber-700">
+                    occupied
+                  </span>
+                </div>
+
+                <div className="mb-4 rounded-xl bg-slate-50 px-3 py-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Open orders</span>
+                    <span className="font-semibold">{table.orders.length}</span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-sm">
+                    <span className="text-slate-500">Table total</span>
+                    <span className="font-semibold">{formatMoney(tableTotal)}</span>
+                  </div>
+                </div>
+
+                <div className="mb-4 grid gap-2">
+                  <Link
+                    href={`/cashier/order?tableId=${encodeURIComponent(table.id)}`}
+                    className="block rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Add order
+                  </Link>
+                  <form
+                    action={payOpenTableOrdersFromCashier}
+                    className="grid gap-2 sm:grid-cols-[1fr_auto]"
+                  >
+                    <input type="hidden" name="tableId" value={table.id} />
+                    <select
+                      name="paymentMethod"
+                      defaultValue="GOLIS"
+                      className="min-h-11 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                    >
+                      <option value="GOLIS">GOLIS</option>
+                      <option value="MYCASH">MYCASH</option>
+                      <option value="Dahabshiil">Dahabshiil</option>
+                      <option value="OTHER">OTHER</option>
+                    </select>
+                    <button
+                      type="submit"
+                      className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
+                    >
+                      Pay {formatMoney(tableTotal)}
+                    </button>
+                  </form>
+                </div>
+
+                <div className="space-y-3">
+                  {table.orders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="rounded-xl border border-slate-200 px-3 py-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            Order #{order.orderNumber}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {formatDateTime(order.createdAt)}
+                            {order.cashier?.fullName
+                              ? ` by ${order.cashier.fullName}`
+                              : ""}
+                          </p>
+                        </div>
+                        <p className="font-bold text-slate-900">
+                          {formatMoney(Number(order.total))}
+                        </p>
+                      </div>
+
+                      <p className="mt-2 text-sm text-slate-600">
+                        {order.orderItems
+                          .map((item) => `${item.qty}x ${item.productName}`)
+                          .join(", ")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            );
+          })
         )}
-      </div>
+      </section>
     </main>
   );
 }

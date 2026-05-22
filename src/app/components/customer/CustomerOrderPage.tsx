@@ -12,18 +12,14 @@ import { getKitchenSocketUrl } from "@/lib/kitchen-socket";
 import { useWaiterCart } from "@/hooks/useWaiterCart";
 import { useWaiterData } from "@/hooks/useWaiterData";
 import { useWaiterSocket } from "@/hooks/useWaiterSocket";
-import type { Product } from "@/lib/types";
-import {
-  getCustomerCategories,
-  getCustomerModifierGroups,
-  getCustomerProducts,
-} from "./customer-fallbacks";
+import type { Category, Product } from "@/lib/types";
 import CustomerCartSheet from "./CustomerCartSheet";
 import CustomerModifierModal from "./CustomerModifierModal";
 import CustomerProductGrid from "./CustomerProductGrid";
 import {
   buildModifierLines,
   formatCurrency,
+  getProductModifierGroups,
   type CustomerOrderResponse,
   type SelectedModifiersMap,
 } from "./customer-order-utils";
@@ -31,6 +27,33 @@ import {
 const displayFont =
   '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif';
 const bodyFont = '"Avenir Next", "Segoe UI", sans-serif';
+
+function getMenuCategories(categories: Category[], products: Product[]) {
+  if (categories.length > 0) {
+    return categories;
+  }
+
+  return Array.from(
+    new Map(
+      products
+        .map((product) => product.category)
+        .filter((category): category is NonNullable<Product["category"]> =>
+          Boolean(category?.id && category?.name),
+        )
+        .map((category, index) => [
+          category.id,
+          {
+            id: category.id,
+            name: category.name,
+            sortOrder: index,
+            isActive: true,
+            iconUrl: null,
+            station: category.station ?? null,
+          } satisfies Category,
+        ]),
+    ).values(),
+  );
+}
 
 export default function CustomerOrderPage() {
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
@@ -60,16 +83,20 @@ export default function CustomerOrderPage() {
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [lastOrderNumber, setLastOrderNumber] = useState<number | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   const kioskCategories = useMemo(
-    () => getCustomerCategories(categories, productsAll),
+    () => getMenuCategories(categories, productsAll),
     [categories, productsAll],
   );
   const kioskProducts = useMemo(
-    () => getCustomerProducts(productsAll, kioskCategories),
-    [kioskCategories, productsAll],
+    () =>
+      productsAll.map((product) => ({
+        ...product,
+        price: Number(product.price) || 0,
+      })),
+    [productsAll],
   );
-  const usingSampleMenu = productsAll.length === 0 && kioskProducts.length > 0;
 
   const categoryChips = useMemo(
     () => [
@@ -117,7 +144,6 @@ export default function CustomerOrderPage() {
     isFiltering,
     modifierModalOpen,
     selectedCategory,
-    usingSampleMenu,
   ]);
 
   useEffect(() => {
@@ -134,6 +160,19 @@ export default function CustomerOrderPage() {
     }
   }, [categoryChips, selectedCategory]);
 
+  useEffect(() => {
+    function handleScroll() {
+      setShowBackToTop(window.scrollY > 520);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   function resetKiosk() {
     clearCart();
     setSearchTerm("");
@@ -147,6 +186,11 @@ export default function CustomerOrderPage() {
     setSubmitError("");
     setSubmitMessage("");
     setLastOrderNumber(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeModifierModal() {
@@ -161,7 +205,7 @@ export default function CustomerOrderPage() {
       return;
     }
 
-    if (getCustomerModifierGroups(product).length > 0) {
+    if (getProductModifierGroups(product).length > 0) {
       setSelectedProduct(product);
       setModifierModalOpen(true);
       return;
@@ -208,14 +252,6 @@ export default function CustomerOrderPage() {
   }
 
   async function handlePlaceOrder() {
-    if (usingSampleMenu) {
-      setSubmitError(
-        "Sample menu preview is active. Add real products to enable checkout.",
-      );
-      setSubmitMessage("");
-      return;
-    }
-
     if (!customerName.trim()) {
       setSubmitError("Enter your name before checkout.");
       setSubmitMessage("");
@@ -290,48 +326,42 @@ export default function CustomerOrderPage() {
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.20),transparent_22%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.14),transparent_22%),linear-gradient(180deg,#f6eee4_0%,#fbf7f1_38%,#f1e6d8_100%)] text-stone-900"
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-[size:28px_28px,auto] text-stone-900"
       style={{ fontFamily: bodyFont }}
     >
-      <div
-        data-aos="fade"
-        className="pointer-events-none absolute -left-24 top-20 h-72 w-72 rounded-full bg-amber-300/25 blur-3xl"
-      />
-      <div
-        data-aos="fade"
-        data-aos-delay="120"
-        className="pointer-events-none absolute right-0 top-0 h-[28rem] w-[28rem] rounded-full bg-orange-300/18 blur-3xl"
-      />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
 
-      <div className="relative mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+      <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <header
           data-aos="fade-down"
-          className="sticky top-4 z-30 rounded-[2rem] border border-white/70 bg-white/75 px-5 py-4 shadow-[0_26px_90px_rgba(67,39,20,0.13)] backdrop-blur-xl"
+          className="sticky top-2 z-30 rounded-[1.25rem] border border-white/80 bg-white/88 px-4 py-4 shadow-[0_20px_60px_rgba(44,28,17,0.14)] backdrop-blur-xl sm:top-4 sm:rounded-[1.5rem] sm:px-5 sm:py-5"
         >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
-              <div
-                className="h-14 w-14 rounded-[1.25rem] border border-stone-200 bg-cover bg-center shadow-sm"
-                style={{ backgroundImage: 'url("/logo.png")' }}
-              />
+              <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] border border-amber-200/70 bg-white p-1.5 shadow-sm sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/newer_logo.png"
+                  alt="Mash Allah Cafe"
+                  className="h-full w-full object-contain"
+                />
+              </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.28em] text-stone-500">
-                  Customer Ordering
-                </p>
                 <h1
-                  className="mt-1 text-2xl text-stone-950 sm:text-3xl"
+                  className="mt-1 text-xl text-stone-950 sm:text-3xl"
                   style={{ fontFamily: displayFont }}
                 >
                   Mash Allah Cafe
                 </h1>
+               
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="grid w-full gap-3 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap">
               <button
                 type="button"
                 onClick={resetKiosk}
-                className="rounded-full border border-stone-200 bg-stone-50 px-5 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-100"
+                className="rounded-full border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-100"
               >
                 Start Over
               </button>
@@ -348,23 +378,24 @@ export default function CustomerOrderPage() {
         </header>
 
         <section
-          data-aos="fade-up"
-          className="mt-5 rounded-[2.25rem] border border-white/70 bg-white/78 p-5 shadow-[0_30px_90px_rgba(67,39,20,0.12)] backdrop-blur-xl"
+          data-aos="zoom-in"
+          data-aos-delay="100"
+          className="mt-4 rounded-[1.25rem] border border-white/80 bg-white/88 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
         >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-stone-500">
                 Browse by category
               </p>
               <h2
-                className="mt-2 text-3xl text-stone-950 sm:text-4xl"
+                className="mt-2 text-2xl text-stone-950 sm:text-4xl"
                 style={{ fontFamily: displayFont }}
               >
                 Pick a section, then tap a card to order
               </h2>
             </div>
 
-            <div className="w-full max-w-md">
+            <div className="w-full lg:max-w-md">
               <label className="sr-only" htmlFor="menu-search">
                 Search menu
               </label>
@@ -373,12 +404,12 @@ export default function CustomerOrderPage() {
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search coffee, burgers, desserts..."
-                className="w-full rounded-full border border-stone-200 bg-stone-50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
+                className="w-full rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm shadow-inner outline-none focus:border-amber-600"
               />
             </div>
           </div>
 
-          <div className="mt-5 flex gap-3 overflow-x-auto pb-1">
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:gap-3">
             {categoryChips.map((category) => {
               const active = selectedCategory === category.id;
 
@@ -391,10 +422,10 @@ export default function CustomerOrderPage() {
                       setSelectedCategory(category.id);
                     })
                   }
-                  className={`min-w-[8rem] rounded-full px-5 py-3 text-left text-sm font-semibold transition ${
-                    active
-                      ? "bg-stone-950 text-white shadow-[0_14px_28px_rgba(28,16,10,0.22)]"
-                      : "border border-stone-200 bg-stone-50 text-stone-700 hover:bg-white"
+                    className={`min-w-[7rem] snap-start rounded-full px-4 py-3 text-left text-sm font-semibold transition sm:min-w-[8rem] sm:px-5 ${
+                      active
+                        ? "bg-stone-950 text-white shadow-[0_14px_28px_rgba(28,16,10,0.22)]"
+                        : "border border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
                   }`}
                 >
                   <div>{category.name}</div>
@@ -411,50 +442,66 @@ export default function CustomerOrderPage() {
           </div>
         </section>
 
-        {usingSampleMenu ? (
-          <div
-            data-aos="fade-up"
-            className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900"
-          >
-            Real products were not found, so this screen is showing a curated
-            placeholder cafe menu. Checkout stays disabled until real POS products
-            are available.
-          </div>
-        ) : null}
+       
 
         <section
           data-aos="fade-up"
           data-aos-delay="100"
-          className="mt-5 rounded-[2.25rem] border border-white/70 bg-white/72 p-5 shadow-[0_30px_90px_rgba(67,39,20,0.12)] backdrop-blur-xl"
+          className="mt-4 rounded-[1.25rem] border border-white/80 bg-white/84 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
         >
-          <div className="mb-5 flex items-center justify-between gap-4">
+          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
                 Product grid
               </p>
               <h2
-                className="mt-2 text-3xl text-stone-950"
+                className="mt-2 text-2xl text-stone-950 sm:text-3xl"
                 style={{ fontFamily: displayFont }}
               >
                 {selectedCategoryName}
               </h2>
             </div>
-            <div className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700">
+            <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm">
               {filteredProducts.length} item
               {filteredProducts.length === 1 ? "" : "s"}
             </div>
           </div>
 
-          <CustomerProductGrid
-            loading={loading}
-            products={filteredProducts}
-            baristas={baristas}
-            selectedCategoryName={selectedCategoryName}
-            isFiltering={isFiltering}
-            onProductClick={handleProductClick}
-          />
+          <div className="mx-auto w-full max-w-6xl xl:max-w-none">
+            <CustomerProductGrid
+              loading={loading}
+              products={filteredProducts}
+              baristas={baristas}
+              selectedCategoryName={selectedCategoryName}
+              isFiltering={isFiltering}
+              onProductClick={handleProductClick}
+            />
+          </div>
         </section>
       </div>
+
+      {showBackToTop && !cartOpen && !modifierModalOpen ? (
+        <button
+          type="button"
+          aria-label="Back to top"
+          onClick={scrollToTop}
+          className="fixed bottom-5 right-5 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-stone-950 text-white shadow-[0_18px_45px_rgba(44,28,17,0.28)] transition hover:-translate-y-0.5 hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.4"
+          >
+            <path d="M12 19V5" />
+            <path d="m5 12 7-7 7 7" />
+          </svg>
+        </button>
+      ) : null}
 
       <CustomerModifierModal
         open={modifierModalOpen}
@@ -472,7 +519,6 @@ export default function CustomerOrderPage() {
         orderNote={orderNote}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
-        usingSampleMenu={usingSampleMenu}
         isSubmitting={isSubmitting}
         submitMessage={submitMessage}
         submitError={submitError}

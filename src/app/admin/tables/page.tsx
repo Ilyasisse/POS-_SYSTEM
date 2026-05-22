@@ -1,4 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { createActiveTableFromAdmin } from "./actions";
+
+type TablePageProps = {
+  searchParams?: Promise<{
+    tableStatus?: string;
+  }>;
+};
 
 function formatDateTime(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
@@ -9,7 +16,60 @@ function formatDateTime(date: Date) {
   }).format(date);
 }
 
-export default async function TablePage() {
+function getTableStatusMessage(tableStatus?: string) {
+  switch (tableStatus) {
+    case "table_created":
+      return {
+        tone: "success" as const,
+        message: "The table has been added and is active.",
+      };
+    case "invalid_table":
+      return {
+        tone: "error" as const,
+        message: "Enter a table name or number.",
+      };
+    case "duplicate_table":
+      return {
+        tone: "error" as const,
+        message: "A table with that name already exists.",
+      };
+    case "table_create_failed":
+      return {
+        tone: "error" as const,
+        message: "The table could not be created.",
+      };
+    default:
+      return null;
+  }
+}
+
+function getDiningTableStatus(table: {
+  isActive: boolean;
+  orders: unknown[];
+}) {
+  if (!table.isActive) {
+    return {
+      label: "Hidden",
+      className: "bg-slate-200 text-slate-600",
+    };
+  }
+
+  if (table.orders.length > 0) {
+    return {
+      label: "Occupied",
+      className: "bg-amber-100 text-amber-700",
+    };
+  }
+
+  return {
+    label: "Available",
+    className: "bg-emerald-100 text-emerald-700",
+  };
+}
+
+export default async function TablePage({ searchParams }: TablePageProps) {
+  const params = await searchParams;
+  const tableNotice = getTableStatusMessage(params?.tableStatus);
   const tables = await prisma.table.findMany({
     orderBy: {
       name: "asc",
@@ -52,6 +112,41 @@ export default async function TablePage() {
             orders.
           </p>
         </header>
+
+        {tableNotice ? (
+          <div
+            className={`rounded-2xl px-4 py-3 text-sm font-medium ${
+              tableNotice.tone === "success"
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {tableNotice.message}
+          </div>
+        ) : null}
+
+        <form
+          action={createActiveTableFromAdmin}
+          className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg md:grid-cols-[1fr_auto] md:items-end"
+        >
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-slate-700">
+              Add table
+            </span>
+            <input
+              name="tableName"
+              type="text"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-blue-500"
+              placeholder="1, Table 1, VIP 2"
+            />
+          </label>
+          <button
+            type="submit"
+            className="min-h-12 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Add active table
+          </button>
+        </form>
 
         <section className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
@@ -110,6 +205,7 @@ export default async function TablePage() {
                 ) : (
                   tables.map((table) => {
                     const latestOrder = table.orders[0] ?? null;
+                    const tableStatus = getDiningTableStatus(table);
 
                     return (
                       <tr key={table.id} className="border-b border-slate-100">
@@ -118,13 +214,9 @@ export default async function TablePage() {
                         </td>
                         <td className="px-3 py-2">
                           <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              table.isActive
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-slate-200 text-slate-600"
-                            }`}
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${tableStatus.className}`}
                           >
-                            {table.isActive ? "Active" : "Hidden"}
+                            {tableStatus.label}
                           </span>
                         </td>
                         <td className="px-3 py-2">{table.orders.length}</td>

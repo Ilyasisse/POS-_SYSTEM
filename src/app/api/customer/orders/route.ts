@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen-socket";
 import type { SelectedModifierLine } from "@/lib/types";
+import {
+  deductProductInventoryForSale,
+  sendInventoryAlerts,
+} from "@/lib/inventory";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -343,7 +347,7 @@ export async function POST(request: Request) {
 
     const orderNote = buildCustomerOrderNote(customerName, customerPhone, notes);
 
-    const order = await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
         const createdOrder = await tx.order.create({
           data: {
@@ -386,11 +390,23 @@ export async function POST(request: Request) {
           });
         }
 
-        return createdOrder;
+        const inventoryAlerts = await deductProductInventoryForSale(
+          tx,
+          preparedLines.map((line) => ({
+            productId: line.productId,
+            qty: line.qty,
+          })),
+          `Order #${createdOrder.orderNumber}`,
+        );
+
+        return { order: createdOrder, inventoryAlerts };
       },
       { timeout: 15000, maxWait: 5000 },
     );
 
+    await sendInventoryAlerts(result.inventoryAlerts);
+
+    const order = result.order;
     const kitchenTicketItems = buildKitchenTicketItems(savedOrderItems);
     const kitchenTicket: KitchenTicket | null =
       kitchenTicketItems.length > 0
@@ -401,6 +417,11 @@ export async function POST(request: Request) {
             createdAt: order.createdAt.toISOString(),
             status: "new",
             stationStatuses: buildKitchenTicketStationStatuses(kitchenTicketItems),
+            pickupStatus: "preparing",
+            tableId: null,
+            tableName: null,
+            cashierId: null,
+            cashierName: null,
             note: orderNote || null,
             waiterId: null,
             waiterName: customerName,

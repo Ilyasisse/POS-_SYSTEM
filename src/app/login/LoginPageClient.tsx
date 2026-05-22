@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useAos } from "@/app/components/AosInitializer";
 import { createClient } from "@/lib/supabase/client";
 
 type MeResponse = {
@@ -19,50 +22,42 @@ type FetchMeResult = {
   error: string | null;
 };
 
-const CUSTOMER_MENU_URL = "http://localhost:3000/menu";
-const CUSTOMER_AUTH_CALLBACK_URL =
-  "http://localhost:3000/auth/callback?next=/menu";
+const CUSTOMER_MENU_PATH = "/menu";
 
 export default function LoginPageClient() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+
+  useAos([checkingSession, Boolean(error)]);
 
   useEffect(() => {
     const queryError = searchParams.get("error");
 
-    if (queryError === "staff-not-found") {
-      setError("Your staff account was not found.");
-    } else if (queryError === "inactive") {
-      setError("Your staff account is inactive.");
-    } else if (queryError === "unauthorized") {
-      setError("You are not authorized to access that page.");
-    } else if (queryError === "customer-login-required") {
+    if (queryError === "customer-login-required") {
       setError("Please sign in with Google to place a customer order.");
     } else if (queryError === "google-signin-failed") {
       setError("Google sign in failed. Please try again.");
+    } else if (queryError === "unauthorized") {
+      setError("You are not authorized to access that page.");
+    } else {
+      setError("");
     }
   }, [searchParams]);
 
   useEffect(() => {
-    const supabaseClient = supabase;
-
-    if (!supabaseClient) {
+    if (!supabase) {
       setCheckingSession(false);
       setError(
-        "Supabase environment variables are missing. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.",
+        "Supabase environment variables are missing. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
       );
       return;
     }
 
-    const client = supabaseClient;
+    const client = supabase;
     let mounted = true;
 
     async function checkExistingSession() {
@@ -84,7 +79,7 @@ export default function LoginPageClient() {
 
         if (!me.ok || !me.data) {
           if (me.status === 404) {
-            window.location.assign(CUSTOMER_MENU_URL);
+            window.location.assign(CUSTOMER_MENU_PATH);
             return;
           }
 
@@ -92,12 +87,13 @@ export default function LoginPageClient() {
           return;
         }
 
-        redirectByRoleAndStation(me.data.role, me.data.station, router);
+        router.replace(getDefaultRouteForProfile(me.data));
       } catch (err) {
         console.error("Session check failed:", err);
 
-        if (!mounted) return;
-        setCheckingSession(false);
+        if (mounted) {
+          setCheckingSession(false);
+        }
       }
     }
 
@@ -108,42 +104,6 @@ export default function LoginPageClient() {
     };
   }, [router, supabase]);
 
-  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      if (!supabase) {
-        throw new Error(
-          "Supabase environment variables are missing. Update the Vercel project settings and redeploy.",
-        );
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        throw new Error(signInError.message);
-      }
-
-      const me = await fetchMe();
-
-      if (!me.ok || !me.data) {
-        await supabase.auth.signOut();
-        throw new Error(me.error || "Unable to find your staff account.");
-      }
-
-      redirectByRoleAndStation(me.data.role, me.data.station, router);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleGoogleSignIn() {
     setError("");
     setGoogleLoading(true);
@@ -151,14 +111,17 @@ export default function LoginPageClient() {
     try {
       if (!supabase) {
         throw new Error(
-          "Supabase environment variables are missing. Update the Vercel project settings and redeploy.",
+          "Supabase environment variables are missing. Update the project settings and redeploy.",
         );
       }
+
+      const callbackUrl = new URL("/auth/callback", window.location.origin);
+      callbackUrl.searchParams.set("next", CUSTOMER_MENU_PATH);
 
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: CUSTOMER_AUTH_CALLBACK_URL,
+          redirectTo: callbackUrl.toString(),
         },
       });
 
@@ -171,223 +134,184 @@ export default function LoginPageClient() {
     }
   }
 
-  async function fetchMe(): Promise<FetchMeResult> {
-    try {
-      const response = await fetch("/api/me", {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      const raw = await response.text();
-
-      let parsed: unknown;
-
-      try {
-        parsed = JSON.parse(raw);
-      } catch {
-        console.error("/api/me returned non-JSON:", raw);
-        return {
-          ok: false,
-          status: response.status,
-          data: null,
-          error: "The /api/me route returned HTML instead of JSON.",
-        };
-      }
-
-      if (!response.ok) {
-        const errorMessage =
-          typeof parsed === "object" &&
-          parsed !== null &&
-          "error" in parsed &&
-          typeof (parsed as { error?: unknown }).error === "string"
-            ? (parsed as { error: string }).error
-            : "Request failed";
-
-        return {
-          ok: false,
-          status: response.status,
-          data: null,
-          error: errorMessage,
-        };
-      }
-
-      return {
-        ok: true,
-        status: response.status,
-        data: parsed as MeResponse,
-        error: null,
-      };
-    } catch (err) {
-      console.error("fetchMe failed:", err);
-      return {
-        ok: false,
-        status: 0,
-        data: null,
-        error: "Could not reach /api/me.",
-      };
-    }
-  }
-
   if (checkingSession) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-center text-sm text-slate-600">
-            Checking session...
+      <LoginShell>
+        <div className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/85 p-6 text-center shadow-[0_24px_70px_rgba(65,39,21,0.14)] backdrop-blur">
+          <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-2xl bg-[#d09a59]/30" />
+          <p className="text-sm font-medium text-[#6d5445]">
+            Checking your session...
           </p>
         </div>
-      </main>
+      </LoginShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 text-center">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-            MASH ALLAH Cafe POS
-          </p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">
-            Sign in
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Staff use email and password. Customers use Google.
-          </p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="mb-3 text-sm font-semibold text-slate-800">
-              Staff login
-            </p>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
-                placeholder="admin@pos.com"
-                autoComplete="email"
-                required
-              />
-            </div>
-
-            <div className="mt-4">
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
-                placeholder="Enter password"
-                autoComplete="current-password"
-                required
-              />
-            </div>
+    <LoginShell>
+      <section
+        data-aos="fade-up"
+        className="w-full max-w-md rounded-[30px] border border-white/70 bg-white/90 p-6 shadow-[0_26px_80px_rgba(65,39,21,0.16)] backdrop-blur sm:p-7"
+      >
+        <div data-aos="zoom-in" className="text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[24px] bg-[#f3dcc1] shadow-[0_18px_40px_rgba(176,123,69,0.18)]">
+            <Image
+              src="/newer_logo.png"
+              alt="Mash Allah Cafe"
+              width={56}
+              height={56}
+              className="h-14 w-14 object-contain"
+            />
           </div>
-
-          {error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={loading || googleLoading || !supabase}
-            className="w-full rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-200" />
-          <span className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-            Customer
-          </span>
-          <div className="h-px flex-1 bg-slate-200" />
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45]">
+            Mash Allah Cafe
+          </p>
+          <h1 className="mt-3 text-3xl font-bold text-[#2f180d]">
+            Customer login
+          </h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#725c4c]">
+            Sign in with Google to browse the menu and continue your order.
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={loading || googleLoading || !supabase}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
-        >
-          <span
-            aria-hidden="true"
-            className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-sm font-bold text-blue-600"
+        {error ? (
+          <div
+            data-aos="fade-down"
+            className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
           >
-            G
-          </span>
-          {googleLoading ? "Opening Google..." : "Continue with Google"}
-        </button>
-      </div>
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-7 space-y-3">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || !supabase}
+            data-aos="fade-up"
+            data-aos-delay="80"
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#2f180d] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-[#442719] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+          >
+            <span
+              aria-hidden="true"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-[#2f180d]"
+            >
+              G
+            </span>
+            {googleLoading ? "Opening Google..." : "Continue with Google"}
+          </button>
+
+          <Link
+            href="/staff-login"
+            data-aos="fade-up"
+            data-aos-delay="140"
+            className="flex w-full items-center justify-center rounded-2xl border border-[#e4d2bf] bg-white px-5 py-3.5 text-sm font-semibold text-[#3a2418] transition hover:-translate-y-0.5 hover:border-[#d09a59] hover:bg-[#fff8f0] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2"
+          >
+            Staff login
+          </Link>
+        </div>
+
+        <p className="mt-6 text-center text-xs leading-5 text-[#8a7465]">
+          Staff accounts use the separate secure staff login page.
+        </p>
+      </section>
+    </LoginShell>
+  );
+}
+
+function LoginShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f7efe6] px-4 py-10 text-[#2f180d] sm:px-6">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)]" />
+      <div className="absolute inset-x-0 top-0 h-48 bg-[linear-gradient(180deg,rgba(47,24,13,0.16),transparent)]" />
+      <div className="relative z-10 flex w-full justify-center">{children}</div>
     </main>
   );
 }
 
-function redirectByRoleAndStation(
-  role: string,
-  station: string | null,
-  router: ReturnType<typeof useRouter>
-) {
-  if (role === "ADMIN") {
-    router.replace("/admin");
-    return;
-  }
+async function fetchMe(): Promise<FetchMeResult> {
+  try {
+    const response = await fetch("/api/me", {
+      method: "GET",
+      cache: "no-store",
+    });
 
-  if (role === "WAITER") {
-    router.replace("/waiter");
-    return;
-  }
+    const raw = await response.text();
+    let parsed: unknown;
 
-  if (role === "CASHIER") {
-    router.replace("/cashier");
-    return;
-  }
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.error("/api/me returned non-JSON:", raw);
 
-  if (role === "BARISTA") {
-    router.replace("/kitchen/barista");
-    return;
-  }
-
-  if (role === "CABITAAN" || role === "Cabitaan") {
-    router.replace("/kitchen/cabitaan");
-    return;
-  }
-
-  if (role === "COOK") {
-    if (station === "BARISTA") {
-      router.replace("/kitchen/barista");
-      return;
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        error: "The /api/me route returned HTML instead of JSON.",
+      };
     }
 
-    if (station === "CABITAAN") {
-      router.replace("/kitchen/cabitaan");
-      return;
+    if (!response.ok) {
+      const errorMessage =
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "error" in parsed &&
+        typeof (parsed as { error?: unknown }).error === "string"
+          ? (parsed as { error: string }).error
+          : "Request failed";
+
+      return {
+        ok: false,
+        status: response.status,
+        data: null,
+        error: errorMessage,
+      };
     }
 
-    if (station === "FAST_FOOD") {
-      router.replace("/kitchen/fast-food");
-      return;
-    }
+    return {
+      ok: true,
+      status: response.status,
+      data: parsed as MeResponse,
+      error: null,
+    };
+  } catch (err) {
+    console.error("fetchMe failed:", err);
 
-    if (station === "CUNTO_SOOMAALI") {
-      router.replace("/kitchen/cunto-soomaali");
-      return;
-    }
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: "Could not reach /api/me.",
+    };
+  }
+}
 
-    router.replace("/kitchen");
-    return;
+function getDefaultRouteForProfile(user: MeResponse) {
+  if (user.role === "ADMIN") return "/admin";
+  if (user.role === "MANAGER") return "/manager";
+  if (user.role === "CASHIER") return "/cashier";
+  if (user.role === "WAITER") return "/waiter";
+  if (user.role === "CUSTOMER") return "/menu";
+  if (user.role === "BARISTA" || user.station === "BARISTA") {
+    return "/kitchen/barista";
   }
 
-  router.replace("/login");
+  if (
+    user.role === "CABITAAN" ||
+    user.role === "Cabitaan" ||
+    user.station === "CABITAAN"
+  ) {
+    return "/kitchen/cabitaan";
+  }
+
+  if (user.role === "COOK" && user.station === "FAST_FOOD") {
+    return "/kitchen/fast-food";
+  }
+
+  if (user.role === "COOK" && user.station === "CUNTO_SOOMAALI") {
+    return "/kitchen/cunto-soomaali";
+  }
+
+  return "/menu";
 }

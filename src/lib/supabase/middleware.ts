@@ -5,6 +5,7 @@ export function middleware(request: NextRequest) {
 
   const isPublicRoute =
     pathname === "/login" ||
+    pathname === "/staff-login" ||
     pathname.startsWith("/auth/callback") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||

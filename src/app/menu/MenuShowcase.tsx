@@ -1,46 +1,72 @@
 "use client";
 
+// Next.js component used for page navigation without full page reload
 import Link from "next/link";
-import { useState } from "react";
+
+// React hooks for state management and lifecycle events
+import { useEffect, useState } from "react";
+
+// Custom hook used to refresh AOS animations when content changes
 import { useAos } from "../components/AosInitializer";
+
+// TypeScript types for menu data and products
 import type { MenuData, MenuProduct } from "./menu-data";
 
+// Props type for the MenuShowcase component
 type MenuShowcaseProps = {
+  // Complete menu data passed into this component
   data: MenuData;
 };
 
+// Currency formatter used to display prices in USD format
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
 });
 
+// Initial number of products visible when category first opens
 const INITIAL_CATEGORY_ITEMS = 9;
+
+// Number of extra products shown after clicking "Load More"
 const LOAD_MORE_ITEMS = 6;
 
+// Converts a number into formatted USD currency text
 function formatPrice(value: number) {
   return currencyFormatter.format(value);
 }
 
+// Component used to display a single product card
 function ProductCard({ product }: { product: MenuProduct }) {
   return (
     <article
-      data-aos="fade-right"
+      data-aos="fade-right "
       className="group overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 shadow-[0_22px_60px_rgba(73,37,16,0.10)]"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)]">
+      {/* Product image container */}
+      <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)]">
+        
+        {/* Only show image if product has imageUrl */}
         {product.imageUrl ? (
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${product.imageUrl})` }}
           />
         ) : null}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(25,14,7,0.04)_10%,rgba(25,14,7,0.18)_48%,rgba(25,14,7,0.82)_100%)]" />
+
+        {/* Dark overlay added on top of image for readability */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(25,14,7,0.04)_10%,rgba(25,14,7,0.18)_48%,rgba(25,14,7,0.82)_100%)]" >
+
+        {/* Category badge shown on top-right */}
         <span className="absolute right-4 top-4 rounded-full border border-[#f4dcc2]/80 bg-[#6c3f20]/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#fff6ec]">
           {product.categoryName}
         </span>
+        </div>
       </div>
 
+      {/* Product content section */}
       <div className="space-y-0.5 p-5 flex flex-col justify-between gap-2 ">
+        
+        {/* Product name */}
         <h3
           className="text-4xl leading-none sm:text-2xl "
           style={{
@@ -49,9 +75,13 @@ function ProductCard({ product }: { product: MenuProduct }) {
         >
           {product.name}
         </h3>
+
+        {/* Product description */}
         <p className=" text-sm max-w-[80%] leading-6 text-[#6c5a4f] sm:text-[15px]">
           {product.description}
         </p>
+
+        {/* Product price */}
         <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] ">
           {formatPrice(product.price)}
         </div>
@@ -60,14 +90,21 @@ function ProductCard({ product }: { product: MenuProduct }) {
   );
 }
 
+// Component used to display featured menu items
 function FeaturedCard({ item, index }: { item: MenuProduct; index: number }) {
   return (
     <article
       data-aos="fade-up"
+
+      // Delays animation slightly for staggered effect
       data-aos-delay={String(index * 60)}
+
       className="overflow-hidden rounded-[24px] border border-white/50 bg-white/75 shadow-[0_18px_46px_rgba(67,39,20,0.08)] backdrop-blur"
     >
+      {/* Featured image section */}
       <div className="aspect-[5/4] overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)]">
+        
+        {/* Only render image if imageUrl exists */}
         {item.imageUrl ? (
           <div
             className="h-full w-full bg-cover bg-center"
@@ -75,7 +112,11 @@ function FeaturedCard({ item, index }: { item: MenuProduct; index: number }) {
           />
         ) : null}
       </div>
+
+      {/* Featured item information */}
       <div className="p-4 text-center">
+        
+        {/* Featured item name */}
         <p
           className="text-2xl text-[#2f180d]"
           style={{
@@ -84,7 +125,11 @@ function FeaturedCard({ item, index }: { item: MenuProduct; index: number }) {
         >
           {item.name}
         </p>
+
+        {/* Featured item category */}
         <p className="mt-1 text-sm text-[#8a6a55]">{item.categoryName}</p>
+
+        {/* Featured item price */}
         <p className="mt-3 text-lg font-semibold text-[#b87735]">
           {formatPrice(item.price)}
         </p>
@@ -93,51 +138,85 @@ function FeaturedCard({ item, index }: { item: MenuProduct; index: number }) {
   );
 }
 
+// Main menu showcase page component
 export default function MenuShowcase({ data }: MenuShowcaseProps) {
+
+  // Gets the slug of the first category for default selection
   const firstCategorySlug = data.categories[0]?.slug ?? "";
+
+  // Stores currently selected category slug
   const [selectedCategory, setSelectedCategory] = useState(firstCategorySlug);
+
+  // Stores categories that have already been opened
   const [openedCategories, setOpenedCategories] = useState<Set<string>>(
     () => new Set(firstCategorySlug ? [firstCategorySlug] : []),
   );
+
+  // Stores visible product count per category
   const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>(
     () =>
       firstCategorySlug
         ? { [firstCategorySlug]: INITIAL_CATEGORY_ITEMS }
         : {},
   );
+
+  // Controls mobile navigation open/close state
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  // Controls visibility of back-to-top button
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Finds currently selected category object
   const selectedCategoryData =
     data.categories.find((category) => category.slug === selectedCategory) ??
     data.categories[0];
+
+  // Gets products from currently selected category
   const selectedCategoryProducts =
     selectedCategoryData && openedCategories.has(selectedCategoryData.slug)
       ? selectedCategoryData.products
       : [];
+
+  // Gets number of products currently visible
   const visibleProductCount =
     selectedCategoryData
       ? (visibleCounts[selectedCategoryData.slug] ?? INITIAL_CATEGORY_ITEMS)
       : 0;
+
+  // Creates sliced array containing only visible products
   const visibleProducts = selectedCategoryProducts.slice(0, visibleProductCount);
+
+  // Calculates how many products are left hidden
   const remainingProductCount = Math.max(
     selectedCategoryProducts.length - visibleProducts.length,
     0,
   );
 
+  // Opens selected category and initializes visible product count
   function openCategory(slug: string) {
+
+    // Updates selected category
     setSelectedCategory(slug);
+
+    // Adds category to opened category set
     setOpenedCategories((current) => new Set(current).add(slug));
+
+    // Sets default visible product count if category not already initialized
     setVisibleCounts((current) => ({
       ...current,
       [slug]: current[slug] ?? INITIAL_CATEGORY_ITEMS,
     }));
   }
 
+  // Loads additional products into currently selected category
   function loadMoreProducts() {
+
+    // Stops function if no category selected
     if (!selectedCategoryData) {
       return;
     }
 
+    // Increases visible product count
     setVisibleCounts((current) => ({
       ...current,
       [selectedCategoryData.slug]:
@@ -146,10 +225,38 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
     }));
   }
 
+  // Handles scroll events for showing back-to-top button
+  useEffect(() => {
+
+    // Checks scroll position
+    function handleScroll() {
+
+      // Shows button after user scrolls down 620px
+      setShowBackToTop(window.scrollY > 620);
+    }
+
+    // Runs immediately on first render
+    handleScroll();
+
+    // Adds scroll event listener
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    // Cleanup function removes event listener
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  // Smoothly scrolls user back to top of page
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Refreshes AOS animations when dependencies change
   useAos([visibleProducts.length, selectedCategory, mobileNavOpen]);
 
   return (
-    <main className="min-h-screen bg-[#f7efe6] text-[#2f180d]">
+     <main className="min-h-screen bg-[#f7efe6] text-[#2f180d]">
       <div className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#120906]/74 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <header
@@ -159,14 +266,13 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
             <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 md:px-6">
               <div className="flex min-w-0 items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[#e4b06d] shadow-[0_16px_36px_rgba(11,6,3,0.28)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="/logo.png"
+                    src="/newer_logo.png"
                     alt={data.cafeName}
                     className="h-9 w-9 object-contain"
                   />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 hidden sm:block">
                   <p className="truncate text-sm uppercase tracking-[0.34em] text-[#f3d9b9]">
                     {data.cafeName}
                   </p>
@@ -243,7 +349,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
                     <Link
                       href="/"
                       onClick={() => setMobileNavOpen(false)}
-                      className="rounded-[18px] px-4 py-3 text-sm font-medium transition hover:bg-white/8"
+                      className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                     >
                       Home
                     </Link>
@@ -257,21 +363,21 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
                     <Link
                       href="#featured"
                       onClick={() => setMobileNavOpen(false)}
-                      className="rounded-[18px] px-4 py-3 text-sm font-medium transition hover:bg-white/8"
+                      className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                     >
                       About Us
                     </Link>
                     <Link
                       href="#contact"
                       onClick={() => setMobileNavOpen(false)}
-                      className="rounded-[18px] px-4 py-3 text-sm font-medium transition hover:bg-white/8"
+                      className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                     >
                       Contact
                     </Link>
                     <Link
                       href="/customer"
                       onClick={() => setMobileNavOpen(false)}
-                      className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d]"
+                      className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition "
                     >
                       Order Now
                     </Link>
@@ -460,7 +566,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
               <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#d09a59]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/logo.png"
+                  src="/newer_logo.png"
                   alt={data.cafeName}
                   className="h-9 w-9 object-contain"
                 />
@@ -492,24 +598,41 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
           <div>
             <p className="text-lg font-semibold text-white">Contact</p>
             <p className="mt-4 text-sm leading-7 text-white/68">
-              +000 000 000 000
-              <br />
-              cafe@example.com
+              +252 90 7796071
             </p>
           </div>
 
           <div>
             <p className="text-lg font-semibold text-white">Opening Hours</p>
             <p className="mt-4 text-sm leading-7 text-white/68">
-              Monday - Friday: 7:00 AM - 10:00 PM
-              <br />
-              Saturday - Sunday: 8:00 AM - 11:00 PM
+              Saturday - Friday: 7:00 AM - 2:00 AM
             </p>
           </div>
         </div>
       </footer>
+
+      {showBackToTop && !mobileNavOpen ? (
+        <button
+          type="button"
+          aria-label="Back to top"
+          onClick={scrollToTop}
+          className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f4dcc2]/50 bg-[#201108] text-[#fff6ec] shadow-[0_18px_45px_rgba(32,17,8,0.35)] transition hover:-translate-y-0.5 hover:bg-[#3d2417] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.4"
+          >
+            <path d="M12 19V5" />
+            <path d="m5 12 7-7 7 7" />
+          </svg>
+        </button>
+      ) : null}
     </main>
   );
 }
-
-

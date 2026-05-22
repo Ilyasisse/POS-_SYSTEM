@@ -1,17 +1,15 @@
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/requireRole";
 
-type CashierReportsPageProps = {
+type CashierReportsRedirectProps = {
   searchParams?: Promise<{
     waiterId?: string;
     date?: string;
   }>;
 };
 
-export default async function CashierReportsPage({
+export default async function CashierReportsRedirect({
   searchParams,
-}: CashierReportsPageProps) {
-  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
+}: CashierReportsRedirectProps) {
   const params = await searchParams;
   const query = new URLSearchParams();
 
@@ -23,13 +21,7 @@ export default async function CashierReportsPage({
     query.set("date", params.date);
   }
 
-  if (currentUser.role === "ADMIN") {
-    redirect(
-      query.size > 0
-        ? `/admin/reports?${query.toString()}`
-        : "/admin/reports",
-    );
-  }
-
-  redirect("/cashier");
+  redirect(
+    query.size > 0 ? `/manager/reports?${query.toString()}` : "/manager/reports",
+  );
 }

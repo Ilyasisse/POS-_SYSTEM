@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen-socket";
 import type { SelectedModifierLine } from "@/lib/types";
+import {
+  deductProductInventoryForSale,
+  sendInventoryAlerts,
+} from "@/lib/inventory";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -390,8 +394,19 @@ export async function POST(request: Request) {
         },
       });
 
-      return { order, savedOrderItems };
+      const inventoryAlerts = await deductProductInventoryForSale(
+        tx,
+        preparedLines.map((line) => ({
+          productId: line.productId,
+          qty: line.qty,
+        })),
+        `Order #${order.orderNumber}`,
+      );
+
+      return { order, savedOrderItems, inventoryAlerts };
     }, { timeout: 15000, maxWait: 5000 });
+
+    await sendInventoryAlerts(result.inventoryAlerts);
 
     const kitchenTicketItems = buildKitchenTicketItems(result.savedOrderItems);
 
@@ -404,6 +419,11 @@ export async function POST(request: Request) {
             createdAt: result.order.createdAt.toISOString(),
             status: "new",
             stationStatuses: buildKitchenTicketStationStatuses(kitchenTicketItems),
+            pickupStatus: "preparing",
+            tableId: null,
+            tableName: null,
+            cashierId: currentUser.id,
+            cashierName: currentUser.fullName,
             note: body.notes ?? null,
             waiterId: currentUser.id,
             waiterName: currentUser.fullName,

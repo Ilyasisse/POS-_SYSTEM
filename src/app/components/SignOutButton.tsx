@@ -9,13 +9,13 @@ export default function SignOutButton() {
 
   async function handleSignOut() {
     if (!supabase) {
-      router.replace("/login");
+      router.replace("/staff-login");
       router.refresh();
       return;
     }
 
     await supabase.auth.signOut();
-    router.replace("/login");
+    router.replace("/staff-login");
     router.refresh();
   }
 

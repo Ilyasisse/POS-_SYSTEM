@@ -8,6 +8,7 @@ export const KITCHEN_STATIONS = [
 export type KitchenStation = (typeof KITCHEN_STATIONS)[number];
 
 export type KitchenTicketStatus = "new" | "in_progress" | "done";
+export type KitchenTicketPickupStatus = "preparing" | "ready" | "claimed" | "delivered";
 export type KitchenTicketStationStatuses = Partial<
   Record<KitchenStation, KitchenTicketStatus>
 >;
@@ -38,6 +39,13 @@ export type KitchenTicket = {
   createdAt: string;
   status: KitchenTicketStatus;
   stationStatuses: KitchenTicketStationStatuses;
+  pickupStatus: KitchenTicketPickupStatus;
+  tableId?: string | null;
+  tableName?: string | null;
+  cashierId?: string | null;
+  cashierName?: string | null;
+  claimedByWaiterId?: string | null;
+  claimedByWaiterName?: string | null;
   note?: string | null;
   waiterId?: string | null;
   waiterName?: string | null;
@@ -59,6 +67,15 @@ export type KitchenSocketMessage =
         id: string;
         station: KitchenStation;
         status: KitchenTicketStatus;
+      };
+    }
+  | {
+      type: "UPDATE_PICKUP_STATUS";
+      payload: {
+        id: string;
+        pickupStatus: KitchenTicketPickupStatus;
+        claimedByWaiterId?: string | null;
+        claimedByWaiterName?: string | null;
       };
     };
 
@@ -125,6 +142,17 @@ function normalizeTicketModifier(
 
 function isKitchenTicketStatus(value: unknown): value is KitchenTicketStatus {
   return value === "new" || value === "in_progress" || value === "done";
+}
+
+function isKitchenTicketPickupStatus(
+  value: unknown,
+): value is KitchenTicketPickupStatus {
+  return (
+    value === "preparing" ||
+    value === "ready" ||
+    value === "claimed" ||
+    value === "delivered"
+  );
 }
 
 function getUniqueStations(items: KitchenTicketItem[]): KitchenStation[] {
@@ -209,6 +237,27 @@ export function setKitchenTicketStationStatus(
   return {
     ...nextTicket,
     status: getKitchenTicketStatusForItems(nextTicket),
+    pickupStatus:
+      getKitchenTicketStatusForItems(nextTicket) === "done" &&
+      ticket.pickupStatus === "preparing"
+        ? "ready"
+        : ticket.pickupStatus,
+  };
+}
+
+export function setKitchenTicketPickupStatus(
+  ticket: KitchenTicket,
+  pickupStatus: KitchenTicketPickupStatus,
+  claimedByWaiterId?: string | null,
+  claimedByWaiterName?: string | null,
+): KitchenTicket {
+  return {
+    ...ticket,
+    pickupStatus,
+    claimedByWaiterId:
+      pickupStatus === "claimed" ? (claimedByWaiterId ?? null) : null,
+    claimedByWaiterName:
+      pickupStatus === "claimed" ? (claimedByWaiterName ?? null) : null,
   };
 }
 
@@ -313,6 +362,19 @@ export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket
     createdAt: String(ticket.createdAt ?? new Date().toISOString()),
     status: "new",
     stationStatuses,
+    pickupStatus: isKitchenTicketPickupStatus(ticket.pickupStatus)
+      ? ticket.pickupStatus
+      : "preparing",
+    tableId: ticket.tableId ? String(ticket.tableId) : null,
+    tableName: ticket.tableName ? String(ticket.tableName) : null,
+    cashierId: ticket.cashierId ? String(ticket.cashierId) : null,
+    cashierName: ticket.cashierName ? String(ticket.cashierName) : null,
+    claimedByWaiterId: ticket.claimedByWaiterId
+      ? String(ticket.claimedByWaiterId)
+      : null,
+    claimedByWaiterName: ticket.claimedByWaiterName
+      ? String(ticket.claimedByWaiterName)
+      : null,
     note: ticket.note ? String(ticket.note) : null,
     waiterId: ticket.waiterId ? String(ticket.waiterId) : null,
     waiterName: ticket.waiterName ? String(ticket.waiterName) : null,
@@ -339,6 +401,16 @@ export function filterKitchenTicketByStation(
 
   const filter = resolveFilter(stationOrFilter, userId, role);
   const normalizedStation = normalizeKitchenStation(filter.station);
+  const isWaiterPickupViewer =
+    !normalizedStation && (filter.role === "WAITER" || filter.role === "ADMIN");
+
+  if (normalizedTicket.pickupStatus === "delivered") {
+    return null;
+  }
+
+  if (isWaiterPickupViewer) {
+    return normalizedTicket.status === "done" ? normalizedTicket : null;
+  }
 
   if (normalizedTicket.status === "done") {
     return null;

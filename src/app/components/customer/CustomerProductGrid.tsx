@@ -2,11 +2,11 @@
 
 import type { Product, StaffSummary } from "@/lib/types";
 import {
-  getCustomerModifierGroups,
-  getCustomerProductImage,
-  isSampleProduct,
-} from "./customer-fallbacks";
-import { formatCurrency } from "./customer-order-utils";
+  formatCurrency,
+  getProductImage,
+  getProductModifierGroups,
+  hasProductImage,
+} from "./customer-order-utils";
 
 type CustomerProductGridProps = {
   loading: boolean;
@@ -26,23 +26,45 @@ function ProductCard({
   unavailable: boolean;
   onProductClick: (product: Product) => void;
 }) {
-  const modifierGroups = getCustomerModifierGroups(product);
+  const modifierGroups = getProductModifierGroups(product);
   const ctaLabel = modifierGroups.length > 0 ? "Customize" : "Add";
+  const hasImage = hasProductImage(product);
 
   return (
     <article
       data-aos="fade-up"
-      className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_24px_70px_rgba(67,39,20,0.14)] backdrop-blur"
+      className="overflow-hidden rounded-[1.25rem] border border-stone-200/80 bg-white shadow-[0_18px_45px_rgba(44,28,17,0.11)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(44,28,17,0.16)] sm:rounded-[1.5rem]"
     >
-      <div className="relative aspect-[4/3]   overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={getCustomerProductImage(product)}
-          alt={product.name}
-          className="h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
-        <div className="absolute right-4 top-4 flex flex-wrap gap-2">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[linear-gradient(135deg,#fbf7ef_0%,#ece0d1_48%,#d9b980_100%)]">
+        {hasImage ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getProductImage(product)}
+              alt={product.name}
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(249,239,219,0.78)_50%,rgba(177,117,44,0.26)_100%)]" />
+            <div className="absolute left-5 top-5 h-16 w-16 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-[0_14px_30px_rgba(44,28,17,0.12)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/newer_logo.png"
+                alt=""
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="absolute right-5 top-20 h-px w-24 rotate-[-18deg] bg-stone-900/10" />
+            <div className="absolute bottom-14 right-5 rounded-full border border-amber-900/10 bg-white/45 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-stone-700 backdrop-blur-sm">
+              Freshly made
+            </div>
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,14,10,0)_24%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.72)_100%)]" />
+          </>
+        )}
+        <div className="absolute right-3 top-3 flex max-w-[70%] flex-wrap justify-end gap-2 sm:right-4 sm:top-4">
           <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">
             {product.category?.name ?? "Menu"}
           </span>
@@ -52,10 +74,10 @@ function ProductCard({
             </span>
           ) : null}
         </div>
-        <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-4 text-white">
+        <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-3 text-white sm:inset-x-4 sm:bottom-4 sm:gap-4">
           <div>
             <h3
-              className="text-3xl leading-tight"
+              className="text-2xl leading-tight sm:text-3xl"
               style={{
                 fontFamily:
                   '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
@@ -64,14 +86,14 @@ function ProductCard({
               {product.name}
             </h3>
           </div>
-          <div className="rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+          <div className="rounded-full border border-white/15 bg-black/25 px-3 py-2 text-sm font-semibold backdrop-blur-sm sm:px-4">
             {formatCurrency(Number(product.price))}
           </div>
         </div>
       </div>
 
-      <div className="space-y-3  p-5">
-        <p className="min-h-12 text-sm leading-6 text-stone-600">
+      <div className="space-y-3 p-4 sm:p-5">
+        <p className="min-h-0 text-sm leading-6 text-stone-600 sm:min-h-12">
           {product.description?.trim() ||
             "Freshly prepared with a warm cafe finish and ready to customize."}
         </p>
@@ -81,11 +103,6 @@ function ProductCard({
             <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
               {modifierGroups.length} option group
               {modifierGroups.length > 1 ? "s" : ""}
-            </span>
-          ) : null}
-          {isSampleProduct(product) ? (
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
-              Placeholder item
             </span>
           ) : null}
           {unavailable ? (
@@ -99,7 +116,7 @@ function ProductCard({
           type="button"
           onClick={() => onProductClick(product)}
           disabled={unavailable}
-          className="w-full rounded-full bg-stone-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+          className="w-full rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300 sm:py-3.5"
         >
           {ctaLabel}
         </button>
@@ -110,13 +127,13 @@ function ProductCard({
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
-          className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-4 shadow-[0_18px_50px_rgba(67,39,20,0.08)]"
+          className="overflow-hidden rounded-[1.25rem] border border-stone-200/80 bg-white p-4 shadow-[0_18px_45px_rgba(44,28,17,0.08)] sm:rounded-[1.5rem]"
         >
-          <div className="aspect-[4/3] rounded-[1.5rem] bg-stone-200" />
+          <div className="aspect-[4/3] rounded-[1.25rem] bg-stone-200" />
           <div className="mt-4 h-6 w-2/3 rounded-full bg-stone-200" />
           <div className="mt-3 h-4 w-full rounded-full bg-stone-200" />
           <div className="mt-2 h-4 w-4/5 rounded-full bg-stone-200" />
@@ -151,8 +168,8 @@ export default function CustomerProductGrid({
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {products.map((product) => {
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {products.map((product) => {
           const unavailable =
             product.category?.station === "BARISTA" && baristas.length === 0;
 
@@ -164,7 +181,7 @@ export default function CustomerProductGrid({
               onProductClick={onProductClick}
             />
           );
-        })}
+      })}
     </div>
   );
 }

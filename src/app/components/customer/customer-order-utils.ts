@@ -1,7 +1,6 @@
 "use client";
 
-import type { Product, SelectedModifierLine } from "@/lib/types";
-import { getCustomerModifierGroups } from "./customer-fallbacks";
+import type { ModifierGroup, Product, SelectedModifierLine } from "@/lib/types";
 
 export type SelectedModifiersMap = Record<string, string[]>;
 
@@ -26,11 +25,25 @@ export function formatCurrency(value: number) {
   return currencyFormatter.format(Number(value) || 0);
 }
 
+export function getProductModifierGroups(product: Product): ModifierGroup[] {
+  return Array.isArray(product.modifierGroups) ? product.modifierGroups : [];
+}
+
+export function getProductImage(product: Product) {
+  const imageUrl = product.imageUrl?.trim();
+
+  return imageUrl || "/newer_logo.png";
+}
+
+export function hasProductImage(product: Product) {
+  return Boolean(product.imageUrl?.trim());
+}
+
 export function buildModifierLines(
   product: Product,
   selectedModifiers: SelectedModifiersMap,
 ): SelectedModifierLine[] {
-  const modifierGroups = getCustomerModifierGroups(product);
+  const modifierGroups = getProductModifierGroups(product);
 
   return modifierGroups.flatMap((group) =>
     group.options
