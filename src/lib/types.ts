@@ -51,7 +51,6 @@ export type Product = {
   price: number;
   cost?: number | null;
   isActive: boolean;
-  sku?: string | null;
   description?: string | null;
   trackStock: boolean;
   stockQty: number;

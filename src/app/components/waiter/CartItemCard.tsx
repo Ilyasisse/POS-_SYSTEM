@@ -50,11 +50,6 @@ export default function CartItemCard({
           <p className="text-base font-extrabold leading-tight text-slate-900">
             {line.name}
           </p>
-          {line.sku ? (
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              SKU {line.sku}
-            </p>
-          ) : null}
           {line.assignedUserName ? (
             <p className="text-xs font-semibold text-amber-700">
               Barista: {line.assignedUserName}

@@ -253,10 +253,7 @@ export default function WaiterPage({
 
     if (!term) return true;
 
-    return (
-      product.name.toLowerCase().includes(term) ||
-      (product.sku ?? "").toLowerCase().includes(term)
-    );
+    return product.name.toLowerCase().includes(term);
   });
 
   function closeConfigurationModal() {

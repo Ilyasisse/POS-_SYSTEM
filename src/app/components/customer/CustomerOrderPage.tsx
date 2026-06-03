@@ -124,8 +124,7 @@ export default function CustomerOrderPage() {
       const matchesSearch =
         !term ||
         product.name.toLowerCase().includes(term) ||
-        (product.description ?? "").toLowerCase().includes(term) ||
-        (product.sku ?? "").toLowerCase().includes(term);
+        (product.description ?? "").toLowerCase().includes(term);
 
       return matchesCategory && matchesSearch;
     });

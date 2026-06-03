@@ -15,7 +15,6 @@ export async function GET() {
         price: true,
         cost: true,
         isActive: true,
-        sku: true,
         description: true,
         trackStock: true,
         stockQty: true,

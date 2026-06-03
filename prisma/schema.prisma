@@ -44,7 +44,7 @@ model Category {
 model Product {
   id          String      @id @default(cuid())
   name        String
-  sku         String?     @unique
+ 
   description String?
   imageUrl    String?
   pronunciationAudioUrl String?

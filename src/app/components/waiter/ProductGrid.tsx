@@ -46,10 +46,6 @@ export default function ProductGrid({
                 <p className="line-clamp-2 text-xs leading-5 text-slate-600">
                   {item.description}
                 </p>
-              ) : item.sku ? (
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  SKU {item.sku}
-                </p>
               ) : null}
             </div>
           </button>
