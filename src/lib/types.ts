@@ -82,7 +82,6 @@ export type CartLine = {
   price: number;
   quantity: number;
   imageUrl?: string;
-  sku?: string;
   pronunciationAudioUrl?: string | null;
   finalPrice?: number;
   lineTotal?: number;
@@ -132,4 +131,15 @@ export type Payment = {
   amountPaid: number;
   reference?: string | null;
   createdAt: Date;
+};
+export type MenuProduct = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  categoryName: string;
+  categorySlug: string;
+  imageUrl: string | null;
+  isPopular: boolean;
+  bestSellerScore: number;
 };

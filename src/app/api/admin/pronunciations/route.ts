@@ -7,7 +7,9 @@ import { prisma } from "@/lib/prisma";
 const LEGACY_UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "pronunciations");
 const PRONUNCIATION_BUCKET =
   process.env.SUPABASE_PRONUNCIATION_BUCKET?.trim() || "pronunciations";
-  
+
+// Turns "Iced Caramel Latte" into "iced-caramel-latte" so the uploaded
+// audio gets a tidy, URL-friendly filename instead of a messy label.
 function slugifyLabel(value: string) {
   const slug = value
     .toLowerCase()
@@ -17,6 +19,8 @@ function slugifyLabel(value: string) {
   return slug || "item";
 }
 
+// Browsers can record audio in different formats. This picks the best filename
+// extension from the file's MIME type, with webm as the dependable fallback.
 function getExtension(contentType: string) {
   if (contentType.includes("ogg")) return "ogg";
   if (contentType.includes("mpeg") || contentType.includes("mp3")) return "mp3";
@@ -25,6 +29,8 @@ function getExtension(contentType: string) {
   return "webm";
 }
 
+// Supabase tells us who is logged in, then Prisma tells us what that user is
+// allowed to do inside this cafe app. Both checks matter: login first, role next.
 async function ensureAdminUser(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user },
@@ -44,6 +50,9 @@ async function ensureAdminUser(supabase: Awaited<ReturnType<typeof createClient>
   });
 }
 
+// Old pronunciation uploads used to live inside public/uploads/pronunciations.
+// If a saved URL points there, this converts it back into a local disk path so
+// replacement uploads can clean up the old file.
 function getLegacyAbsolutePath(previousUrl: string) {
   if (!previousUrl.startsWith("/uploads/pronunciations/")) {
     return null;
@@ -59,6 +68,8 @@ function getLegacyAbsolutePath(previousUrl: string) {
   return absolutePath;
 }
 
+// New pronunciation uploads live in Supabase Storage. Given a public Supabase
+// URL, this extracts the private storage path that the remove() API expects.
 function getStoragePathFromPublicUrl(previousUrl: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -82,6 +93,8 @@ function getStoragePathFromPublicUrl(previousUrl: string) {
   }
 }
 
+// When an admin records a better pronunciation, this removes the old audio.
+// It supports both the old local-file world and the current Supabase bucket.
 async function removePreviousUpload(
   supabase: Awaited<ReturnType<typeof createClient>>,
   previousUrl: string,
@@ -107,11 +120,17 @@ async function removePreviousUpload(
   await supabase.storage.from(PRONUNCIATION_BUCKET).remove([storagePath]);
 }
 
+// POST /api/admin/pronunciations
+// Receives one recorded audio file from the admin UI, stores it in Supabase,
+// optionally deletes the old recording, and returns the new public audio URL.
 export async function POST(request: Request) {
   try {
+    // Step 1: identify the user. The API is private because only staff should
+    // be able to upload the sound clips waiters hear during ordering.
     const supabase = await createClient();
     const currentUser = await ensureAdminUser(supabase);
 
+    // Step 2: only active admins and managers can manage pronunciation audio.
     if (
       !currentUser ||
       !currentUser.isActive ||
@@ -120,12 +139,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
+    // Step 3: unpack the multipart form. The recorder sends the audio file plus
+    // a label, whether it belongs to a product/modifier, and maybe an old URL.
     const formData = await request.formData();
     const file = formData.get("file");
     const label = String(formData.get("label") || "").trim();
     const entityType = String(formData.get("entityType") || "product").trim();
     const previousUrl = String(formData.get("previousUrl") || "").trim();
 
+    // Step 4: make sure we actually received audio. This keeps random uploads
+    // and empty recordings from sneaking into the storage bucket.
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Audio file is required." }, { status: 400 });
     }
@@ -141,12 +164,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Step 5: build a storage path like product/1712345678-latte.webm. The
+    // entity folder keeps product and modifier audio easy to browse later.
     const safeEntityType = entityType === "modifier" ? "modifier" : "product";
     const extension = getExtension(file.type);
     const fileName = `${Date.now()}-${slugifyLabel(label)}.${extension}`;
     const storagePath = `${safeEntityType}/${fileName}`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
+    // Step 6: upload the fresh recording to Supabase Storage. upsert is false so
+    // a filename collision fails loudly instead of silently replacing a file.
     const { error: uploadError } = await supabase.storage
       .from(PRONUNCIATION_BUCKET)
       .upload(storagePath, fileBuffer, {
@@ -162,10 +189,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Step 7: if this recording replaces an older one, clean up the old audio
+    // after the new upload succeeds. That order avoids losing the only copy.
     if (previousUrl) {
       await removePreviousUpload(supabase, previousUrl);
     }
 
+    // Step 8: Supabase gives us a public URL that can be saved on the product or
+    // modifier record and played back by the waiter/cashier ordering screens.
     const { data: publicUrlData } = supabase.storage
       .from(PRONUNCIATION_BUCKET)
       .getPublicUrl(storagePath);

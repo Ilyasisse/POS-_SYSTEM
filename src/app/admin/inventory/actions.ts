@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
 import {
@@ -10,21 +11,47 @@ import {
   setSupplyInventoryLevel,
 } from "@/lib/inventory";
 
+// Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
+// Reads a quantity field from an inventory form as a non-negative whole number.
 function getQuantity(formData: FormData, key: string) {
   return Math.max(0, Math.floor(Number(formData.get(key)) || 0));
 }
 
+// Ensures only admins and managers can change inventory.
 async function requireInventoryAccess() {
   await requireRole(["ADMIN", "MANAGER"]);
 }
 
+// Redirects back to inventory with a query param that drives the email status popup.
+function redirectWithInventoryEmailStatus(
+  result: Awaited<ReturnType<typeof sendInventoryAlerts>>,
+) {
+  revalidatePath("/admin/inventory");
+
+  if (result.attempted === 0) {
+    redirect("/admin/inventory?inventoryEmail=none");
+  }
+
+  if (result.sent > 0) {
+    redirect("/admin/inventory?inventoryEmail=sent");
+  }
+
+  if (result.skipped) {
+    redirect("/admin/inventory?inventoryEmail=skipped");
+  }
+
+  redirect("/admin/inventory?inventoryEmail=failed");
+}
+
+// Creates a new internal supply row from the admin inventory form.
 export async function createSupply(formData: FormData) {
   await requireInventoryAccess();
 
+  // Pulls the submitted supply fields from the create form.
   const name = getString(formData, "name");
   const unit = getString(formData, "unit") || "unit";
   const stockQty = getQuantity(formData, "stockQty");
@@ -47,9 +74,11 @@ export async function createSupply(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
+// Sets a menu product's stock quantity and low-stock threshold.
 export async function updateProductInventory(formData: FormData) {
   await requireInventoryAccess();
 
+  // Pulls the submitted product inventory fields from the update form.
   const productId = getString(formData, "productId");
   const stockQty = getQuantity(formData, "stockQty");
   const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
@@ -58,6 +87,7 @@ export async function updateProductInventory(formData: FormData) {
     throw new Error("Product is required.");
   }
 
+  // Saves the product stock change and collects any low/out alert.
   const alerts = await prisma.$transaction((tx) =>
     setProductInventoryLevel(
       tx,
@@ -73,9 +103,11 @@ export async function updateProductInventory(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
+// Adds to or removes from a menu product's stock level.
 export async function adjustProductInventory(formData: FormData) {
   await requireInventoryAccess();
 
+  // Pulls the submitted product adjustment fields from the form.
   const productId = getString(formData, "productId");
   const direction = getString(formData, "direction");
   const quantity = getQuantity(formData, "quantity");
@@ -89,7 +121,9 @@ export async function adjustProductInventory(formData: FormData) {
     throw new Error("Adjustment quantity must be greater than zero.");
   }
 
+  // Calculates and saves the product adjustment inside one database transaction.
   const alerts = await prisma.$transaction(async (tx) => {
+    // Loads the product's current stock so the delta can be applied safely.
     const product = await tx.product.findUnique({
       where: { id: productId },
       select: {
@@ -102,6 +136,7 @@ export async function adjustProductInventory(formData: FormData) {
       throw new Error("Product not found.");
     }
 
+    // Converts the selected direction into a positive or negative stock change.
     const delta = direction === "remove" ? -quantity : quantity;
 
     return setProductInventoryLevel(
@@ -118,9 +153,11 @@ export async function adjustProductInventory(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
+// Sets an internal supply's stock quantity and low-stock threshold.
 export async function updateSupplyInventory(formData: FormData) {
   await requireInventoryAccess();
 
+  // Pulls the submitted supply inventory fields from the update form.
   const supplyId = getString(formData, "supplyId");
   const stockQty = getQuantity(formData, "stockQty");
   const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
@@ -129,6 +166,7 @@ export async function updateSupplyInventory(formData: FormData) {
     throw new Error("Supply is required.");
   }
 
+  // Saves the supply stock change and collects any low/out alert.
   const alerts = await prisma.$transaction((tx) =>
     setSupplyInventoryLevel(
       tx,
@@ -140,13 +178,16 @@ export async function updateSupplyInventory(formData: FormData) {
     ),
   );
 
-  await sendInventoryAlerts(alerts);
-  revalidatePath("/admin/inventory");
+  // Sends any supply alert and redirects with popup status.
+  const emailResult = await sendInventoryAlerts(alerts);
+  redirectWithInventoryEmailStatus(emailResult);
 }
 
+// Restocks or takes from an internal supply's stock level.
 export async function adjustSupplyInventory(formData: FormData) {
   await requireInventoryAccess();
 
+  // Pulls the submitted supply adjustment fields from the form.
   const supplyId = getString(formData, "supplyId");
   const direction = getString(formData, "direction");
   const quantity = getQuantity(formData, "quantity");
@@ -160,7 +201,9 @@ export async function adjustSupplyInventory(formData: FormData) {
     throw new Error("Adjustment quantity must be greater than zero.");
   }
 
+  // Calculates and saves the supply adjustment inside one database transaction.
   const alerts = await prisma.$transaction(async (tx) => {
+    // Loads the supply's current stock so the delta can be applied safely.
     const supply = await tx.inventorySupply.findUnique({
       where: { id: supplyId },
       select: {
@@ -173,7 +216,10 @@ export async function adjustSupplyInventory(formData: FormData) {
       throw new Error("Supply not found.");
     }
 
+    // Treats both "taken" and legacy "remove" values as a stock decrease.
     const isTaken = direction === "taken" || direction === "remove";
+
+    // Converts the selected direction into a positive or negative supply change.
     const delta = isTaken ? -quantity : quantity;
 
     return setSupplyInventoryLevel(
@@ -186,6 +232,7 @@ export async function adjustSupplyInventory(formData: FormData) {
     );
   });
 
-  await sendInventoryAlerts(alerts);
-  revalidatePath("/admin/inventory");
+  // Sends any supply alert and redirects with popup status.
+  const emailResult = await sendInventoryAlerts(alerts);
+  redirectWithInventoryEmailStatus(emailResult);
 }

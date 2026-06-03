@@ -170,7 +170,7 @@ export default function PronunciationRecorder({
       <div>
         <p className="text-sm font-semibold text-slate-800">Pronunciation Audio</p>
         <p className="text-xs text-slate-500">
-          Record yourself saying &quot;{label}&quot; and the waiter will play this exact sound.
+          Record yourself saying found &quot;{label}&quot; and the waiter will play this exact sound.
         </p>
       </div>
 

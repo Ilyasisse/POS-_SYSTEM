@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import { InventoryAlertStatus, Prisma } from "@prisma/client";
+import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 
 export type InventorySaleLine = {
@@ -13,6 +13,14 @@ export type InventoryAlert = {
   status: InventoryAlertStatus;
   stockQty: number;
   lowStockThreshold: number;
+};
+
+export type InventoryAlertSendResult = {
+  attempted: number;
+  sent: number;
+  failed: number;
+  skipped: boolean;
+  reason?: "missing_email_environment";
 };
 
 type InventoryTrackedItem = {
@@ -31,14 +39,33 @@ type DailySupplyDigestItem = {
   previousInventoryAlertStatus: InventoryAlertStatus;
 };
 
-function normalizeQuantity(value: number) {
+/**
+ * Converts a number-like quantity into a non-negative whole number.
+ *
+ * @param value - The quantity value to normalize.
+ * @returns A safe whole-number quantity.
+ */
+export function toValidQuantity(value: number) {
   return Math.max(0, Math.floor(Number(value) || 0));
 }
 
-function normalizeThreshold(value: number) {
+/**
+ * Converts a number-like threshold into a non-negative whole number.
+ *
+ * @param value - The threshold value to normalize.
+ * @returns A safe whole-number threshold.
+ */
+export function toValidThreshold(value: number) {
   return Math.max(0, Math.floor(Number(value) || 0));
 }
 
+/**
+ * Calculates the inventory alert status for a stock quantity and low-stock threshold.
+ *
+ * @param stockQty - The current stock quantity.
+ * @param lowStockThreshold - The threshold that marks an item as low stock.
+ * @returns The current inventory alert status.
+ */
 export function getInventoryAlertStatus(
   stockQty: number,
   lowStockThreshold: number,
@@ -54,6 +81,17 @@ export function getInventoryAlertStatus(
   return "OK";
 }
 
+/**
+ * Builds an inventory alert when a stock change enters LOW or OUT status.
+ *
+ * @param item - The inventory item before the stock change.
+ * @param itemName - The display name for the item.
+ * @param itemType - Whether the item is a product or supply.
+ * @param nextStockQty - The stock quantity after the change.
+ * @param nextLowStockThreshold - The low-stock threshold after the change.
+ * @param delta - The stock movement amount.
+ * @returns The next status and an alert when one should be sent.
+ */
 function buildInventoryAlert(
   item: InventoryTrackedItem,
   itemName: string,
@@ -82,10 +120,22 @@ function buildInventoryAlert(
   };
 }
 
+/**
+ * Converts an inventory alert status into the email subject label.
+ *
+ * @param alert - The inventory alert to label.
+ * @returns A readable alert status label.
+ */
 function getInventoryAlertStatusLabel(alert: InventoryAlert) {
   return alert.status === "OUT" ? "OUT OF STOCK" : "LOW STOCK";
 }
 
+/**
+ * Escapes unsafe HTML characters before inserting text into email HTML.
+ *
+ * @param value - The text value to escape.
+ * @returns The HTML-safe text value.
+ */
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -95,9 +145,14 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+/**
+ * Formats the HTML email body for a single inventory alert.
+ *
+ * @param alert - The inventory alert to render.
+ * @returns The HTML body for the alert email.
+ */
 function formatInventoryAlertHtml(alert: InventoryAlert) {
-  const statusLabel =
-    alert.status === "OUT" ? "OUT OF STOCK" : "LOW STOCK";
+  const statusLabel = alert.status === "OUT" ? "OUT OF STOCK" : "LOW STOCK";
 
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
@@ -109,9 +164,20 @@ function formatInventoryAlertHtml(alert: InventoryAlert) {
   `;
 }
 
+/**
+ * Sends immediate inventory alert emails for products or supplies that become LOW or OUT.
+ *
+ * @param alerts - The inventory alerts that should be delivered.
+ * @returns The email delivery summary.
+ */
 export async function sendInventoryAlerts(alerts: InventoryAlert[]) {
   if (alerts.length === 0) {
-    return;
+    return {
+      attempted: 0,
+      sent: 0,
+      failed: 0,
+      skipped: false,
+    };
   }
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -119,33 +185,79 @@ export async function sendInventoryAlerts(alerts: InventoryAlert[]) {
   const to = process.env.INVENTORY_ALERT_EMAIL_TO;
 
   if (!apiKey || !from || !to) {
+    const missingVariables = [
+      !apiKey ? "RESEND_API_KEY" : null,
+      !from ? "INVENTORY_ALERT_EMAIL_FROM" : null,
+      !to ? "INVENTORY_ALERT_EMAIL_TO" : null,
+    ].filter(Boolean);
+
     console.warn(
-      "Inventory email alert skipped: missing Resend environment variables.",
+      `Inventory email alert skipped: missing Resend environment variables (${missingVariables.join(", ")}).`,
     );
-    return;
+
+    return {
+      attempted: alerts.length,
+      sent: 0,
+      failed: 0,
+      skipped: true,
+      reason: "missing_email_environment" as const,
+    };
   }
 
   const resend = new Resend(apiKey);
-
-  await Promise.all(
+  const results = await Promise.all(
     alerts.map(async (alert) => {
       try {
-        await resend.emails.send({
+        const result = await resend.emails.send({
           from,
           to,
           subject: `Inventory Alert: ${getInventoryAlertStatusLabel(alert)}`,
           html: formatInventoryAlertHtml(alert),
         });
+
+        if (result.error) {
+          throw result.error;
+        }
+
+        if (process.env.NODE_ENV !== "production") {
+          console.info(
+            `Inventory email alert sent for ${alert.itemType} "${alert.itemName}" with status ${alert.status}.`,
+          );
+        }
+
+        return true;
       } catch (error) {
-        console.error("Inventory email alert failed:", error);
+        console.error(
+          `Inventory email alert failed for ${alert.itemType} "${alert.itemName}" with status ${alert.status}:`,
+          error,
+        );
+
+        return false;
       }
     }),
   );
+
+  const sent = results.filter(Boolean).length;
+
+  return {
+    attempted: alerts.length,
+    sent,
+    failed: alerts.length - sent,
+    skipped: false,
+  };
 }
 
+/**
+ * Formats the HTML email body for the daily internal supply inventory digest.
+ *
+ * @param items - The supply inventory items to include in the digest.
+ * @returns The HTML body for the daily digest email.
+ */
 function formatDailyInventoryDigestHtml(items: DailySupplyDigestItem[]) {
   const alertItems = items.filter(
-    (item) => item.inventoryAlertStatus === "LOW" || item.inventoryAlertStatus === "OUT",
+    (item) =>
+      item.inventoryAlertStatus === "LOW" ||
+      item.inventoryAlertStatus === "OUT",
   );
 
   if (alertItems.length === 0) {
@@ -189,6 +301,11 @@ function formatDailyInventoryDigestHtml(items: DailySupplyDigestItem[]) {
   `;
 }
 
+/**
+ * Sends the daily internal supply digest and refreshes supply alert statuses.
+ *
+ * @returns The daily digest delivery summary and low/out stock counts.
+ */
 export async function sendDailyInventorySupplyDigest() {
   const supplies = await prisma.inventorySupply.findMany({
     where: {
@@ -207,8 +324,8 @@ export async function sendDailyInventorySupplyDigest() {
 
   const items = supplies.map<DailySupplyDigestItem>((supply) => ({
     ...supply,
-    stockQty: normalizeQuantity(supply.stockQty),
-    lowStockThreshold: normalizeThreshold(supply.lowStockThreshold),
+    stockQty: toValidQuantity(supply.stockQty),
+    lowStockThreshold: toValidThreshold(supply.lowStockThreshold),
     previousInventoryAlertStatus: supply.inventoryAlertStatus,
     inventoryAlertStatus: getInventoryAlertStatus(
       supply.stockQty,
@@ -233,13 +350,18 @@ export async function sendDailyInventorySupplyDigest() {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.INVENTORY_ALERT_EMAIL_FROM;
   const to = process.env.INVENTORY_ALERT_EMAIL_TO;
-  const lowStockCount = items.filter((item) => item.inventoryAlertStatus === "LOW").length;
-  const outOfStockCount = items.filter((item) => item.inventoryAlertStatus === "OUT").length;
+  const lowStockCount = items.filter(
+    (item) => item.inventoryAlertStatus === "LOW",
+  ).length;
+  const outOfStockCount = items.filter(
+    (item) => item.inventoryAlertStatus === "OUT",
+  ).length;
 
   if (!apiKey || !from || !to) {
     console.warn(
       "Daily inventory email skipped: missing Resend environment variables.",
     );
+
     return {
       sent: false,
       lowStockCount,
@@ -264,6 +386,14 @@ export async function sendDailyInventorySupplyDigest() {
   };
 }
 
+/**
+ * Deducts product inventory after a sale and records inventory movement history.
+ *
+ * @param tx - The Prisma transaction client used for the sale.
+ * @param lines - The sold product lines to deduct from stock.
+ * @param note - Optional movement note to store with inventory history.
+ * @returns Inventory alerts created by the deduction.
+ */
 export async function deductProductInventoryForSale(
   tx: Prisma.TransactionClient,
   lines: InventorySaleLine[],
@@ -303,10 +433,10 @@ export async function deductProductInventoryForSale(
 
   for (const product of products) {
     const soldQty = quantityByProductId.get(product.id) ?? 0;
-    const quantityBefore = normalizeQuantity(product.stockQty);
+    const quantityBefore = toValidQuantity(product.stockQty);
     const quantityAfter = Math.max(quantityBefore - soldQty, 0);
     const delta = quantityAfter - quantityBefore;
-    const lowStockThreshold = normalizeThreshold(product.lowStockThreshold);
+    const lowStockThreshold = toValidThreshold(product.lowStockThreshold);
     const { status, alert } = buildInventoryAlert(
       product,
       product.name,
@@ -348,6 +478,17 @@ export async function deductProductInventoryForSale(
   return alerts;
 }
 
+/**
+ * Sets a product inventory level, updates alert status, and records movement history.
+ *
+ * @param tx - The Prisma transaction client used for the inventory update.
+ * @param productId - The product being updated.
+ * @param nextStockQty - The next stock quantity.
+ * @param nextLowStockThreshold - The next low-stock threshold.
+ * @param reason - The movement reason stored in inventory history.
+ * @param note - Optional movement note stored in inventory history.
+ * @returns Inventory alerts created by the product update.
+ */
 export async function setProductInventoryLevel(
   tx: Prisma.TransactionClient,
   productId: string,
@@ -371,10 +512,10 @@ export async function setProductInventoryLevel(
     throw new Error("Product not found.");
   }
 
-  const quantityBefore = normalizeQuantity(product.stockQty);
-  const quantityAfter = normalizeQuantity(nextStockQty);
+  const quantityBefore = toValidQuantity(product.stockQty);
+  const quantityAfter = toValidQuantity(nextStockQty);
   const delta = quantityAfter - quantityBefore;
-  const lowStockThreshold = normalizeThreshold(nextLowStockThreshold);
+  const lowStockThreshold = toValidThreshold(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     product,
     product.name,
@@ -412,6 +553,17 @@ export async function setProductInventoryLevel(
   return alert ? [alert] : [];
 }
 
+/**
+ * Sets a supply inventory level, updates alert status, and records movement history.
+ *
+ * @param tx - The Prisma transaction client used for the inventory update.
+ * @param supplyId - The supply being updated.
+ * @param nextStockQty - The next stock quantity.
+ * @param nextLowStockThreshold - The next low-stock threshold.
+ * @param reason - The movement reason stored in inventory history.
+ * @param note - Optional movement note stored in inventory history.
+ * @returns Inventory alerts created by the supply update.
+ */
 export async function setSupplyInventoryLevel(
   tx: Prisma.TransactionClient,
   supplyId: string,
@@ -436,10 +588,10 @@ export async function setSupplyInventoryLevel(
     throw new Error("Supply not found.");
   }
 
-  const quantityBefore = normalizeQuantity(supply.stockQty);
-  const quantityAfter = normalizeQuantity(nextStockQty);
+  const quantityBefore = toValidQuantity(supply.stockQty);
+  const quantityAfter = toValidQuantity(nextStockQty);
   const delta = quantityAfter - quantityBefore;
-  const lowStockThreshold = normalizeThreshold(nextLowStockThreshold);
+  const lowStockThreshold = toValidThreshold(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     supply,
     supply.name,
@@ -448,6 +600,21 @@ export async function setSupplyInventoryLevel(
     lowStockThreshold,
     delta,
   );
+  const forcedZeroStockAlert =
+    status === "OUT" &&
+    quantityAfter === 0 &&
+    (delta < 0 || reason === "TAKEN");
+  const supplyAlert =
+    alert ??
+    (forcedZeroStockAlert
+      ? {
+          itemName: supply.name,
+          itemType: "Supply" as const,
+          status,
+          stockQty: quantityAfter,
+          lowStockThreshold,
+        }
+      : null);
 
   await tx.inventorySupply.update({
     where: { id: supply.id },
@@ -473,5 +640,5 @@ export async function setSupplyInventoryLevel(
     });
   }
 
-  return alert ? [alert] : [];
+  return supplyAlert ? [supplyAlert] : [];
 }

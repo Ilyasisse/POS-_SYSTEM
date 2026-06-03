@@ -108,8 +108,9 @@ export default function CustomerOrderPage() {
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter((product) => product.category?.id === category.id)
-          .length,
+        count: kioskProducts.filter(
+          (product) => product.category?.id === category.id,
+        ).length,
       })),
     ],
     [kioskCategories, kioskProducts],
@@ -131,7 +132,8 @@ export default function CustomerOrderPage() {
   }, [deferredSearch, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ??
+    "All";
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
@@ -233,7 +235,7 @@ export default function CustomerOrderPage() {
     );
     const assignedBarista =
       assignedBaristaId != null
-        ? baristas.find((barista) => barista.id === assignedBaristaId) ?? null
+        ? (baristas.find((barista) => barista.id === assignedBaristaId) ?? null)
         : null;
 
     addToCart({
@@ -325,7 +327,7 @@ export default function CustomerOrderPage() {
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-[size:28px_28px,auto] text-stone-900"
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-stone-900"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -333,11 +335,11 @@ export default function CustomerOrderPage() {
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <header
           data-aos="fade-down"
-          className="sticky top-2 z-30 rounded-[1.25rem] border border-white/80 bg-white/88 px-4 py-4 shadow-[0_20px_60px_rgba(44,28,17,0.14)] backdrop-blur-xl sm:top-4 sm:rounded-[1.5rem] sm:px-5 sm:py-5"
+          className="sticky top-2 z-30 rounded-[1.25rem] border border-white/80 bg-white/88 px-4 py-4 shadow-[0_20px_60px_rgba(44,28,17,0.14)] backdrop-blur-xl sm:top-4 sm:rounded-3xl sm:px-5 sm:py-5"
         >
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] border border-amber-200/70 bg-white p-1.5 shadow-sm sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200/70 bg-white p-1.5 shadow-sm sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/newer_logo.png"
@@ -352,7 +354,6 @@ export default function CustomerOrderPage() {
                 >
                   Mash Allah Cafe
                 </h1>
-               
               </div>
             </div>
 
@@ -421,10 +422,10 @@ export default function CustomerOrderPage() {
                       setSelectedCategory(category.id);
                     })
                   }
-                    className={`min-w-[7rem] snap-start rounded-full px-4 py-3 text-left text-sm font-semibold transition sm:min-w-[8rem] sm:px-5 ${
-                      active
-                        ? "bg-stone-950 text-white shadow-[0_14px_28px_rgba(28,16,10,0.22)]"
-                        : "border border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
+                  className={`min-w-[7rem] snap-start rounded-full px-4 py-3 text-left text-sm font-semibold transition sm:min-w-[8rem] sm:px-5 ${
+                    active
+                      ? "bg-stone-950 text-white shadow-[0_14px_28px_rgba(28,16,10,0.22)]"
+                      : "border border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
                   }`}
                 >
                   <div>{category.name}</div>
@@ -440,8 +441,6 @@ export default function CustomerOrderPage() {
             })}
           </div>
         </section>
-
-       
 
         <section
           data-aos="fade-up"
@@ -541,4 +540,3 @@ export default function CustomerOrderPage() {
     </main>
   );
 }
-

@@ -5,8 +5,8 @@ import { getMenuData } from "./menu-data";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Menu | Maash Allah Cafe",
-  description: "Customer-facing cafe menu with live POS products and graceful fallbacks.",
+  title: "Menu | MaashAllah Cafe",
+  description: "Customer-facing cafe menu with live POS products.",
 };
 
 export default async function MenuPage() {

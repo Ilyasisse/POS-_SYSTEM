@@ -134,18 +134,6 @@ export default function LoginPageClient() {
     }
   }
 
-  if (checkingSession) {
-    return (
-      <LoginShell>
-        <div className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/85 p-6 text-center shadow-[0_24px_70px_rgba(65,39,21,0.14)] backdrop-blur">
-          <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-2xl bg-[#d09a59]/30" />
-          <p className="text-sm font-medium text-[#6d5445]">
-            Checking your session...
-          </p>
-        </div>
-      </LoginShell>
-    );
-  }
 
   return (
     <LoginShell>
@@ -201,19 +189,10 @@ export default function LoginPageClient() {
             {googleLoading ? "Opening Google..." : "Continue with Google"}
           </button>
 
-          <Link
-            href="/staff-login"
-            data-aos="fade-up"
-            data-aos-delay="140"
-            className="flex w-full items-center justify-center rounded-2xl border border-[#e4d2bf] bg-white px-5 py-3.5 text-sm font-semibold text-[#3a2418] transition hover:-translate-y-0.5 hover:border-[#d09a59] hover:bg-[#fff8f0] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2"
-          >
-            Staff login
-          </Link>
+         
         </div>
 
-        <p className="mt-6 text-center text-xs leading-5 text-[#8a7465]">
-          Staff accounts use the separate secure staff login page.
-        </p>
+       
       </section>
     </LoginShell>
   );

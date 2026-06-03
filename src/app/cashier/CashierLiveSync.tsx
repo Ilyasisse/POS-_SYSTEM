@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getKitchenSocketUrl } from "@/lib/kitchen-socket";
 import { translateSocketStatus } from "@/lib/ui-text";
@@ -10,8 +10,20 @@ type CashierLiveSyncProps = {
   intervalMs?: number;
 };
 
+const REFRESH_DEBOUNCE_MS = 500;
+
+function parseSocketMessage(raw: string): { type?: string } | null {
+  try {
+    const message = JSON.parse(raw) as { type?: unknown };
+
+    return typeof message.type === "string" ? { type: message.type } : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function CashierLiveSync({
-  intervalMs = 5000,
+  intervalMs = 30000,
 }: CashierLiveSyncProps) {
   const router = useRouter();
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
@@ -19,20 +31,30 @@ export default function CashierLiveSync({
     useState<SocketStatus>("connecting");
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const refreshTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    const refresh = () => {
+  // Keep dashboard totals fresh without refreshing cashier order-entry routes.
+  const scheduleRefresh = useCallback(() => {
+    if (document.visibilityState !== "visible" || refreshTimerRef.current) {
+      return;
+    }
+
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null;
+
       if (document.visibilityState === "visible") {
         router.refresh();
       }
-    };
+    }, REFRESH_DEBOUNCE_MS);
+  }, [router]);
 
-    const timer = window.setInterval(refresh, intervalMs);
+  useEffect(() => {
+    const timer = window.setInterval(scheduleRefresh, intervalMs);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [intervalMs, router]);
+  }, [intervalMs, scheduleRefresh]);
 
   useEffect(() => {
     let disposed = false;
@@ -56,6 +78,17 @@ export default function CashierLiveSync({
         setSocketStatus("connected");
       };
 
+      ws.onmessage = (event) => {
+        const message = parseSocketMessage(String(event.data));
+
+        if (
+          message?.type === "NEW_ORDER" ||
+          message?.type === "UPDATE_ORDER_STATUS"
+        ) {
+          scheduleRefresh();
+        }
+      };
+
       ws.onerror = () => {
         setSocketStatus("disconnected");
       };
@@ -66,7 +99,7 @@ export default function CashierLiveSync({
         }
 
         setSocketStatus("disconnected");
-        reconnectTimerRef.current = window.setTimeout(connect, 1500);
+        reconnectTimerRef.current = window.setTimeout(connect, 1000);
       };
     };
 
@@ -79,11 +112,15 @@ export default function CashierLiveSync({
         window.clearTimeout(reconnectTimerRef.current);
       }
 
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+
       if (socketRef.current) {
         socketRef.current.close();
       }
     };
-  }, [socketUrl]);
+  }, [scheduleRefresh, socketUrl]);
 
   return (
     <div className="pointer-events-none fixed bottom-4 left-4 z-50">

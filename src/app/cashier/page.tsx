@@ -1,3 +1,4 @@
+"use server"
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
@@ -7,6 +8,7 @@ import {
   getCashierBusinessDayRange,
 } from "@/lib/cashier-business-day";
 import { payOpenTableOrdersFromCashier } from "./actions";
+import CashierLiveSync from "./CashierLiveSync";
 
 type CashierPageProps = {
   searchParams?: Promise<{
@@ -117,6 +119,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
   return (
     <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+      <CashierLiveSync />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Cashier table settlement</h1>

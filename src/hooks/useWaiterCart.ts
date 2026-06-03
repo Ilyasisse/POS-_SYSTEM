@@ -68,7 +68,6 @@ export function useWaiterCart() {
             pronunciationAudioUrl: product.pronunciationAudioUrl ?? null,
             finalPrice: unitPrice,
             lineTotal: unitPrice,
-            sku: product.sku ?? "",
             quantity: 1,
             station,
             selectedModifiers,

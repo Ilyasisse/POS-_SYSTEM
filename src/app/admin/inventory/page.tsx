@@ -7,21 +7,38 @@ import {
   updateSupplyInventory,
 } from "./actions";
 
+// Tracks the number of supplies in each inventory status bucket.
 type StatusSummary = {
   ok: number;
   low: number;
   out: number;
 };
 
+// Represents the daily total taken for one supply item.
 type TakenSummary = {
   itemName: string;
   quantity: number;
 };
 
+// Describes the query parameters accepted by the admin inventory page.
+type AdminInventoryPageProps = {
+  searchParams?: Promise<{
+    inventoryEmail?: string;
+  }>;
+};
+
+// Lists the popup states that can be shown after an inventory email attempt.
+type InventoryEmailStatus = "sent" | "failed" | "skipped" | "none";
+
+// Defines the UTC offset used for the cafe's East Africa Time reporting day.
 const EAT_OFFSET_HOURS = 3;
 
+// Calculates the beginning of the current East Africa Time day.
 function getEatDayStart(date = new Date()) {
+  // Shifts the current time into East Africa Time before truncating to midnight.
   const eatNow = new Date(date.getTime() + EAT_OFFSET_HOURS * 60 * 60 * 1000);
+
+  // Builds the UTC timestamp for midnight in the shifted day.
   const eatStart = Date.UTC(
     eatNow.getUTCFullYear(),
     eatNow.getUTCMonth(),
@@ -31,6 +48,7 @@ function getEatDayStart(date = new Date()) {
   return new Date(eatStart - EAT_OFFSET_HOURS * 60 * 60 * 1000);
 }
 
+// Returns the badge colors for an inventory status.
 function getStatusClasses(status: "OK" | "LOW" | "OUT") {
   if (status === "OUT") {
     return "bg-red-50 text-red-700 ring-red-200";
@@ -43,6 +61,7 @@ function getStatusClasses(status: "OK" | "LOW" | "OUT") {
   return "bg-emerald-50 text-emerald-700 ring-emerald-200";
 }
 
+// Adds one supply to the matching status count.
 function addStatus(summary: StatusSummary, status: "OK" | "LOW" | "OUT") {
   if (status === "OUT") {
     summary.out += 1;
@@ -53,9 +72,11 @@ function addStatus(summary: StatusSummary, status: "OK" | "LOW" | "OUT") {
   }
 }
 
+// Groups today's negative inventory movements into per-item totals.
 function summarizeTakenToday(
   movements: Array<{ itemName: string; delta: number }>,
 ) {
+  // Stores the running taken quantity for each supply name.
   const byItemName = new Map<string, number>();
 
   for (const movement of movements) {
@@ -70,8 +91,79 @@ function summarizeTakenToday(
     .sort((first, second) => second.quantity - first.quantity);
 }
 
-export default async function AdminInventoryPage() {
+// Converts the inventoryEmail query string into a supported popup status.
+function getInventoryEmailStatus(value?: string): InventoryEmailStatus | null {
+  if (
+    value === "sent" ||
+    value === "failed" ||
+    value === "skipped" ||
+    value === "none"
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+// Shows a fixed popup explaining whether the inventory email was sent.
+function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
+  // Maps each email result to the text and colors shown in the popup.
+  const config = {
+    sent: {
+      title: "Inventory email sent",
+      message: "The low-stock email was accepted by Resend.",
+      classes: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    },
+    failed: {
+      title: "Inventory email failed",
+      message: "Resend rejected the alert. Check the server logs for details.",
+      classes: "border-red-200 bg-red-50 text-red-900",
+    },
+    skipped: {
+      title: "Inventory email skipped",
+      message: "Email settings are missing in the server environment.",
+      classes: "border-amber-200 bg-amber-50 text-amber-900",
+    },
+    none: {
+      title: "No inventory email needed",
+      message: "The stock change did not create a new email alert.",
+      classes: "border-slate-200 bg-white text-slate-900",
+    },
+  }[status];
+
+  return (
+    <div
+      role="status"
+      className={`fixed right-4 top-4 z-50 w-[min(360px,calc(100vw-2rem))] rounded-xl border p-4 shadow-xl ${config.classes}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-bold">{config.title}</p>
+          <p className="mt-1 text-sm">{config.message}</p>
+        </div>
+        <Link
+          href="/admin/inventory"
+          className="rounded-md px-2 py-1 text-sm font-bold hover:bg-black/5"
+          aria-label="Dismiss inventory email message"
+        >
+          x
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default async function AdminInventoryPage({
+  searchParams,
+}: AdminInventoryPageProps) {
+  // Reads popup status from the URL after server actions redirect back here.
+  const params = await searchParams;
+  const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
+
+  // Uses the cafe's local day boundary for the "Taken Today" report.
   const todayStart = getEatDayStart();
+
+  // Loads active supplies, recent movements, and today's taken movements in parallel.
   const [supplies, movements, takenTodayMovements] = await Promise.all([
     prisma.inventorySupply.findMany({
       where: {
@@ -119,6 +211,7 @@ export default async function AdminInventoryPage() {
     }),
   ]);
 
+  // Counts supplies by current status for the summary cards.
   const summary = supplies.reduce<StatusSummary>(
     (accumulator, supply) => {
       addStatus(
@@ -129,6 +222,8 @@ export default async function AdminInventoryPage() {
     },
     { ok: 0, low: 0, out: 0 },
   );
+
+  // Aggregates today's taken movement rows into display totals.
   const takenSummary = summarizeTakenToday(takenTodayMovements);
 
   return (
@@ -136,6 +231,10 @@ export default async function AdminInventoryPage() {
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
+      {inventoryEmailStatus ? (
+        <InventoryEmailPopup status={inventoryEmailStatus} />
+      ) : null}
+
       <div className="mx-auto w-full max-w-7xl space-y-4 pb-24">
         <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
           <div>
@@ -262,6 +361,7 @@ export default async function AdminInventoryPage() {
                   </tr>
                 ) : (
                   supplies.map((supply) => {
+                    // Recomputes status from stock values so the table reflects current data.
                     const status = getInventoryAlertStatus(
                       supply.stockQty,
                       supply.lowStockThreshold,

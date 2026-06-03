@@ -1,70 +1,43 @@
-// Defines the shape/type of one menu product item
+// Used for: The product cards, featured items, filtering, and sorting on /menu.
+// What it does: Defines the shape of one product shown on the menu page.
+// Like you are 10: This is the checklist every food or drink item must follow.
 export type MenuProduct = {
-  // Unique product ID
   id: string;
-
-  // Product name shown to the customer
   name: string;
-
-  // Product description shown on the menu card
   description: string;
-
-  // Product price as a number
   price: number;
-
-  // Human-readable category name like "Coffee"
   categoryName: string;
-
-  // URL-safe category name like "coffee"
   categorySlug: string;
-
-  // Product image URL, or null if no image exists
   imageUrl: string | null;
-
-  // Marks product as popular
   isPopular: boolean;
-
-  // Used to rank best-selling products
   bestSellerScore: number;
 };
 
-// Defines the shape/type of one menu category
+// Used for: Grouping menu products into category sections/tabs on /menu.
+// What it does: Defines one menu category and the products inside it.
+// Like you are 10: This is one menu shelf with items on it.
 export type MenuCategory = {
-  // Unique category ID
   id: string;
-
-  // Category name shown to customers
   name: string;
-
-  // URL-safe category name
   slug: string;
-
-  // Products inside this category
   products: MenuProduct[];
 };
 
-// Defines the full menu data structure
+// Used for: The full data payload passed from the server page to MenuShowcase.
+// What it does: Defines all data the menu page needs to render.
+// Like you are 10: This is the full lunchbox the menu page opens.
 export type MenuData = {
-  // Cafe name shown on the menu page
   cafeName: string;
-
-  // Hero background image for menu page
   heroImage: string;
-
-  // All menu categories
   categories: MenuCategory[];
-
-  // All menu products
   products: MenuProduct[];
-
-  // Products shown in featured section
   featuredItems: MenuProduct[];
-
-  // Tells if data came from database or fallback
   hasLiveData: boolean;
 };
 
-// Controls the display order of categories
+// Used for: Keeping familiar categories in a predictable display order.
+// What it does: Controls the preferred display order for known categories.
+// Like you are 10: This tells the shelves which order to stand in.
 const CATEGORY_ORDER = [
   "Coffee",
   "Tea",
@@ -74,146 +47,21 @@ const CATEGORY_ORDER = [
   "Drinks",
 ] as const;
 
-// Creates a lookup map to quickly find category order number
+// Used for: Fast category sorting without scanning CATEGORY_ORDER repeatedly.
+// What it does: Lets categoryRank find a category's display position quickly.
+// Like you are 10: This is a quick lookup list for shelf order.
 const CATEGORY_ORDER_LOOKUP = new Map(
   CATEGORY_ORDER.map((name, index) => [name.toLowerCase(), index]),
 );
 
-// Stores the hero image path
+// Used for: The /menu hero image in both live-data and empty-data states.
+// What it does: Stores the hero image path used by live and empty menu states.
+// Like you are 10: This is the top picture the menu keeps using.
 const heroImage = "/menu-hero-bg.png";
 
-// Backup menu items used if database data is unavailable
-const placeholderItems: Array<{
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  categoryName: string;
-  isPopular: boolean;
-}> = [
-  {
-    id: "sample-cappuccino",
-    name: "Cappuccino",
-    description: "Rich espresso with steamed milk and a silky foam finish.",
-    price: 2.5,
-    categoryName: "Coffee",
-    isPopular: true,
-  },
-  {
-    id: "sample-iced-latte",
-    name: "Iced Latte",
-    description: "Smooth espresso poured over ice with chilled milk.",
-    price: 2.75,
-    categoryName: "Coffee",
-    isPopular: true,
-  },
-  {
-    id: "sample-caramel-latte",
-    name: "Caramel Latte",
-    description: "House espresso, caramel syrup, and creamy steamed milk.",
-    price: 2.9,
-    categoryName: "Coffee",
-    isPopular: true,
-  },
-  {
-    id: "sample-masala-tea",
-    name: "Masala Tea",
-    description: "Traditional spiced tea brewed fresh with warming notes.",
-    price: 1.5,
-    categoryName: "Tea",
-    isPopular: true,
-  },
-  {
-    id: "sample-green-tea",
-    name: "Mint Green Tea",
-    description: "Light green tea with mint leaves and a clean finish.",
-    price: 1.8,
-    categoryName: "Tea",
-    isPopular: false,
-  },
-  {
-    id: "sample-beef-burger",
-    name: "Beef Burger",
-    description: "Juicy beef patty with cheese, lettuce, and house sauce.",
-    price: 4.5,
-    categoryName: "Fast Food",
-    isPopular: true,
-  },
-  {
-    id: "sample-fries",
-    name: "French Fries",
-    description: "Golden fries served hot with a crisp outer finish.",
-    price: 2.3,
-    categoryName: "Fast Food",
-    isPopular: true,
-  },
-  {
-    id: "sample-samosa",
-    name: "Samosa (2pcs)",
-    description: "Crisp pastry triangles with a savory filling and dip.",
-    price: 1.8,
-    categoryName: "Fast Food",
-    isPopular: false,
-  },
-  {
-    id: "sample-bariis-hilib",
-    name: "Bariis & Hilib",
-    description: "Traditional Somali rice served with tender meat and spices.",
-    price: 6,
-    categoryName: "Cunto Soomaali",
-    isPopular: true,
-  },
-  {
-    id: "sample-suqaar",
-    name: "Suqaar Plate",
-    description: "Seasoned beef cubes with vegetables and fresh flatbread.",
-    price: 5.8,
-    categoryName: "Cunto Soomaali",
-    isPopular: false,
-  },
-  {
-    id: "sample-chocolate-cake",
-    name: "Chocolate Cake",
-    description: "Moist chocolate cake layered with a rich cocoa filling.",
-    price: 2.8,
-    categoryName: "Desserts",
-    isPopular: true,
-  },
-  {
-    id: "sample-cheesecake",
-    name: "Vanilla Cheesecake",
-    description: "Creamy cheesecake with a smooth vanilla finish.",
-    price: 3.2,
-    categoryName: "Desserts",
-    isPopular: false,
-  },
-  {
-    id: "sample-mango-juice",
-    name: "Mango Juice",
-    description: "Fresh mango juice blended cold and served naturally sweet.",
-    price: 2.2,
-    categoryName: "Drinks",
-    isPopular: true,
-  },
-  {
-    id: "sample-berry-smoothie",
-    name: "Berry Smoothie",
-    description: "Mixed berries blended to a bright and creamy finish.",
-    price: 2.9,
-    categoryName: "Drinks",
-    isPopular: true,
-  },
-  {
-    id: "sample-milkshake",
-    name: "Chocolate Milkshake",
-    description: "Cold chocolate shake topped with whipped cream.",
-    price: 3.2,
-    categoryName: "Drinks",
-    isPopular: true,
-  },
-];
-
-// Escapes special characters so text is safe inside SVG
+// Used for: Safely inserting category/product names into generated SVG fallback art.
+// What it does: Escapes special characters so text is safe inside generated SVG art.
+// Like you are 10: This stops weird letters from breaking the backup picture.
 function escapeSvgText(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -223,14 +71,18 @@ function escapeSvgText(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-// Converts raw SVG code into a browser-usable image URL
+// Used for: Returning generated SVG fallback art as a normal image URL string.
+// What it does: Converts raw SVG code into an image URL the browser can show.
+// Like you are 10: This turns drawing instructions into a picture card.
 function svgToDataUri(svg: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
     svg.replace(/\s+/g, " ").trim(),
   )}`;
 }
 
-// Converts category/product text into a clean slug
+// Used for: Category ids, tab ids, and product grouping keys in the menu UI.
+// What it does: Converts text into a clean slug used by menu tabs and grouping.
+// Like you are 10: This turns "Fast Food" into "fast-food" for the computer.
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -239,13 +91,18 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-// Gets the sorting rank for a category
+// Used for: Sorting grouped categories after live products are loaded.
+// What it does: Gets the sorting rank for a category name.
+// Like you are 10: This decides which shelf should come first.
 function categoryRank(name: string) {
   const normalized = name.trim().toLowerCase();
+
   return CATEGORY_ORDER_LOOKUP.get(normalized) ?? CATEGORY_ORDER.length + 1;
 }
 
-// Makes sure image URLs are valid
+// Used for: Normalizing database image paths before rendering product images.
+// What it does: Makes database image paths safe for browser use.
+// Like you are 10: This fixes picture addresses so the browser can find them.
 function resolveAssetUrl(value?: string | null) {
   if (!value) {
     return null;
@@ -262,7 +119,9 @@ function resolveAssetUrl(value?: string | null) {
   return value.startsWith("/") ? value : `/${value}`;
 }
 
-// Builds fallback SVG artwork for a product when no real image exists
+// Used for: Giving products a visual fallback when no uploaded product image exists.
+// What it does: Builds generated artwork when a product has no uploaded image.
+// Like you are 10: If there is no food photo, this draws a backup picture.
 function buildCategoryArt(categoryName: string, productName: string) {
   const palettes: Record<string, [string, string, string]> = {
     coffee: ["#3a1f12", "#b9783b", "#f3d6b3"],
@@ -311,7 +170,9 @@ function buildCategoryArt(categoryName: string, productName: string) {
   return svgToDataUri(svg);
 }
 
-// Groups products into their categories
+// Used for: Converting the flat product list into the category data MenuShowcase expects.
+// What it does: Groups the flat product list into menu categories for the UI.
+// Like you are 10: This puts each item back onto the right shelf.
 function groupCategories(products: MenuProduct[]) {
   const groups = new Map<string, MenuCategory>();
 
@@ -323,6 +184,7 @@ function groupCategories(products: MenuProduct[]) {
       existing.products.push(product);
       continue;
     }
+    
 
     groups.set(key, {
       id: key,
@@ -338,42 +200,14 @@ function groupCategories(products: MenuProduct[]) {
     if (rankDiff !== 0) {
       return rankDiff;
     }
-
+    console.log(rankDiff,left.name,right.name)
     return left.name.localeCompare(right.name);
   });
 }
 
-// Builds backup menu data when database data is unavailable
-function buildFallbackMenuData(): MenuData {
-  const products = placeholderItems.map((item, index) => {
-    const categorySlug = slugify(item.categoryName);
-
-    return {
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      price: item.price,
-      categoryName: item.categoryName,
-      categorySlug,
-      imageUrl: buildCategoryArt(item.categoryName, item.name),
-      isPopular: item.isPopular,
-      bestSellerScore: placeholderItems.length - index,
-    } satisfies MenuProduct;
-  });
-
-  const categories = groupCategories(products);
-
-  return {
-    cafeName: "Maash Allah Cafe",
-    heroImage,
-    categories,
-    products,
-    featuredItems: products.filter((product) => product.isPopular).slice(0, 4),
-    hasLiveData: false,
-  };
-}
-
-// Loads real menu data from the database using Prisma
+// Used for: Loading the live database-backed data for the public /menu page.
+// What it does: Loads active categories, products, and bestseller data from the database.
+// Like you are 10: This asks the kitchen computer what should be on the menu.
 async function loadLiveMenuData(): Promise<MenuData | null> {
   if (!process.env.DATABASE_URL) {
     return null;
@@ -382,6 +216,10 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
   try {
     const { prisma } = await import("@/lib/prisma");
 
+    // categoriesResult fetches active menu categories and only the product fields
+    // needed by /menu. The explicit select avoids unused database columns breaking
+    // the public menu if Prisma/client schema drift happens again.
+    // bestSellerRows reads OrderItem sales history to rank featured products.
     const [categoriesResult, bestSellerRows] = await Promise.all([
       prisma.category.findMany({
         where: {
@@ -393,12 +231,22 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
           },
         },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        include: {
+        select: {
+          id: true,
+          name: true,
           products: {
             where: {
               isActive: true,
             },
             orderBy: [{ isPopular: "desc" }, { name: "asc" }],
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              price: true,
+              imageUrl: true,
+              isPopular: true,
+            },
           },
         },
       }),
@@ -417,10 +265,12 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
       }),
     ]);
 
+    // Used for quick productId -> sold quantity lookup while building MenuProduct.
     const bestSellerMap = new Map(
       bestSellerRows.map((row) => [row.productId, Number(row._sum.qty ?? 0)]),
     );
 
+    // Flattens category/product query results into the exact shape the menu UI uses.
     const products = categoriesResult
       .flatMap((category) =>
         category.products.map((product) => {
@@ -457,8 +307,11 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
       return null;
     }
 
+    // Rebuilds category sections from the sorted flat product list.
     const categories = groupCategories(products);
 
+    // Featured items prefer real best sellers, then manually popular products,
+    // then all products when there is no sales/popularity signal yet.
     const featuredSource = products.some(
       (product) => product.bestSellerScore > 0,
     )
@@ -481,9 +334,25 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
   }
 }
 
-// Main function exported to the menu page
+// Used for: Returning a safe empty state when live menu data cannot be loaded.
+// What it does: Builds the empty menu response when live POS data cannot load.
+// Like you are 10: This gives the page an empty lunchbox instead of nothing.
+function buildEmptyMenuData(): MenuData {
+  return {
+    cafeName: "Maash Allah Cafe",
+    heroImage,
+    categories: [],
+    products: [],
+    featuredItems: [],
+    hasLiveData: false,
+  };
+}
+
+// Used for: The server page at src/app/menu/page.tsx.
+// What it does: Exports the main function the menu page calls for its data.
+// Like you are 10: This is the main helper that brings food data to the page.
 export async function getMenuData(): Promise<MenuData> {
   const liveData = await loadLiveMenuData();
 
-  return liveData ?? buildFallbackMenuData();
+  return liveData ?? buildEmptyMenuData();
 }
