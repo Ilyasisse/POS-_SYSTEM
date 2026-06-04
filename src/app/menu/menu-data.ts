@@ -200,7 +200,7 @@ function groupCategories(products: MenuProduct[]) {
     if (rankDiff !== 0) {
       return rankDiff;
     }
-    console.log(rankDiff,left.name,right.name)
+   
     return left.name.localeCompare(right.name);
   });
 }

@@ -31,6 +31,7 @@ function redirectWithInventoryEmailStatus(
   result: Awaited<ReturnType<typeof sendInventoryAlerts>>,
 ) {
   revalidatePath("/admin/inventory");
+  revalidatePath("/inventory");
 
   if (result.attempted === 0) {
     redirect("/admin/inventory?inventoryEmail=none");
@@ -72,6 +73,7 @@ export async function createSupply(formData: FormData) {
   });
 
   revalidatePath("/admin/inventory");
+  revalidatePath("/inventory");
 }
 
 // Sets a menu product's stock quantity and low-stock threshold.
@@ -183,13 +185,12 @@ export async function updateSupplyInventory(formData: FormData) {
   redirectWithInventoryEmailStatus(emailResult);
 }
 
-// Restocks or takes from an internal supply's stock level.
+// Restocks an internal supply's stock level from the admin inventory page.
 export async function adjustSupplyInventory(formData: FormData) {
   await requireInventoryAccess();
 
   // Pulls the submitted supply adjustment fields from the form.
   const supplyId = getString(formData, "supplyId");
-  const direction = getString(formData, "direction");
   const quantity = getQuantity(formData, "quantity");
   const note = getString(formData, "note");
 
@@ -216,19 +217,16 @@ export async function adjustSupplyInventory(formData: FormData) {
       throw new Error("Supply not found.");
     }
 
-    // Treats both "taken" and legacy "remove" values as a stock decrease.
-    const isTaken = direction === "taken" || direction === "remove";
-
-    // Converts the selected direction into a positive or negative supply change.
-    const delta = isTaken ? -quantity : quantity;
+    // Admin supply adjustments are restocks only; taking supplies is handled on /inventory.
+    const delta = quantity;
 
     return setSupplyInventoryLevel(
       tx,
       supplyId,
       supply.stockQty + delta,
       supply.lowStockThreshold,
-      isTaken ? "TAKEN" : "RESTOCK",
-      note || (isTaken ? "Taken during the day" : "Internal supply restock"),
+      "RESTOCK",
+      note || "Internal supply restock",
     );
   });
 

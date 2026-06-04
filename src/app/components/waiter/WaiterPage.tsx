@@ -20,7 +20,7 @@ import WaiterPageSkeleton from "./WaiterPageSkeleton";
 import { useWaiterCart } from "@/hooks/useWaiterCart";
 import { useWaiterSocket } from "@/hooks/useWaiterSocket";
 import { useWaiterData } from "@/hooks/useWaiterData";
-import type { UserRole } from "@/lib/auth/roles";
+import type { UserRole } from "@prisma/client";
 import {
   buildFullOrderPronunciationSegments,
   cancelPronunciationPlayback,

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import SignOutButton from "../SignOutButton";
 import {
   translateKitchenStationName,
@@ -20,11 +21,13 @@ export default function KitchenHeader({
   currentUserName,
   currentUserRole,
 }: KitchenHeaderProps) {
+  const canUseInventory = station === "CABITAAN" && currentUserRole !== "ADMIN";
+
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800/80 p-4">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-          Shaashadda Jikada
+          Kitchen Screen
         </p>
         <h1 className="text-2xl font-bold">
           {station
@@ -36,9 +39,18 @@ export default function KitchenHeader({
       <SignOutButton />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-right">
+        {canUseInventory ? (
+          <Link
+            href="/inventory"
+            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold uppercase text-white transition hover:bg-emerald-500"
+          >
+            Inventory
+          </Link>
+        ) : null}
+
+        <div className="rounded-xl  border-slate-700 bg-slate-900/70 px-3 py-2 text-right">
           <p className="text-xs uppercase tracking-wide text-slate-400">
-            Signed In
+            Welcome
           </p>
           <p className="text-sm font-semibold text-slate-100">
             {currentUserName}
@@ -61,7 +73,7 @@ export default function KitchenHeader({
         </span>
 
         <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold uppercase">
-          Safka {queueCount}
+          Queue {queueCount}
         </span>
       </div>
     </header>

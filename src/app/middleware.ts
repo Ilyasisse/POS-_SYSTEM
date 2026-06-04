@@ -11,5 +11,6 @@ export const config = {
     "/cashier/:path*",
     "/waiter/:path*",
     "/kitchen/:path*",
+    "/inventory/:path*",
   ],
 };

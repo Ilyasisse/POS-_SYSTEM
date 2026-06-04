@@ -243,7 +243,7 @@ export default async function AdminInventoryPage({
             </p>
             <h1 className="text-2xl font-bold">Internal Inventory</h1>
             <p className="text-sm text-slate-500">
-              Track supplies brought in, taken during the day, and low-stock
+              Create supplies, set stock levels, restock, and monitor low-stock
               alerts.
             </p>
           </div>
@@ -299,6 +299,7 @@ export default async function AdminInventoryPage({
               </h2>
               <p className="text-sm text-slate-500">
                 Create supplies such as flour, sugar, cups, milk, and packaging.
+                Alaabta la qaato waxaa lagu qoraa bogga keydka shaqaalaha.
               </p>
             </div>
             <form
@@ -413,7 +414,6 @@ export default async function AdminInventoryPage({
                       className="mt-3 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-emerald-100 bg-white p-3 sm:grid-cols-2"
                     >
                       <input type="hidden" name="supplyId" value={supply.id} />
-                      <input type="hidden" name="direction" value="restock" />
                       <input
                         name="quantity"
                         type="number"
@@ -434,33 +434,6 @@ export default async function AdminInventoryPage({
                         Restock
                       </button>
                     </form>
-
-                    <form
-                      action={adjustSupplyInventory}
-                      className="mt-3 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-red-100 bg-white p-3 sm:grid-cols-2"
-                    >
-                      <input type="hidden" name="supplyId" value={supply.id} />
-                      <input type="hidden" name="direction" value="taken" />
-                      <input
-                        name="quantity"
-                        type="number"
-                        min="1"
-                        placeholder="Qty"
-                        className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <input
-                        name="note"
-                        type="text"
-                        placeholder="Note"
-                        className="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 sm:col-span-2"
-                      >
-                        Taken / Used
-                      </button>
-                    </form>
                   </article>
                 );
               })
@@ -475,14 +448,13 @@ export default async function AdminInventoryPage({
                   <th className="px-3 py-2 font-semibold">Status</th>
                   <th className="px-3 py-2 font-semibold">Set Stock</th>
                   <th className="px-3 py-2 font-semibold">Restock</th>
-                  <th className="px-3 py-2 font-semibold">Taken / Used</th>
                 </tr>
               </thead>
               <tbody>
                 {supplies.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       className="px-3 py-6 text-center text-slate-500"
                     >
                       No internal supplies created yet.
@@ -564,7 +536,6 @@ export default async function AdminInventoryPage({
                               name="supplyId"
                               value={supply.id}
                             />
-                            <input type="hidden" name="direction" value="restock" />
                             <input
                               name="quantity"
                               type="number"
@@ -583,38 +554,6 @@ export default async function AdminInventoryPage({
                               className="rounded-lg border border-emerald-300 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
                             >
                               Restock
-                            </button>
-                          </form>
-                        </td>
-                        <td className="px-3 py-3">
-                          <form
-                            action={adjustSupplyInventory}
-                            className="flex min-w-[280px] flex-wrap items-end gap-2"
-                          >
-                            <input
-                              type="hidden"
-                              name="supplyId"
-                              value={supply.id}
-                            />
-                            <input type="hidden" name="direction" value="taken" />
-                            <input
-                              name="quantity"
-                              type="number"
-                              min="1"
-                              placeholder="Qty"
-                              className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            />
-                            <input
-                              name="note"
-                              type="text"
-                              placeholder="Note"
-                              className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            />
-                            <button
-                              type="submit"
-                              className="rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
-                            >
-                              Taken
                             </button>
                           </form>
                         </td>

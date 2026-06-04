@@ -3,6 +3,15 @@ type AppUser = {
   station: string | null;
 };
 
+/**
+ * Returns the default route for a signed-in user based on role and station.
+ *
+ * Dashboard roles go to their dashboards, customer users go to the menu, and
+ * kitchen staff are routed to the correct station screen when possible.
+ *
+ * @param user - User role and station data used for routing.
+ * @returns The route path the user should be sent to after login.
+ */
 export function getDefaultRouteForUser(user: AppUser) {
   const isCabitaanRole = user.role === "CABITAAN" || user.role === "Cabitaan";
 

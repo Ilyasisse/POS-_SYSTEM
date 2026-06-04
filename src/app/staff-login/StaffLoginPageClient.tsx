@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAos } from "@/app/components/AosInitializer";
 import { createClient } from "@/lib/supabase/client";
+import { getDefaultRouteForUser } from "@/lib/auth/getDefaultRouteForUser"
 
 type MeResponse = {
   id: string;
@@ -82,7 +83,7 @@ export default function StaffLoginPageClient() {
           return;
         }
 
-        router.replace(getDefaultRouteForProfile(me.data));
+        router.replace(getDefaultRouteForUser(me.data));
       } catch (err) {
         console.error("Session check failed:", err);
 
@@ -132,7 +133,7 @@ export default function StaffLoginPageClient() {
         throw new Error("Customer accounts should use the customer login page.");
       }
 
-      router.replace(getDefaultRouteForProfile(me.data));
+      router.replace(getDefaultRouteForUser(me.data));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
     } finally {
@@ -314,31 +315,4 @@ async function fetchMe(): Promise<FetchMeResult> {
   }
 }
 
-function getDefaultRouteForProfile(user: MeResponse) {
-  if (user.role === "ADMIN") return "/admin";
-  if (user.role === "MANAGER") return "/manager";
-  if (user.role === "CASHIER") return "/cashier";
-  if (user.role === "WAITER") return "/waiter";
-  if (user.role === "CUSTOMER") return "/menu";
-  if (user.role === "BARISTA" || user.station === "BARISTA") {
-    return "/kitchen/barista";
-  }
 
-  if (
-    user.role === "CABITAAN" ||
-    user.role === "Cabitaan" ||
-    user.station === "CABITAAN"
-  ) {
-    return "/kitchen/cabitaan";
-  }
-
-  if (user.role === "COOK" && user.station === "FAST_FOOD") {
-    return "/kitchen/fast-food";
-  }
-
-  if (user.role === "COOK" && user.station === "CUNTO_SOOMAALI") {
-    return "/kitchen/cunto-soomaali";
-  }
-
-  return "/kitchen";
-}

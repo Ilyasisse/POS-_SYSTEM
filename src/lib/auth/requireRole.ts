@@ -3,15 +3,35 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import type { Station, UserRole } from "@prisma/client";
 
+/**
+ * Requires a signed-in, active staff user with one of the allowed roles.
+ *
+ * Reads the current Supabase session, loads the matching Prisma user record,
+ * checks role and optional kitchen station access, and redirects to the staff
+ * login page when the user is missing, inactive, or unauthorized.
+ *
+ * @param allowedRoles - Staff roles allowed to access the current route.
+ * @param allowedStations - Optional station allowlist for non-admin kitchen users.
+ * @returns The active Prisma user record when access is allowed.
+ */
 export async function requireRole(
   allowedRoles: UserRole[],
   allowedStations?: Station[]
 ) {
   const supabase = await createClient();
 
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  let authUser;
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    authUser = user;
+  } catch (error) {
+    console.error("Failed to read Supabase auth session:", error);
+    redirect("/staff-login?error=unauthorized");
+  }
 
   if (!authUser) {
     redirect("/staff-login");

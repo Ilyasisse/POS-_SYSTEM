@@ -1,7 +1,24 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { AppUser } from "@/lib/auth/roles";
 
+type AppUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  station: string | null;
+  isActive: boolean;
+};
+
+/**
+ * Loads the currently authenticated active application user.
+ *
+ * Uses the Supabase auth session to find the matching row in the `User` table.
+ * Redirects to staff login when the session is missing, the app user cannot be
+ * found, or the account is inactive.
+ *
+ * @returns The active application user for the current Supabase session.
+ */
 export async function getCurrentUser() {
   const supabase = await createClient();
 
