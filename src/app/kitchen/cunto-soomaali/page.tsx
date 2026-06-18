@@ -1,5 +1,5 @@
-import { requireRole } from "@/lib/auth/requireRole";
-import KitchenClient from "@/app/components/kitchen/KitchenClient";
+import { requireRole } from "@/lib/auth/require-role";
+import KitchenClient from "@/components/kitchen/KitchenClient";
 
 export default async function CuntoSoomaaliKitchenPage() {
   const currentUser = await requireRole(["COOK", "ADMIN"], ["CUNTO_SOOMAALI"]);

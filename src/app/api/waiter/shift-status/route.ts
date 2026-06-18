@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getWaiterBusinessDayShiftSummary } from "@/lib/waiter-shifts";
+import { getWaiterBusinessDayShiftSummary } from "@/lib/waiter/waiter-shifts";
 
 export async function GET() {
   try {

@@ -1,14 +1,14 @@
 "use server"
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
-import SignOutButton from "../components/SignOutButton";
+import { requireRole } from "@/lib/auth/require-role";
+import SignOutButton from "@/components/SignOutButton";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
-} from "@/lib/cashier-business-day";
+} from "@/lib/cashier/cashier-business-day";
 import { payOpenTableOrdersFromCashier } from "./actions";
-import CashierLiveSync from "./CashierLiveSync";
+import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 
 type CashierPageProps = {
   searchParams?: Promise<{

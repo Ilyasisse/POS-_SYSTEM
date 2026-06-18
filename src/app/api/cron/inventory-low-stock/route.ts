@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sendDailyInventorySupplyDigest } from "@/lib/inventory";
+import { sendDailyInventorySupplyDigest } from "@/lib/inventory/inventory";
 
 export async function GET(request: Request) {
   const authorization = request.headers.get("authorization");

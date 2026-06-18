@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import MenuShowcase from "./MenuShowcase";
-import { getMenuData } from "./menu-data";
+import MenuRouteWrapper from "./_components/MenuRouteWrapper";
+import { getMenuData } from "@/lib/menu/menu-data";
 
 export const dynamic = "force-dynamic";
 
@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 export default async function MenuPage() {
   const data = await getMenuData();
 
-  return <MenuShowcase data={data} />;
+  return <MenuRouteWrapper data={data} />;
 }

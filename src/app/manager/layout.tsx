@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import SignOutButton from "@/app/components/SignOutButton";
-import { requireRole } from "@/lib/auth/requireRole";
+import SignOutButton from "@/components/SignOutButton";
+import { requireRole } from "@/lib/auth/require-role";
 
 type ManagerLayoutProps = {
   children: ReactNode;

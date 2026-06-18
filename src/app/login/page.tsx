@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import LoginPageClient from "./LoginPageClient";
+import LoginPageClient from "@/components/auth/LoginPageClient";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +15,13 @@ function LoginFallback() {
   );
 }
 
+/**
+ * Renders the customer login route with a suspense fallback.
+ *
+ * @returns The rendered login route.
+ *
+ * @remarks Uses the reusable LoginPageClient component from src/components/auth.
+ */
 export default function LoginPage() {
   return (
     <Suspense fallback={<LoginFallback />}>

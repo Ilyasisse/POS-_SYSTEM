@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteProduct, updateProduct } from "../actions";
-import PronunciationRecorder from "@/app/components/admin/PronunciationRecorder";
+import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -131,10 +131,13 @@ export default async function ProductDetailsPage({
         </section>
 
         <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600">Delete Product</h2>
+          <h2 className="mb-4 text-lg font-bold text-red-600">
+            Delete Product
+          </h2>
 
           <p className="mb-4 text-sm text-slate-600">
-            This will permanently delete <span className="font-semibold">{product.name}</span>.
+            This will permanently delete{" "}
+            <span className="font-semibold">{product.name}</span>.
           </p>
 
           <form action={deleteProduct}>

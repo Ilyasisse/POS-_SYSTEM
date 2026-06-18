@@ -1,5 +1,5 @@
-import { requireRole } from "@/lib/auth/requireRole";
-import WaiterPickupPage from "@/app/components/waiter/WaiterPickupPage";
+import { requireRole } from "@/lib/auth/require-role";
+import WaiterPickupPage from "@/components/waiter/WaiterPickupPage";
 
 export default async function Page() {
   const currentUser = await requireRole(["WAITER", "ADMIN"]);

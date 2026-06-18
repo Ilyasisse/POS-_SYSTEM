@@ -5,14 +5,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
-import { getCashierBusinessDayRange } from "@/lib/cashier-business-day";
+import { requireRole } from "@/lib/auth/require-role";
+import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
 import {
   CASHIER_DELETED_ORDER_ITEM_COOKIE,
   CASHIER_DELETED_ORDER_ITEM_LIMIT,
   type DeletedOrderItemSnapshot,
   parseDeletedOrderItemSnapshots,
-} from "@/lib/cashier-order-item-undo";
+} from "@/lib/cashier/cashier-order-item-undo";
 
 function getReturnPath(waiterId: string) {
   return waiterId

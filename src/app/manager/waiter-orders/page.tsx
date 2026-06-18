@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
-import AutoSubmitSelect from "@/app/components/AutoSubmitSelect";
+import { requireRole } from "@/lib/auth/require-role";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
-} from "@/lib/cashier-business-day";
+} from "@/lib/cashier/cashier-business-day";
 import {
   CASHIER_DELETED_ORDER_ITEM_COOKIE,
   parseDeletedOrderItemSnapshots,
-} from "@/lib/cashier-order-item-undo";
+} from "@/lib/cashier/cashier-order-item-undo";
 import {
   deleteWaiterOrderItem,
   discardDeletedWaiterOrderItem,

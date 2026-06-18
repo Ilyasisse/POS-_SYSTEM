@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createCategory } from "../actions";
-import { KITCHEN_STATIONS } from "@/lib/kitchen-socket";
+import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
 
 export default function NewCategoryPage() {
   return (

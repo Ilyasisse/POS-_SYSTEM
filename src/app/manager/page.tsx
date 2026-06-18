@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
-import AutoSubmitSelect from "../components/AutoSubmitSelect";
-import SignOutButton from "../components/SignOutButton";
+import { requireRole } from "@/lib/auth/require-role";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+import SignOutButton from "@/components/SignOutButton";
 import {
   buildWaiterShiftSummary,
   getWaiterNextOpeningAmount,
-} from "@/lib/waiter-shifts";
+} from "@/lib/waiter/waiter-shifts";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
-} from "@/lib/cashier-business-day";
+} from "@/lib/cashier/cashier-business-day";
 import {
   closeWaiterBalanceFromManager,
   reopenWaiterBalanceFromManager,

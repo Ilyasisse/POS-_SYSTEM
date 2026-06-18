@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireRole } from "@/lib/auth/require-role";
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
   setProductInventoryLevel,
   setSupplyInventoryLevel,
-} from "@/lib/inventory";
+} from "@/lib/inventory/inventory";
 
 // Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
@@ -31,6 +31,7 @@ function redirectWithInventoryEmailStatus(
   result: Awaited<ReturnType<typeof sendInventoryAlerts>>,
 ) {
   revalidatePath("/admin/inventory");
+  revalidatePath("/inventory");
 
   if (result.attempted === 0) {
     redirect("/admin/inventory?inventoryEmail=none");
@@ -72,6 +73,7 @@ export async function createSupply(formData: FormData) {
   });
 
   revalidatePath("/admin/inventory");
+  revalidatePath("/inventory");
 }
 
 // Sets a menu product's stock quantity and low-stock threshold.
@@ -88,14 +90,14 @@ export async function updateProductInventory(formData: FormData) {
   }
 
   // Saves the product stock change and collects any low/out alert.
+  // Product movement reasons are no longer passed because product changes do
+  // not create InventoryMovement rows after productId was removed from that table.
   const alerts = await prisma.$transaction((tx) =>
     setProductInventoryLevel(
       tx,
       productId,
       stockQty,
       lowStockThreshold,
-      "SET",
-      "Inventory page update",
     ),
   );
 
@@ -111,7 +113,6 @@ export async function adjustProductInventory(formData: FormData) {
   const productId = getString(formData, "productId");
   const direction = getString(formData, "direction");
   const quantity = getQuantity(formData, "quantity");
-  const note = getString(formData, "note");
 
   if (!productId) {
     throw new Error("Product is required.");
@@ -139,13 +140,13 @@ export async function adjustProductInventory(formData: FormData) {
     // Converts the selected direction into a positive or negative stock change.
     const delta = direction === "remove" ? -quantity : quantity;
 
+    // Only the next product stock values are needed now; supply movement history
+    // remains separate and continues to store TAKEN/RESTOCK reasons.
     return setProductInventoryLevel(
       tx,
       productId,
       product.stockQty + delta,
       product.lowStockThreshold,
-      direction === "remove" ? "MANUAL_REMOVE" : "MANUAL_ADD",
-      note || "Inventory page adjustment",
     );
   });
 
@@ -183,13 +184,12 @@ export async function updateSupplyInventory(formData: FormData) {
   redirectWithInventoryEmailStatus(emailResult);
 }
 
-// Restocks or takes from an internal supply's stock level.
+// Restocks an internal supply's stock level from the admin inventory page.
 export async function adjustSupplyInventory(formData: FormData) {
   await requireInventoryAccess();
 
   // Pulls the submitted supply adjustment fields from the form.
   const supplyId = getString(formData, "supplyId");
-  const direction = getString(formData, "direction");
   const quantity = getQuantity(formData, "quantity");
   const note = getString(formData, "note");
 
@@ -216,19 +216,16 @@ export async function adjustSupplyInventory(formData: FormData) {
       throw new Error("Supply not found.");
     }
 
-    // Treats both "taken" and legacy "remove" values as a stock decrease.
-    const isTaken = direction === "taken" || direction === "remove";
-
-    // Converts the selected direction into a positive or negative supply change.
-    const delta = isTaken ? -quantity : quantity;
+    // Admin supply adjustments are restocks only; taking supplies is handled on /inventory.
+    const delta = quantity;
 
     return setSupplyInventoryLevel(
       tx,
       supplyId,
       supply.stockQty + delta,
       supply.lowStockThreshold,
-      isTaken ? "TAKEN" : "RESTOCK",
-      note || (isTaken ? "Taken during the day" : "Internal supply restock"),
+      "RESTOCK",
+      note || "Internal supply restock",
     );
   });
 

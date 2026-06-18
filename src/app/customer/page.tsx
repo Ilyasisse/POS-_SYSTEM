@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import CustomerOrderPage from "@/app/components/customer/CustomerOrderPage";
+import CustomerOrderPage from "@/components/customer/CustomerOrderPage";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default async function CustomerPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login?error=customer-login-required");
+    redirect("/?error=customer-login-required");
   }
 
   return <CustomerOrderPage />;

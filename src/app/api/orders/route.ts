@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen-socket";
+import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen/kitchen-socket";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
-} from "@/lib/inventory";
+} from "@/lib/inventory/inventory";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -400,7 +400,8 @@ export async function POST(request: Request) {
           productId: line.productId,
           qty: line.qty,
         })),
-        `Order #${order.orderNumber}`,
+        // Product sale notes are intentionally not recorded in InventoryMovement;
+        // that table is now supply-only, while product deductions still update Product stock.
       );
 
       return { order, savedOrderItems, inventoryAlerts };

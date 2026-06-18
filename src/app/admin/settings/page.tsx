@@ -1,9 +1,20 @@
-import Link from "next/link";
+import {
+  AdminButton,
+  AdminCard,
+  AdminPageFrame,
+  AdminStatCard,
+} from "@/components/admin/AdminUi";
 import { prisma } from "@/lib/prisma";
 
-const orderTypes = ["DINE_IN", "TAKEOUT", "DELIVERY"];
-const paymentMethods = ["MYCASH", "GOLIS", "Dahabshiil", "OTHER"];
-const kitchenStations = ["CUNTO_SOOMAALI", "FAST_FOOD", "CABITAAN", "BARISTA"];
+const tabs = [
+  "General",
+  "Business",
+  "POS Settings",
+  "Payment Methods",
+  "Receipt",
+  "Notifications",
+  "Backup",
+];
 
 export default async function AdminSettingsPage() {
   const [activeCategories, activeProducts, activeTables, activeStaff] =
@@ -26,134 +37,104 @@ export default async function AdminSettingsPage() {
       prisma.user.count({
         where: {
           isActive: true,
+          role: {
+            not: "CUSTOMER",
+          },
         },
       }),
     ]);
 
-  const configLinks = [
-    {
-      href: "/admin/categories",
-      title: "Menu Categories",
-      description: "Control how products are grouped and assigned to stations.",
-    },
-    {
-      href: "/admin/products",
-      title: "Products",
-      description: "Add menu items, prices, and stock tracking settings.",
-    },
-    {
-      href: "/admin/modifiers-groups",
-      title: "Modifier Groups",
-      description: "Define selection rules for extras and add-ons.",
-    },
-    {
-      href: "/admin/staff",
-      title: "Staff Access",
-      description: "Review user roles, account status, and station assignment.",
-    },
-    {
-      href: "/admin/tables",
-      title: "Table Setup",
-      description: "Check dine-in tables and open table activity.",
-    },
-  ];
-
   return (
-    <main
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
-      style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
+    <AdminPageFrame
+      title="Settings"
+      description="Manage system settings and preferences"
     >
-      <div className="mx-auto w-full max-w-6xl space-y-4 pb-24">
-        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-            Admin Dashboard
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminStatCard label="Active Categories" value={activeCategories} />
+        <AdminStatCard label="Active Products" value={activeProducts} />
+        <AdminStatCard label="Active Tables" value={activeTables} />
+        <AdminStatCard label="Active Staff" value={activeStaff} />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
+        <AdminCard className="overflow-hidden p-2">
+          <nav className="space-y-1">
+            {tabs.map((tab, index) => (
+              <a
+                key={tab}
+                href={`#${tab.toLowerCase().replaceAll(" ", "-")}`}
+                className={`block rounded-xl px-4 py-3 text-sm font-bold ${
+                  index === 0
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {tab}
+              </a>
+            ))}
+          </nav>
+        </AdminCard>
+
+        <AdminCard className="p-5">
+          <h2 id="general" className="text-lg font-black text-slate-950">
+            General Settings
+          </h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            Configure business defaults used across the POS.
           </p>
-          <h1 className="mt-2 text-2xl font-bold">Settings</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            View the current POS configuration and jump to the area that manages
-            it.
-          </p>
-        </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Active Categories</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {activeCategories}
-            </h2>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Active Products</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {activeProducts}
-            </h2>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Active Tables</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {activeTables}
-            </h2>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Active Staff</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {activeStaff}
-            </h2>
-          </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <h2 className="text-lg font-bold text-slate-800">
-              Configuration Areas
-            </h2>
-            <div className="mt-4 space-y-3">
-              {configLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="block rounded-xl border border-slate-200 px-4 py-4 transition hover:border-slate-300 hover:bg-slate-50"
-                >
-                  <p className="font-semibold text-slate-900">{link.title}</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {link.description}
-                  </p>
-                </Link>
-              ))}
+          {/* REVIEW: Settings form is UI-only until persistent cafe configuration fields are defined. */}
+          <form className="mt-5 grid gap-4 lg:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-sm font-bold text-slate-700">
+                Business Name
+              </span>
+              <input
+                defaultValue="Mash Allah Cafe"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-bold text-slate-700">
+                Currency
+              </span>
+              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+                <option>USD - US Dollar</option>
+                <option>SOS - Somali Shilling</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-bold text-slate-700">
+                Timezone
+              </span>
+              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+                <option>UTC+03:00 Nairobi</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-bold text-slate-700">
+                Date Format
+              </span>
+              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+                <option>MM/DD/YYYY</option>
+                <option>DD/MM/YYYY</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-bold text-slate-700">
+                Language
+              </span>
+              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+                <option>English</option>
+                <option>Somali</option>
+              </select>
+            </label>
+            <div className="flex items-end lg:col-span-2">
+              <AdminButton type="button">Save Changes</AdminButton>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <h2 className="text-lg font-bold text-slate-800">Current Defaults</h2>
-            <div className="mt-4 space-y-4 text-sm text-slate-700">
-              <div>
-                <p className="font-semibold text-slate-900">Kitchen Stations</p>
-                <p className="mt-1">{kitchenStations.join(", ")}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-900">Order Types</p>
-                <p className="mt-1">{orderTypes.join(", ")}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-900">Payment Methods</p>
-                <p className="mt-1">{paymentMethods.join(", ")}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-slate-900">Admin Access</p>
-                <p className="mt-1">
-                  Admin routes require an authenticated admin account.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
+          </form>
+        </AdminCard>
+      </section>
+    </AdminPageFrame>
   );
 }

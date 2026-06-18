@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { KitchenSocketMessage, KitchenTicket } from "@/lib/kitchen-socket";
+import type { KitchenSocketMessage, KitchenTicket } from "@/lib/kitchen/kitchen-socket";
 import {
   filterKitchenTicketsByStation,
   normalizeKitchenTicket,
   normalizeKitchenStation,
   setKitchenTicketPickupStatus,
   setKitchenTicketStationStatus,
-} from "@/lib/kitchen-socket";
+} from "@/lib/kitchen/kitchen-socket";
 
 const globalForKitchen = globalThis as unknown as {
   kitchenTickets?: KitchenTicket[];
