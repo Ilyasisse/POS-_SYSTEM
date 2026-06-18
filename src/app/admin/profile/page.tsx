@@ -35,7 +35,6 @@ export default async function AdminProfilePage({ searchParams }: ProfilePageProp
 
   return (
     <AdminPageFrame
-      index={12}
       title="My Profile"
       description="Manage your profile information"
     >
