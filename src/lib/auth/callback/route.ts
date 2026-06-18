@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getDefaultRouteForUser } from "@/lib/auth/getDefaultRouteForUser";
+import { getDefaultRouteForUser } from "@/lib/auth/get-default-route-for-user";
 
 /**
  * Handles the auth callback route after Supabase sign-in.

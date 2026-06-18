@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireRole } from "@/lib/auth/require-role";
 
 const PAYMENT_METHODS = new Set<PaymentMethod>([
   "MYCASH",

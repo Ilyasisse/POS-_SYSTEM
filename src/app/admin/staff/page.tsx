@@ -1,10 +1,33 @@
+import {
+  AdminPageFrame,
+  AdminSearchToolbar,
+  AdminSelect,
+  AdminStatCard,
+  AdminTable,
+  AdminTableShell,
+  AdminTd,
+  AdminTh,
+  StatusBadge,
+} from "@/components/admin/AdminUi";
 import { prisma } from "@/lib/prisma";
+
+type StaffPageProps = {
+  searchParams?: Promise<{
+    q?: string;
+    role?: string;
+    status?: string;
+  }>;
+};
 
 function formatRole(role: string) {
   return role === "Cabitaan" ? "CABITAAN" : role;
 }
 
-export default async function StaffPage() {
+export default async function StaffPage({ searchParams }: StaffPageProps) {
+  const params = await searchParams;
+  const q = params?.q?.trim().toLowerCase() ?? "";
+  const role = params?.role ?? "all";
+  const status = params?.status ?? "all";
   const userRows = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
     include: {
@@ -17,118 +40,118 @@ export default async function StaffPage() {
       },
     },
   });
-  const staff = userRows.filter((member) => member.role !== "CUSTOMER");
+  const staff = userRows
+    .filter((member) => member.role !== "CUSTOMER")
+    .filter((member) => {
+      const matchesSearch =
+        !q ||
+        member.fullName.toLowerCase().includes(q) ||
+        member.email.toLowerCase().includes(q);
+      const matchesRole = role === "all" || member.role === role;
+      const matchesStatus =
+        status === "all" ||
+        (status === "active" ? member.isActive : !member.isActive);
+      return matchesSearch && matchesRole && matchesStatus;
+    });
 
-  const activeStaff = staff.filter((member) => member.isActive).length;
-  const kitchenStaff = staff.filter((member) =>
-    ["COOK", "BARISTA", "Cabitaan"].includes(member.role)
+  const allStaff = userRows.filter((member) => member.role !== "CUSTOMER");
+  const activeStaff = allStaff.filter((member) => member.isActive).length;
+  const kitchenStaff = allStaff.filter((member) =>
+    ["COOK", "BARISTA", "Cabitaan"].includes(member.role),
   ).length;
+  const roles = [...new Set(allStaff.map((member) => member.role))].sort();
 
   return (
-    <main
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
-      style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
+    <AdminPageFrame
+      title="Staff"
+      description="Manage staff members and their roles"
     >
-      <div className="mx-auto w-full max-w-6xl space-y-4 pb-24">
-        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-            Admin Dashboard
+      <section className="grid gap-4 sm:grid-cols-3">
+        <AdminStatCard label="Total Staff" value={allStaff.length} />
+        <AdminStatCard label="Active Accounts" value={activeStaff} />
+        <AdminStatCard label="Kitchen Team" value={kitchenStaff} />
+      </section>
+
+      <AdminTableShell
+        footer={
+          <p className="text-sm font-medium text-slate-500">
+            Showing 1 to {staff.length} of {allStaff.length} staff
           </p>
-          <h1 className="mt-2 text-2xl font-bold">Staff</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Review staff accounts, roles, work stations, and operational
-            activity.
-          </p>
-        </header>
-
-        <section className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Total Staff</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {staff.length}
-            </h2>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Active Accounts</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {activeStaff}
-            </h2>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
-            <p className="text-sm text-slate-500">Kitchen Team</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
-              {kitchenStaff}
-            </h2>
-          </div>
-
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-slate-800">Team Directory</h2>
-            <p className="text-sm text-slate-500">{staff.length} staff records</p>
-          </div>
-
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-3 py-2 font-semibold">Name</th>
-                  <th className="px-3 py-2 font-semibold">Email</th>
-                  <th className="px-3 py-2 font-semibold">Role</th>
-                  <th className="px-3 py-2 font-semibold">Station</th>
-                  <th className="px-3 py-2 font-semibold">Status</th>
-                  <th className="px-3 py-2 font-semibold">Waiter Orders</th>
-                  <th className="px-3 py-2 font-semibold">Cashier Orders</th>
-                  <th className="px-3 py-2 font-semibold">Shifts</th>
+        }
+      >
+        <AdminSearchToolbar
+          placeholder="Search staff..."
+          defaultValue={params?.q ?? ""}
+        >
+          <AdminSelect name="role" defaultValue={role}>
+            <option value="all">Role All</option>
+            {roles.map((item) => (
+              <option key={item} value={item}>
+                {formatRole(item)}
+              </option>
+            ))}
+          </AdminSelect>
+          <AdminSelect name="status" defaultValue={status}>
+            <option value="all">Status All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </AdminSelect>
+          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+            Filter
+          </button>
+        </AdminSearchToolbar>
+        <AdminTable>
+          <thead>
+            <tr>
+              <AdminTh>#</AdminTh>
+              <AdminTh>Name</AdminTh>
+              <AdminTh>Role</AdminTh>
+              <AdminTh>Phone</AdminTh>
+              <AdminTh>Status</AdminTh>
+              <AdminTh>Joined On</AdminTh>
+              <AdminTh>Activity</AdminTh>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.length === 0 ? (
+              <tr>
+                <AdminTd colSpan={7} className="py-10 text-center">
+                  No staff accounts found.
+                </AdminTd>
+              </tr>
+            ) : (
+              staff.map((member, index) => (
+                <tr key={member.id} className="border-b border-slate-50">
+                  <AdminTd className="font-bold text-slate-400">
+                    {index + 1}
+                  </AdminTd>
+                  <AdminTd className="font-black text-slate-950">
+                    <div>{member.fullName}</div>
+                    <div className="text-xs font-medium text-slate-400">
+                      {member.email}
+                    </div>
+                  </AdminTd>
+                  <AdminTd>{formatRole(member.role)}</AdminTd>
+                  <AdminTd>{member.phoneNumber ?? "-"}</AdminTd>
+                  <AdminTd>
+                    <StatusBadge active={member.isActive} />
+                  </AdminTd>
+                  <AdminTd>
+                    {member.createdAt.toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </AdminTd>
+                  <AdminTd>
+                    {member._count.waiterOrders + member._count.orders} orders
+                  </AdminTd>
                 </tr>
-              </thead>
-
-              <tbody>
-                {staff.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-3 py-6 text-center text-slate-500"
-                    >
-                      No staff accounts found.
-                    </td>
-                  </tr>
-                ) : (
-                  staff.map((member) => (
-                    <tr key={member.id} className="border-b border-slate-100">
-                      <td className="px-3 py-2 font-semibold text-slate-700">
-                        {member.fullName}
-                      </td>
-                      <td className="px-3 py-2">{member.email}</td>
-                      <td className="px-3 py-2">{formatRole(member.role)}</td>
-                      <td className="px-3 py-2">{member.station ?? "-"}</td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                            member.isActive
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-rose-100 text-rose-700"
-                          }`}
-                        >
-                          {member.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        {member._count.waiterOrders}
-                      </td>
-                      <td className="px-3 py-2">{member._count.orders}</td>
-                      <td className="px-3 py-2">{member._count.shifts}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </main>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
+    </AdminPageFrame>
   );
 }

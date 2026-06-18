@@ -1,4 +1,4 @@
-import WaiterPageSkeleton from "@/app/components/waiter/WaiterPageSkeleton";
+import WaiterPageSkeleton from "@/components/waiter/WaiterPageSkeleton";
 
 export default function Loading() {
   return <WaiterPageSkeleton />;

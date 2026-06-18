@@ -61,7 +61,6 @@ model Product {
   updatedAt   DateTime    @updatedAt
   modifiers   Modifier[]
   orderItems  OrderItem[]
-  inventoryMovements InventoryMovement[]
   category    Category    @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
@@ -85,9 +84,11 @@ model InventorySupply {
   @@index([isActive, inventoryAlertStatus])
 }
 
+/// Supply-only inventory history.
+/// Product stock still lives on Product, but product changes are no longer written here
+/// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
 model InventoryMovement {
   id            String           @id @default(cuid())
-  productId     String?
   supplyId      String?
   itemName      String
   itemType      String
@@ -97,10 +98,8 @@ model InventoryMovement {
   reason        String
   note          String?
   createdAt     DateTime         @default(now())
-  product       Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   supply        InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
-  @@index([productId, createdAt])
   @@index([supplyId, createdAt])
   @@index([createdAt])
 }

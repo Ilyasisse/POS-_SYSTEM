@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { normalizeKitchenStation } from "@/lib/kitchen-socket";
+import { normalizeKitchenStation } from "@/lib/kitchen/kitchen-socket";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 

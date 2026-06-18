@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteCategory, updateCategory } from "../actions";
-import { KITCHEN_STATIONS } from "@/lib/kitchen-socket";
+import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
 
 type CategoryDetailsPageProps = {
   params: Promise<{

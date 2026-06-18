@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireRole } from "@/lib/auth/require-role";
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
   setProductInventoryLevel,
   setSupplyInventoryLevel,
-} from "@/lib/inventory";
+} from "@/lib/inventory/inventory";
 
 // Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
@@ -90,14 +90,14 @@ export async function updateProductInventory(formData: FormData) {
   }
 
   // Saves the product stock change and collects any low/out alert.
+  // Product movement reasons are no longer passed because product changes do
+  // not create InventoryMovement rows after productId was removed from that table.
   const alerts = await prisma.$transaction((tx) =>
     setProductInventoryLevel(
       tx,
       productId,
       stockQty,
       lowStockThreshold,
-      "SET",
-      "Inventory page update",
     ),
   );
 
@@ -113,7 +113,6 @@ export async function adjustProductInventory(formData: FormData) {
   const productId = getString(formData, "productId");
   const direction = getString(formData, "direction");
   const quantity = getQuantity(formData, "quantity");
-  const note = getString(formData, "note");
 
   if (!productId) {
     throw new Error("Product is required.");
@@ -141,13 +140,13 @@ export async function adjustProductInventory(formData: FormData) {
     // Converts the selected direction into a positive or negative stock change.
     const delta = direction === "remove" ? -quantity : quantity;
 
+    // Only the next product stock values are needed now; supply movement history
+    // remains separate and continues to store TAKEN/RESTOCK reasons.
     return setProductInventoryLevel(
       tx,
       productId,
       product.stockQty + delta,
       product.lowStockThreshold,
-      direction === "remove" ? "MANUAL_REMOVE" : "MANUAL_ADD",
-      note || "Inventory page adjustment",
     );
   });
 

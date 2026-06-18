@@ -1,5 +1,5 @@
-import AdminPageSkeleton from "@/app/components/admin/AdminPageSkeleton";
+import AdminPageSkeleton from "@/components/admin/shared/AdminPageSkeleton";
 
-export default function Loading() {
-  return <AdminPageSkeleton />;
+export default function AdminLoading() {
+  return <AdminPageSkeleton variant="page" />;
 }

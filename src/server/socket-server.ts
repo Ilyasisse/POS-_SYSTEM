@@ -3,7 +3,7 @@ import type {
   KitchenSocketMessage,
   KitchenTicket,
   KitchenTicketFilter,
-} from "../lib/kitchen-socket";
+} from "../lib/kitchen/kitchen-socket";
 import {
   filterKitchenTicketsByStation,
   getKitchenTicketStatusForItems,
@@ -11,7 +11,7 @@ import {
   normalizeKitchenStation,
   setKitchenTicketPickupStatus,
   setKitchenTicketStationStatus,
-} from "../lib/kitchen-socket";
+} from "../lib/kitchen/kitchen-socket";
 
 const wss = new WebSocketServer({ port: 3001 });
 

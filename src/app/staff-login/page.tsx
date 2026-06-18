@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import StaffLoginPageClient from "./StaffLoginPageClient";
+import StaffLoginPageClient from "@/components/auth/StaffLoginPageClient";
 
 export const dynamic = "force-dynamic";
 

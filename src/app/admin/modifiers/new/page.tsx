@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createModifier } from "../actions";
-import PronunciationRecorder from "@/app/components/admin/PronunciationRecorder";
+import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
 export default async function NewModifierPage() {
   const [products, modifierGroups] = await Promise.all([

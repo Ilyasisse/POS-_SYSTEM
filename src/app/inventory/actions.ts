@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireRole } from "@/lib/auth/require-role";
 import {
   sendInventoryAlerts,
   setSupplyInventoryLevel,
-} from "@/lib/inventory";
+} from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
 
 function getString(formData: FormData, key: string) {

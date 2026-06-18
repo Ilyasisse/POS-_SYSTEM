@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireRole } from "@/lib/auth/require-role";
 
 type ManagerReportsPageProps = {
   searchParams?: Promise<{

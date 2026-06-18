@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
-import CashierOrderClient from "./CashierOrderClient";
+import { requireRole } from "@/lib/auth/require-role";
+import CashierOrderClient from "@/components/cashier/CashierOrderClient";
 
 type CashierOrderPageProps = {
   searchParams?: Promise<{

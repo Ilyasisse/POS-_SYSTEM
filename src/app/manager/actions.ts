@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireRole } from "@/lib/auth/require-role";
 import {
   closeWaiterBusinessDayShift,
   openWaiterBusinessDayShift,
   reopenWaiterBusinessDayShift,
-} from "@/lib/waiter-shifts";
+} from "@/lib/waiter/waiter-shifts";
 
 function buildReturnPath(waiterId: string, balanceStatus: string) {
   const params = new URLSearchParams();

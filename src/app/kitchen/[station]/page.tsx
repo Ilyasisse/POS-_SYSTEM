@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import KitchenClient from "../../components/kitchen/KitchenClient";
-import { requireRole } from "@/lib/auth/requireRole";
-import { stationFromPathSegment } from "@/lib/kitchen-socket";
+import KitchenClient from "@/components/kitchen/KitchenClient";
+import { requireRole } from "@/lib/auth/require-role";
+import { stationFromPathSegment } from "@/lib/kitchen/kitchen-socket";
 
 type KitchenStationPageProps = {
   params: Promise<{

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import SignOutButton from "@/app/components/SignOutButton";
-import { requireRole } from "@/lib/auth/requireRole";
-import { getInventoryAlertStatus } from "@/lib/inventory";
+import SignOutButton from "@/components/SignOutButton";
+import { requireRole } from "@/lib/auth/require-role";
+import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
 import { takeSupplyInventory } from "./actions";
 
@@ -128,7 +128,7 @@ function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
 export default async function InventoryPage({
   searchParams,
 }: InventoryPageProps) {
-  const currentUser = await requireRole(["COOK", "Cabitaan"], ["CABITAAN"]);
+  const currentUser = await requireRole(["ADMIN", "Cabitaan"], ["CABITAAN"]);
   const params = await searchParams;
   const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
   const todayStart = getEatDayStart();

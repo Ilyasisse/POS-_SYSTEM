@@ -1,9 +1,25 @@
-import Link from "next/link";
+import {
+  AdminPagination,
+  AdminPageFrame,
+  AdminPrimaryLink,
+  AdminRowActions,
+  AdminSearchToolbar,
+  AdminSelect,
+  AdminTable,
+  AdminTableShell,
+  AdminTd,
+  AdminTh,
+  StatusBadge,
+  queryStringWithoutPage,
+} from "@/components/admin/AdminUi";
 import { prisma } from "@/lib/prisma";
 
 type AdminProductsPageProps = {
   searchParams: Promise<{
     page?: string;
+    q?: string;
+    category?: string;
+    status?: string;
   }>;
 };
 
@@ -12,12 +28,24 @@ export default async function AdminProductsPage({
 }: AdminProductsPageProps) {
   const params = await searchParams;
   const currentPage = Math.max(Number(params.page) || 1, 1);
-  const pageSize = 15;
-  const skip = (currentPage - 1) * pageSize;
+  const pageSize = 10;
+  const q = params.q?.trim() ?? "";
+  const category = params.category ?? "all";
+  const status = params.status ?? "all";
+  const where = {
+    ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(category !== "all" ? { categoryId: category } : {}),
+    ...(status === "active"
+      ? { isActive: true }
+      : status === "inactive"
+        ? { isActive: false }
+        : {}),
+  };
 
-  const [productsList, totalProducts] = await Promise.all([
+  const [productsList, totalProducts, categories] = await Promise.all([
     prisma.product.findMany({
-      skip,
+      where,
+      skip: (currentPage - 1) * pageSize,
       take: pageSize,
       orderBy: {
         createdAt: "desc",
@@ -26,146 +54,112 @@ export default async function AdminProductsPage({
         category: true,
       },
     }),
-    prisma.product.count(),
+    prisma.product.count({ where }),
+    prisma.category.findMany({
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
   ]);
 
   const totalPages = Math.max(Math.ceil(totalProducts / pageSize), 1);
 
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  const timeNow = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
   return (
-    <main
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
-      style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
+    <AdminPageFrame
+      
+      title="Products"
+      description="Manage your menu items and pricing"
+      action={<AdminPrimaryLink href="/admin/products/new">Add Product</AdminPrimaryLink>}
     >
-      <div className="mx-auto w-full max-w-6xl space-y-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-              Admin Dashboard
-            </p>
-            <h1 className="text-2xl font-bold">Product List</h1>
-            <p className="text-sm text-slate-500">
-              Today: {today}, {timeNow}
-            </p>
-          </div>
-
-          <Link
-            href="/admin/products/new"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            New Product
-          </Link>
-        </header>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-800">By Product</h2>
-            <p className="text-sm text-slate-500">
-              Page {currentPage} of {totalPages}
-            </p>
-          </div>
-
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-3 py-2 font-semibold">Name</th>
-                  <th className="px-3 py-2 font-semibold">Price</th>
-                  <th className="px-3 py-2 font-semibold">Category</th>
-                  <th className="px-3 py-2 font-semibold">Is Active</th>
-                  <th className="px-3 py-2 font-semibold">Actions</th>
+      <AdminTableShell
+        footer={
+          <AdminPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalLabel={`Showing ${productsList.length} of ${totalProducts} products`}
+            baseQuery={queryStringWithoutPage(params)}
+          />
+        }
+      >
+        <AdminSearchToolbar placeholder="Search products..." defaultValue={q}>
+          <AdminSelect name="category" defaultValue={category}>
+            <option value="all">Category All</option>
+            {categories.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </AdminSelect>
+          <AdminSelect name="status" defaultValue={status}>
+            <option value="all">Status All</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </AdminSelect>
+          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+            Filter
+          </button>
+        </AdminSearchToolbar>
+        <AdminTable>
+          <thead>
+            <tr>
+              <AdminTh>#</AdminTh>
+              <AdminTh>Image</AdminTh>
+              <AdminTh>Name</AdminTh>
+              <AdminTh>Category</AdminTh>
+              <AdminTh>Price</AdminTh>
+              <AdminTh>Status</AdminTh>
+              <AdminTh>Stock</AdminTh>
+              <AdminTh>Action</AdminTh>
+            </tr>
+          </thead>
+          <tbody>
+            {productsList.length === 0 ? (
+              <tr>
+                <AdminTd colSpan={8} className="py-10 text-center">
+                  No products found.
+                </AdminTd>
+              </tr>
+            ) : (
+              productsList.map((product, index) => (
+                <tr key={product.id} className="border-b border-slate-50">
+                  <AdminTd className="font-bold text-slate-400">
+                    {(currentPage - 1) * pageSize + index + 1}
+                  </AdminTd>
+                  <AdminTd>
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt=""
+                        className="size-10 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="grid size-10 place-items-center rounded-lg bg-orange-50 text-lg">
+                        {product.name[0] ?? "P"}
+                      </div>
+                    )}
+                  </AdminTd>
+                  <AdminTd className="font-black text-slate-950">
+                    {product.name}
+                  </AdminTd>
+                  <AdminTd>{product.category?.name ?? "-"}</AdminTd>
+                  <AdminTd>${Number(product.price).toFixed(2)}</AdminTd>
+                  <AdminTd>
+                    <StatusBadge active={product.isActive} />
+                  </AdminTd>
+                  <AdminTd>{product.trackStock ? product.stockQty : "-"}</AdminTd>
+                  <AdminTd>
+                    <AdminRowActions editHref={`/admin/products/${product.id}`} />
+                  </AdminTd>
                 </tr>
-              </thead>
-
-              <tbody>
-                {productsList.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-3 py-6 text-center text-slate-500"
-                    >
-                      No products found.
-                    </td>
-                  </tr>
-                ) : (
-                  productsList.map((product) => (
-                    <tr key={product.id} className="border-b border-slate-100">
-                      <td className="px-3 py-2 font-semibold text-slate-700">
-                        {product.name}
-                      </td>
-
-                      <td className="px-3 py-2">
-                        ${Number(product.price).toFixed(2)}
-                      </td>
-
-                      <td className="px-3 py-2">
-                        {product.category?.name ?? "-"}
-                      </td>
-
-                      <td
-                        className={`px-3 py-2 font-bold ${
-                          product.isActive ? "text-[#2E7D32]" : "text-red-600"
-                        }`}
-                      >
-                        {product.isActive ? "Yes" : "No"}
-                      </td>
-
-                      <td className="px-3 py-2">
-                        <Link
-                          href={`/admin/products/${product.id}`}
-                          className="rounded-lg border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
-                        >
-                          Open
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between">
-            <Link
-              href={`?page=${currentPage - 1}`}
-              className={`rounded-lg border px-4 py-2 text-sm ${
-                currentPage <= 1
-                  ? "pointer-events-none opacity-50"
-                  : "hover:bg-slate-50"
-              }`}
-            >
-              Previous
-            </Link>
-
-            <span className="text-sm text-slate-500">
-              {totalProducts} total products
-            </span>
-
-            <Link
-              href={`?page=${currentPage + 1}`}
-              className={`rounded-lg border px-4 py-2 text-sm ${
-                currentPage >= totalPages
-                  ? "pointer-events-none opacity-50"
-                  : "hover:bg-slate-50"
-              }`}
-            >
-              Next
-            </Link>
-          </div>
-        </section>
-      </div>
-    </main>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
+    </AdminPageFrame>
   );
 }

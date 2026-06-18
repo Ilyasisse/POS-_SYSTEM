@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteModifier, updateModifier } from "../actions";
-import PronunciationRecorder from "@/app/components/admin/PronunciationRecorder";
+import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
 type ModifierDetailsPageProps = {
   params: Promise<{

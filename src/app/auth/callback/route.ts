@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncGoogleCustomer } from "@/lib/auth/syncGoogleCustomer";
+import { syncGoogleCustomer } from "@/lib/auth/sync-google-customer";
 import { createClient } from "@/lib/supabase/server";
 
 function getRedirectOrigin(request: Request, requestUrl: URL) {
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 
       if (userError || !user) {
         return NextResponse.redirect(
-          `${redirectOrigin}/login?error=google-signin-failed`,
+          `${redirectOrigin}/?error=google-signin-failed`,
         );
       }
 
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         console.error("Failed to sync Google customer:", error);
 
         return NextResponse.redirect(
-          `${redirectOrigin}/login?error=google-signin-failed`,
+          `${redirectOrigin}/?error=google-signin-failed`,
         );
       }
 
@@ -57,6 +57,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(
-    `${redirectOrigin}/login?error=google-signin-failed`,
+    `${redirectOrigin}/?error=google-signin-failed`,
   );
 }
