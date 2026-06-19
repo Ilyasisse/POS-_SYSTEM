@@ -21,6 +21,7 @@ import {
   faPuzzlePiece,
   faReceipt,
   faTableCells,
+  faTruck,
   faTimes,
   faUser,
   faUserGroup,
@@ -59,7 +60,10 @@ type AdminNavItem = {
     | "staff"
     | "tables"
     | "orders"
+    | "suppliers"
+    | "supplierDeliveries"
     | "reports"
+    | "supplierBills"
     | "settings"
     | "profile";
   href: string;
@@ -160,10 +164,28 @@ function SidebarContent({
       count: counts.orders,
     },
     {
+      key: "suppliers",
+      href: "/admin/suppliers",
+      label: "Suppliers",
+      icon: faTruck,
+    },
+    {
+      key: "supplierDeliveries",
+      href: "/admin/supplier-deliveries",
+      label: "Supplier Deliveries",
+      icon: faClipboardList,
+    },
+    {
       key: "reports",
       href: "/admin/reports",
       label: "Reports",
       icon: faChartLine,
+    },
+    {
+      key: "supplierBills",
+      href: "/admin/reports/supplier-bills",
+      label: "Supplier Bills",
+      icon: faReceipt,
     },
     {
       key: "settings",
