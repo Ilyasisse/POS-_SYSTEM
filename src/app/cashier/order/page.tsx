@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import CashierOrderClient from "@/components/cashier/CashierOrderClient";
 
 type CashierOrderPageProps = {
@@ -12,7 +13,7 @@ type CashierOrderPageProps = {
 export default async function CashierOrderPage({
   searchParams,
 }: CashierOrderPageProps) {
-  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_CREATE);
   const params = await searchParams;
   const tables = await prisma.table.findMany({
     where: {

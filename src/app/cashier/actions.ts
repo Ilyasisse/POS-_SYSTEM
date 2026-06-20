@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 const PAYMENT_METHODS = new Set<PaymentMethod>([
   "MYCASH",
@@ -29,7 +30,7 @@ function refreshCashierTableViews() {
 }
 
 export async function payOpenTableOrdersFromCashier(formData: FormData) {
-  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
+  const currentUser = await requirePermission(PERMISSIONS.PAYMENT_TAKE);
 
   const tableId = String(formData.get("tableId") ?? "").trim();
   const paymentMethod = String(formData.get("paymentMethod") ?? "").trim();

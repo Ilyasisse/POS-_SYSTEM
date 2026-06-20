@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import SignOutButton from "@/components/SignOutButton";
 import {
@@ -78,7 +79,7 @@ function getBalanceStatusMessage(balanceStatus?: string) {
 }
 
 export default async function ManagerPage({ searchParams }: ManagerPageProps) {
-  const currentUser = await requireRole(["MANAGER", "ADMIN"]);
+  const currentUser = await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
   const params = await searchParams;
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();

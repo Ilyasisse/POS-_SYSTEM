@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircle, faUser } from "@fortawesome/free-solid-svg-icons";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import {
   AdminButton,
   AdminCard,
@@ -29,7 +30,7 @@ function formatRole(role: string) {
 }
 
 export default async function AdminProfilePage({ searchParams }: ProfilePageProps) {
-  const currentUser = await requireRole(["ADMIN", "MANAGER"]);
+  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
   const params = await searchParams;
   const status = params?.profileStatus;
 

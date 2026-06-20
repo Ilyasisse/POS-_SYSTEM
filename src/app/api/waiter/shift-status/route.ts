@@ -1,51 +1,15 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeApi } from "@/lib/auth/api-authorization";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getWaiterBusinessDayShiftSummary } from "@/lib/waiter/waiter-shifts";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !authUser) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        {
-          status: 401,
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        },
-      );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: {
-        id: authUser.id,
-      },
-      select: {
-        id: true,
-        role: true,
-        isActive: true,
-      },
-    });
-
-    if (!user || !user.isActive) {
-      return NextResponse.json(
-        { error: "Staff account not found" },
-        {
-          status: 404,
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        },
-      );
-    }
+    const authorization = await authorizeApi(
+      PERMISSIONS.ORDER_VIEW_ASSIGNED,
+    );
+    if (!authorization.ok) return authorization.response;
+    const user = authorization.user;
 
     const shiftSummary = await getWaiterBusinessDayShiftSummary(user.id);
     const canPlaceOrders =

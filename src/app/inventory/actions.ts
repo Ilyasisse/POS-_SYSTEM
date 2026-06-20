@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import {
   sendInventoryAlerts,
   setSupplyInventoryLevel,
@@ -18,7 +19,9 @@ function getQuantity(formData: FormData, key: string) {
 }
 
 async function requireInventoryUseAccess() {
-  await requireRole(["COOK", "Cabitaan"], ["CABITAAN"]);
+  await requirePermission(PERMISSIONS.INVENTORY_MANAGE, {
+    stations: ["CABITAAN"],
+  });
 }
 
 function redirectWithInventoryEmailStatus(

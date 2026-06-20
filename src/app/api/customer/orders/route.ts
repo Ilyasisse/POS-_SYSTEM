@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { authorizeApi } from "@/lib/auth/api-authorization";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen/kitchen-socket";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
@@ -123,18 +124,8 @@ function buildCustomerOrderNote(
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Please sign in with Google before placing an order." },
-        { status: 401 },
-      );
-    }
+    const authorization = await authorizeApi(PERMISSIONS.CUSTOMER_ORDER);
+    if (!authorization.ok) return authorization.response;
 
     const body = (await request.json()) as CustomerOrderBody;
     const customerName = String(body.customerName ?? "").trim();

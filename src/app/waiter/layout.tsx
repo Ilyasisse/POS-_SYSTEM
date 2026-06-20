@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 type SegmentLayoutProps = {
   children: ReactNode;
@@ -13,6 +15,7 @@ type SegmentLayoutProps = {
  *
  * @remarks Replace this with a custom layout when the segment needs shared UI.
  */
-export default function SegmentLayout({ children }: SegmentLayoutProps) {
+export default async function SegmentLayout({ children }: SegmentLayoutProps) {
+  await requirePermission(PERMISSIONS.ORDER_VIEW_ASSIGNED);
   return <>{children}</>;
 }

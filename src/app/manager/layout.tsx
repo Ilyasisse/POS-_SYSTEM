@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 type ManagerLayoutProps = {
   children: ReactNode;
 };
 
 export default async function ManagerLayout({ children }: ManagerLayoutProps) {
-  const currentUser = await requireRole(["MANAGER", "ADMIN"]);
+  const currentUser = await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
 
   return (
     <div>

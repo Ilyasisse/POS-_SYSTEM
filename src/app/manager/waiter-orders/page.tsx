@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   formatCashierBusinessDayRange,
@@ -40,7 +41,7 @@ function formatDateTime(date: Date) {
 export default async function CashierWaiterOrdersPage({
   searchParams,
 }: CashierWaiterOrdersPageProps) {
-  const currentUser = await requireRole(["MANAGER", "ADMIN"]);
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
   const params = await searchParams;
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();

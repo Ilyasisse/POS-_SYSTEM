@@ -1,7 +1,8 @@
 "use server"
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import SignOutButton from "@/components/SignOutButton";
 import {
   formatCashierBusinessDayRange,
@@ -55,7 +56,7 @@ function getPaymentStatusMessage(paymentStatus?: string) {
 }
 
 export default async function CashierPage({ searchParams }: CashierPageProps) {
-  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
   const params = await searchParams;
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
   const { start: businessDayStart, end: businessDayEnd } =

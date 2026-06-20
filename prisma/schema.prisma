@@ -247,6 +247,8 @@ enum UserRole {
   COOK
   BARISTA
   Cabitaan
+  SUPPLIER
+  CLEANER
   CUSTOMER
 }
 

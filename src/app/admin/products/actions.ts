@@ -3,8 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 export async function createProduct(formData: FormData) {
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
   const trackStock = formData.get("trackStock") === "on";
@@ -42,6 +45,7 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function updateProduct(formData: FormData) {
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
@@ -86,6 +90,7 @@ export async function updateProduct(formData: FormData) {
 }
 
 export async function deleteProduct(formData: FormData) {
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const id = String(formData.get("id") || "").trim();
 
   if (!id) {

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
@@ -23,7 +24,7 @@ function getQuantity(formData: FormData, key: string) {
 
 // Ensures only admins and managers can change inventory.
 async function requireInventoryAccess() {
-  await requireRole(["ADMIN", "MANAGER"]);
+  await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
 
 // Redirects back to inventory with a query param that drives the email status popup.

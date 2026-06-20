@@ -28,6 +28,7 @@ import {
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import SignOutButton from "@/components/SignOutButton";
 import AdminMobileSidebar from "./AdminMobileSidebar";
+import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
 export type AdminNavCounts = {
   categories: number;
@@ -44,6 +45,7 @@ export type AdminShellProps = {
   currentUser: {
     fullName: string;
     role: string;
+    permissions: Permission[];
   };
   counts: AdminNavCounts;
 };
@@ -65,6 +67,7 @@ type AdminNavItem = {
   href: string;
   label: string;
   icon: IconDefinition;
+  permission: Permission;
   count?: number;
 };
 
@@ -103,12 +106,14 @@ function SidebarContent({
       href: "/admin/dashboard",
       label: "Dashboard",
       icon: faHome,
+      permission: PERMISSIONS.DASHBOARD_VIEW,
     },
     {
       key: "categories",
       href: "/admin/categories",
       label: "Categories",
       icon: faLayerGroup,
+      permission: PERMISSIONS.CATALOG_MANAGE,
       count: counts.categories,
     },
     {
@@ -116,6 +121,7 @@ function SidebarContent({
       href: "/admin/products",
       label: "Products",
       icon: faBoxesStacked,
+      permission: PERMISSIONS.CATALOG_MANAGE,
       count: counts.products,
     },
     {
@@ -123,12 +129,14 @@ function SidebarContent({
       href: "/admin/inventory",
       label: "Inventory",
       icon: faClipboardList,
+      permission: PERMISSIONS.INVENTORY_VIEW,
     },
     {
       key: "modifiers",
       href: "/admin/modifiers",
       label: "Modifiers",
       icon: faPuzzlePiece,
+      permission: PERMISSIONS.CATALOG_MANAGE,
       count: counts.modifiers,
     },
     {
@@ -136,6 +144,7 @@ function SidebarContent({
       href: "/admin/modifier-groups",
       label: "Modifier Groups",
       icon: faCubesStacked,
+      permission: PERMISSIONS.CATALOG_MANAGE,
       count: counts.modifierGroups,
     },
     {
@@ -143,6 +152,7 @@ function SidebarContent({
       href: "/admin/staff",
       label: "Staff",
       icon: faUserGroup,
+      permission: PERMISSIONS.STAFF_MANAGE,
       count: counts.staff,
     },
     {
@@ -150,6 +160,7 @@ function SidebarContent({
       href: "/admin/tables",
       label: "Tables",
       icon: faTableCells,
+      permission: PERMISSIONS.TABLE_MANAGE,
       count: counts.tables,
     },
     {
@@ -157,6 +168,7 @@ function SidebarContent({
       href: "/admin/orders",
       label: "Orders",
       icon: faReceipt,
+      permission: PERMISSIONS.ORDER_VIEW_ALL,
       count: counts.orders,
     },
     {
@@ -164,12 +176,14 @@ function SidebarContent({
       href: "/admin/reports",
       label: "Reports",
       icon: faChartLine,
+      permission: PERMISSIONS.REPORT_VIEW,
     },
     {
       key: "settings",
       href: "/admin/settings",
       label: "Settings",
       icon: faGear,
+      permission: PERMISSIONS.SETTINGS_MANAGE,
     },
    
   ];
@@ -190,6 +204,8 @@ function SidebarContent({
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-5">
         {navItems.map((item) => {
+          if (!currentUser.permissions.includes(item.permission)) return null;
+
           const active = isNavActive(pathname, item.href);
 
           return (

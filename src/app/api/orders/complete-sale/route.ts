@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen/kitchen-socket";
 import type { SelectedModifierLine } from "@/lib/types";
 import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
@@ -133,7 +134,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!["WAITER", "ADMIN", "CASHIER"].includes(currentUser.role)) {
+    if (!hasPermission(currentUser, PERMISSIONS.ORDER_CREATE)) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 

@@ -1,72 +1,21 @@
-import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import type { Station, UserRole } from "@prisma/client";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { canAccessStation } from "@/lib/auth/permissions";
 
-/**
- * Requires a signed-in, active staff user with one of the allowed roles.
- *
- * Reads the current Supabase session, loads the matching Prisma user record,
- * checks role and optional kitchen station access, and redirects to the staff
- * login page when the user is missing, inactive, or unauthorized.
- *
- * @param allowedRoles - Staff roles allowed to access the current route.
- * @param allowedStations - Optional station allowlist for non-admin kitchen users.
- * @returns The active Prisma user record when access is allowed.
- */
+/** Compatibility helper for routes not yet expressed as business permissions. */
 export async function requireRole(
   allowedRoles: UserRole[],
-  allowedStations?: Station[]
+  allowedStations?: Station[],
 ) {
-  const supabase = await createClient();
+  const user = await getCurrentUser();
 
-  let authUser;
-
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    authUser = user;
-  } catch (error) {
-    console.error("Failed to read Supabase auth session:", error);
+  if (!user) redirect("/staff-login");
+  if (!user.isActive) redirect("/staff-login?error=staff_not_found");
+  if (!allowedRoles.includes(user.role)) {
     redirect("/staff-login?error=unauthorized");
   }
-
-  if (!authUser) {
-    redirect("/staff-login");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: authUser.id },
-  });
-
-  if (!user || !user.isActive) {
-    redirect("/staff-login?error=staff_not_found");
-  }
-
-  const isCabitaanRole =
-    user.role === "Cabitaan" ||
-    (user.role as string) === "CABITAAN";
-
-  if (!allowedRoles.includes(user.role) && !(isCabitaanRole && allowedRoles.includes("Cabitaan"))) {
-    redirect("/staff-login?error=unauthorized");
-  }
-
-  const effectiveStation =
-    user.station ??
-    (user.role === "BARISTA"
-      ? "BARISTA"
-      : isCabitaanRole
-        ? "CABITAAN"
-        : null);
-
-  if (
-    allowedStations &&
-    allowedStations.length > 0 &&
-    user.role !== "ADMIN" &&
-    !(effectiveStation && allowedStations.includes(effectiveStation))
-  ) {
+  if (allowedStations && !canAccessStation(user, allowedStations)) {
     redirect("/staff-login?error=unauthorized");
   }
 

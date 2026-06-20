@@ -5,6 +5,8 @@ import {
   AdminStatCard,
 } from "@/components/admin/AdminUi";
 import { prisma } from "@/lib/prisma";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 const tabs = [
   "General",
@@ -17,6 +19,7 @@ const tabs = [
 ];
 
 export default async function AdminSettingsPage() {
+  await requirePermission(PERMISSIONS.SETTINGS_MANAGE);
   const [activeCategories, activeProducts, activeTables, activeStaff] =
     await Promise.all([
       prisma.category.count({
