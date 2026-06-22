@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 
 export async function createActiveTableFromAdmin(formData: FormData) {
-  await requireRole(["ADMIN", "MANAGER"]);
+  await requireAuth(["ADMIN", "MANAGER"]);
 
   const tableName = String(formData.get("tableName") ?? "").trim();
 

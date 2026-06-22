@@ -3,11 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/require-role";
 import {
-  approveSupplierDelivery,
+  approveExtractedSupplierDelivery,
   processSupplierDelivery,
   recordSupplierPayment,
   rejectSupplierDelivery,
-  type VerifiedDeliveryItemInput,
 } from "@/lib/suppliers/delivery-service";
 
 function text(formData: FormData, key: string) {
@@ -21,6 +20,20 @@ function optionalMoney(value: FormDataEntryValue | null) {
   return parsed;
 }
 
+function requiredMoney(value: FormDataEntryValue | null) {
+  const parsed = optionalMoney(value);
+  if (parsed == null) throw new Error("Every invoice item needs a line total.");
+  return parsed;
+}
+
+function optionalDate(value: string) {
+  if (!value) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Enter a valid invoice date.");
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) throw new Error("Enter a valid invoice date.");
+  return date;
+}
+
 function refreshSupplierPages(id?: string) {
   revalidatePath("/admin/supplier-deliveries");
   revalidatePath("/admin/reports/supplier-bills");
@@ -28,19 +41,26 @@ function refreshSupplierPages(id?: string) {
   if (id) revalidatePath(`/admin/supplier-deliveries/${id}`);
 }
 
-export async function approveDeliveryAction(formData: FormData) {
+export async function approveExtractedDeliveryAction(formData: FormData) {
   const user = await requireRole(["ADMIN", "MANAGER"]);
   const deliveryId = text(formData, "deliveryId");
-  const itemIds = formData.getAll("itemId").map(String);
-  const rows: VerifiedDeliveryItemInput[] = itemIds.map((itemId) => ({
-    itemId,
-    target: text(formData, `target-${itemId}`) as VerifiedDeliveryItemInput["target"],
-    verifiedQuantity: Number(formData.get(`quantity-${itemId}`)),
-    unitPrice: optionalMoney(formData.get(`unitPrice-${itemId}`)),
-    totalPrice: optionalMoney(formData.get(`totalPrice-${itemId}`)),
-    notes: text(formData, `notes-${itemId}`),
-  }));
-  await approveSupplierDelivery(deliveryId, user.id, rows, text(formData, "notes"));
+  const rowIds = formData.getAll("rowId").map(String);
+  if (rowIds.length > 100) throw new Error("An invoice can contain at most 100 items.");
+  if (new Set(rowIds).size !== rowIds.length) throw new Error("Duplicate invoice item.");
+
+  await approveExtractedSupplierDelivery(deliveryId, user.id, {
+    invoiceNumber: text(formData, "invoiceNumber"),
+    receiptDate: optionalDate(text(formData, "receiptDate")),
+    reviewedText: text(formData, "reviewedText"),
+    notes: text(formData, "notes"),
+    rows: rowIds.map((rowId) => ({
+      description: text(formData, `description-${rowId}`),
+      target: text(formData, `target-${rowId}`),
+      quantity: Number(formData.get(`quantity-${rowId}`)),
+      unitPrice: optionalMoney(formData.get(`unitPrice-${rowId}`)),
+      totalPrice: requiredMoney(formData.get(`totalPrice-${rowId}`)),
+    })),
+  });
   refreshSupplierPages(deliveryId);
 }
 
@@ -51,7 +71,7 @@ export async function rejectDeliveryAction(formData: FormData) {
   refreshSupplierPages(deliveryId);
 }
 
-export async function retryDeliveryAiAction(formData: FormData) {
+export async function retryDeliveryExtractionAction(formData: FormData) {
   await requireRole(["ADMIN", "MANAGER"]);
   const deliveryId = text(formData, "deliveryId");
   try {

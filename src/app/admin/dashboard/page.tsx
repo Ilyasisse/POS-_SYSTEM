@@ -10,6 +10,11 @@ const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 // Represents one full day in milliseconds for date-range calculations.
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  timeZone: "Africa/Nairobi",
+});
+
 // Returns a new date shifted by a whole number of days.
 function addDays(date: Date, days: number) {
   return new Date(date.getTime() + days * DAY_MS);
@@ -204,10 +209,7 @@ export default async function AdminPage() {
       .reduce((sum, order) => sum + Number(order.total), 0);
 
     // Formats the chart day label in cafe-local time.
-    const label = new Intl.DateTimeFormat("en-US", {
-      weekday: "short",
-      timeZone: "Africa/Nairobi",
-    }).format(dayStart);
+    const label = weekdayFormatter.format(dayStart);
 
     return { label, value };
   });

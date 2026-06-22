@@ -65,8 +65,14 @@ export default async function ProductDetailsPage({
             <input type="hidden" name="id" value={product.id} />
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
+              <label
+                htmlFor="product-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Name
+              </label>
               <input
+                id="product-name"
                 name="name"
                 type="text"
                 defaultValue={product.name}
@@ -76,8 +82,14 @@ export default async function ProductDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Price</label>
+              <label
+                htmlFor="product-price"
+                className="mb-1 block text-sm font-medium"
+              >
+                Price
+              </label>
               <input
+                id="product-price"
                 name="price"
                 type="number"
                 step="0.01"
@@ -88,8 +100,14 @@ export default async function ProductDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Category</label>
+              <label
+                htmlFor="product-category"
+                className="mb-1 block text-sm font-medium"
+              >
+                Category
+              </label>
               <select
+                id="product-category"
                 name="categoryId"
                 defaultValue={product.categoryId}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -103,8 +121,12 @@ export default async function ProductDetailsPage({
               </select>
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
+            <label
+              htmlFor="product-track-stock"
+              className="flex items-center gap-2 text-sm"
+            >
               <input
+                id="product-track-stock"
                 name="trackStock"
                 type="checkbox"
                 defaultChecked={product.trackStock}

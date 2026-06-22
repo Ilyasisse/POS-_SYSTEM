@@ -40,26 +40,30 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
       },
     },
   });
-  const staff = userRows
-    .filter((member) => member.role !== "CUSTOMER")
-    .filter((member) => {
-      const matchesSearch =
-        !q ||
-        member.fullName.toLowerCase().includes(q) ||
-        member.email.toLowerCase().includes(q);
-      const matchesRole = role === "all" || member.role === role;
-      const matchesStatus =
-        status === "all" ||
-        (status === "active" ? member.isActive : !member.isActive);
-      return matchesSearch && matchesRole && matchesStatus;
-    });
+  const staff = userRows.filter((member) => {
+    if (member.role === "CUSTOMER") {
+      return false;
+    }
+
+    const matchesSearch =
+      !q ||
+      member.fullName.toLowerCase().includes(q) ||
+      member.email.toLowerCase().includes(q);
+    const matchesRole = role === "all" || member.role === role;
+    const matchesStatus =
+      status === "all" ||
+      (status === "active" ? member.isActive : !member.isActive);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
 
   const allStaff = userRows.filter((member) => member.role !== "CUSTOMER");
   const activeStaff = allStaff.filter((member) => member.isActive).length;
   const kitchenStaff = allStaff.filter((member) =>
     ["COOK", "BARISTA", "Cabitaan"].includes(member.role),
   ).length;
-  const roles = [...new Set(allStaff.map((member) => member.role))].sort();
+  const roles = Array.from(
+    new Set(allStaff.map((member) => member.role)),
+  ).toSorted();
 
   return (
     <AdminPageFrame
@@ -96,7 +100,10 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </AdminSelect>
-          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <button
+            type="button"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
             Filter
           </button>
         </AdminSearchToolbar>

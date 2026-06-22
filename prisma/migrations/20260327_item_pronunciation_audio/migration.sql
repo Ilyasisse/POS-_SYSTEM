@@ -1,5 +1,12 @@
-ALTER TABLE "Product"
-ADD COLUMN IF NOT EXISTS "pronunciationAudioUrl" TEXT;
-
-ALTER TABLE "Modifier"
-ADD COLUMN IF NOT EXISTS "pronunciationAudioUrl" TEXT;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'Product'
+  ) THEN
+    ALTER TABLE "Product"
+    ADD COLUMN IF NOT EXISTS "pronunciationAudioUrl" TEXT;
+  END IF;
+END $$;

@@ -4,6 +4,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useReducer,
   useState,
   useTransition,
 } from "react";
@@ -12,21 +13,51 @@ import { getKitchenSocketUrl } from "@/lib/kitchen/kitchen-socket";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useWaiterData } from "@/hooks/waiter/useWaiterData";
 import { useWaiterSocket } from "@/hooks/waiter/useWaiterSocket";
-import type { Category, Product } from "@/lib/types";
-import CustomerCartSheet from "./CustomerCartSheet";
-import CustomerModifierModal from "./CustomerModifierModal";
-import CustomerProductGrid from "./CustomerProductGrid";
+import type { CartLine, Category, Product} from "@/lib/types";
 import {
   buildModifierLines,
-  formatCurrency,
   getProductModifierGroups,
   type CustomerOrderResponse,
   type SelectedModifiersMap,
 } from "./customer-order-utils";
+import CustomerOrderHeader from "./UI/CustomerOrderHeader";
+import MenuBrowserPanel from "./UI/MenuBrowserPanel";
+import ProductGridPanel from "./UI/ProductGridPanel";
+import BackToTopButton from "./UI/BackToTopButton";
+import { CustomerOrderState } from "@/types/customer-order.types";
+import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 
-const displayFont =
+export const displayFont =
   '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif';
 const bodyFont = '"Avenir Next", "Segoe UI", sans-serif';
+
+function isPastScrollOffset(offset: number) {
+  return typeof window !== "undefined" && window.scrollY > offset;
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function useBackToTopVisibility(offset: number) {
+  const [showBackToTop, setShowBackToTop] = useState(() =>
+    isPastScrollOffset(offset),
+  );
+
+  useEffect(() => {
+    function handleScroll() {
+      setShowBackToTop(isPastScrollOffset(offset));
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [offset]);
+
+  return showBackToTop;
+}
 
 function getMenuCategories(categories: Category[], products: Product[]) {
   if (categories.length > 0) {
@@ -55,6 +86,126 @@ function getMenuCategories(categories: Category[], products: Product[]) {
   );
 }
 
+type CustomerOrderAction =
+  | { type: "reset" }
+  | { type: "searchChanged"; searchTerm: string }
+  | { type: "categorySelected"; category: string }
+  | { type: "customerNameChanged"; customerName: string }
+  | { type: "customerPhoneChanged"; customerPhone: string }
+  | { type: "orderNoteChanged"; orderNote: string }
+  | { type: "cartOpened" }
+  | { type: "cartClosed" }
+  | { type: "cartCleared" }
+  | { type: "cartItemAdded" }
+  | { type: "baristaUnavailable" }
+  | { type: "modifierOpened"; product: Product }
+  | { type: "modifierClosed" }
+  | { type: "modifierConfirmed" }
+  | { type: "checkoutBlocked"; error: string }
+  | { type: "checkoutStarted" }
+  | { type: "checkoutSucceeded"; orderNumber: number; message: string }
+  | { type: "checkoutFailed"; error: string }
+  | { type: "checkoutFinished" };
+
+const initialCustomerOrderState: CustomerOrderState = {
+  selectedCategoryValue: "all",
+  searchTerm: "",
+  customerName: "",
+  customerPhone: "",
+  orderNote: "",
+  selectedProduct: null,
+  modifierModalOpen: false,
+  cartOpen: false,
+  isSubmitting: false,
+  submitMessage: "",
+  submitError: "",
+  lastOrderNumber: null,
+};
+
+function customerOrderReducer(
+  state: CustomerOrderState,
+  action: CustomerOrderAction,
+): CustomerOrderState {
+  switch (action.type) {
+    case "reset":
+      return initialCustomerOrderState;
+    case "searchChanged":
+      return { ...state, searchTerm: action.searchTerm };
+    case "categorySelected":
+      return { ...state, selectedCategoryValue: action.category };
+    case "customerNameChanged":
+      return { ...state, customerName: action.customerName };
+    case "customerPhoneChanged":
+      return { ...state, customerPhone: action.customerPhone };
+    case "orderNoteChanged":
+      return { ...state, orderNote: action.orderNote };
+    case "cartOpened":
+      return { ...state, cartOpen: true };
+    case "cartClosed":
+      return { ...state, cartOpen: false };
+    case "cartCleared":
+      return { ...state, orderNote: "", submitError: "", submitMessage: "" };
+    case "cartItemAdded":
+      return { ...state, cartOpen: true, submitError: "", submitMessage: "" };
+    case "baristaUnavailable":
+      return {
+        ...state,
+        submitError: "Barista items are unavailable right now.",
+        submitMessage: "",
+      };
+    case "modifierOpened":
+      return {
+        ...state,
+        selectedProduct: action.product,
+        modifierModalOpen: true,
+      };
+    case "modifierClosed":
+      return { ...state, selectedProduct: null, modifierModalOpen: false };
+    case "modifierConfirmed":
+      return {
+        ...state,
+        selectedProduct: null,
+        modifierModalOpen: false,
+        cartOpen: true,
+        submitError: "",
+        submitMessage: "",
+      };
+    case "checkoutBlocked":
+      return {
+        ...state,
+        submitError: action.error,
+        submitMessage: "",
+        cartOpen: true,
+      };
+    case "checkoutStarted":
+      return {
+        ...state,
+        isSubmitting: true,
+        submitError: "",
+        submitMessage: "Sending your order...",
+      };
+    case "checkoutSucceeded":
+      return {
+        ...state,
+        lastOrderNumber: action.orderNumber,
+        submitMessage: action.message,
+        orderNote: "",
+        cartOpen: true,
+      };
+    case "checkoutFailed":
+      return {
+        ...state,
+        submitError: action.error,
+        submitMessage: "",
+        cartOpen: true,
+      };
+    case "checkoutFinished":
+      return { ...state, isSubmitting: false };
+    default:
+      return state;
+  }
+}
+
 export default function CustomerOrderPage() {
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
   const { socketStatus, statusMessage, sendKitchenTicket } =
@@ -69,21 +220,13 @@ export default function CustomerOrderPage() {
     calculateCartTotal,
   } = useWaiterCart();
 
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const deferredSearch = useDeferredValue(searchTerm);
+  const [orderState, dispatchOrderState] = useReducer(
+    customerOrderReducer,
+    initialCustomerOrderState,
+  );
+  const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [orderNote, setOrderNote] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [modifierModalOpen, setModifierModalOpen] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState("");
-  const [submitError, setSubmitError] = useState("");
-  const [lastOrderNumber, setLastOrderNumber] = useState<number | null>(null);
-  const [showBackToTop, setShowBackToTop] = useState(false);
+  const showBackToTop = useBackToTopVisibility(520);
 
   const kioskCategories = useMemo(
     () => getMenuCategories(categories, productsAll),
@@ -115,6 +258,13 @@ export default function CustomerOrderPage() {
     ],
     [kioskCategories, kioskProducts],
   );
+  const selectedCategory =
+    orderState.selectedCategoryValue === "all" ||
+    categoryChips.some(
+      (category) => category.id === orderState.selectedCategoryValue,
+    )
+      ? orderState.selectedCategoryValue
+      : "all";
 
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.toLowerCase().trim();
@@ -138,77 +288,33 @@ export default function CustomerOrderPage() {
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
 
-  useAos([
+  useAos(
     cart.length,
-    cartOpen,
+    orderState.cartOpen,
     filteredProducts.length,
     isFiltering,
-    modifierModalOpen,
+    orderState.modifierModalOpen,
     selectedCategory,
-  ]);
-
-  useEffect(() => {
-    if (selectedCategory === "all") {
-      return;
-    }
-
-    const categoryStillExists = categoryChips.some(
-      (category) => category.id === selectedCategory,
-    );
-
-    if (!categoryStillExists) {
-      setSelectedCategory("all");
-    }
-  }, [categoryChips, selectedCategory]);
-
-  useEffect(() => {
-    function handleScroll() {
-      setShowBackToTop(window.scrollY > 520);
-    }
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
+  );
 
   function resetKiosk() {
     clearCart();
-    setSearchTerm("");
-    setCustomerName("");
-    setCustomerPhone("");
-    setOrderNote("");
-    setSelectedCategory("all");
-    setSelectedProduct(null);
-    setModifierModalOpen(false);
-    setCartOpen(false);
-    setSubmitError("");
-    setSubmitMessage("");
-    setLastOrderNumber(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function scrollToTop() {
+    dispatchOrderState({ type: "reset" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function closeModifierModal() {
-    setSelectedProduct(null);
-    setModifierModalOpen(false);
+    dispatchOrderState({ type: "modifierClosed" });
   }
 
   function handleProductClick(product: Product) {
     if (product.category?.station === "BARISTA" && baristas.length === 0) {
-      setSubmitError("Barista items are unavailable right now.");
-      setSubmitMessage("");
+      dispatchOrderState({ type: "baristaUnavailable" });
       return;
     }
 
     if (getProductModifierGroups(product).length > 0) {
-      setSelectedProduct(product);
-      setModifierModalOpen(true);
+      dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
 
@@ -218,9 +324,7 @@ export default function CustomerOrderPage() {
       selectedModifiers: [],
       finalPrice: Number(product.price) || 0,
     });
-    setCartOpen(true);
-    setSubmitError("");
-    setSubmitMessage("");
+    dispatchOrderState({ type: "cartItemAdded" });
   }
 
   function handleModifierConfirm(
@@ -246,31 +350,28 @@ export default function CustomerOrderPage() {
       assignedUserId: assignedBarista?.id ?? null,
       assignedUserName: assignedBarista?.fullName ?? null,
     });
-    setCartOpen(true);
-    setSubmitError("");
-    setSubmitMessage("");
-    closeModifierModal();
+    dispatchOrderState({ type: "modifierConfirmed" });
   }
 
   async function handlePlaceOrder() {
-    if (!customerName.trim()) {
-      setSubmitError("Enter your name before checkout.");
-      setSubmitMessage("");
-      setCartOpen(true);
+    if (!orderState.customerName.trim()) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter your name before checkout.",
+      });
       return;
     }
 
     if (cart.length === 0) {
-      setSubmitError("Add at least one item to your cart.");
-      setSubmitMessage("");
-      setCartOpen(true);
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Add at least one item to your cart.",
+      });
       return;
     }
 
     try {
-      setIsSubmitting(true);
-      setSubmitError("");
-      setSubmitMessage("Sending your order...");
+      dispatchOrderState({ type: "checkoutStarted" });
 
       const response = await fetch("/api/customer/orders", {
         method: "POST",
@@ -278,9 +379,9 @@ export default function CustomerOrderPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          customerName,
-          customerPhone,
-          notes: orderNote,
+          customerName: orderState.customerName,
+          customerPhone: orderState.customerPhone,
+          notes: orderState.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -307,21 +408,19 @@ export default function CustomerOrderPage() {
         sendKitchenTicket(data.kitchenTicket);
       }
 
-      setLastOrderNumber(data.order.orderNumber);
-      setSubmitMessage(
-        `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
-      );
-      setOrderNote("");
+      dispatchOrderState({
+        type: "checkoutSucceeded",
+        orderNumber: data.order.orderNumber,
+        message: `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
+      });
       clearCart();
-      setCartOpen(true);
     } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Something went wrong.",
-      );
-      setSubmitMessage("");
-      setCartOpen(true);
+      dispatchOrderState({
+        type: "checkoutFailed",
+        error: error instanceof Error ? error.message : "Something went wrong.",
+      });
     } finally {
-      setIsSubmitting(false);
+      dispatchOrderState({ type: "checkoutFinished" });
     }
   }
 
@@ -333,207 +432,69 @@ export default function CustomerOrderPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
 
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
-        <header
-          data-aos="fade-down"
-          className="sticky top-2 z-30 rounded-[1.25rem] border border-white/80 bg-white/88 px-4 py-4 shadow-[0_20px_60px_rgba(44,28,17,0.14)] backdrop-blur-xl sm:top-4 sm:rounded-3xl sm:px-5 sm:py-5"
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200/70 bg-white p-1.5 shadow-sm sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/newer_logo.png"
-                  alt="Mash Allah Cafe"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div>
-                <h1
-                  className="mt-1 text-xl text-stone-950 sm:text-3xl"
-                  style={{ fontFamily: displayFont }}
-                >
-                  Mash Allah Cafe
-                </h1>
-              </div>
-            </div>
+        <CustomerOrderHeader
+          cartSubtotal={cartSubtotal}
+          cartCount={cartCount}
+          onReset={resetKiosk}
+          onOpenCart={() => dispatchOrderState({ type: "cartOpened" })}
+        />
 
-            <div className="grid w-full gap-3 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap">
-              <button
-                type="button"
-                onClick={resetKiosk}
-                className="rounded-full border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-700 transition hover:bg-stone-100"
-              >
-                Start Over
-              </button>
+        <MenuBrowserPanel
+          searchTerm={orderState.searchTerm}
+          categoryChips={categoryChips}
+          selectedCategory={selectedCategory}
+          onSearchChange={(searchTerm) =>
+            dispatchOrderState({ type: "searchChanged", searchTerm })
+          }
+          onCategorySelect={(category) =>
+            startFiltering(() => {
+              dispatchOrderState({ type: "categorySelected", category });
+            })
+          }
+        />
 
-              <button
-                type="button"
-                onClick={() => setCartOpen(true)}
-                className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
-              >
-                Cart {formatCurrency(cartSubtotal)} ({cartCount})
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <section
-          data-aos="zoom-in"
-          data-aos-delay="100"
-          className="mt-4 rounded-[1.25rem] border border-white/80 bg-white/88 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
-        >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-stone-500">
-                Browse by category
-              </p>
-              <h2
-                className="mt-2 text-2xl text-stone-950 sm:text-4xl"
-                style={{ fontFamily: displayFont }}
-              >
-                Pick a section, then tap a card to order
-              </h2>
-            </div>
-
-            <div className="w-full lg:max-w-md">
-              <label className="sr-only" htmlFor="menu-search">
-                Search menu
-              </label>
-              <input
-                id="menu-search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search coffee, burgers, desserts..."
-                className="w-full rounded-full border border-stone-200 bg-white px-5 py-3.5 text-sm shadow-inner outline-none focus:border-amber-600"
-              />
-            </div>
-          </div>
-
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory sm:gap-3">
-            {categoryChips.map((category) => {
-              const active = selectedCategory === category.id;
-
-              return (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() =>
-                    startFiltering(() => {
-                      setSelectedCategory(category.id);
-                    })
-                  }
-                  className={`min-w-[7rem] snap-start rounded-full px-4 py-3 text-left text-sm font-semibold transition sm:min-w-[8rem] sm:px-5 ${
-                    active
-                      ? "bg-stone-950 text-white shadow-[0_14px_28px_rgba(28,16,10,0.22)]"
-                      : "border border-stone-200 bg-white text-stone-700 hover:border-amber-300 hover:bg-amber-50"
-                  }`}
-                >
-                  <div>{category.name}</div>
-                  <div
-                    className={`mt-1 text-[11px] uppercase tracking-[0.18em] ${
-                      active ? "text-stone-200" : "text-stone-500"
-                    }`}
-                  >
-                    {category.count} items
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section
-          data-aos="fade-up"
-          data-aos-delay="100"
-          className="mt-4 rounded-[1.25rem] border border-white/80 bg-white/84 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
-        >
-          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
-                Product grid
-              </p>
-              <h2
-                className="mt-2 text-2xl text-stone-950 sm:text-3xl"
-                style={{ fontFamily: displayFont }}
-              >
-                {selectedCategoryName}
-              </h2>
-            </div>
-            <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm">
-              {filteredProducts.length} item
-              {filteredProducts.length === 1 ? "" : "s"}
-            </div>
-          </div>
-
-          <div className="mx-auto w-full max-w-6xl xl:max-w-none">
-            <CustomerProductGrid
-              loading={loading}
-              products={filteredProducts}
-              baristas={baristas}
-              selectedCategoryName={selectedCategoryName}
-              isFiltering={isFiltering}
-              onProductClick={handleProductClick}
-            />
-          </div>
-        </section>
+        <ProductGridPanel
+          loading={loading}
+          filteredProducts={filteredProducts}
+          baristas={baristas}
+          selectedCategoryName={selectedCategoryName}
+          isFiltering={isFiltering}
+          onProductClick={handleProductClick}
+        />
       </div>
 
-      {showBackToTop && !cartOpen && !modifierModalOpen ? (
-        <button
-          type="button"
-          aria-label="Back to top"
-          onClick={scrollToTop}
-          className="fixed bottom-5 right-5 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-stone-950 text-white shadow-[0_18px_45px_rgba(44,28,17,0.28)] transition hover:-translate-y-0.5 hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.4"
-          >
-            <path d="M12 19V5" />
-            <path d="m5 12 7-7 7 7" />
-          </svg>
-        </button>
-      ) : null}
-
-      <CustomerModifierModal
-        open={modifierModalOpen}
-        product={selectedProduct}
-        baristas={baristas}
-        onClose={closeModifierModal}
-        onConfirm={handleModifierConfirm}
+      <BackToTopButton
+        show={
+          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
+        }
+        onClick={scrollToTop}
       />
 
-      <CustomerCartSheet
-        open={cartOpen}
+      <CustomerOrderOverlays
+        orderState={orderState}
+        baristas={baristas}
         cart={cart}
-        customerName={customerName}
-        customerPhone={customerPhone}
-        orderNote={orderNote}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
-        isSubmitting={isSubmitting}
-        submitMessage={submitMessage}
-        submitError={submitError}
         statusMessage={statusMessage}
         socketStatus={socketStatus}
-        lastOrderNumber={lastOrderNumber}
-        onClose={() => setCartOpen(false)}
-        onCustomerNameChange={setCustomerName}
-        onCustomerPhoneChange={setCustomerPhone}
-        onOrderNoteChange={setOrderNote}
+        onCloseModifier={closeModifierModal}
+        onConfirmModifier={handleModifierConfirm}
+        onCloseCart={() => dispatchOrderState({ type: "cartClosed" })}
+        onCustomerNameChange={(customerName) =>
+          dispatchOrderState({ type: "customerNameChanged", customerName })
+        }
+        onCustomerPhoneChange={(customerPhone) =>
+          dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
+        }
+        onOrderNoteChange={(orderNote) =>
+          dispatchOrderState({ type: "orderNoteChanged", orderNote })
+        }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
         onClearCart={() => {
           clearCart();
-          setOrderNote("");
-          setSubmitError("");
-          setSubmitMessage("");
+          dispatchOrderState({ type: "cartCleared" });
         }}
         onCheckout={handlePlaceOrder}
       />

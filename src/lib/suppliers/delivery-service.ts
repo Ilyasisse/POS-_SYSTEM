@@ -1,21 +1,27 @@
 import "server-only";
 
 import { Prisma } from "@prisma/client";
-import { extractSupplierReceipt } from "@/lib/ai/extractSupplierReceipt";
 import {
   setProductInventoryLevel,
   setSupplyInventoryLevel,
 } from "@/lib/inventory/inventory";
+import { extractInvoice } from "@/lib/openai/extractInvoice";
 import { prisma } from "@/lib/prisma";
+import {
+  type InvoiceReviewRowInput,
+  validateInvoiceReviewRows,
+} from "@/lib/suppliers/invoice-review";
 import { downloadSupplierReceipt } from "@/lib/suppliers/storage";
 
 function normalizedName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function parseReceiptDate(value: string | null) {
+function parseInvoiceDate(value: string | null) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00.000Z`)
+    : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -39,33 +45,25 @@ export async function processSupplierDelivery(deliveryId: string) {
   }
 
   try {
-    const [bytes, products, supplies] = await Promise.all([
-      downloadSupplierReceipt(delivery.receiptObjectPath),
-      prisma.product.findMany({
-        where: { isActive: true },
-        select: { id: true, name: true },
-      }),
-      prisma.inventorySupply.findMany({
-        where: { isActive: true },
-        select: { id: true, name: true },
-      }),
+    const bytes = await downloadSupplierReceipt(delivery.receiptObjectPath);
+    const [result, products, supplies] = await Promise.all([
+      extractInvoice(bytes, delivery.receiptContentType),
+      prisma.product.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+      prisma.inventorySupply.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
     ]);
-    const result = await extractSupplierReceipt(bytes, delivery.receiptContentType);
 
     await prisma.$transaction(async (tx) => {
       await tx.supplierDeliveryItem.deleteMany({ where: { deliveryId } });
 
       for (const item of result.parsed.items) {
-        const key = normalizedName(item.name);
+        const key = normalizedName(item.description);
         const product = products.find((row) => normalizedName(row.name) === key);
-        const supply = product
-          ? null
-          : supplies.find((row) => normalizedName(row.name) === key);
+        const supply = product ? null : supplies.find((row) => normalizedName(row.name) === key);
 
         await tx.supplierDeliveryItem.create({
           data: {
             deliveryId,
-            aiItemName: item.name,
+            aiItemName: item.description,
             matchedItemName: product?.name ?? supply?.name ?? null,
             productId: product?.id,
             inventorySupplyId: supply?.id,
@@ -74,7 +72,7 @@ export async function processSupplierDelivery(deliveryId: string) {
             totalPrice: item.totalPrice,
             confidenceScore: item.confidence,
             notes: item.notes,
-            needsManualReview: item.confidence < 0.75 || (!product && !supply),
+            needsManualReview: item.confidence < 0.8 || (!product && !supply),
           },
         });
       }
@@ -83,69 +81,69 @@ export async function processSupplierDelivery(deliveryId: string) {
         where: { id: deliveryId },
         data: {
           status: "PENDING_VERIFICATION",
+          extractedText: result.parsed.transcription,
           invoiceNumber: result.parsed.invoiceNumber,
-          receiptDate: parseReceiptDate(result.parsed.receiptDate),
+          receiptDate: parseInvoiceDate(result.parsed.invoiceDate),
           subtotalAmount: result.parsed.subtotal,
           taxAmount: result.parsed.tax,
           discountAmount: result.parsed.discount,
-          totalAmount: result.parsed.grandTotal,
-          aiRawResponse: jsonValue(result.rawResponse),
+          totalAmount: result.parsed.total,
+          aiRawResponse: jsonValue(result.audit),
           aiParsedJson: jsonValue(result.parsed),
           aiError: null,
+          ocrConfidence: null,
+          ocrError: null,
         },
       });
     });
 
     return result.parsed;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Receipt extraction failed.";
+    const message = error instanceof Error ? error.message : "Invoice extraction failed.";
     await prisma.supplierDelivery.updateMany({
-      where: { id: deliveryId, status: { in: ["PENDING_AI", "PENDING_VERIFICATION"] } },
-      data: { status: "PENDING_AI", aiError: message.slice(0, 2000) },
+      where: { id: deliveryId, status: { in: ["PENDING_EXTRACTION", "PENDING_VERIFICATION"] } },
+      data: {
+        status: "PENDING_EXTRACTION",
+        aiError: message.slice(0, 2000),
+      },
     });
     throw error;
   }
 }
 
-export type VerifiedDeliveryItemInput = {
-  itemId: string;
-  target: `product:${string}` | `supply:${string}`;
-  verifiedQuantity: number;
-  unitPrice: number | null;
-  totalPrice: number | null;
+export type ExtractedDeliveryReviewInput = {
+  invoiceNumber?: string;
+  receiptDate: Date | null;
+  reviewedText?: string;
   notes?: string;
+  rows: InvoiceReviewRowInput[];
 };
 
-export async function approveSupplierDelivery(
+export async function approveExtractedSupplierDelivery(
   deliveryId: string,
   verifiedByUserId: string,
-  rows: VerifiedDeliveryItemInput[],
-  notes?: string,
+  input: ExtractedDeliveryReviewInput,
 ) {
-  if (!rows.length) throw new Error("At least one verified item is required.");
+  const rows = validateInvoiceReviewRows(input.rows);
+  const invoiceNumber = input.invoiceNumber?.trim().slice(0, 200) || null;
+  const reviewedText = input.reviewedText?.trim().slice(0, 20_000) || null;
+  const notes = input.notes?.trim().slice(0, 2000) || null;
 
   return prisma.$transaction(
     async (tx) => {
       const delivery = await tx.supplierDelivery.findUnique({
         where: { id: deliveryId },
-        include: { items: true },
+        include: { items: true, bill: true },
       });
 
       if (
         !delivery ||
         delivery.status !== "PENDING_VERIFICATION" ||
-        delivery.inventoryUpdatedAt
+        delivery.inventoryUpdatedAt ||
+        delivery.bill
       ) {
         throw new Error("This delivery is not available for approval.");
       }
-
-      if (delivery.items.length !== rows.length) {
-        throw new Error("Every extracted line item must be verified.");
-      }
-
-      const inputById = new Map(rows.map((row) => [row.itemId, row]));
-      if (inputById.size !== rows.length) throw new Error("Duplicate delivery item.");
-
       const claimed = await tx.supplierDelivery.updateMany({
         where: {
           id: deliveryId,
@@ -157,81 +155,68 @@ export async function approveSupplierDelivery(
           verifiedAt: new Date(),
           verifiedByUserId,
           inventoryUpdatedAt: new Date(),
-          notes: notes?.trim() || delivery.notes,
+          invoiceNumber,
+          receiptDate: input.receiptDate,
+          reviewedText,
+          notes: notes || delivery.notes,
         },
       });
       if (claimed.count !== 1) throw new Error("This delivery was already processed.");
 
-      let calculatedTotal = new Prisma.Decimal(0);
+      await tx.supplierDeliveryItem.deleteMany({ where: { deliveryId } });
 
-      for (const item of delivery.items) {
-        const input = inputById.get(item.id);
-        if (!input) throw new Error(`Missing verification for ${item.aiItemName}.`);
-        if (!Number.isInteger(input.verifiedQuantity) || input.verifiedQuantity <= 0) {
-          throw new Error(`Verified quantity for ${item.aiItemName} must be a positive whole number.`);
-        }
+      let billTotal = new Prisma.Decimal(0);
 
-        const [kind, targetId] = input.target.split(":", 2);
-        if (!targetId || (kind !== "product" && kind !== "supply")) {
-          throw new Error(`Choose an inventory match for ${item.aiItemName}.`);
-        }
-
+      for (const row of rows) {
         let matchedItemName: string;
-        if (kind === "product") {
+
+        if (row.kind === "product") {
           const product = await tx.product.findFirst({
-            where: { id: targetId, isActive: true },
+            where: { id: row.targetId, isActive: true },
           });
-          if (!product) throw new Error(`Matched product for ${item.aiItemName} is unavailable.`);
+          if (!product) throw new Error(`${row.description} is not an active product.`);
           matchedItemName = product.name;
           await setProductInventoryLevel(
             tx,
             product.id,
-            product.stockQty + input.verifiedQuantity,
+            product.stockQty + row.quantity,
             product.lowStockThreshold,
           );
         } else {
           const supply = await tx.inventorySupply.findFirst({
-            where: { id: targetId, isActive: true },
+            where: { id: row.targetId, isActive: true },
           });
-          if (!supply) throw new Error(`Matched supply for ${item.aiItemName} is unavailable.`);
+          if (!supply) throw new Error(`${row.description} is not an active supply.`);
           matchedItemName = supply.name;
           await setSupplyInventoryLevel(
             tx,
             supply.id,
-            supply.stockQty + input.verifiedQuantity,
+            supply.stockQty + row.quantity,
             supply.lowStockThreshold,
             "SUPPLIER_DELIVERY",
             `Supplier delivery ${deliveryId}`,
           );
         }
 
-        const unitPrice = input.unitPrice == null ? null : new Prisma.Decimal(input.unitPrice);
-        const lineTotal =
-          input.totalPrice == null
-            ? unitPrice?.mul(input.verifiedQuantity) ?? null
-            : new Prisma.Decimal(input.totalPrice);
-        if (lineTotal && lineTotal.isNegative()) throw new Error("Line totals cannot be negative.");
-        calculatedTotal = calculatedTotal.add(lineTotal ?? 0);
+        const unitPrice = row.unitPrice == null ? null : new Prisma.Decimal(row.unitPrice);
+        const lineTotal = new Prisma.Decimal(row.totalPrice);
+        billTotal = billTotal.add(lineTotal);
 
-        await tx.supplierDeliveryItem.update({
-          where: { id: item.id },
+        await tx.supplierDeliveryItem.create({
           data: {
-            productId: kind === "product" ? targetId : null,
-            inventorySupplyId: kind === "supply" ? targetId : null,
+            deliveryId,
+            productId: row.kind === "product" ? row.targetId : null,
+            inventorySupplyId: row.kind === "supply" ? row.targetId : null,
+            aiItemName: row.description,
             matchedItemName,
-            verifiedQuantity: input.verifiedQuantity,
+            quantity: row.quantity,
+            verifiedQuantity: row.quantity,
             unitPrice,
             totalPrice: lineTotal,
-            notes: input.notes?.trim() || item.notes,
             needsManualReview: false,
           },
         });
       }
-
-      // The manager-edited line totals are the billing truth. The AI grand total
-      // remains in aiParsedJson for comparison but is never used automatically.
-      const billTotal = calculatedTotal;
-      if (billTotal.isNegative()) throw new Error("Delivery total cannot be negative.");
 
       await tx.supplierDelivery.update({
         where: { id: deliveryId },
@@ -260,7 +245,7 @@ export async function rejectSupplierDelivery(
   const result = await prisma.supplierDelivery.updateMany({
     where: {
       id: deliveryId,
-      status: { in: ["PENDING_AI", "PENDING_VERIFICATION"] },
+      status: { in: ["PENDING_EXTRACTION", "PENDING_VERIFICATION"] },
       inventoryUpdatedAt: null,
     },
     data: {

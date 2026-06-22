@@ -45,29 +45,23 @@ export function buildModifierLines(
 ): SelectedModifierLine[] {
   const modifierGroups = getProductModifierGroups(product);
 
-  return modifierGroups.flatMap((group) =>
-    group.options
-      .filter((option) => (selectedModifiers[group.id] || []).includes(option.id))
-      .map((option) => ({
-        groupId: group.id,
-        groupName: group.name,
-        optionId: option.id,
-        optionName: option.name,
-        price: Number(option.price),
-        qty: 1,
-        pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
-      })),
-  );
-}
+  return modifierGroups.flatMap((group) => {
+    const selectedOptionIds = selectedModifiers[group.id] || [];
 
-export function calculateConfiguredPrice(
-  product: Product,
-  selectedModifiers: SelectedModifiersMap,
-) {
-  const modifierTotal = buildModifierLines(product, selectedModifiers).reduce(
-    (sum, modifier) => sum + modifier.price * modifier.qty,
-    0,
-  );
-
-  return (Number(product.price) || 0) + modifierTotal;
+    return group.options.flatMap((option) =>
+      selectedOptionIds.includes(option.id)
+        ? [
+            {
+              groupId: group.id,
+              groupName: group.name,
+              optionId: option.id,
+              optionName: option.name,
+              price: Number(option.price),
+              qty: 1,
+              pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
+            },
+          ]
+        : [],
+    );
+  });
 }

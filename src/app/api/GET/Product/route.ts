@@ -24,13 +24,30 @@ export async function GET() {
     });
 
     const formattedProducts = products.map((product) => {
-      const groupMap = new Map();
+      type ModifierGroup = {
+        id: string;
+        name: string;
+        required: boolean;
+        minSelect: number;
+        maxSelect: number;
+        multiple: boolean;
+        options: Array<{
+          id: string;
+          name: string;
+          price: number;
+        }>;
+      };
+      // Keep this as a plain request-local index; Map#set in GET handlers
+      // is flagged as a side effect even when it only shapes the response.
+      const modifierGroupsById: Record<string, ModifierGroup> = {};
+      const modifierGroups: ModifierGroup[] = [];
 
       for (const modifier of product.modifiers) {
         const group = modifier.modifierGroup;
+        let existingGroup = modifierGroupsById[group.id];
 
-        if (!groupMap.has(group.id)) {
-          groupMap.set(group.id, {
+        if (!existingGroup) {
+          existingGroup = {
             id: group.id,
             name: group.name,
             required: group.isRequired,
@@ -38,10 +55,12 @@ export async function GET() {
             maxSelect: group.maxSelect,
             multiple: group.maxSelect > 1,
             options: [],
-          });
+          };
+          modifierGroupsById[group.id] = existingGroup;
+          modifierGroups.push(existingGroup);
         }
 
-        groupMap.get(group.id).options.push({
+        existingGroup.options.push({
           id: modifier.id,
           name: modifier.name,
           price: Number(modifier.price),
@@ -52,7 +71,7 @@ export async function GET() {
         ...product,
         price: Number(product.price),
         cost: product.cost ? Number(product.cost) : null,
-        modifierGroups: Array.from(groupMap.values()),
+        modifierGroups,
       };
     });
 

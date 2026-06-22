@@ -8,33 +8,38 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const currentUser = await requireRole(["ADMIN", "MANAGER"]);
   const [
-    categoryCount,
-    productCount,
-    modifierCount,
-    modifierGroupCount,
-    staffCount,
-    tableCount,
-    openOrdersCount,
-  ] = await prisma.$transaction([
-    prisma.category.count(),
-    prisma.product.count(),
-    prisma.modifier.count(),
-    prisma.modifierGroup.count(),
-    prisma.user.count({
-      where: {
-        role: {
-          not: "CUSTOMER",
+    currentUser,
+    [
+      categoryCount,
+      productCount,
+      modifierCount,
+      modifierGroupCount,
+      staffCount,
+      tableCount,
+      openOrdersCount,
+    ],
+  ] = await Promise.all([
+    requireRole(["ADMIN", "MANAGER"]),
+    prisma.$transaction([
+      prisma.category.count(),
+      prisma.product.count(),
+      prisma.modifier.count(),
+      prisma.modifierGroup.count(),
+      prisma.user.count({
+        where: {
+          role: {
+            not: "CUSTOMER",
+          },
         },
-      },
-    }),
-    prisma.table.count(),
-    prisma.order.count({
-      where: {
-        status: "OPEN",
-      },
-    }),
+      }),
+      prisma.table.count(),
+      prisma.order.count({
+        where: {
+          status: "OPEN",
+        },
+      }),
+    ]),
   ]);
 
   return (

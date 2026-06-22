@@ -269,7 +269,7 @@ model SupplierDelivery {
   uploadedByEmail    String
   receiptObjectPath  String
   receiptContentType String
-  status             SupplierDeliveryStatus @default(PENDING_AI)
+  status             SupplierDeliveryStatus @default(PENDING_EXTRACTION)
   invoiceNumber      String?
   receiptDate        DateTime?
   deliveryDate       DateTime?
@@ -277,6 +277,10 @@ model SupplierDelivery {
   taxAmount          Decimal?
   discountAmount     Decimal?
   totalAmount        Decimal?
+  extractedText      String?
+  reviewedText       String?
+  ocrConfidence      Float?
+  ocrError           String?
   aiRawResponse      Json?
   aiParsedJson       Json?
   aiError            String?
@@ -406,7 +410,7 @@ enum Station {
 }
 
 enum SupplierDeliveryStatus {
-  PENDING_AI
+  PENDING_EXTRACTION
   PENDING_VERIFICATION
   VERIFIED
   REJECTED

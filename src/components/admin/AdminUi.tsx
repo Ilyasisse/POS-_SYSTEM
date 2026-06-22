@@ -13,4 +13,3 @@ export { AdminTd } from "./shared/ui/AdminTd";
 export { AdminTh } from "./shared/ui/AdminTh";
 export { StatusBadge } from "./shared/ui/StatusBadge";
 export { ToneBadge } from "./shared/ui/ToneBadge";
-export { queryStringWithoutPage } from "./shared/ui/queryStringWithoutPage";

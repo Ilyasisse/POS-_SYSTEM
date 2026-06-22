@@ -60,7 +60,7 @@ export async function POST(request: Request, context: RouteContext) {
         receiptContentType: file.type,
         notes: notes || null,
         deliveryDate: new Date(),
-        status: "PENDING_AI",
+        status: "PENDING_EXTRACTION",
       },
     });
     uploadedPath = null;
@@ -71,13 +71,13 @@ export async function POST(request: Request, context: RouteContext) {
     } catch (processingError) {
       warning = processingError instanceof Error
         ? processingError.message
-        : "Receipt extraction is waiting for an admin retry.";
+        : "Invoice extraction is waiting for an admin retry.";
     }
 
     return NextResponse.json(
       {
         deliveryId: delivery.id,
-        status: warning ? "PENDING_AI" : "PENDING_VERIFICATION",
+        status: warning ? "PENDING_EXTRACTION" : "PENDING_VERIFICATION",
         warning,
       },
       { status: 201 },
@@ -85,7 +85,7 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     if (uploadedPath) await removeSupplierReceipt(uploadedPath).catch(() => undefined);
     const message = error instanceof Error ? error.message : "Delivery submission failed.";
-    const status = /JPEG|PNG|WebP|HEIC|10 MB|receipt image/i.test(message) ? 400 : 500;
+    const status = /JPEG|PNG|WebP|HEIC|HEIF|10 MB|receipt image/i.test(message) ? 400 : 500;
     console.error("Supplier delivery submission failed:", error);
     return NextResponse.json({ error: message }, { status });
   }

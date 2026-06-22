@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
 import {
   CASHIER_DELETED_ORDER_ITEM_COOKIE,
@@ -64,7 +64,7 @@ function revalidateCashierViews() {
 }
 
 export async function deleteWaiterOrderItem(formData: FormData) {
-  await requireRole(["MANAGER", "ADMIN"]);
+  await requireAuth(["MANAGER", "ADMIN"]);
 
   const orderId = String(formData.get("orderId") ?? "").trim();
   const orderItemId = String(formData.get("orderItemId") ?? "").trim();
@@ -311,7 +311,7 @@ export async function deleteWaiterOrderItem(formData: FormData) {
 }
 
 export async function restoreDeletedWaiterOrderItem(formData: FormData) {
-  await requireRole(["MANAGER", "ADMIN"]);
+  await requireAuth(["MANAGER", "ADMIN"]);
 
   const undoId = String(formData.get("undoId") ?? "").trim();
   const waiterId = String(formData.get("waiterId") ?? "").trim();
@@ -529,7 +529,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
 }
 
 export async function discardDeletedWaiterOrderItem(formData: FormData) {
-  await requireRole(["MANAGER", "ADMIN"]);
+  await requireAuth(["MANAGER", "ADMIN"]);
 
   const undoId = String(formData.get("undoId") ?? "").trim();
   const waiterId = String(formData.get("waiterId") ?? "").trim();

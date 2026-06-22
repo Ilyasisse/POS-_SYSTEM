@@ -59,13 +59,17 @@ export default function CustomerCartSheet({
       data-aos="fade-left"
       data-aos-duration="200"
       className="fixed inset-0 z-40 bg-stone-950/40 backdrop-blur-sm"
-      onClick={onClose}
     >
+      <button
+        type="button"
+        aria-label="Close cart"
+        className="absolute inset-0 h-full w-full cursor-default border-0 bg-transparent p-0"
+        onClick={onClose}
+      />
       <aside
         data-aos="fade-down"
         data-aos-duration="280"
         className="absolute bottom-2 left-2 right-2 top-2 flex min-h-0 w-auto flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#fffaf5] text-stone-900 shadow-[0_35px_120px_rgba(31,18,11,0.32)] md:inset-y-0 md:left-auto md:right-0 md:w-full md:max-w-xl md:rounded-none md:border-l md:border-t-0"
-        onClick={(event) => event.stopPropagation()}
       >
         <div className="shrink-0 border-b border-stone-200 bg-[linear-gradient(145deg,#20140f_0%,#4a281a_42%,#8c5b34_100%)] px-4 py-4 text-white sm:px-6 sm:py-5">
           <div className="flex items-start justify-between gap-4">
@@ -117,12 +121,14 @@ export default function CustomerCartSheet({
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <input
+                  aria-label="Name for the order"
                   value={customerName}
                   onChange={(event) => onCustomerNameChange(event.target.value)}
                   placeholder="Name for the order"
                   className="rounded-full border border-stone-200 bg-stone-50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
                 />
                 <input
+                  aria-label="Phone number"
                   value={customerPhone}
                   onChange={(event) =>
                     onCustomerPhoneChange(event.target.value)
@@ -132,6 +138,7 @@ export default function CustomerCartSheet({
                 />
                 <div className="md:col-span-2">
                   <textarea
+                    aria-label="Special requests or notes"
                     value={orderNote}
                     onChange={(event) => onOrderNoteChange(event.target.value)}
                     placeholder="Special requests or notes"
@@ -187,6 +194,7 @@ export default function CustomerCartSheet({
                       <div className="inline-flex items-center rounded-full border border-stone-200 bg-stone-50">
                         <button
                           type="button"
+                          aria-label={`Decrease quantity for ${item.name}`}
                           onClick={() => onChangeQuantity(item.cartKey, -1)}
                           className="px-4 py-3 text-lg font-semibold text-stone-800"
                         >
@@ -199,6 +207,7 @@ export default function CustomerCartSheet({
 
                         <button
                           type="button"
+                          aria-label={`Increase quantity for ${item.name}`}
                           onClick={() => onChangeQuantity(item.cartKey, 1)}
                           className="px-4 py-3 text-lg font-semibold text-stone-800"
                         >
@@ -223,7 +232,6 @@ export default function CustomerCartSheet({
 
         <div className="shrink-0 border-t border-stone-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
           <div className="space-y-3">
-          
             <div className="flex items-center justify-between text-base font-semibold text-stone-950">
               <span>Total</span>
               <span>{formatCurrency(cartSubtotal)}</span>

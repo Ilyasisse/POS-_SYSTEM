@@ -10,8 +10,8 @@ import {
   AdminTd,
   AdminTh,
   StatusBadge,
-  queryStringWithoutPage,
 } from "@/components/admin/AdminUi";
+import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
 import { prisma } from "@/lib/prisma";
 
 type AdminCategoriesPageProps = {
@@ -62,10 +62,13 @@ export default async function AdminCategoriesPage({
 
   return (
     <AdminPageFrame
-      
       title="Categories"
       description="Manage your menu categories"
-      action={<AdminPrimaryLink href="/admin/categories/new">Add Category</AdminPrimaryLink>}
+      action={
+        <AdminPrimaryLink href="/admin/categories/new">
+          Add Category
+        </AdminPrimaryLink>
+      }
     >
       <AdminTableShell
         footer={
@@ -83,7 +86,10 @@ export default async function AdminCategoriesPage({
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </AdminSelect>
-          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <button
+            type="button"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
             Filter
           </button>
         </AdminSearchToolbar>
@@ -124,7 +130,9 @@ export default async function AdminCategoriesPage({
                   </AdminTd>
                   <AdminTd>{category._count.products}</AdminTd>
                   <AdminTd>
-                    <AdminRowActions editHref={`/admin/categories/${category.id}`} />
+                    <AdminRowActions
+                      editHref={`/admin/categories/${category.id}`}
+                    />
                   </AdminTd>
                 </tr>
               ))

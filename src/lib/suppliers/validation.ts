@@ -4,8 +4,6 @@ export const SUPPLIER_RECEIPT_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/heic",
-  "image/heif",
 ]);
 
 export function normalizeEmail(value: string) {
@@ -38,7 +36,7 @@ export function safeInternalReturnPath(value: string | null | undefined) {
 
 export function validateSupplierReceipt(file: File) {
   if (!SUPPLIER_RECEIPT_TYPES.has(file.type.toLowerCase())) {
-    throw new Error("Upload a JPEG, PNG, WebP, HEIC, or HEIF image.");
+    throw new Error("Upload a JPEG, PNG, or WebP image. HEIC and HEIF are not supported.");
   }
 
   if (file.size <= 0 || file.size > SUPPLIER_RECEIPT_MAX_BYTES) {
@@ -50,7 +48,5 @@ export function receiptExtension(contentType: string) {
   const type = contentType.toLowerCase();
   if (type === "image/png") return "png";
   if (type === "image/webp") return "webp";
-  if (type === "image/heic") return "heic";
-  if (type === "image/heif") return "heif";
   return "jpg";
 }

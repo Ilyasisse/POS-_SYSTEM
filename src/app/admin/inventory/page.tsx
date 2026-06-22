@@ -167,9 +167,21 @@ export default async function AdminInventoryPage({
       ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard label="In Stock" value={summary.ok} helper="Healthy supplies" />
-        <AdminStatCard label="Low Stock" value={summary.low} helper="Needs attention" />
-        <AdminStatCard label="Out of Stock" value={summary.out} helper="Restock now" />
+        <AdminStatCard
+          label="In Stock"
+          value={summary.ok}
+          helper="Healthy supplies"
+        />
+        <AdminStatCard
+          label="Low Stock"
+          value={summary.low}
+          helper="Needs attention"
+        />
+        <AdminStatCard
+          label="Out of Stock"
+          value={summary.out}
+          helper="Restock now"
+        />
         <AdminStatCard
           label="Taken Today"
           value={takenTodayMovements.length}
@@ -178,8 +190,12 @@ export default async function AdminInventoryPage({
       </section>
 
       <AdminCard className="p-4">
-        <form action={createSupply} className="grid gap-3 lg:grid-cols-[1fr_0.5fr_0.4fr_0.4fr_auto]">
+        <form
+          action={createSupply}
+          className="grid gap-3 lg:grid-cols-[1fr_0.5fr_0.4fr_0.4fr_auto]"
+        >
           <input
+            aria-label="Supply name"
             name="name"
             type="text"
             placeholder="Item name"
@@ -187,12 +203,14 @@ export default async function AdminInventoryPage({
             required
           />
           <input
+            aria-label="Supply unit"
             name="unit"
             type="text"
             placeholder="Unit"
             className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           />
           <input
+            aria-label="Initial stock quantity"
             name="stockQty"
             type="number"
             min="0"
@@ -200,6 +218,7 @@ export default async function AdminInventoryPage({
             className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           />
           <input
+            aria-label="Low stock threshold"
             name="lowStockThreshold"
             type="number"
             min="0"
@@ -213,18 +232,25 @@ export default async function AdminInventoryPage({
       <AdminTableShell
         footer={
           <p className="text-sm font-medium text-slate-500">
-            Showing 1 to {visibleSupplies.length} of {enrichedSupplies.length} items
+            Showing 1 to {visibleSupplies.length} of {enrichedSupplies.length}{" "}
+            items
           </p>
         }
       >
-        <AdminSearchToolbar placeholder="Search inventory..." defaultValue={params?.q ?? ""}>
+        <AdminSearchToolbar
+          placeholder="Search inventory..."
+          defaultValue={params?.q ?? ""}
+        >
           <AdminSelect name="status" defaultValue={statusFilter}>
             <option value="all">Category All</option>
             <option value="ok">In Stock</option>
             <option value="low">Low Stock</option>
             <option value="out">Out of Stock</option>
           </AdminSelect>
-          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <button
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
             Filter
           </button>
         </AdminSearchToolbar>
@@ -249,8 +275,13 @@ export default async function AdminInventoryPage({
               </tr>
             ) : (
               visibleSupplies.map((supply, index) => (
-                <tr key={supply.id} className="border-b border-slate-50 align-top">
-                  <AdminTd className="font-bold text-slate-400">{index + 1}</AdminTd>
+                <tr
+                  key={supply.id}
+                  className="border-b border-slate-50 align-top"
+                >
+                  <AdminTd className="font-bold text-slate-400">
+                    {index + 1}
+                  </AdminTd>
                   <AdminTd className="font-black text-slate-950">
                     {supply.name}
                   </AdminTd>
@@ -262,10 +293,14 @@ export default async function AdminInventoryPage({
                     </ToneBadge>
                   </AdminTd>
                   <AdminTd>
-                    <form action={updateSupplyInventory} className="flex min-w-60 gap-2">
+                    <form
+                      action={updateSupplyInventory}
+                      className="flex min-w-60 gap-2"
+                    >
                       <input type="hidden" name="supplyId" value={supply.id} />
                       <input
                         name="stockQty"
+                        aria-label={`Stock quantity for ${supply.name}`}
                         type="number"
                         min="0"
                         defaultValue={supply.stockQty}
@@ -273,21 +308,29 @@ export default async function AdminInventoryPage({
                       />
                       <input
                         name="lowStockThreshold"
+                        aria-label={`Low stock threshold for ${supply.name}`}
                         type="number"
                         min="0"
                         defaultValue={supply.lowStockThreshold}
                         className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
                       />
-                      <button className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white">
+                      <button
+                        type="submit"
+                        className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white"
+                      >
                         Save
                       </button>
                     </form>
                   </AdminTd>
                   <AdminTd>
-                    <form action={adjustSupplyInventory} className="flex min-w-56 gap-2">
+                    <form
+                      action={adjustSupplyInventory}
+                      className="flex min-w-56 gap-2"
+                    >
                       <input type="hidden" name="supplyId" value={supply.id} />
                       <input
                         name="quantity"
+                        aria-label={`Restock quantity for ${supply.name}`}
                         type="number"
                         min="1"
                         placeholder="Qty"
@@ -295,11 +338,15 @@ export default async function AdminInventoryPage({
                       />
                       <input
                         name="note"
+                        aria-label={`Restock note for ${supply.name}`}
                         type="text"
                         placeholder="Note"
                         className="h-9 w-24 rounded-lg border border-slate-200 px-2 text-sm"
                       />
-                      <button className="h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold text-emerald-700">
+                      <button
+                        type="submit"
+                        className="h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold text-emerald-700"
+                      >
                         Add
                       </button>
                     </form>
@@ -312,10 +359,14 @@ export default async function AdminInventoryPage({
       </AdminTableShell>
 
       <AdminCard className="p-5">
-        <h2 className="text-lg font-black text-slate-950">Recent Inventory Activity</h2>
+        <h2 className="text-lg font-black text-slate-950">
+          Recent Inventory Activity
+        </h2>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {movements.length === 0 ? (
-            <p className="text-sm font-medium text-slate-500">No supply movements yet.</p>
+            <p className="text-sm font-medium text-slate-500">
+              No supply movements yet.
+            </p>
           ) : (
             movements.map((movement) => (
               <div

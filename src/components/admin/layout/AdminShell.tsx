@@ -322,6 +322,7 @@ export default function AdminShell({
                 <FontAwesomeIcon icon={faMagnifyingGlass} className="text-sm" />
                 {/* REVIEW: This search is visual-only until global admin search is defined. */}
                 <input
+                  aria-label="Search admin"
                   type="search"
                   placeholder="Search anything..."
                   className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
