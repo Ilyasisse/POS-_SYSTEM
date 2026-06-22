@@ -4,17 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
-
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 
 function isPaymentMethod(value: string): value is PaymentMethod {
-  return PAYMENT_METHODS.has(value as PaymentMethod);
+  return (
+    value === "MYCASH" ||
+    value === "GOLIS" ||
+    value === "Dahabshiil" ||
+    value === "OTHER"
+  );
 }
 
 function toDecimal(value: number) {
@@ -29,7 +27,7 @@ function refreshCashierTableViews() {
 }
 
 export async function payOpenTableOrdersFromCashier(formData: FormData) {
-  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
+  const currentUser = await requireAuth(["CASHIER", "ADMIN"]);
 
   const tableId = String(formData.get("tableId") ?? "").trim();
   const paymentMethod = String(formData.get("paymentMethod") ?? "").trim();

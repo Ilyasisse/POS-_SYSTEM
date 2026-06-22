@@ -246,13 +246,19 @@ export async function POST(request: Request) {
 
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
-      const uniqueModifierIds = [
-        ...new Set(
-          Array.isArray(item.modifiers)
-            ? item.modifiers.map((modifier) => modifier.modifierId)
-            : [],
-        ),
-      ];
+      const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
+      const incomingModifierMap = new Map<
+        string,
+        (typeof itemModifiers)[number]
+      >();
+
+      for (const modifier of itemModifiers) {
+        if (!incomingModifierMap.has(modifier.modifierId)) {
+          incomingModifierMap.set(modifier.modifierId, modifier);
+        }
+      }
+
+      const uniqueModifierIds = Array.from(incomingModifierMap.keys());
 
       const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map(
         (modifierId) => {
@@ -264,9 +270,7 @@ export async function POST(request: Request) {
             );
           }
 
-          const incomingModifier = item.modifiers?.find(
-            (candidate) => candidate.modifierId === modifierId,
-          );
+          const incomingModifier = incomingModifierMap.get(modifierId);
 
           return {
             groupId: modifier.modifierGroup.id,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getKitchenSocketUrl } from "@/lib/kitchen/kitchen-socket";
 import { translateSocketStatus } from "@/lib/ui/ui-text";
@@ -27,8 +27,10 @@ export default function CashierLiveSync({
 }: CashierLiveSyncProps) {
   const router = useRouter();
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
-  const [socketStatus, setSocketStatus] =
-    useState<SocketStatus>("connecting");
+  const [socketStatus, setSocketStatus] = useReducer(
+    (_current: SocketStatus, next: SocketStatus) => next,
+    "connecting" as SocketStatus,
+  );
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
@@ -48,6 +50,15 @@ export default function CashierLiveSync({
     }, REFRESH_DEBOUNCE_MS);
   }, [router]);
 
+  const clearScheduledRefresh = useCallback(() => {
+    const refreshTimer = refreshTimerRef.current;
+
+    if (refreshTimer) {
+      window.clearTimeout(refreshTimer);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     const timer = window.setInterval(scheduleRefresh, intervalMs);
 
@@ -58,6 +69,8 @@ export default function CashierLiveSync({
 
   useEffect(() => {
     let disposed = false;
+    let activeSocket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
 
     const connect = () => {
       if (disposed || !socketUrl) {
@@ -67,6 +80,7 @@ export default function CashierLiveSync({
       setSocketStatus("connecting");
 
       const ws = new WebSocket(socketUrl);
+      activeSocket = ws;
       socketRef.current = ws;
 
       ws.onopen = () => {
@@ -99,7 +113,8 @@ export default function CashierLiveSync({
         }
 
         setSocketStatus("disconnected");
-        reconnectTimerRef.current = window.setTimeout(connect, 1000);
+        reconnectTimer = window.setTimeout(connect, 1000);
+        reconnectTimerRef.current = reconnectTimer;
       };
     };
 
@@ -108,19 +123,17 @@ export default function CashierLiveSync({
     return () => {
       disposed = true;
 
-      if (reconnectTimerRef.current) {
-        window.clearTimeout(reconnectTimerRef.current);
+      if (reconnectTimer) {
+        window.clearTimeout(reconnectTimer);
       }
 
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-      }
+      clearScheduledRefresh();
 
-      if (socketRef.current) {
-        socketRef.current.close();
+      if (activeSocket) {
+        activeSocket.close();
       }
     };
-  }, [scheduleRefresh, socketUrl]);
+  }, [clearScheduledRefresh, scheduleRefresh, socketUrl]);
 
   return (
     <div className="pointer-events-none fixed bottom-4 left-4 z-50">

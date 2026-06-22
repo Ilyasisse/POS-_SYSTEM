@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type DependencyList } from "react";
+import { useEffect } from "react";
 
 const aosOptions = {
   duration: 450,
@@ -48,7 +48,15 @@ function scheduleAfterLayoutSettles(callback: () => void) {
   };
 }
 
-export function useAos(dependencies: DependencyList = []) {
+export function useAos(
+  dependencyA?: unknown,
+  dependencyB?: unknown,
+  dependencyC?: unknown,
+  dependencyD?: unknown,
+  dependencyE?: unknown,
+  dependencyF?: unknown,
+) {
+  // Keep each caller trigger explicit so React can verify AOS refresh timing.
   useEffect(() => {
     let cancelled = false;
 
@@ -81,13 +89,6 @@ export function useAos(dependencies: DependencyList = []) {
       cancelled = true;
       cancelSchedule();
     };
-    // Dependencies are supplied by each page using this shared AOS refresh hook.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, dependencies);
+  }, [dependencyA, dependencyB, dependencyC, dependencyD, dependencyE, dependencyF]);
 }
 
-export default function AosInitializer() {
-  useAos();
-
-  return null;
-}

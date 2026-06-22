@@ -21,6 +21,8 @@ export async function requireRole(
   const supabase = await createClient();
 
   let authUser;
+  // Check if user is not sign in with redirect
+  let authReadFailed = false;
 
   try {
     const {
@@ -30,6 +32,10 @@ export async function requireRole(
     authUser = user;
   } catch (error) {
     console.error("Failed to read Supabase auth session:", error);
+    authReadFailed = true;
+  }
+
+  if (authReadFailed) {
     redirect("/staff-login?error=unauthorized");
   }
 

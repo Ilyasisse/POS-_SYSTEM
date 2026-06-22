@@ -55,8 +55,14 @@ export default async function CategoryDetailsPage({
             <input type="hidden" name="id" value={category.id} />
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
+              <label
+                htmlFor="category-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Name
+              </label>
               <input
+                id="category-name"
                 name="name"
                 type="text"
                 defaultValue={category.name}
@@ -66,8 +72,14 @@ export default async function CategoryDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Station</label>
+              <label
+                htmlFor="category-station"
+                className="mb-1 block text-sm font-medium"
+              >
+                Station
+              </label>
               <select
+                id="category-station"
                 name="station"
                 defaultValue={category.station ?? ""}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -85,10 +97,14 @@ export default async function CategoryDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label
+                htmlFor="category-sort-order"
+                className="mb-1 block text-sm font-medium"
+              >
                 Sort Order
               </label>
               <input
+                id="category-sort-order"
                 name="sortOrder"
                 type="number"
                 defaultValue={category.sortOrder}
@@ -97,8 +113,12 @@ export default async function CategoryDetailsPage({
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
+            <label
+              htmlFor="category-active"
+              className="flex items-center gap-2 text-sm"
+            >
               <input
+                id="category-active"
                 name="isActive"
                 type="checkbox"
                 defaultChecked={category.isActive}

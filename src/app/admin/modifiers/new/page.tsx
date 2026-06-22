@@ -42,8 +42,14 @@ export default async function NewModifierPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
           <form action={createModifier} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
+              <label
+                htmlFor="new-modifier-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Name
+              </label>
               <input
+                id="new-modifier-name"
                 name="name"
                 type="text"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -53,8 +59,14 @@ export default async function NewModifierPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Price</label>
+              <label
+                htmlFor="new-modifier-price"
+                className="mb-1 block text-sm font-medium"
+              >
+                Price
+              </label>
               <input
+                id="new-modifier-price"
                 name="price"
                 type="number"
                 step="0.01"
@@ -65,7 +77,7 @@ export default async function NewModifierPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium">Products</label>
+              <p className="mb-2 block text-sm font-medium">Products</p>
               <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-slate-300 p-3">
                 {products.length === 0 ? (
                   <p className="text-sm text-slate-500">No products found.</p>
@@ -91,10 +103,14 @@ export default async function NewModifierPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label
+                htmlFor="new-modifier-group"
+                className="mb-1 block text-sm font-medium"
+              >
                 Modifier Group
               </label>
               <select
+                id="new-modifier-group"
                 name="modifierGroupId"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 required
@@ -111,8 +127,16 @@ export default async function NewModifierPage() {
               </select>
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isActive" type="checkbox" defaultChecked />
+            <label
+              htmlFor="new-modifier-active"
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                id="new-modifier-active"
+                name="isActive"
+                type="checkbox"
+                defaultChecked
+              />
               Active
             </label>
 

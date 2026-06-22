@@ -18,7 +18,7 @@ function buildModifierSignature(modifiers: SelectedModifierLine[]) {
     .join("|");
 }
 
-export function buildCartLineKey(product: {
+function buildCartLineKey(product: {
   id: string;
   station?: Station;
   assignedUserId?: string | null;
@@ -91,24 +91,26 @@ export function useWaiterCart() {
 
   const changeQuantity = (cartKey: string, delta: number) => {
     setCart((current) =>
-      current
-        .map((item) => {
-          if (item.cartKey !== cartKey) {
-            return item;
-          }
+      current.flatMap((item) => {
+        if (item.cartKey !== cartKey) {
+          return [item];
+        }
 
-          const nextQuantity = item.quantity + delta;
+        const nextQuantity = item.quantity + delta;
 
-          return {
-            ...item,
-            quantity: nextQuantity,
-            lineTotal: calculateLineTotal(
-              Number(item.finalPrice ?? item.price),
-              nextQuantity,
-            ),
-          };
-        })
-        .filter((item) => item.quantity > 0),
+        return nextQuantity > 0
+          ? [
+              {
+                ...item,
+                quantity: nextQuantity,
+                lineTotal: calculateLineTotal(
+                  Number(item.finalPrice ?? item.price),
+                  nextQuantity,
+                ),
+              },
+            ]
+          : [];
+      }),
     );
   };
 

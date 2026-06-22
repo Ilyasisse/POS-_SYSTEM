@@ -45,7 +45,7 @@ type DailySupplyDigestItem = {
  * @param value - The quantity value to normalize.
  * @returns A safe whole-number quantity.
  */
-export function toValidQuantity(value: number) {
+function toValidQuantity(value: number) {
   return Math.max(0, Math.floor(Number(value) || 0));
 }
 
@@ -326,17 +326,16 @@ export async function sendDailyInventorySupplyDigest() {
   }));
 
   await Promise.all(
-    items
-      .filter(
-        (item) =>
-          item.inventoryAlertStatus !== item.previousInventoryAlertStatus,
-      )
-      .map((item) =>
-        prisma.inventorySupply.update({
-          where: { id: item.id },
-          data: { inventoryAlertStatus: item.inventoryAlertStatus },
-        }),
-      ),
+    items.flatMap((item) =>
+      item.inventoryAlertStatus === item.previousInventoryAlertStatus
+        ? []
+        : [
+            prisma.inventorySupply.update({
+              where: { id: item.id },
+              data: { inventoryAlertStatus: item.inventoryAlertStatus },
+            }),
+          ],
+    ),
   );
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -424,7 +423,7 @@ export async function deductProductInventoryForSale(
 
   const alerts: InventoryAlert[] = [];
 
-  for (const product of products) {
+  await Promise.all(products.map((product) => {
     const soldQty = quantityByProductId.get(product.id) ?? 0;
     const quantityBefore = toValidQuantity(product.stockQty);
     const quantityAfter = Math.max(quantityBefore - soldQty, 0);
@@ -439,7 +438,7 @@ export async function deductProductInventoryForSale(
       delta,
     );
 
-    await tx.product.update({
+    const updateProduct = tx.product.update({
       where: { id: product.id },
       data: {
         stockQty: quantityAfter,
@@ -451,7 +450,9 @@ export async function deductProductInventoryForSale(
     if (alert) {
       alerts.push(alert);
     }
-  }
+
+    return updateProduct;
+  }));
 
   return alerts;
 }

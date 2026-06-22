@@ -67,7 +67,10 @@ export default async function ModifierGroupsPage({
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </AdminSelect>
-          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <button
+            type="button"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
             Filter
           </button>
         </AdminSearchToolbar>

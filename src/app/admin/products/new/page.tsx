@@ -28,8 +28,14 @@ export default async function NewProductPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
           <form action={createProduct} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
+              <label
+                htmlFor="new-product-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Name
+              </label>
               <input
+                id="new-product-name"
                 name="name"
                 type="text"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -39,8 +45,14 @@ export default async function NewProductPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Price</label>
+              <label
+                htmlFor="new-product-price"
+                className="mb-1 block text-sm font-medium"
+              >
+                Price
+              </label>
               <input
+                id="new-product-price"
                 name="price"
                 type="number"
                 step="0.01"
@@ -51,8 +63,14 @@ export default async function NewProductPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Category</label>
+              <label
+                htmlFor="new-product-category"
+                className="mb-1 block text-sm font-medium"
+              >
+                Category
+              </label>
               <select
+                id="new-product-category"
                 name="categoryId"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 required
@@ -69,8 +87,15 @@ export default async function NewProductPage() {
               </select>
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input name="trackStock" type="checkbox" />
+            <label
+              htmlFor="new-product-track-stock"
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                id="new-product-track-stock"
+                name="trackStock"
+                type="checkbox"
+              />
               Track Stock
             </label>
 

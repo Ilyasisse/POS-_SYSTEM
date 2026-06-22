@@ -32,28 +32,56 @@ export default async function ModifierGroupPage({
           <form action={updateModifierGroup} className="space-y-4">
             <input type="hidden" name="id" value={group.id} />
 
-            <input
-              name="name"
-              defaultValue={group.name}
-              className="w-full rounded border p-2"
-            />
-
-            <input
-              name="minSelect"
-              type="number"
-              defaultValue={group.minSelect}
-              className="w-full rounded border p-2"
-            />
-
-            <input
-              name="maxSelect"
-              type="number"
-              defaultValue={group.maxSelect}
-              className="w-full rounded border p-2"
-            />
-
-            <label className="flex gap-2">
+            <div>
+              <label
+                htmlFor="edit-modifier-group-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Group Name
+              </label>
               <input
+                id="edit-modifier-group-name"
+                name="name"
+                defaultValue={group.name}
+                className="w-full rounded border p-2"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-modifier-group-min-select"
+                className="mb-1 block text-sm font-medium"
+              >
+                Minimum selections
+              </label>
+              <input
+                id="edit-modifier-group-min-select"
+                name="minSelect"
+                type="number"
+                defaultValue={group.minSelect}
+                className="w-full rounded border p-2"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-modifier-group-max-select"
+                className="mb-1 block text-sm font-medium"
+              >
+                Maximum selections
+              </label>
+              <input
+                id="edit-modifier-group-max-select"
+                name="maxSelect"
+                type="number"
+                defaultValue={group.maxSelect}
+                className="w-full rounded border p-2"
+              />
+            </div>
+
+            <label htmlFor="edit-modifier-group-active" className="flex gap-2">
+              <input
+                id="edit-modifier-group-active"
                 type="checkbox"
                 name="isActive"
                 defaultChecked={group.isActive}
@@ -61,7 +89,10 @@ export default async function ModifierGroupPage({
               Active
             </label>
 
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">
+            <button
+              type="submit"
+              className="rounded bg-blue-600 px-4 py-2 text-white"
+            >
               Update
             </button>
           </form>
@@ -73,7 +104,10 @@ export default async function ModifierGroupPage({
           <form action={deleteModifierGroup}>
             <input type="hidden" name="id" value={group.id} />
 
-            <button className="rounded bg-red-600 px-4 py-2 text-white">
+            <button
+              type="submit"
+              className="rounded bg-red-600 px-4 py-2 text-white"
+            >
               Delete
             </button>
           </form>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/require-role";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 import {
   sendInventoryAlerts,
   setSupplyInventoryLevel,
@@ -15,10 +15,6 @@ function getString(formData: FormData, key: string) {
 
 function getQuantity(formData: FormData, key: string) {
   return Math.max(0, Math.floor(Number(formData.get(key)) || 0));
-}
-
-async function requireInventoryUseAccess() {
-  await requireRole(["COOK", "Cabitaan"], ["CABITAAN"]);
 }
 
 function redirectWithInventoryEmailStatus(
@@ -43,7 +39,7 @@ function redirectWithInventoryEmailStatus(
 }
 
 export async function takeSupplyInventory(formData: FormData) {
-  await requireInventoryUseAccess();
+  await requireAuth(["COOK", "Cabitaan"], ["CABITAAN"]);
 
   const supplyId = getString(formData, "supplyId");
   const quantity = getQuantity(formData, "quantity");

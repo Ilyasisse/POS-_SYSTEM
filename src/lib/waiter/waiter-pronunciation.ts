@@ -51,7 +51,7 @@ async function playSingleSegment(segment: PronunciationSegment) {
   });
 }
 
-export function buildCartLinePronunciationSegments(
+function buildCartLinePronunciationSegments(
   line: CartLine,
 ): PronunciationSegment[] {
   const segments: PronunciationSegment[] = [];
@@ -97,9 +97,10 @@ export async function playPronunciationSegments(
   cancelPronunciationPlayback();
 
   try {
-    for (const segment of playableSegments) {
-      await playSingleSegment(segment);
-    }
+    await playableSegments.reduce(
+      (playback, segment) => playback.then(() => playSingleSegment(segment)),
+      Promise.resolve(),
+    );
 
     return null;
   } catch {

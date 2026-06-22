@@ -4,8 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { normalizeKitchenStation } from "@/lib/kitchen/kitchen-socket";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 
 export async function createCategory(formData: FormData) {
+  await requireAuth(["ADMIN", "MANAGER"]);
+
   const name = String(formData.get("name") || "").trim();
   const sortOrder = Number(formData.get("sortOrder") || 0);
   const isActive = formData.get("isActive") === "on";
@@ -35,6 +38,8 @@ export async function createCategory(formData: FormData) {
 }
 
 export async function updateCategory(formData: FormData) {
+  await requireAuth(["ADMIN", "MANAGER"]);
+
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const sortOrder = Number(formData.get("sortOrder") || 0);
@@ -71,6 +76,8 @@ export async function updateCategory(formData: FormData) {
 }
 
 export async function deleteCategory(formData: FormData) {
+  await requireAuth(["ADMIN", "MANAGER"]);
+
   const id = String(formData.get("id") || "").trim();
 
   if (!id) {

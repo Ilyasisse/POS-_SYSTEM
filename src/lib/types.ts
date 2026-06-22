@@ -13,4 +13,3 @@ export type {
   StaffSummary,
   Station,
 } from "@/types";
-export { PaymentMethod } from "@/types";

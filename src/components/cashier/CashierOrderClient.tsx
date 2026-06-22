@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import { getKitchenSocketUrl } from "@/lib/kitchen/kitchen-socket";
-import type { Product, SelectedModifierLine, Station } from "@/lib/types";
+import type {
+  CartLine,
+  Category,
+  Product,
+  SelectedModifierLine,
+  SocketStatus,
+  Station,
+} from "@/lib/types";
 import ProductQuickItems from "@/components/waiter/ProductQuickItems";
 import CategoryFilter from "@/components/waiter/CategoryFilter";
 import ProductSearch from "@/components/waiter/ProductSearch";
@@ -40,6 +47,118 @@ type CashierOrderClientProps = {
   initialTableId?: string;
 };
 
+type CashierProductPickerProps = {
+  tables: TableOption[];
+  products: Product[];
+  categories: Category[];
+  searchedProducts: Product[];
+  selectedTableId: string;
+  selectedCategory: string;
+  searchTerm: string;
+  onTableSelect: (tableId: string) => void;
+  onCategorySelect: (category: string) => void;
+  onSearchTermChange: (searchTerm: string) => void;
+  onProductClick: (product: Product) => void;
+  onPlayProduct: (product: Product) => void;
+};
+
+type CurrentTableOrderPanelProps = {
+  cart: CartLine[];
+  socketStatus: SocketStatus;
+  orderNote: string;
+  total: number;
+  isSubmitting: boolean;
+  isDisabled: boolean;
+  statusMessage: string;
+  lastOrderMessage: string;
+  onOrderNoteChange: (orderNote: string) => void;
+  onChangeQuantity: (cartKey: string, delta: number) => void;
+  onRemoveFromCart: (cartKey: string) => void;
+  onClearOrder: () => void;
+  onSendOrder: () => void;
+  onPlayFullOrder: () => void;
+};
+
+type CashierOrderState = {
+  selectedTableIdOverride: string;
+  orderNote: string;
+  searchTerm: string;
+  selectedCategoryValue: string;
+  selectedProduct: Product | null;
+  isModifierModalOpen: boolean;
+  isSubmitting: boolean;
+  lastOrderMessage: string;
+};
+
+type CashierOrderAction =
+  | { type: "tableSelected"; tableId: string }
+  | { type: "orderNoteChanged"; orderNote: string }
+  | { type: "searchTermChanged"; searchTerm: string }
+  | { type: "categorySelected"; category: string }
+  | { type: "configurationOpened"; product: Product }
+  | { type: "configurationClosed" }
+  | { type: "submitStarted" }
+  | { type: "orderSent"; message: string }
+  | { type: "submitFinished" }
+  | { type: "orderCleared" };
+
+const initialCashierOrderState: CashierOrderState = {
+  selectedTableIdOverride: "",
+  orderNote: "",
+  searchTerm: "",
+  selectedCategoryValue: "All",
+  selectedProduct: null,
+  isModifierModalOpen: false,
+  isSubmitting: false,
+  lastOrderMessage: "",
+};
+
+function cashierOrderReducer(
+  state: CashierOrderState,
+  action: CashierOrderAction,
+): CashierOrderState {
+  switch (action.type) {
+    case "tableSelected":
+      return { ...state, selectedTableIdOverride: action.tableId };
+    case "orderNoteChanged":
+      return { ...state, orderNote: action.orderNote };
+    case "searchTermChanged":
+      return { ...state, searchTerm: action.searchTerm };
+    case "categorySelected":
+      return { ...state, selectedCategoryValue: action.category };
+    case "configurationOpened":
+      return {
+        ...state,
+        selectedProduct: action.product,
+        isModifierModalOpen: true,
+      };
+    case "configurationClosed":
+      return {
+        ...state,
+        selectedProduct: null,
+        isModifierModalOpen: false,
+      };
+    case "submitStarted":
+      return {
+        ...state,
+        isSubmitting: true,
+        lastOrderMessage: "",
+      };
+    case "orderSent":
+      return {
+        ...state,
+        orderNote: "",
+        lastOrderMessage: action.message,
+      };
+    case "submitFinished":
+      return { ...state, isSubmitting: false };
+    case "orderCleared":
+      return { ...state, orderNote: "", lastOrderMessage: "" };
+    default:
+      return state;
+  }
+}
+
 function requiresBaristaAssignment(product: Product) {
   return product.category?.station === "BARISTA";
 }
@@ -53,6 +172,198 @@ function requiresConfiguration(product: Product) {
 
 function roundToTwo(num: number): number {
   return Math.round(num * 100) / 100;
+}
+
+function CashierProductPicker({
+  tables,
+  products,
+  categories,
+  searchedProducts,
+  selectedTableId,
+  selectedCategory,
+  searchTerm,
+  onTableSelect,
+  onCategorySelect,
+  onSearchTermChange,
+  onProductClick,
+  onPlayProduct,
+}: CashierProductPickerProps) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-blue-200/30">
+      <div className="grid gap-3 md:grid-cols-[1fr_0.8fr] md:items-end">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">
+            Take table order
+          </h2>
+          <p className="text-sm text-slate-500">
+            Cashier sends food to the kitchen first. Payment is collected later.
+          </p>
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-slate-700">
+            Table
+          </span>
+          <select
+            value={selectedTableId}
+            onChange={(event) => onTableSelect(event.target.value)}
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold outline-none focus:border-blue-500"
+          >
+            {tables.length === 0 ? (
+              <option value="">No active tables</option>
+            ) : (
+              tables.map((table) => (
+                <option key={table.id} value={table.id}>
+                  {table.name}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
+      </div>
+
+      <ProductQuickItems products={products} onAddToCart={onProductClick} />
+
+      <CategoryFilter
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={onCategorySelect}
+        showAllCategoryButton
+      />
+
+      <ProductSearch
+        searchTerm={searchTerm}
+        onSearchTermChange={onSearchTermChange}
+      />
+
+      <ProductGrid
+        products={searchedProducts}
+        onAddToCart={onProductClick}
+        onPlayPronunciation={onPlayProduct}
+      />
+    </section>
+  );
+}
+
+function CurrentTableOrderPanel({
+  cart,
+  socketStatus,
+  orderNote,
+  total,
+  isSubmitting,
+  isDisabled,
+  statusMessage,
+  lastOrderMessage,
+  onOrderNoteChange,
+  onChangeQuantity,
+  onRemoveFromCart,
+  onClearOrder,
+  onSendOrder,
+  onPlayFullOrder,
+}: CurrentTableOrderPanelProps) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">
+            Current table order
+          </h2>
+          <p className="text-sm text-slate-500">
+            Send to kitchen as an open order.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${
+            socketStatus === "connected"
+              ? "bg-green-100 text-green-700"
+              : socketStatus === "connecting"
+                ? "bg-amber-100 text-amber-700"
+                : "bg-red-100 text-red-700"
+          }`}
+        >
+          {socketStatus}
+        </span>
+      </div>
+
+      <div className="space-y-2 overflow-y-auto pr-1">
+        {cart.length === 0 ? (
+          <p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-500">
+            Fadlan marka hore dalbo
+          </p>
+        ) : (
+          cart.map((line) => (
+            <CartItemCard
+              key={line.cartKey}
+              line={line}
+              onChangeQuantity={onChangeQuantity}
+              onRemove={onRemoveFromCart}
+            />
+          ))
+        )}
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-sm font-semibold text-slate-600">
+          Qoraallada Dalabka
+        </span>
+        <textarea
+          value={orderNote}
+          onChange={(event) => onOrderNoteChange(event.target.value)}
+          placeholder="Fadlan halkan ku qor qoraallada dalabka..."
+          rows={3}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
+        />
+      </label>
+
+      <div className="space-y-1 rounded-xl bg-slate-900 p-4 text-sm text-slate-100">
+        <div className="flex justify-between text-lg">
+          <span>Totalka</span>
+          <span className="text-green-300">
+            ${roundToTwo(total).toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onClearOrder}
+          className="min-h-11 rounded-lg bg-slate-100 text-sm font-semibold text-slate-700"
+        >
+          Nadiifi
+        </button>
+
+        <button
+          type="button"
+          onClick={onSendOrder}
+          className="min-h-11 rounded-lg bg-[#2E7D32] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={isDisabled}
+        >
+          {isSubmitting ? "Fadlan sug..." : "Send to kitchen"}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={onPlayFullOrder}
+        disabled={cart.length === 0}
+        className="min-h-10 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Ciyaar codka dalabka
+      </button>
+
+      {statusMessage ? (
+        <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+          {statusMessage}
+        </p>
+      ) : null}
+
+      {lastOrderMessage ? (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+          {lastOrderMessage}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 export default function CashierOrderClient({
@@ -74,30 +385,17 @@ export default function CashierOrderClient({
     calculateCartTotal,
   } = useWaiterCart();
 
-  const showAllCategoryButton = true;
   const initialTableExists = tables.some((table) => table.id === initialTableId);
-  const [selectedTableId, setSelectedTableId] = useState(
-    initialTableExists ? initialTableId : (tables[0]?.id ?? ""),
+  const defaultTableId = initialTableExists
+    ? initialTableId
+    : (tables[0]?.id ?? "");
+  const [orderState, dispatchOrderState] = useReducer(
+    cashierOrderReducer,
+    initialCashierOrderState,
   );
-  const [orderNote, setOrderNote] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lastOrderMessage, setLastOrderMessage] = useState("");
-
-  useEffect(() => {
-    if (!selectedTableId && tables[0]?.id) {
-      setSelectedTableId(tables[0].id);
-    }
-  }, [selectedTableId, tables]);
-
-  useEffect(() => {
-    if (!selectedCategory) {
-      setSelectedCategory("All");
-    }
-  }, [selectedCategory]);
+  const selectedTableId =
+    orderState.selectedTableIdOverride || defaultTableId;
+  const selectedCategory = orderState.selectedCategoryValue || "All";
 
   const filteredProducts =
     selectedCategory === "All"
@@ -107,7 +405,7 @@ export default function CashierOrderClient({
         );
 
   const searchedProducts = filteredProducts.filter((product) => {
-    const term = searchTerm.toLowerCase().trim();
+    const term = orderState.searchTerm.toLowerCase().trim();
 
     if (!term) return true;
 
@@ -115,14 +413,12 @@ export default function CashierOrderClient({
   });
 
   function closeConfigurationModal() {
-    setSelectedProduct(null);
-    setIsModifierModalOpen(false);
+    dispatchOrderState({ type: "configurationClosed" });
   }
 
   function handleProductClick(product: Product) {
     if (requiresConfiguration(product)) {
-      setSelectedProduct(product);
-      setIsModifierModalOpen(true);
+      dispatchOrderState({ type: "configurationOpened", product });
       return;
     }
 
@@ -175,8 +471,7 @@ export default function CashierOrderClient({
 
     try {
       cancelPronunciationPlayback();
-      setIsSubmitting(true);
-      setLastOrderMessage("");
+      dispatchOrderState({ type: "submitStarted" });
       setStatusMessage("Sending table order...");
 
       const response = await fetch("/api/orders/table", {
@@ -195,7 +490,7 @@ export default function CashierOrderClient({
               qty: modifier.qty,
             })),
           })),
-          notes: orderNote,
+          notes: orderState.orderNote,
         }),
       });
 
@@ -210,17 +505,17 @@ export default function CashierOrderClient({
       }
 
       clearCart();
-      setOrderNote("");
-      setLastOrderMessage(
-        `Order #${data.order?.orderNumber ?? ""} sent to ${data.order?.tableName ?? "table"}. Payment stays open.`,
-      );
+      dispatchOrderState({
+        type: "orderSent",
+        message: `Order #${data.order?.orderNumber ?? ""} sent to ${data.order?.tableName ?? "table"}. Payment stays open.`,
+      });
       router.push("/cashier");
     } catch (error) {
       setStatusMessage(
         error instanceof Error ? error.message : "Something went wrong.",
       );
     } finally {
-      setIsSubmitting(false);
+      dispatchOrderState({ type: "submitFinished" });
     }
   }
 
@@ -232,21 +527,25 @@ export default function CashierOrderClient({
     const modifierGroups = Array.isArray(product.modifierGroups)
       ? product.modifierGroups
       : [];
-    const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap((group) =>
-      group.options
-        .filter((option) =>
-          (selectedModifiers[group.id] || []).includes(option.id),
-        )
-        .map((option) => ({
-          groupId: group.id,
-          groupName: group.name,
-          optionId: option.id,
-          optionName: option.name,
-          price: Number(option.price),
-          qty: 1,
-          pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
-        })),
-    );
+    const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap((group) => {
+      const selectedOptionIds = selectedModifiers[group.id] || [];
+
+      return group.options.flatMap((option) =>
+        selectedOptionIds.includes(option.id)
+          ? [
+              {
+                groupId: group.id,
+                groupName: group.name,
+                optionId: option.id,
+                optionName: option.name,
+                price: Number(option.price),
+                qty: 1,
+                pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
+              },
+            ]
+          : [],
+      );
+    });
     const modifiersTotal = modifierLines.reduce(
       (sum, modifier) => sum + Number(modifier.price) * modifier.qty,
       0,
@@ -269,186 +568,69 @@ export default function CashierOrderClient({
     closeConfigurationModal();
   }
 
+  function handleClearOrder() {
+    cancelPronunciationPlayback();
+    clearCart();
+    dispatchOrderState({ type: "orderCleared" });
+    setStatusMessage("");
+  }
+
   if (loading) {
     return <WaiterPageSkeleton />;
   }
 
-  const isDisabled = isSubmitting || cart.length === 0 || !selectedTableId;
+  const isDisabled =
+    orderState.isSubmitting || cart.length === 0 || !selectedTableId;
   const total = calculateCartTotal();
 
   return (
     <>
       <div className="grid w-full gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-blue-200/30">
-          <div className="grid gap-3 md:grid-cols-[1fr_0.8fr] md:items-end">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                Take table order
-              </h2>
-              <p className="text-sm text-slate-500">
-                Cashier sends food to the kitchen first. Payment is collected later.
-              </p>
-            </div>
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-slate-700">
-                Table
-              </span>
-              <select
-                value={selectedTableId}
-                onChange={(event) => setSelectedTableId(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold outline-none focus:border-blue-500"
-              >
-                {tables.length === 0 ? (
-                  <option value="">No active tables</option>
-                ) : (
-                  tables.map((table) => (
-                    <option key={table.id} value={table.id}>
-                      {table.name}
-                    </option>
-                  ))
-                )}
-              </select>
-            </label>
-          </div>
+        <CashierProductPicker
+          tables={tables}
+          products={products}
+          categories={categories}
+          searchedProducts={searchedProducts}
+          selectedTableId={selectedTableId}
+          selectedCategory={selectedCategory}
+          searchTerm={orderState.searchTerm}
+          onTableSelect={(tableId) =>
+            dispatchOrderState({ type: "tableSelected", tableId })
+          }
+          onCategorySelect={(category) =>
+            dispatchOrderState({ type: "categorySelected", category })
+          }
+          onSearchTermChange={(searchTerm) =>
+            dispatchOrderState({ type: "searchTermChanged", searchTerm })
+          }
+          onProductClick={handleProductClick}
+          onPlayProduct={handlePlayProduct}
+        />
 
-          <ProductQuickItems
-            products={products}
-            onAddToCart={handleProductClick}
-          />
-
-          <CategoryFilter
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            showAllCategoryButton={showAllCategoryButton}
-          />
-
-          <ProductSearch
-            searchTerm={searchTerm}
-            onSearchTermChange={setSearchTerm}
-          />
-
-          <ProductGrid
-            products={searchedProducts}
-            onAddToCart={handleProductClick}
-            onPlayPronunciation={handlePlayProduct}
-          />
-        </section>
-
-        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-slate-800">
-                Current table order
-              </h2>
-              <p className="text-sm text-slate-500">
-                Send to kitchen as an open order.
-              </p>
-            </div>
-            <span
-              className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${
-                socketStatus === "connected"
-                  ? "bg-green-100 text-green-700"
-                  : socketStatus === "connecting"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-red-100 text-red-700"
-              }`}
-            >
-              {socketStatus}
-            </span>
-          </div>
-
-          <div className="space-y-2 overflow-y-auto pr-1">
-            {cart.length === 0 ? (
-              <p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-500">
-                Fadlan marka hore dalbo
-              </p>
-            ) : (
-              cart.map((line) => (
-                <CartItemCard
-                  key={line.cartKey}
-                  line={line}
-                  onChangeQuantity={changeQuantity}
-                  onRemove={removeFromCart}
-                />
-              ))
-            )}
-          </div>
-
-          <label className="block">
-            <span className="mb-1 block text-sm font-semibold text-slate-600">
-              Qoraallada Dalabka
-            </span>
-            <textarea
-              value={orderNote}
-              onChange={(event) => setOrderNote(event.target.value)}
-              placeholder="Fadlan halkan ku qor qoraallada dalabka..."
-              rows={3}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
-            />
-          </label>
-
-          <div className="space-y-1 rounded-xl bg-slate-900 p-4 text-sm text-slate-100">
-            <div className="flex justify-between text-lg">
-              <span>Totalka</span>
-              <span className="text-green-300">
-                ${roundToTwo(total).toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                cancelPronunciationPlayback();
-                clearCart();
-                setOrderNote("");
-                setStatusMessage("");
-                setLastOrderMessage("");
-              }}
-              className="min-h-11 rounded-lg bg-slate-100 text-sm font-semibold text-slate-700"
-            >
-              Nadiifi
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSendOrder}
-              className="min-h-11 rounded-lg bg-[#2E7D32] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isDisabled}
-            >
-              {isSubmitting ? "Fadlan sug..." : "Send to kitchen"}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handlePlayFullOrder}
-            disabled={cart.length === 0}
-            className="min-h-10 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Ciyaar codka dalabka
-          </button>
-
-          {statusMessage ? (
-            <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
-              {statusMessage}
-            </p>
-          ) : null}
-
-          {lastOrderMessage ? (
-            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
-              {lastOrderMessage}
-            </p>
-          ) : null}
-        </section>
+        <CurrentTableOrderPanel
+          cart={cart}
+          socketStatus={socketStatus}
+          orderNote={orderState.orderNote}
+          total={total}
+          isSubmitting={orderState.isSubmitting}
+          isDisabled={isDisabled}
+          statusMessage={statusMessage}
+          lastOrderMessage={orderState.lastOrderMessage}
+          onOrderNoteChange={(orderNote) =>
+            dispatchOrderState({ type: "orderNoteChanged", orderNote })
+          }
+          onChangeQuantity={changeQuantity}
+          onRemoveFromCart={removeFromCart}
+          onClearOrder={handleClearOrder}
+          onSendOrder={handleSendOrder}
+          onPlayFullOrder={handlePlayFullOrder}
+        />
       </div>
 
       <ModifierModal
-        key={`${selectedProduct?.id ?? "empty"}-${isModifierModalOpen ? "open" : "closed"}`}
-        open={isModifierModalOpen}
-        product={selectedProduct}
+        key={`${orderState.selectedProduct?.id ?? "empty"}-${orderState.isModifierModalOpen ? "open" : "closed"}`}
+        open={orderState.isModifierModalOpen}
+        product={orderState.selectedProduct}
         baristas={baristas}
         onClose={closeConfigurationModal}
         onConfirm={handleModifierConfirm}

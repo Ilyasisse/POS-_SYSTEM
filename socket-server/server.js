@@ -54,7 +54,10 @@ function normalizeItem(item) {
   }
 
   const modifiers = Array.isArray(item?.modifiers)
-    ? item.modifiers.map(normalizeModifier).filter(Boolean)
+    ? item.modifiers.flatMap((modifier) => {
+        const normalizedModifier = normalizeModifier(modifier);
+        return normalizedModifier ? [normalizedModifier] : [];
+      })
     : [];
 
   return {
@@ -78,7 +81,10 @@ function normalizeTicket(ticket) {
   const orderId = ticket.orderId ?? ticket.id;
   const orderNumber = Number(ticket.orderNumber ?? ticket.receiptNo);
   const items = Array.isArray(ticket.items)
-    ? ticket.items.map(normalizeItem).filter(Boolean)
+    ? ticket.items.flatMap((item) => {
+        const normalizedItem = normalizeItem(item);
+        return normalizedItem ? [normalizedItem] : [];
+      })
     : [];
 
   if (!ticket.id || !orderId || !Number.isFinite(orderNumber) || items.length === 0) {
@@ -137,7 +143,6 @@ function resolveClientFilter(request) {
   return {
     station: url.searchParams.get("station"),
     userId: url.searchParams.get("userId"),
-    role: url.searchParams.get("role"),
   };
 }
 
@@ -152,8 +157,10 @@ function send(client, message) {
 function sendSnapshot(client) {
   const filter = clientFilters.get(client);
   const snapshot = Array.from(activeTickets.values())
-    .map((ticket) => filterTicket(ticket, filter))
-    .filter(Boolean);
+    .flatMap((ticket) => {
+      const filteredTicket = filterTicket(ticket, filter);
+      return filteredTicket ? [filteredTicket] : [];
+    });
 
   send(client, { type: "ORDER_SNAPSHOT", payload: snapshot });
 }
@@ -229,7 +236,10 @@ wss.on("connection", (socket, request) => {
 
     if (message.type === "ORDER_SNAPSHOT") {
       const tickets = Array.isArray(message.payload)
-        ? message.payload.map(normalizeTicket).filter(Boolean)
+        ? message.payload.flatMap((ticket) => {
+            const normalizedTicket = normalizeTicket(ticket);
+            return normalizedTicket ? [normalizedTicket] : [];
+          })
         : [];
 
       activeTickets.clear();

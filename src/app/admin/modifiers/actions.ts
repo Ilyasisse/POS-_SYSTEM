@@ -3,8 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 
 export async function createModifier(formData: FormData) {
+  await requireAuth(["ADMIN", "MANAGER"]);
+
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
   const isActive = formData.get("isActive") === "on";
@@ -13,16 +16,14 @@ export async function createModifier(formData: FormData) {
     formData.get("pronunciationAudioUrl") || "",
   ).trim();
 
-  const productIds = formData
-    .getAll("productIds")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
+  const productIds = formData.getAll("productIds").flatMap((value) => {
+    const productId = String(value).trim();
+    return productId ? [productId] : [];
+  });
 
   if (!name) {
     throw new Error("Modifier name is required.");
   }
-
-  
 
   if (productIds.length === 0) {
     throw new Error("At least one product is required.");
@@ -43,8 +44,8 @@ export async function createModifier(formData: FormData) {
           modifierGroupId,
           pronunciationAudioUrl: pronunciationAudioUrl || null,
         },
-      })
-    )
+      }),
+    ),
   );
 
   revalidatePath("/admin/modifiers");
@@ -52,6 +53,8 @@ export async function createModifier(formData: FormData) {
 }
 
 export async function updateModifier(formData: FormData) {
+  await requireAuth(["ADMIN", "MANAGER"]);
+
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
@@ -100,6 +103,8 @@ export async function updateModifier(formData: FormData) {
 }
 
 export async function deleteModifier(formData: FormData) {
+  await requireAuth(["ADMIN", "MANAGER"]);
+
   const id = String(formData.get("id") || "").trim();
 
   if (!id) {

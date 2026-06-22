@@ -28,7 +28,7 @@ function toDecimal(value: number) {
   return new Prisma.Decimal(value);
 }
 
-export function roundCurrency(value: number) {
+function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 

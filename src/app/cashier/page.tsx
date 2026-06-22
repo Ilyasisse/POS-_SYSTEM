@@ -1,7 +1,7 @@
 "use server"
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 import SignOutButton from "@/components/SignOutButton";
 import {
   formatCashierBusinessDayRange,
@@ -20,11 +20,13 @@ function formatMoney(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
+const timeFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return timeFormatter.format(date);
 }
 
 function getPaymentStatusMessage(paymentStatus?: string) {
@@ -55,15 +57,19 @@ function getPaymentStatusMessage(paymentStatus?: string) {
 }
 
 export default async function CashierPage({ searchParams }: CashierPageProps) {
-  const currentUser = await requireRole(["CASHIER", "ADMIN"]);
-  const params = await searchParams;
-  const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
   const businessDayLabel = formatCashierBusinessDayRange(
     businessDayStart,
     businessDayEnd,
   );
+
+  // Resolve URL state with auth, but keep protected table reads after auth.
+  const [currentUser, params] = await Promise.all([
+    requireAuth(["CASHIER", "ADMIN"]),
+    searchParams,
+  ]);
+  const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
 
   const tables = await prisma.table.findMany({
     where: {

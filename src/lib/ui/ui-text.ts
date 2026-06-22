@@ -66,12 +66,3 @@ export function translateUserRole(role?: string | null): string {
       return role ?? "";
   }
 }
-
-export function translatePaymentMethod(method: string): string {
-  switch (method) {
-    case "OTHER":
-      return "Other";
-    default:
-      return method;
-  }
-}

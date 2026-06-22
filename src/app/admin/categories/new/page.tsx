@@ -28,8 +28,14 @@ export default function NewCategoryPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
           <form action={createCategory} className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
+              <label
+                htmlFor="new-category-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Name
+              </label>
               <input
+                id="new-category-name"
                 name="name"
                 type="text"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -39,8 +45,14 @@ export default function NewCategoryPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Station</label>
+              <label
+                htmlFor="new-category-station"
+                className="mb-1 block text-sm font-medium"
+              >
+                Station
+              </label>
               <select
+                id="new-category-station"
                 name="station"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 defaultValue=""
@@ -58,10 +70,14 @@ export default function NewCategoryPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label
+                htmlFor="new-category-sort-order"
+                className="mb-1 block text-sm font-medium"
+              >
                 Sort Order
               </label>
               <input
+                id="new-category-sort-order"
                 name="sortOrder"
                 type="number"
                 defaultValue={0}
@@ -70,8 +86,16 @@ export default function NewCategoryPage() {
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input name="isActive" type="checkbox" defaultChecked />
+            <label
+              htmlFor="new-category-active"
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                id="new-category-active"
+                name="isActive"
+                type="checkbox"
+                defaultChecked
+              />
               Active
             </label>
 
