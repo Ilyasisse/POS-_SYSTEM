@@ -2,39 +2,44 @@
 
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAos } from "@/components/AosInitializer";
+
+function loginErrorMessage(error: string | null) {
+  if (error === "customer-login-required") {
+    return "Please sign in with Google to place a customer order.";
+  }
+
+  if (error === "google-signin-failed") {
+    return "Google sign in failed. Please try again.";
+  }
+
+  if (error === "unauthorized") {
+    return "You are not authorized to access that page.";
+  }
+
+  return "";
+}
 
 export default function LoginPageClient() {
   const searchParams = useSearchParams();
-  const [error, setError] = useState("");
+  const [runtimeError, setRuntimeError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const error = runtimeError || loginErrorMessage(searchParams.get("error"));
 
   useAos(Boolean(error));
 
-  useEffect(() => {
-    const queryError = searchParams.get("error");
-
-    if (queryError === "customer-login-required") {
-      setError("Please sign in with Google to place a customer order.");
-    } else if (queryError === "google-signin-failed") {
-      setError("Google sign in failed. Please try again.");
-    } else if (queryError === "unauthorized") {
-      setError("You are not authorized to access that page.");
-    } else {
-      setError("");
-    }
-  }, [searchParams]);
-
   async function handleGoogleSignIn() {
-    setError("");
+    setRuntimeError("");
     setGoogleLoading(true);
 
     try {
       window.location.assign("/auth/google/start");
     } catch (err) {
       setGoogleLoading(false);
-      setError(err instanceof Error ? err.message : "Google sign in failed.");
+      setRuntimeError(
+        err instanceof Error ? err.message : "Google sign in failed.",
+      );
     }
   }
 
