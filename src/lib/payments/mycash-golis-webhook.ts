@@ -152,9 +152,15 @@ export function readPaymentWebhookConfig(
 
 export function isPaymentWebhookAuthorized(
   authorization: string | null,
+  webhookSecret: string | null,
+  misspelledWebhookSecret: string | null,
   secret: string,
 ) {
-  return authorization === `Bearer ${secret}`;
+  return (
+    authorization === `Bearer ${secret}` ||
+    webhookSecret === secret ||
+    misspelledWebhookSecret === secret
+  );
 }
 
 export function normalizeMycashGolisWebhookPayload(

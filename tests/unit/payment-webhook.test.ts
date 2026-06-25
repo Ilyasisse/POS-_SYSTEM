@@ -68,7 +68,7 @@ function store(
   };
 }
 
-test("reads required webhook config and validates bearer auth", () => {
+test("reads required webhook config and validates webhook auth headers", () => {
   assert.deepEqual(
     readPaymentWebhookConfig({
       PAYMENT_WEBHOOK_SECRET: " secret ",
@@ -81,9 +81,27 @@ test("reads required webhook config and validates bearer auth", () => {
     },
   );
 
-  assert.equal(isPaymentWebhookAuthorized(null, "secret"), false);
-  assert.equal(isPaymentWebhookAuthorized("Bearer wrong", "secret"), false);
-  assert.equal(isPaymentWebhookAuthorized("Bearer secret", "secret"), true);
+  assert.equal(isPaymentWebhookAuthorized(null, null, null, "secret"), false);
+  assert.equal(
+    isPaymentWebhookAuthorized("Bearer wrong", null, null, "secret"),
+    false,
+  );
+  assert.equal(
+    isPaymentWebhookAuthorized("Bearer secret", null, null, "secret"),
+    true,
+  );
+  assert.equal(
+    isPaymentWebhookAuthorized(null, "secret", null, "secret"),
+    true,
+  );
+  assert.equal(
+    isPaymentWebhookAuthorized(null, null, "secret", "secret"),
+    true,
+  );
+  assert.equal(
+    isPaymentWebhookAuthorized(null, "wrong", "wrong", "secret"),
+    false,
+  );
   assert.equal(
     readPaymentWebhookConfig({ PAYMENT_WEBHOOK_CASHIER_ID: "cashier-1" }).ok,
     false,
