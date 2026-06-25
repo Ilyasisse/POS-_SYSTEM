@@ -107,6 +107,8 @@ export async function POST(request: Request) {
   if (
     !isPaymentWebhookAuthorized(
       request.headers.get("authorization"),
+      request.headers.get("x-webhook-secret"),
+      request.headers.get("x-webhook-secert"),
       config.secret,
     )
   ) {
