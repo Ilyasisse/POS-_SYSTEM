@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 import StaffShell from "@/components/staff/StaffShell";
 import { requireRole } from "@/lib/auth/require-role";
 
-type WaiterLayoutProps = {
+type InventoryLayoutProps = {
   children: ReactNode;
 };
 
-export default async function WaiterLayout({ children }: WaiterLayoutProps) {
-  const currentUser = await requireRole(["WAITER", "ADMIN"]);
+export default async function InventoryLayout({ children }: InventoryLayoutProps) {
+  const currentUser = await requireRole(["ADMIN", "Cabitaan"], ["CABITAAN"]);
 
   return (
     <StaffShell

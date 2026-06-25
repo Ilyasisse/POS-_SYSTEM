@@ -1,5 +1,4 @@
 import Link from "next/link";
-import SignOutButton from "@/components/SignOutButton";
 import { requireRole } from "@/lib/auth/require-role";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
@@ -210,7 +209,6 @@ export default async function InventoryPage({
             >
               Back
             </Link>
-            <SignOutButton />
           </div>
         </header>
 

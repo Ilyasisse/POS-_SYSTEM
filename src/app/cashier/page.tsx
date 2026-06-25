@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole as requireAuth } from "@/lib/auth/require-role";
-import SignOutButton from "@/components/SignOutButton";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
@@ -144,7 +143,6 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           >
             New table order
           </Link>
-          <SignOutButton />
         </div>
       </div>
 

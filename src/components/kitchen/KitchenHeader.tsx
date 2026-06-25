@@ -1,5 +1,4 @@
 import Link from "next/link";
-import SignOutButton from "../SignOutButton";
 import {
   translateKitchenStationName,
   translateSocketStatus,
@@ -35,8 +34,6 @@ export default function KitchenHeader({
             : "Live Orders"}
         </h1>
       </div>
-
-      <SignOutButton />
 
       <div className="flex flex-wrap items-center gap-2">
         {canUseInventory ? (

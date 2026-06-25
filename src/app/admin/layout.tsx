@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import AdminShell from "@/components/admin/layout/AdminShell";
+import StaffShell from "@/components/staff/StaffShell";
 import { requireRole } from "@/lib/auth/require-role";
 import { prisma } from "@/lib/prisma";
 
@@ -43,10 +43,12 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   ]);
 
   return (
-    <AdminShell
+    <StaffShell
       currentUser={{
         fullName: currentUser.fullName,
+        email: currentUser.email,
         role: currentUser.role,
+        station: currentUser.station,
       }}
       counts={{
         categories: categoryCount,
@@ -59,6 +61,6 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       }}
     >
       {children}
-    </AdminShell>
+    </StaffShell>
   );
 }

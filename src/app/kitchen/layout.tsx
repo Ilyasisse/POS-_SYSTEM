@@ -1,18 +1,30 @@
 import type { ReactNode } from "react";
 
-type SegmentLayoutProps = {
+import StaffShell from "@/components/staff/StaffShell";
+import { requireRole } from "@/lib/auth/require-role";
+
+type KitchenLayoutProps = {
   children: ReactNode;
 };
 
-/**
- * Passes route children through for this planned layout segment.
- *
- * @param props - Layout props.
- * @param props.children - Nested route content.
- * @returns The nested route content.
- *
- * @remarks Replace this with a custom layout when the segment needs shared UI.
- */
-export default function SegmentLayout({ children }: SegmentLayoutProps) {
-  return <>{children}</>;
+export default async function KitchenLayout({ children }: KitchenLayoutProps) {
+  const currentUser = await requireRole([
+    "COOK",
+    "BARISTA",
+    "Cabitaan",
+    "ADMIN",
+  ]);
+
+  return (
+    <StaffShell
+      currentUser={{
+        fullName: currentUser.fullName,
+        email: currentUser.email,
+        role: currentUser.role,
+        station: currentUser.station,
+      }}
+    >
+      {children}
+    </StaffShell>
+  );
 }

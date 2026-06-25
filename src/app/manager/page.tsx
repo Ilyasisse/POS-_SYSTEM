@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/require-role";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import SignOutButton from "@/components/SignOutButton";
 import {
   buildWaiterShiftSummary,
   getWaiterNextOpeningAmount,
@@ -160,7 +159,6 @@ function ManagerPageHeader({
         >
           Reports
         </Link>
-        <SignOutButton />
       </div>
     </div>
   );
