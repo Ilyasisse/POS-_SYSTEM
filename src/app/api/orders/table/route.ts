@@ -57,6 +57,16 @@ function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function appendOrderNote(existingNote: string | null, incomingNote?: string) {
+  const nextNote = incomingNote?.trim();
+
+  if (!nextNote) {
+    return existingNote;
+  }
+
+  return existingNote ? `${existingNote}\n${nextNote}` : nextNote;
+}
+
 function buildKitchenTicketItems(
   orderItems: SavedOrderItemForTicket[],
 ): KitchenTicketItem[] {
@@ -343,25 +353,66 @@ export async function POST(request: Request) {
 
     const result = await prisma.$transaction(
       async (tx) => {
-        const createdOrder = await tx.order.create({
-          data: {
-            type: "DINE_IN",
+        const existingOpenOrder = await tx.order.findFirst({
+          where: {
+            tableId: table.id,
             status: "OPEN",
-            notes: body.notes?.trim() || null,
-            total: toDecimal(calculatedTotal),
-            table: {
-              connect: { id: table.id },
-            },
-            cashier: {
-              connect: { id: currentUser.id },
-            },
+            type: "DINE_IN",
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            id: true,
+            orderNumber: true,
+            createdAt: true,
+            notes: true,
           },
         });
+
+        const order = existingOpenOrder
+          ? await tx.order.update({
+              where: {
+                id: existingOpenOrder.id,
+              },
+              data: {
+                notes: appendOrderNote(existingOpenOrder.notes, body.notes),
+                total: {
+                  increment: toDecimal(calculatedTotal),
+                },
+              },
+              select: {
+                id: true,
+                orderNumber: true,
+                createdAt: true,
+                total: true,
+              },
+            })
+          : await tx.order.create({
+              data: {
+                type: "DINE_IN",
+                status: "OPEN",
+                notes: body.notes?.trim() || null,
+                total: toDecimal(calculatedTotal),
+                table: {
+                  connect: { id: table.id },
+                },
+                cashier: {
+                  connect: { id: currentUser.id },
+                },
+              },
+              select: {
+                id: true,
+                orderNumber: true,
+                createdAt: true,
+                total: true,
+              },
+            });
 
         await tx.orderItem.createMany({
           data: preparedLines.map((line, index) => ({
             id: savedOrderItems[index]?.id ?? crypto.randomUUID(),
-            orderId: createdOrder.id,
+            orderId: order.id,
             productId: line.productId,
             productName: line.productName,
             qty: line.qty,
@@ -398,7 +449,11 @@ export async function POST(request: Request) {
           // that table is now supply-only, while product deductions still update Product stock.
         );
 
-        return { order: createdOrder, inventoryAlerts };
+        return {
+          order,
+          inventoryAlerts,
+          isExistingOrder: Boolean(existingOpenOrder),
+        };
       },
       { timeout: 15000, maxWait: 5000 },
     );
@@ -407,13 +462,16 @@ export async function POST(request: Request) {
 
     const order = result.order;
     const kitchenTicketItems = buildKitchenTicketItems(savedOrderItems);
+    const kitchenTicketCreatedAt = result.isExistingOrder
+      ? new Date()
+      : order.createdAt;
     const kitchenTicket: KitchenTicket | null =
       kitchenTicketItems.length > 0
         ? {
-            id: order.id,
+            id: result.isExistingOrder ? crypto.randomUUID() : order.id,
             orderId: order.id,
             orderNumber: order.orderNumber,
-            createdAt: order.createdAt.toISOString(),
+            createdAt: kitchenTicketCreatedAt.toISOString(),
             status: "new",
             stationStatuses: buildKitchenTicketStationStatuses(kitchenTicketItems),
             pickupStatus: "preparing",
@@ -434,7 +492,7 @@ export async function POST(request: Request) {
         id: order.id,
         orderNumber: order.orderNumber,
         tableName: table.name,
-        total: calculatedTotal,
+        total: Number(order.total),
         createdAt: order.createdAt.toISOString(),
       },
       kitchenTicket,

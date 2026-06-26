@@ -45,6 +45,7 @@ type ProductWithConfiguration = Product & {
 type CashierOrderClientProps = {
   tables: TableOption[];
   initialTableId?: string;
+  autoSelectFirstTable?: boolean;
 };
 
 type CashierProductPickerProps = {
@@ -209,7 +210,7 @@ function CashierProductPicker({
             className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold outline-none focus:border-blue-500"
           >
             {tables.length === 0 ? (
-              <option value="">No active tables</option>
+              <option value="">No open tables</option>
             ) : (
               tables.map((table) => (
                 <option key={table.id} value={table.id}>
@@ -369,6 +370,7 @@ function CurrentTableOrderPanel({
 export default function CashierOrderClient({
   tables,
   initialTableId = "",
+  autoSelectFirstTable = true,
 }: CashierOrderClientProps) {
   const router = useRouter();
   const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
@@ -388,7 +390,9 @@ export default function CashierOrderClient({
   const initialTableExists = tables.some((table) => table.id === initialTableId);
   const defaultTableId = initialTableExists
     ? initialTableId
-    : (tables[0]?.id ?? "");
+    : autoSelectFirstTable
+      ? (tables[0]?.id ?? "")
+      : "";
   const [orderState, dispatchOrderState] = useReducer(
     cashierOrderReducer,
     initialCashierOrderState,

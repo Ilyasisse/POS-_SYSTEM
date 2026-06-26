@@ -9,25 +9,44 @@ type CashierOrderPageProps = {
   }>;
 };
 
+const openTableFilter = {
+  orders: {
+    none: {
+      status: "OPEN" as const,
+      type: "DINE_IN" as const,
+    },
+  },
+};
+
 export default async function CashierOrderPage({
   searchParams,
 }: CashierOrderPageProps) {
-  const [currentUser, params, tables] = await Promise.all([
+  const [currentUser, params] = await Promise.all([
     requireRole(["CASHIER", "ADMIN"]),
     searchParams,
-    prisma.table.findMany({
-      where: {
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    }),
   ]);
+  const requestedTableId = params?.tableId?.trim() ?? "";
+  const tables = await prisma.table.findMany({
+    where: requestedTableId
+      ? {
+          isActive: true,
+          OR: [{ id: requestedTableId }, openTableFilter],
+        }
+      : {
+          isActive: true,
+          ...openTableFilter,
+        },
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+  const initialTableId = tables.some((table) => table.id === requestedTableId)
+    ? requestedTableId
+    : "";
 
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-100 via-blue-50 to-blue-100 px-4 py-6 text-slate-900 md:px-6">
@@ -49,7 +68,8 @@ export default async function CashierOrderPage({
 
         <CashierOrderClient
           tables={tables}
-          initialTableId={params?.tableId ?? ""}
+          initialTableId={initialTableId}
+          autoSelectFirstTable={!requestedTableId}
         />
       </div>
     </main>
