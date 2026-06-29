@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       openOrdersCount,
     ],
   ] = await Promise.all([
-    requireRole(["ADMIN", "MANAGER"]),
+    requirePermission(PERMISSIONS.ADMIN_ACCESS),
     prisma.$transaction([
       prisma.category.count(),
       prisma.product.count(),

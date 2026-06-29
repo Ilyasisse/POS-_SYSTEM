@@ -50,7 +50,7 @@ function redirectWithInventoryEmailStatus(
 
 // Creates a new internal supply row from the admin inventory form.
 export async function createSupply(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
+  await requireInventoryAccess();
 
   // Pulls the submitted supply fields from the create form.
   const name = getString(formData, "name");
@@ -81,7 +81,7 @@ export async function createSupply(formData: FormData) {
 
 // Sets a menu product's stock quantity and low-stock threshold.
 export async function updateProductInventory(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
+  await requireInventoryAccess();
 
   // Pulls the submitted product inventory fields from the update form.
   const productId = getString(formData, "productId");
@@ -105,7 +105,7 @@ export async function updateProductInventory(formData: FormData) {
 
 // Adds to or removes from a menu product's stock level.
 export async function adjustProductInventory(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
+  await requireInventoryAccess();
 
   // Pulls the submitted product adjustment fields from the form.
   const productId = getString(formData, "productId");
@@ -154,7 +154,7 @@ export async function adjustProductInventory(formData: FormData) {
 
 // Sets an internal supply's stock quantity and low-stock threshold.
 export async function updateSupplyInventory(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
+  await requireInventoryAccess();
 
   // Pulls the submitted supply inventory fields from the update form.
   const supplyId = getString(formData, "supplyId");
@@ -184,7 +184,7 @@ export async function updateSupplyInventory(formData: FormData) {
 
 // Restocks an internal supply's stock level from the admin inventory page.
 export async function adjustSupplyInventory(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
+  await requireInventoryAccess();
 
   // Pulls the submitted supply adjustment fields from the form.
   const supplyId = getString(formData, "supplyId");

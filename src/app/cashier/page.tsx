@@ -67,7 +67,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
   // Resolve URL state with auth, but keep protected table reads after auth.
   const [currentUser, params] = await Promise.all([
-    requireAuth(["CASHIER", "ADMIN"]),
+    requirePermission(PERMISSIONS.ORDER_MANAGE),
     searchParams,
   ]);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);

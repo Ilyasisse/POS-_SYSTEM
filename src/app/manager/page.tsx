@@ -627,7 +627,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
   );
 
   const [currentUser, params, [waiters, openTableOrders]] = await Promise.all([
-    requireRole(["MANAGER", "ADMIN"]),
+    requirePermission(PERMISSIONS.DASHBOARD_VIEW),
     searchParams,
     Promise.all([
       prisma.user.findMany({
