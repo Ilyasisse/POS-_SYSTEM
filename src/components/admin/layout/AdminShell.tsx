@@ -51,7 +51,7 @@ function initials(fullName: string) {
     .toUpperCase();
 }
 
-export function isAdminNavActive(pathname: string, href: string) {
+function isAdminNavActive(pathname: string, href: string) {
   if (href === "/admin/dashboard") {
     return pathname === "/admin" || pathname === href;
   }

@@ -12,6 +12,7 @@ import {
   TableProperties,
   Truck,
   Users,
+  WalletCards,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -108,6 +109,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     icon: ReceiptText,
     permission: PERMISSIONS.ORDER_VIEW_ALL,
     countKey: "orders",
+  },
+  {
+    key: "waiter-balances",
+    href: "/admin/waiter-balances",
+    label: "Waiter balances",
+    icon: WalletCards,
+    permission: PERMISSIONS.WAITER_BALANCE_ADMIN,
   },
   {
     key: "suppliers",
