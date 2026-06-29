@@ -45,7 +45,7 @@ function redirectWithInventoryEmailStatus(
 }
 
 export async function takeSupplyInventory(formData: FormData) {
-  await requireInventoryUseAccess();
+  await requireAuth(["COOK", "Cabitaan"], ["CABITAAN"]);
 
   const supplyId = getString(formData, "supplyId");
   const quantity = getQuantity(formData, "quantity");

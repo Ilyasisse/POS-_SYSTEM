@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { PERMISSIONS } from "@/lib/auth/permissions";
-import { requirePermission } from "@/lib/auth/require-permission";
+import { requireRole as requireAuth } from "@/lib/auth/require-role";
 import { deleteModifier, updateModifier } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
@@ -20,7 +19,7 @@ export default async function ModifierDetailsPage({
   // Params can resolve with auth; modifier reads still need the resolved id.
   const [resolvedParams] = await Promise.all([
     params,
-    requirePermission(PERMISSIONS.CATALOG_MANAGE),
+    requireAuth(["ADMIN", "MANAGER"]),
   ]);
   const id = resolvedParams.id;
 

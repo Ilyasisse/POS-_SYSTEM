@@ -6,8 +6,7 @@ import {
   removeSupplierReceipt,
   uploadSupplierReceipt,
 } from "@/lib/suppliers/storage";
-import { authorizeApi } from "@/lib/auth/api-authorization";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { createClient } from "@/lib/supabase/server";
 import {
   normalizeEmail,
   receiptExtension,
@@ -21,11 +20,12 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const { supplierSlug } = await context.params;
-    const authorization = await authorizeApi(
-      PERMISSIONS.SUPPLIER_PORTAL_ACCESS,
-    );
-    if (!authorization.ok) return authorization.response;
-    const user = authorization.user;
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user?.email) {
+      return NextResponse.json({ error: "Sign in with the assigned Google account." }, { status: 401 });
+    }
 
     const supplier = await prisma.supplier.findUnique({
       where: { slug: supplierSlug },

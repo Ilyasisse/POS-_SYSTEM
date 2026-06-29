@@ -29,11 +29,11 @@ function formatRole(role: string) {
   return role === "ADMIN" ? "Administrator" : role;
 }
 
-export default async function AdminProfilePage({ searchParams }: ProfilePageProps) {
-  const [currentUser, params] = await Promise.all([
-    requirePermission(PERMISSIONS.ADMIN_ACCESS),
-    searchParams,
-  ]);
+export default async function AdminProfilePage({
+  searchParams,
+}: ProfilePageProps) {
+  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
+  const params = await searchParams;
   const status = params?.profileStatus;
 
   return (
@@ -86,7 +86,10 @@ export default async function AdminProfilePage({ searchParams }: ProfilePageProp
             </div>
           </div>
 
-          <form action={updateAdminProfile} className="grid gap-4 lg:grid-cols-2">
+          <form
+            action={updateAdminProfile}
+            className="grid gap-4 lg:grid-cols-2"
+          >
             <label className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Full Name
@@ -130,7 +133,9 @@ export default async function AdminProfilePage({ searchParams }: ProfilePageProp
                 Role
               </span>
               <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3">
-                <ToneBadge tone="blue">{formatRole(currentUser.role)}</ToneBadge>
+                <ToneBadge tone="blue">
+                  {formatRole(currentUser.role)}
+                </ToneBadge>
               </div>
             </div>
 

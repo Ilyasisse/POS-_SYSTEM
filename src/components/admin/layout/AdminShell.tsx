@@ -180,14 +180,12 @@ function SidebarContent({
       href: "/admin/suppliers",
       label: "Suppliers",
       icon: faTruck,
-      permission: PERMISSIONS.SUPPLIER_MANAGE,
     },
     {
       key: "supplierDeliveries",
       href: "/admin/supplier-deliveries",
       label: "Supplier Deliveries",
       icon: faClipboardList,
-      permission: PERMISSIONS.SUPPLIER_MANAGE,
     },
     {
       key: "reports",
@@ -201,7 +199,6 @@ function SidebarContent({
       href: "/admin/reports/supplier-bills",
       label: "Supplier Bills",
       icon: faReceipt,
-      permission: PERMISSIONS.SUPPLIER_MANAGE,
     },
     {
       key: "settings",

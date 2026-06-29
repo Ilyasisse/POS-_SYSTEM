@@ -230,6 +230,7 @@ model Payment {
   @@index([createdAt])
   @@index([orderId])
   @@index([cashierId, createdAt])
+  @@unique([method, reference])
 }
 
 model Shift {

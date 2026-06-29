@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PERMISSIONS } from "@/lib/auth/permissions";
-import { requirePermission } from "@/lib/auth/require-permission";
+import { requireRole } from "@/lib/auth/require-role";
 import {
   approveExtractedSupplierDelivery,
   processSupplierDelivery,
@@ -43,7 +42,7 @@ function refreshSupplierPages(id?: string) {
 }
 
 export async function approveExtractedDeliveryAction(formData: FormData) {
-  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const user = await requireRole(["ADMIN", "MANAGER"]);
   const deliveryId = text(formData, "deliveryId");
   const rowIds = formData.getAll("rowId").map(String);
   if (rowIds.length > 100) throw new Error("An invoice can contain at most 100 items.");
@@ -66,14 +65,14 @@ export async function approveExtractedDeliveryAction(formData: FormData) {
 }
 
 export async function rejectDeliveryAction(formData: FormData) {
-  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const user = await requireRole(["ADMIN", "MANAGER"]);
   const deliveryId = text(formData, "deliveryId");
   await rejectSupplierDelivery(deliveryId, user.id, text(formData, "reason"));
   refreshSupplierPages(deliveryId);
 }
 
 export async function retryDeliveryExtractionAction(formData: FormData) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  await requireRole(["ADMIN", "MANAGER"]);
   const deliveryId = text(formData, "deliveryId");
   try {
     await processSupplierDelivery(deliveryId);
@@ -83,7 +82,7 @@ export async function retryDeliveryExtractionAction(formData: FormData) {
 }
 
 export async function recordPaymentAction(formData: FormData) {
-  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const user = await requireRole(["ADMIN", "MANAGER"]);
   const billId = text(formData, "billId");
   await recordSupplierPayment(
     billId,

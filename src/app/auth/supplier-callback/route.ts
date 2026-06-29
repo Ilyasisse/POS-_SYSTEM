@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { syncGoogleSupplier } from "@/lib/auth/sync-google-supplier";
+import { syncGoogleCustomer } from "@/lib/auth/sync-google-customer";
 import { createClient } from "@/lib/supabase/server";
 import { safeInternalReturnPath } from "@/lib/suppliers/validation";
 
@@ -24,8 +24,7 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.redirect(`${origin}${returnPath}?error=google-signin-failed`);
 
   try {
-    const supplierSlug = returnPath.slice("/supplier/".length).split("/")[0];
-    await syncGoogleSupplier(user, supplierSlug);
+    await syncGoogleCustomer(user);
   } catch (syncError) {
     console.error("Supplier Google account sync failed:", syncError);
     return NextResponse.redirect(`${origin}${returnPath}?error=google-signin-failed`);

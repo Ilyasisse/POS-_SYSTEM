@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { PERMISSIONS } from "@/lib/auth/permissions";
-import { requirePermission } from "@/lib/auth/require-permission";
+import { requireRole } from "@/lib/auth/require-role";
 import {
   isValidSupplierSlug,
   normalizeEmail,
@@ -34,13 +33,13 @@ function supplierData(formData: FormData) {
 }
 
 export async function createSupplier(formData: FormData) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  await requireRole(["ADMIN", "MANAGER"]);
   await prisma.supplier.create({ data: supplierData(formData) });
   revalidatePath("/admin/suppliers");
 }
 
 export async function updateSupplier(formData: FormData) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  await requireRole(["ADMIN", "MANAGER"]);
   const id = text(formData, "id");
   if (!id) throw new Error("Supplier is required.");
   await prisma.supplier.update({ where: { id }, data: supplierData(formData) });

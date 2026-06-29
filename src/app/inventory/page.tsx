@@ -132,9 +132,7 @@ export default async function InventoryPage({
 
   const [currentUser, params, [supplies, takenTodayMovements]] =
     await Promise.all([
-      requirePermission(PERMISSIONS.INVENTORY_VIEW, {
-        stations: ["CABITAAN"],
-      }),
+      requireRole(["ADMIN", "Cabitaan"], ["CABITAAN"]),
       searchParams,
       Promise.all([
         prisma.inventorySupply.findMany({

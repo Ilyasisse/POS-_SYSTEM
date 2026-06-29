@@ -2,8 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth/current-user";
-import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
+import { createClient } from "@/lib/supabase/server";
 import { normalizeEmail } from "@/lib/suppliers/validation";
 import SupplierDeliveryForm from "./SupplierDeliveryForm";
 import SupplierSignOutButton from "./SupplierSignOutButton";
@@ -20,12 +19,11 @@ export default async function SupplierPortalPage({
   });
   if (!supplier || !supplier.isActive) notFound();
 
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const returnPath = `/supplier/${supplier.slug}`;
   const authorized = Boolean(
     user?.email &&
-    user.isActive &&
-    hasPermission(user, PERMISSIONS.SUPPLIER_PORTAL_ACCESS) &&
     supplier.googleEmail &&
     normalizeEmail(user.email) === normalizeEmail(supplier.googleEmail),
   );

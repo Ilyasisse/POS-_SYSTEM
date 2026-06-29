@@ -5,32 +5,39 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useAos } from "@/components/AosInitializer";
 
+function loginErrorMessage(error: string | null) {
+  if (error === "customer-login-required") {
+    return "Please sign in with Google to place a customer order.";
+  }
+
+  if (error === "google-signin-failed") {
+    return "Google sign in failed. Please try again.";
+  }
+
+  if (error === "unauthorized") {
+    return "You are not authorized to access that page.";
+  }
+
+  return "";
+}
+
 export default function LoginPageClient() {
   const searchParams = useSearchParams();
-  const [actionError, setActionError] = useState("");
+  const [runtimeError, setRuntimeError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const queryError = searchParams.get("error");
-  const error =
-    actionError ||
-    (queryError === "customer-login-required"
-      ? "Please sign in with Google to place a customer order."
-      : queryError === "google-signin-failed"
-        ? "Google sign in failed. Please try again."
-        : queryError === "unauthorized"
-          ? "You are not authorized to access that page."
-          : "");
+  const error = runtimeError || loginErrorMessage(searchParams.get("error"));
 
   useAos(Boolean(error));
 
   async function handleGoogleSignIn() {
-    setActionError("");
+    setRuntimeError("");
     setGoogleLoading(true);
 
     try {
       window.location.assign("/auth/google/start");
     } catch (err) {
       setGoogleLoading(false);
-      setActionError(
+      setRuntimeError(
         err instanceof Error ? err.message : "Google sign in failed.",
       );
     }
