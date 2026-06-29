@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import SignOutButton from "@/components/SignOutButton";
 import {
@@ -49,31 +50,70 @@ function formatDateTime(date: Date) {
 function getBalanceStatusMessage(balanceStatus?: string) {
   switch (balanceStatus) {
     case "opening_saved":
-      return { tone: "success" as const, message: "The opening balance has been saved." };
+      return {
+        tone: "success" as const,
+        message: "The opening balance has been saved.",
+      };
     case "opening_updated":
-      return { tone: "success" as const, message: "The opening balance has been updated." };
+      return {
+        tone: "success" as const,
+        message: "The opening balance has been updated.",
+      };
     case "closing_saved":
-      return { tone: "success" as const, message: "The closing balance has been saved." };
+      return {
+        tone: "success" as const,
+        message: "The closing balance has been saved.",
+      };
     case "reopened_saved":
-      return { tone: "success" as const, message: "The balance has been reopened." };
+      return {
+        tone: "success" as const,
+        message: "The balance has been reopened.",
+      };
     case "invalid_opening_amount":
-      return { tone: "error" as const, message: "Please enter a valid opening balance." };
+      return {
+        tone: "error" as const,
+        message: "Please enter a valid opening balance.",
+      };
     case "invalid_closing_amount":
-      return { tone: "error" as const, message: "Please enter a valid closing balance." };
+      return {
+        tone: "error" as const,
+        message: "Please enter a valid closing balance.",
+      };
     case "shift_already_closed":
-      return { tone: "error" as const, message: "This waiter's balance has already been closed today." };
+      return {
+        tone: "error" as const,
+        message: "This waiter's balance has already been closed today.",
+      };
     case "waiter_not_found":
-      return { tone: "error" as const, message: "The selected waiter could not be found." };
+      return {
+        tone: "error" as const,
+        message: "The selected waiter could not be found.",
+      };
     case "no_open_shift":
-      return { tone: "error" as const, message: "There is no open balance for this waiter." };
+      return {
+        tone: "error" as const,
+        message: "There is no open balance for this waiter.",
+      };
     case "no_closed_shift":
-      return { tone: "error" as const, message: "There is no closed balance for this waiter." };
+      return {
+        tone: "error" as const,
+        message: "There is no closed balance for this waiter.",
+      };
     case "opening_failed":
-      return { tone: "error" as const, message: "The opening balance could not be saved." };
+      return {
+        tone: "error" as const,
+        message: "The opening balance could not be saved.",
+      };
     case "closing_failed":
-      return { tone: "error" as const, message: "The closing balance could not be saved." };
+      return {
+        tone: "error" as const,
+        message: "The closing balance could not be saved.",
+      };
     case "reopen_failed":
-      return { tone: "error" as const, message: "The balance could not be reopened." };
+      return {
+        tone: "error" as const,
+        message: "The balance could not be reopened.",
+      };
     default:
       return null;
   }
@@ -216,9 +256,7 @@ function OperationalAlertsPanel({ alerts }: { alerts: Alert[] }) {
   return (
     <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3">
-        <h2 className="text-lg font-bold text-slate-900">
-          Operational alerts
-        </h2>
+        <h2 className="text-lg font-bold text-slate-900">Operational alerts</h2>
         <p className="text-sm text-slate-500">
           Display-only alerts for table flow and balance issues.
         </p>
@@ -529,25 +567,19 @@ function WaiterBalanceSummaryTable({
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-4 py-3">
-        <h2 className="font-semibold text-slate-900">
-          Waiter balance summary
-        </h2>
+        <h2 className="font-semibold text-slate-900">Waiter balance summary</h2>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-50">
             <tr>
               <th className="px-4 py-3 font-semibold text-slate-700">Name</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">
-                Orders
-              </th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Orders</th>
               <th className="px-4 py-3 font-semibold text-slate-700">Sales</th>
               <th className="px-4 py-3 font-semibold text-slate-700">
                 Opening
               </th>
-              <th className="px-4 py-3 font-semibold text-slate-700">
-                Status
-              </th>
+              <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
               <th className="px-4 py-3 font-semibold text-slate-700">
                 Difference
               </th>
@@ -587,6 +619,8 @@ function WaiterBalanceSummaryTable({
 }
 
 export default async function ManagerPage({ searchParams }: ManagerPageProps) {
+  const currentUser = await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
+  const params = await searchParams;
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
   const businessDayLabel = formatCashierBusinessDayRange(
@@ -670,7 +704,10 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       (sum, order) => sum + Number(order.total || 0),
       0,
     );
-    const shiftSummary = buildWaiterShiftSummary(waiter.shifts[0] ?? null, totalSales);
+    const shiftSummary = buildWaiterShiftSummary(
+      waiter.shifts[0] ?? null,
+      totalSales,
+    );
 
     return {
       id: waiter.id,
@@ -687,7 +724,9 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
     };
   });
 
-  const selectedWaiterId = waiters.some((waiter) => waiter.id === params?.waiterId)
+  const selectedWaiterId = waiters.some(
+    (waiter) => waiter.id === params?.waiterId,
+  )
     ? (params?.waiterId ?? "")
     : (waiters[0]?.id ?? "");
   const selectedWaiterSummary =
@@ -706,8 +745,14 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
   const showNextShiftCarryOver =
     Boolean(selectedWaiterIsClosed) && recommendedOpeningAmount < 0;
 
-  const grandTotalOrders = summaries.reduce((sum, staff) => sum + staff.totalOrders, 0);
-  const grandTotalSales = summaries.reduce((sum, staff) => sum + staff.totalSales, 0);
+  const grandTotalOrders = summaries.reduce(
+    (sum, staff) => sum + staff.totalOrders,
+    0,
+  );
+  const grandTotalSales = summaries.reduce(
+    (sum, staff) => sum + staff.totalSales,
+    0,
+  );
   const openTableTotal = openTableOrders.reduce(
     (sum, order) => sum + Number(order.total),
     0,
@@ -722,55 +767,51 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
   );
   const currentTime = new Date().getTime();
   const alerts: Alert[] = [
-    ...openTableOrders
-      .flatMap((order) =>
-        currentTime - order.createdAt.getTime() > 60 * 60 * 1000
-          ? [
-              {
-                tone: "warning" as const,
-                title: `Long open order #${order.orderNumber}`,
-                message: `${order.table?.name ?? "Table"} has been unpaid since ${formatDateTime(order.createdAt)}.`,
-              },
-            ]
-          : [],
-      ),
-    ...summaries
-      .flatMap((summary) =>
-        summary.shiftSummary.variance != null &&
-        summary.shiftSummary.variance < 0
-          ? [
-              {
-                tone: "danger" as const,
-                title: `${summary.fullName} has a negative balance variance`,
-                message: `Variance is ${formatMoney(summary.shiftSummary.variance)}.`,
-              },
-            ]
-          : [],
-      ),
-    ...summaries
-      .flatMap((summary) =>
-        summary.hasClosedShift && summary.hasOrdersWithoutPayments
-          ? [
-              {
-                tone: "warning" as const,
-                title: `${summary.fullName} has closed shift order inconsistencies`,
-                message: "At least one order in the business day has no payment recorded.",
-              },
-            ]
-          : [],
-      ),
-    ...Object.entries(tableOrderCounts)
-      .flatMap(([tableName, count]) =>
-        count > 1
-          ? [
-              {
-                tone: "warning" as const,
-                title: `${tableName} has multiple open orders`,
-                message: `${count} unpaid orders are currently open for this table.`,
-              },
-            ]
-          : [],
-      ),
+    ...openTableOrders.flatMap((order) =>
+      currentTime - order.createdAt.getTime() > 60 * 60 * 1000
+        ? [
+            {
+              tone: "warning" as const,
+              title: `Long open order #${order.orderNumber}`,
+              message: `${order.table?.name ?? "Table"} has been unpaid since ${formatDateTime(order.createdAt)}.`,
+            },
+          ]
+        : [],
+    ),
+    ...summaries.flatMap((summary) =>
+      summary.shiftSummary.variance != null && summary.shiftSummary.variance < 0
+        ? [
+            {
+              tone: "danger" as const,
+              title: `${summary.fullName} has a negative balance variance`,
+              message: `Variance is ${formatMoney(summary.shiftSummary.variance)}.`,
+            },
+          ]
+        : [],
+    ),
+    ...summaries.flatMap((summary) =>
+      summary.hasClosedShift && summary.hasOrdersWithoutPayments
+        ? [
+            {
+              tone: "warning" as const,
+              title: `${summary.fullName} has closed shift order inconsistencies`,
+              message:
+                "At least one order in the business day has no payment recorded.",
+            },
+          ]
+        : [],
+    ),
+    ...Object.entries(tableOrderCounts).flatMap(([tableName, count]) =>
+      count > 1
+        ? [
+            {
+              tone: "warning" as const,
+              title: `${tableName} has multiple open orders`,
+              message: `${count} unpaid orders are currently open for this table.`,
+            },
+          ]
+        : [],
+    ),
   ];
 
   return (

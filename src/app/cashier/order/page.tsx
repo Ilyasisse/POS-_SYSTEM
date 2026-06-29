@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import CashierOrderClient from "@/components/cashier/CashierOrderClient";
 
 type CashierOrderPageProps = {
@@ -12,22 +13,20 @@ type CashierOrderPageProps = {
 export default async function CashierOrderPage({
   searchParams,
 }: CashierOrderPageProps) {
-  const [currentUser, params, tables] = await Promise.all([
-    requireRole(["CASHIER", "ADMIN"]),
-    searchParams,
-    prisma.table.findMany({
-      where: {
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    }),
-  ]);
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_CREATE);
+  const params = await searchParams;
+  const tables = await prisma.table.findMany({
+    where: {
+      isActive: true,
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
 
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-100 via-blue-50 to-blue-100 px-4 py-6 text-slate-900 md:px-6">

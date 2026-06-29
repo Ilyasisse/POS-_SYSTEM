@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import AdminShell from "@/components/admin/layout/AdminShell";
-import { requireRole } from "@/lib/auth/require-role";
+import { getPermissionsForRole, PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 
 type AdminLayoutProps = {
@@ -8,6 +9,7 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
+  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
   const [
     currentUser,
     [
@@ -47,6 +49,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       currentUser={{
         fullName: currentUser.fullName,
         role: currentUser.role,
+        permissions: getPermissionsForRole(currentUser.role),
       }}
       counts={{
         categories: categoryCount,

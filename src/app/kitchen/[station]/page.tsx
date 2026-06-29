@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import KitchenClient from "@/components/kitchen/KitchenClient";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { stationFromPathSegment } from "@/lib/kitchen/kitchen-socket";
 
 type KitchenStationPageProps = {
@@ -19,9 +20,9 @@ export default async function KitchenStationPage({
     notFound();
   }
 
-  const currentUser = await requireRole(
-    ["ADMIN", "BARISTA", "COOK", "Cabitaan"],
-    [station]
+  const currentUser = await requirePermission(
+    PERMISSIONS.KITCHEN_TICKET_VIEW,
+    { stations: [station] },
   );
 
   return (

@@ -10,7 +10,8 @@ type HeaderProps = {
   }[];
 };
 
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import StateCard from "./UI Cards/StateCard";
 
 import {
@@ -29,7 +30,7 @@ export default async function Header({
   staffCount,
   todayOrders,
 }: HeaderProps) {
-  const currentUser = await requireRole(["ADMIN", "MANAGER"]);
+  const currentUser = await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
 
   const openTodayOrders = todayOrders.filter(
     (order) => order.status === "OPEN",

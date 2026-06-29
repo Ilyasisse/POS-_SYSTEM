@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 
 const LEGACY_UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "pronunciations");
 const PRONUNCIATION_BUCKET =
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
     if (
       !currentUser ||
       !currentUser.isActive ||
-      !["ADMIN", "MANAGER"].includes(currentUser.role)
+      !hasPermission(currentUser, PERMISSIONS.CATALOG_MANAGE)
     ) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }

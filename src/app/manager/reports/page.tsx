@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 type ManagerReportsPageProps = {
   searchParams?: Promise<{
@@ -11,7 +12,7 @@ type ManagerReportsPageProps = {
 export default async function ManagerReportsPage({
   searchParams,
 }: ManagerReportsPageProps) {
-  await requireRole(["MANAGER", "ADMIN"]);
+  await requirePermission(PERMISSIONS.REPORT_VIEW);
 
   const params = await searchParams;
   const query = new URLSearchParams();

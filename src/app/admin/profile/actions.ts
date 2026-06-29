@@ -3,10 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole as requireAuth } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 export async function updateAdminProfile(formData: FormData) {
-  const currentUser = await requireAuth(["ADMIN", "MANAGER"]);
+  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
   const fullName = String(formData.get("fullName") ?? "").trim();
   const phoneNumber = String(formData.get("phoneNumber") ?? "").trim();
 

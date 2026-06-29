@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 
 type PayOrderBody = {
   orderId?: string;
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!["CASHIER", "ADMIN"].includes(currentUser.role)) {
+    if (!hasPermission(currentUser, PERMISSIONS.PAYMENT_TAKE)) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 

@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { authorizeApiAny } from "@/lib/auth/api-authorization";
+import { PERMISSIONS } from "@/lib/auth/permissions";
 
 export const revalidate = 60;
 
 export async function GET() {
   try {
+    const authorization = await authorizeApiAny([
+      PERMISSIONS.ORDER_CREATE,
+      PERMISSIONS.CUSTOMER_ORDER,
+    ]);
+    if (!authorization.ok) return authorization.response;
+
     const baristas = await prisma.user.findMany({
       where: {
         role: "BARISTA",

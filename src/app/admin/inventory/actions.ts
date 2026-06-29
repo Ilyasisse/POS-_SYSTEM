@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole as requireAuth } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
@@ -19,6 +20,11 @@ function getString(formData: FormData, key: string) {
 // Reads a quantity field from an inventory form as a non-negative whole number.
 function getQuantity(formData: FormData, key: string) {
   return Math.max(0, Math.floor(Number(formData.get(key)) || 0));
+}
+
+// Ensures only admins and managers can change inventory.
+async function requireInventoryAccess() {
+  await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
 
 // Redirects back to inventory with a query param that drives the email status popup.

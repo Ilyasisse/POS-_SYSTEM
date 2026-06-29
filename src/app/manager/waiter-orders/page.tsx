@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   formatCashierBusinessDayRange,
@@ -70,22 +71,101 @@ function formatMoney(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
 function formatDateTime(date: Date) {
-  return dateTimeFormatter.format(date);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
-function WaiterOrdersHeader({
-  fullName,
-  businessDayLabel,
-}: WaiterOrdersHeaderProps) {
+export default async function CashierWaiterOrdersPage({
+  searchParams,
+}: CashierWaiterOrdersPageProps) {
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
+  const params = await searchParams;
+  const { start: businessDayStart, end: businessDayEnd } =
+    getCashierBusinessDayRange();
+  const businessDayLabel = formatCashierBusinessDayRange(
+    businessDayStart,
+    businessDayEnd,
+  );
+  const cookieStore = await cookies();
+  const deletedItems = parseDeletedOrderItemSnapshots(
+    cookieStore.get(CASHIER_DELETED_ORDER_ITEM_COOKIE)?.value,
+  ).filter((snapshot) => {
+    const orderCreatedAt = new Date(snapshot.order.createdAt);
+
+    return (
+      orderCreatedAt >= businessDayStart && orderCreatedAt < businessDayEnd
+    );
+  });
+
+  const waiters = await prisma.user.findMany({
+    where: {
+      role: "WAITER",
+      isActive: true,
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+    },
+    orderBy: {
+      fullName: "asc",
+    },
+  });
+
+  const selectedWaiterId = waiters.some(
+    (waiter) => waiter.id === params?.waiterId,
+  )
+    ? (params?.waiterId ?? "")
+    : (waiters[0]?.id ?? "");
+
+  const selectedWaiter =
+    waiters.find((waiter) => waiter.id === selectedWaiterId) ?? null;
+
+  const orders = selectedWaiterId
+    ? await prisma.order.findMany({
+        where: {
+          waiterId: selectedWaiterId,
+          createdAt: {
+            gte: businessDayStart,
+            lt: businessDayEnd,
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          table: {
+            select: {
+              name: true,
+            },
+          },
+          orderItems: {
+            select: {
+              id: true,
+              productName: true,
+              qty: true,
+              lineTotal: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      })
+    : [];
+
+  const totalOrders = orders.length;
+  const totalSales = orders.reduce(
+    (sum, order) => sum + Number(order.total),
+    0,
+  );
+
   return (
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>

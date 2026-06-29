@@ -3,11 +3,11 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole as requireAuth } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 export async function createModifierGroup(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
-
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const name = String(formData.get("name") || "").trim();
   const minSelect = Number(formData.get("minSelect") || 0);
   const maxSelect = Number(formData.get("maxSelect") || 1);
@@ -27,8 +27,7 @@ export async function createModifierGroup(formData: FormData) {
 }
 
 export async function updateModifierGroup(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
-
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const id = String(formData.get("id"));
   const name = String(formData.get("name"));
   const minSelect = Number(formData.get("minSelect"));
@@ -50,8 +49,7 @@ export async function updateModifierGroup(formData: FormData) {
 }
 
 export async function deleteModifierGroup(formData: FormData) {
-  await requireAuth(["ADMIN", "MANAGER"]);
-
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const id = String(formData.get("id"));
 
   await prisma.modifierGroup.delete({

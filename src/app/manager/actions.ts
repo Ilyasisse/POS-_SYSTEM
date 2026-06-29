@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole as requireAuth } from "@/lib/auth/require-role";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import {
   closeWaiterBusinessDayShift,
   openWaiterBusinessDayShift,
@@ -35,7 +36,7 @@ function refreshManagerViews() {
 }
 
 export async function saveWaiterOpeningBalance(formData: FormData) {
-  await requireAuth(["MANAGER", "ADMIN"]);
+  await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const waiterId = String(formData.get("waiterId") ?? "").trim();
   const openingAmount = parseAmount(formData.get("openingAmount")) ?? 0;
@@ -68,7 +69,7 @@ export async function saveWaiterOpeningBalance(formData: FormData) {
 }
 
 export async function closeWaiterBalanceFromManager(formData: FormData) {
-  await requireAuth(["MANAGER", "ADMIN"]);
+  await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const waiterId = String(formData.get("waiterId") ?? "").trim();
   const closingAmount = parseAmount(formData.get("closingAmount"));
@@ -95,7 +96,7 @@ export async function closeWaiterBalanceFromManager(formData: FormData) {
 }
 
 export async function reopenWaiterBalanceFromManager(formData: FormData) {
-  await requireAuth(["MANAGER", "ADMIN"]);
+  await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const waiterId = String(formData.get("waiterId") ?? "").trim();
 
