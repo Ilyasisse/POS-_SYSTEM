@@ -16,6 +16,7 @@ export const PERMISSIONS = {
   PAYMENT_TAKE: "payment.take",
   REPORT_VIEW: "report.view",
   SETTINGS_MANAGE: "settings.manage",
+  SUPPLIER_MANAGE: "supplier.manage",
   KITCHEN_TICKET_VIEW: "kitchen.ticket.view",
   KITCHEN_TICKET_UPDATE: "kitchen.ticket.update",
   SUPPLIER_PORTAL_ACCESS: "supplier.portal.access",
@@ -39,6 +40,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.ORDER_VIEW_ALL,
     PERMISSIONS.ORDER_MANAGE,
     PERMISSIONS.REPORT_VIEW,
+    PERMISSIONS.SUPPLIER_MANAGE,
   ],
   CASHIER: [
     PERMISSIONS.TABLE_MANAGE,

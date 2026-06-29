@@ -619,8 +619,6 @@ function WaiterBalanceSummaryTable({
 }
 
 export default async function ManagerPage({ searchParams }: ManagerPageProps) {
-  const currentUser = await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
-  const params = await searchParams;
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
   const businessDayLabel = formatCashierBusinessDayRange(

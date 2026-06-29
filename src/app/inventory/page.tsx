@@ -128,11 +128,6 @@ function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
 export default async function InventoryPage({
   searchParams,
 }: InventoryPageProps) {
-  const currentUser = await requirePermission(PERMISSIONS.INVENTORY_VIEW, {
-    stations: ["CABITAAN"],
-  });
-  const params = await searchParams;
-  const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
   const todayStart = getEatDayStart();
 
   const [currentUser, params, [supplies, takenTodayMovements]] =

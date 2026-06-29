@@ -6,6 +6,7 @@
 | Catalog management | Yes | Yes | No | No | No | No | No | No |
 | Inventory management | Yes | Yes | No | No | Cabitaan | No | No | No |
 | Staff management | Yes | Yes | No | No | No | No | No | No |
+| Supplier management | Yes | Yes | No | No | No | No | No | No |
 | All orders | Yes | Yes | Yes | No | No | No | No | No |
 | Assigned orders | Yes | Yes | Yes | Yes | No | No | No | No |
 | Take payments | Yes | No | Yes | No | No | No | No | No |

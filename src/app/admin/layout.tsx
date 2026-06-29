@@ -9,7 +9,6 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
-  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
   const [
     currentUser,
     [

@@ -26,7 +26,6 @@ function getQuantity(formData: FormData, key: string) {
 async function requireInventoryAccess() {
   await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
-
 // Redirects back to inventory with a query param that drives the email status popup.
 function redirectWithInventoryEmailStatus(
   result: Awaited<ReturnType<typeof sendInventoryAlerts>>,

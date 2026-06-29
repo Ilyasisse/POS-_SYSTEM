@@ -58,9 +58,6 @@ function getPaymentStatusMessage(paymentStatus?: string) {
 }
 
 export default async function CashierPage({ searchParams }: CashierPageProps) {
-  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
-  const params = await searchParams;
-  const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
   const businessDayLabel = formatCashierBusinessDayRange(
