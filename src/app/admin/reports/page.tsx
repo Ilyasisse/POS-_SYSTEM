@@ -134,6 +134,8 @@ export default async function AdminReportsPage({
               id: true,
               openingAmount: true,
               closingAmount: true,
+              reportedSales: true,
+              businessDate: true,
               openedAt: true,
               closedAt: true,
             },
