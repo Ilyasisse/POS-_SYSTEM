@@ -16,16 +16,14 @@ export async function createModifier(formData: FormData) {
     formData.get("pronunciationAudioUrl") || "",
   ).trim();
 
-  const productIds = formData
-    .getAll("productIds")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
+  const productIds = formData.getAll("productIds").flatMap((value) => {
+    const productId = String(value).trim();
+    return productId ? [productId] : [];
+  });
 
   if (!name) {
     throw new Error("Modifier name is required.");
   }
-
-  
 
   if (productIds.length === 0) {
     throw new Error("At least one product is required.");
@@ -46,8 +44,8 @@ export async function createModifier(formData: FormData) {
           modifierGroupId,
           pronunciationAudioUrl: pronunciationAudioUrl || null,
         },
-      })
-    )
+      }),
+    ),
   );
 
   revalidatePath("/admin/modifiers");

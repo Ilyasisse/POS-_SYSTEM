@@ -26,7 +26,6 @@ function getQuantity(formData: FormData, key: string) {
 async function requireInventoryAccess() {
   await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
-
 // Redirects back to inventory with a query param that drives the email status popup.
 function redirectWithInventoryEmailStatus(
   result: Awaited<ReturnType<typeof sendInventoryAlerts>>,
@@ -69,7 +68,10 @@ export async function createSupply(formData: FormData) {
       unit,
       stockQty,
       lowStockThreshold,
-      inventoryAlertStatus: getInventoryAlertStatus(stockQty, lowStockThreshold),
+      inventoryAlertStatus: getInventoryAlertStatus(
+        stockQty,
+        lowStockThreshold,
+      ),
     },
   });
 
@@ -94,12 +96,7 @@ export async function updateProductInventory(formData: FormData) {
   // Product movement reasons are no longer passed because product changes do
   // not create InventoryMovement rows after productId was removed from that table.
   const alerts = await prisma.$transaction((tx) =>
-    setProductInventoryLevel(
-      tx,
-      productId,
-      stockQty,
-      lowStockThreshold,
-    ),
+    setProductInventoryLevel(tx, productId, stockQty, lowStockThreshold),
   );
 
   await sendInventoryAlerts(alerts);

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import LoginPageClient from "@/components/auth/LoginPageClient";
+import { redirectAuthenticatedUser } from "@/lib/auth/redirect-authenticated-user";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,9 @@ function LoginFallback() {
  *
  * @remarks Uses the reusable LoginPageClient component from src/components/auth.
  */
-export default function LoginPage() {
+export default async function LoginPage() {
+  await redirectAuthenticatedUser();
+
   return (
     <Suspense fallback={<LoginFallback />}>
       <LoginPageClient />

@@ -261,7 +261,7 @@ export function setKitchenTicketPickupStatus(
   };
 }
 
-export function isKitchenStation(value: string): value is KitchenStation {
+function isKitchenStation(value: string): value is KitchenStation {
   return KITCHEN_STATIONS.includes(value as KitchenStation);
 }
 
@@ -293,7 +293,7 @@ export function normalizeKitchenStation(
   return undefined;
 }
 
-export function normalizeKitchenTicketItem(
+function normalizeKitchenTicketItem(
   item: Omit<Partial<KitchenTicketItem>, "station" | "modifiers"> & {
     station?: string | null;
     modifiers?: KitchenTicketModifierLike[] | null;
@@ -460,13 +460,13 @@ export function filterKitchenTicketsByStation(
     .filter((ticket): ticket is KitchenTicket => ticket !== null);
 }
 
-export function normalizeKitchenStationParam(
+function normalizeKitchenStationParam(
   station?: string | null,
 ): KitchenStation | undefined {
   return normalizeKitchenStation(station);
 }
 
-export function stationPathSegment(station: KitchenStation) {
+function stationPathSegment(station: KitchenStation) {
   if (station === "FAST_FOOD") {
     return "fast-food";
   }
@@ -526,10 +526,6 @@ export function getKitchenSocketUrl(
 
   if (resolvedFilter.userId) {
     params.set("userId", resolvedFilter.userId);
-  }
-
-  if (resolvedFilter.role) {
-    params.set("role", resolvedFilter.role);
   }
 
   const query = params.toString();

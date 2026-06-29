@@ -19,13 +19,15 @@ type AdminOrdersPageProps = {
   }>;
 };
 
+const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return dateTimeFormatter.format(date);
 }
 
 function formatMoney(value: number) {
@@ -49,7 +51,9 @@ export default async function AdminOrdersPage({
   startOfToday.setHours(0, 0, 0, 0);
   const startDate = date === "today" ? startOfToday : undefined;
   const where = {
-    ...(status !== "all" ? { status: status as "OPEN" | "PAID" | "CANCELLED" } : {}),
+    ...(status !== "all"
+      ? { status: status as "OPEN" | "PAID" | "CANCELLED" }
+      : {}),
     ...(startDate
       ? {
           createdAt: {
@@ -107,8 +111,12 @@ export default async function AdminOrdersPage({
     }),
   ]);
 
-  const openToday = ordersToday.filter((order) => order.status === "OPEN").length;
-  const paidToday = ordersToday.filter((order) => order.status === "PAID").length;
+  const openToday = ordersToday.filter(
+    (order) => order.status === "OPEN",
+  ).length;
+  const paidToday = ordersToday.filter(
+    (order) => order.status === "PAID",
+  ).length;
   const revenueToday = ordersToday.reduce(
     (sum, order) => sum + Number(order.total),
     0,
@@ -116,14 +124,19 @@ export default async function AdminOrdersPage({
 
   return (
     <AdminPageFrame
-      
       title="Orders"
       description="Track and manage customer orders"
     >
       <section className="grid gap-4 sm:grid-cols-3">
         <AdminStatCard label="Orders Today" value={ordersToday.length} />
-        <AdminStatCard label="Open vs Paid" value={`${openToday} / ${paidToday}`} />
-        <AdminStatCard label="Revenue Today" value={formatMoney(revenueToday)} />
+        <AdminStatCard
+          label="Open vs Paid"
+          value={`${openToday} / ${paidToday}`}
+        />
+        <AdminStatCard
+          label="Revenue Today"
+          value={formatMoney(revenueToday)}
+        />
       </section>
 
       <AdminTableShell
@@ -144,7 +157,10 @@ export default async function AdminOrdersPage({
             <option value="today">Date Today</option>
             <option value="all">All Time</option>
           </AdminSelect>
-          <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <button
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          >
             Filter
           </button>
         </AdminSearchToolbar>
@@ -171,11 +187,17 @@ export default async function AdminOrdersPage({
             ) : (
               recentOrders.map((order, index) => (
                 <tr key={order.id} className="border-b border-slate-50">
-                  <AdminTd className="font-bold text-slate-400">{index + 1}</AdminTd>
+                  <AdminTd className="font-bold text-slate-400">
+                    {index + 1}
+                  </AdminTd>
                   <AdminTd className="font-black text-slate-950">
                     #{order.orderNumber}
                   </AdminTd>
-                  <AdminTd>{order.waiter?.fullName ?? order.cashier?.fullName ?? "Walk-in"}</AdminTd>
+                  <AdminTd>
+                    {order.waiter?.fullName ??
+                      order.cashier?.fullName ??
+                      "Walk-in"}
+                  </AdminTd>
                   <AdminTd>{order.type.replace("_", "-")}</AdminTd>
                   <AdminTd>{formatMoney(Number(order.total))}</AdminTd>
                   <AdminTd>

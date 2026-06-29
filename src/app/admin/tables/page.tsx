@@ -22,7 +22,8 @@ type TablePageProps = {
 
 function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
   if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
-  if (table.orders.length > 0) return { label: "Occupied", tone: "red" as const };
+  if (table.orders.length > 0)
+    return { label: "Occupied", tone: "red" as const };
   return { label: "Available", tone: "green" as const };
 }
 
@@ -70,12 +71,16 @@ export default async function TablePage({ searchParams }: TablePageProps) {
   ).filter((table) => !q || table.name.toLowerCase().includes(q));
 
   const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter((table) => table.orders.length > 0).length;
-  const openOrders = tables.reduce((sum, table) => sum + table.orders.length, 0);
+  const occupiedTables = tables.filter(
+    (table) => table.orders.length > 0,
+  ).length;
+  const openOrders = tables.reduce(
+    (sum, table) => sum + table.orders.length,
+    0,
+  );
 
   return (
     <AdminPageFrame
-      
       title="Tables"
       description="Manage dine-in tables and their status"
     >
@@ -87,7 +92,10 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <section className="grid gap-4 sm:grid-cols-3">
         <AdminStatCard label="Total Tables" value={tables.length} />
-        <AdminStatCard label="Available" value={activeTables - occupiedTables} />
+        <AdminStatCard
+          label="Available"
+          value={activeTables - occupiedTables}
+        />
         <AdminStatCard label="Open Orders" value={openOrders} />
       </section>
 
@@ -96,6 +104,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
         className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_auto]"
       >
         <input
+          aria-label="Table name or number"
           name="tableName"
           type="text"
           className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
@@ -112,8 +121,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
             </p>
           }
         >
-          <AdminSearchToolbar placeholder="Search tables..." defaultValue={params?.q ?? ""}>
-            <button className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <AdminSearchToolbar
+            placeholder="Search tables..."
+            defaultValue={params?.q ?? ""}
+          >
+            <button
+              type="submit"
+              className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            >
               Filter
             </button>
           </AdminSearchToolbar>
@@ -150,7 +165,9 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                       <AdminTd>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                       </AdminTd>
-                      <AdminTd>{index % 2 === 0 ? "Main Floor" : "Outdoor"}</AdminTd>
+                      <AdminTd>
+                        {index % 2 === 0 ? "Main Floor" : "Outdoor"}
+                      </AdminTd>
                       <AdminTd>{table.orders.length}</AdminTd>
                     </tr>
                   );

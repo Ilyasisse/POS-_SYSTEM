@@ -1,136 +1,38 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { useAos } from "@/components/AosInitializer";
-import { createClient } from "@/lib/supabase/client";
-
-type MeResponse = {
-  id: string;
-  fullName: string;
-  role: string;
-  station: string | null;
-  isActive: boolean;
-};
-
-type FetchMeResult = {
-  ok: boolean;
-  status: number;
-  data: MeResponse | null;
-  error: string | null;
-};
-
-const CUSTOMER_MENU_PATH = "/menu";
 
 export default function LoginPageClient() {
-  const supabase = useMemo(() => createClient(), []);
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+  const queryError = searchParams.get("error");
+  const error =
+    actionError ||
+    (queryError === "customer-login-required"
+      ? "Please sign in with Google to place a customer order."
+      : queryError === "google-signin-failed"
+        ? "Google sign in failed. Please try again."
+        : queryError === "unauthorized"
+          ? "You are not authorized to access that page."
+          : "");
 
-  useAos([checkingSession, Boolean(error)]);
-
-  useEffect(() => {
-    const queryError = searchParams.get("error");
-
-    if (queryError === "customer-login-required") {
-      setError("Please sign in with Google to place a customer order.");
-    } else if (queryError === "google-signin-failed") {
-      setError("Google sign in failed. Please try again.");
-    } else if (queryError === "unauthorized") {
-      setError("You are not authorized to access that page.");
-    } else {
-      setError("");
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!supabase) {
-      setCheckingSession(false);
-      setError(
-        "Supabase environment variables are missing. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
-      );
-      return;
-    }
-
-    const client = supabase;
-    let mounted = true;
-
-    async function checkExistingSession() {
-      try {
-        const {
-          data: { user },
-        } = await client.auth.getUser();
-
-        if (!mounted) return;
-
-        if (!user) {
-          setCheckingSession(false);
-          return;
-        }
-
-        const me = await fetchMe();
-
-        if (!mounted) return;
-
-        if (!me.ok || !me.data) {
-          if (me.status === 404) {
-            window.location.assign(CUSTOMER_MENU_PATH);
-            return;
-          }
-
-          setCheckingSession(false);
-          return;
-        }
-
-        router.replace(getDefaultRouteForProfile(me.data));
-      } catch (err) {
-        console.error("Session check failed:", err);
-
-        if (mounted) {
-          setCheckingSession(false);
-        }
-      }
-    }
-
-    checkExistingSession();
-
-    return () => {
-      mounted = false;
-    };
-  }, [router, supabase]);
+  useAos(Boolean(error));
 
   async function handleGoogleSignIn() {
-    setError("");
+    setActionError("");
     setGoogleLoading(true);
 
     try {
-      if (!supabase) {
-        throw new Error(
-          "Supabase environment variables are missing. Update the project settings and redeploy.",
-        );
-      }
-
-      const callbackUrl = new URL("/auth/callback", window.location.origin);
-      callbackUrl.searchParams.set("next", CUSTOMER_MENU_PATH);
-
-      const { error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: callbackUrl.toString(),
-        },
-      });
-
-      if (signInError) {
-        throw new Error(signInError.message);
-      }
+      window.location.assign("/auth/google/start");
     } catch (err) {
       setGoogleLoading(false);
-      setError(err instanceof Error ? err.message : "Google sign in failed.");
+      setActionError(
+        err instanceof Error ? err.message : "Google sign in failed.",
+      );
     }
   }
 
@@ -175,7 +77,7 @@ export default function LoginPageClient() {
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={googleLoading || !supabase}
+            disabled={googleLoading}
             data-aos="fade-up"
             data-aos-delay="80"
             className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#2f180d] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-[#442719] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
@@ -208,89 +110,3 @@ function LoginShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-async function fetchMe(): Promise<FetchMeResult> {
-  try {
-    const response = await fetch("/api/me", {
-      method: "GET",
-      cache: "no-store",
-    });
-
-    const raw = await response.text();
-    let parsed: unknown;
-
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      console.error("/api/me returned non-JSON:", raw);
-
-      return {
-        ok: false,
-        status: response.status,
-        data: null,
-        error: "The /api/me route returned HTML instead of JSON.",
-      };
-    }
-
-    if (!response.ok) {
-      const errorMessage =
-        typeof parsed === "object" &&
-        parsed !== null &&
-        "error" in parsed &&
-        typeof (parsed as { error?: unknown }).error === "string"
-          ? (parsed as { error: string }).error
-          : "Request failed";
-
-      return {
-        ok: false,
-        status: response.status,
-        data: null,
-        error: errorMessage,
-      };
-    }
-
-    return {
-      ok: true,
-      status: response.status,
-      data: parsed as MeResponse,
-      error: null,
-    };
-  } catch (err) {
-    console.error("fetchMe failed:", err);
-
-    return {
-      ok: false,
-      status: 0,
-      data: null,
-      error: "Could not reach /api/me.",
-    };
-  }
-}
-
-function getDefaultRouteForProfile(user: MeResponse) {
-  if (user.role === "ADMIN") return "/admin";
-  if (user.role === "MANAGER") return "/manager";
-  if (user.role === "CASHIER") return "/cashier";
-  if (user.role === "WAITER") return "/waiter";
-  if (user.role === "CUSTOMER") return "/menu";
-  if (user.role === "BARISTA" || user.station === "BARISTA") {
-    return "/kitchen/barista";
-  }
-
-  if (
-    user.role === "CABITAAN" ||
-    user.role === "Cabitaan" ||
-    user.station === "CABITAAN"
-  ) {
-    return "/kitchen/cabitaan";
-  }
-
-  if (user.role === "COOK" && user.station === "FAST_FOOD") {
-    return "/kitchen/fast-food";
-  }
-
-  if (user.role === "COOK" && user.station === "CUNTO_SOOMAALI") {
-    return "/kitchen/cunto-soomaali";
-  }
-
-  return "/menu";
-}

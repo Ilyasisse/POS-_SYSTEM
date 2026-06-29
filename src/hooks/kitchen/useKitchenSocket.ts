@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import {
   filterKitchenTicketByStation,
   getKitchenSocketUrl,
@@ -26,6 +26,58 @@ type UseKitchenSocketOptions = {
   currentUserRole?: KitchenViewerRole | null;
 };
 
+type KitchenSocketState = {
+  tickets: KitchenTicket[];
+  socketStatus: SocketStatus;
+  statusMessage: string;
+};
+
+type KitchenSocketAction =
+  | {
+      type: "ticketsChanged";
+      update: KitchenTicket[] | ((current: KitchenTicket[]) => KitchenTicket[]);
+    }
+  | {
+      type: "socketStatusChanged";
+      socketStatus: SocketStatus;
+    }
+  | {
+      type: "statusMessageChanged";
+      statusMessage: string;
+    };
+
+const initialKitchenSocketState: KitchenSocketState = {
+  tickets: [],
+  socketStatus: "connecting",
+  statusMessage: "",
+};
+
+function kitchenSocketReducer(
+  state: KitchenSocketState,
+  action: KitchenSocketAction,
+): KitchenSocketState {
+  switch (action.type) {
+    case "ticketsChanged":
+      return {
+        ...state,
+        tickets:
+          typeof action.update === "function"
+            ? action.update(state.tickets)
+            : action.update,
+      };
+    case "socketStatusChanged":
+      return {
+        ...state,
+        socketStatus: action.socketStatus,
+      };
+    case "statusMessageChanged":
+      return {
+        ...state,
+        statusMessage: action.statusMessage,
+      };
+  }
+}
+
 export function useKitchenSocket(options?: UseKitchenSocketOptions) {
   const station = normalizeKitchenStation(options?.station);
   const currentUserId = options?.currentUserId ?? null;
@@ -42,20 +94,23 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
     [currentUserId, currentUserRole, station],
   );
 
-  const [tickets, setTickets] = useState<KitchenTicket[]>([]);
-  const [socketStatus, setSocketStatus] = useState<SocketStatus>("connecting");
-  const [statusMessage, setStatusMessage] = useState("");
+  const [{ tickets, socketStatus, statusMessage }, dispatch] = useReducer(
+    kitchenSocketReducer,
+    initialKitchenSocketState,
+  );
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let disposed = false;
+    let activeSocket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
 
     const connect = () => {
       if (disposed) return;
 
-      setSocketStatus("connecting");
+      dispatch({ type: "socketStatusChanged", socketStatus: "connecting" });
 
       const socketUrl = getKitchenSocketUrl({
         station,
@@ -63,6 +118,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         role: currentUserRole,
       });
       const ws = new WebSocket(socketUrl);
+      activeSocket = ws;
       socketRef.current = ws;
 
       ws.onopen = () => {
@@ -71,12 +127,13 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
           return;
         }
 
-        setSocketStatus("connected");
-        setStatusMessage(
-          station
+        dispatch({ type: "socketStatusChanged", socketStatus: "connected" });
+        dispatch({
+          type: "statusMessageChanged",
+          statusMessage: station
             ? `Connected to the ${translateKitchenStationName(station)} kitchen queue.`
             : "Connected. Waiting for orders...",
-        );
+        });
       };
 
       ws.onmessage = (event) => {
@@ -84,8 +141,9 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         if (!incoming) return;
 
         if (incoming.type === "ORDER_SNAPSHOT") {
-          setTickets(
-            incoming.payload
+          dispatch({
+            type: "ticketsChanged",
+            update: incoming.payload
               .map((ticket) =>
                 filterKitchenTicketByStation(ticket, {
                   station: filterOptions.station,
@@ -94,7 +152,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
                 }),
               )
               .filter((ticket): ticket is KitchenTicket => ticket !== null),
-          );
+          });
           return;
         }
 
@@ -109,24 +167,30 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
             return;
           }
 
-          setTickets((current) => {
-            const withoutExisting = current.filter(
-              (ticket) => ticket.id !== filteredTicket.id,
-            );
-            return [filteredTicket, ...withoutExisting];
+          dispatch({
+            type: "ticketsChanged",
+            update: (current) => {
+              const withoutExisting = current.filter(
+                (ticket) => ticket.id !== filteredTicket.id,
+              );
+              return [filteredTicket, ...withoutExisting];
+            },
           });
 
-          setStatusMessage(
-            `New ticket #${filteredTicket.orderNumber} received`,
-          );
+          dispatch({
+            type: "statusMessageChanged",
+            statusMessage: `New ticket #${filteredTicket.orderNumber} received`,
+          });
           return;
         }
 
         if (incoming.type === "UPDATE_ORDER_STATUS") {
           const { id, station: updatedStation, status } = incoming.payload;
 
-          setTickets((current) => {
-            return current.reduce<KitchenTicket[]>((accumulator, ticket) => {
+          dispatch({
+            type: "ticketsChanged",
+            update: (current) =>
+              current.reduce<KitchenTicket[]>((accumulator, ticket) => {
               if (ticket.id !== id) {
                 accumulator.push(ticket);
                 return accumulator;
@@ -142,7 +206,7 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
               }
 
               return accumulator;
-            }, []);
+            }, []),
           });
           return;
         }
@@ -155,8 +219,10 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
             claimedByWaiterName,
           } = incoming.payload;
 
-          setTickets((current) => {
-            return current.reduce<KitchenTicket[]>((accumulator, ticket) => {
+          dispatch({
+            type: "ticketsChanged",
+            update: (current) =>
+              current.reduce<KitchenTicket[]>((accumulator, ticket) => {
               if (ticket.id !== id) {
                 accumulator.push(ticket);
                 return accumulator;
@@ -181,21 +247,31 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
               }
 
               return accumulator;
-            }, []);
+            }, []),
           });
         }
       };
 
       ws.onerror = () => {
-        setSocketStatus("disconnected");
+        dispatch({
+          type: "socketStatusChanged",
+          socketStatus: "disconnected",
+        });
       };
 
       ws.onclose = () => {
         if (disposed) return;
 
-        setSocketStatus("disconnected");
-        setStatusMessage("Connection lost. Reconnecting...");
-        reconnectTimerRef.current = window.setTimeout(connect, 1500);
+        dispatch({
+          type: "socketStatusChanged",
+          socketStatus: "disconnected",
+        });
+        dispatch({
+          type: "statusMessageChanged",
+          statusMessage: "Connection lost. Reconnecting...",
+        });
+        reconnectTimer = window.setTimeout(connect, 1500);
+        reconnectTimerRef.current = reconnectTimer;
       };
     };
 
@@ -204,12 +280,12 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
     return () => {
       disposed = true;
 
-      if (reconnectTimerRef.current) {
-        window.clearTimeout(reconnectTimerRef.current);
+      if (reconnectTimer) {
+        window.clearTimeout(reconnectTimer);
       }
 
-      if (socketRef.current) {
-        socketRef.current.close();
+      if (activeSocket) {
+        activeSocket.close();
       }
     };
   }, [currentUserId, currentUserRole, filterOptions, station]);
@@ -231,12 +307,17 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
 
   const updateTicketStatus = (id: string, status: KitchenTicketStatus) => {
     if (!station) {
-      setStatusMessage("Open a station queue to change ticket status.");
+      dispatch({
+        type: "statusMessageChanged",
+        statusMessage: "Open a station queue to change ticket status.",
+      });
       return;
     }
 
-    setTickets((current) => {
-      return current.reduce<KitchenTicket[]>((accumulator, ticket) => {
+    dispatch({
+      type: "ticketsChanged",
+      update: (current) =>
+        current.reduce<KitchenTicket[]>((accumulator, ticket) => {
         if (ticket.id !== id) {
           accumulator.push(ticket);
           return accumulator;
@@ -252,14 +333,15 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
         }
 
         return accumulator;
-      }, []);
+      }, []),
     });
 
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setStatusMessage(
-        "Unable to sync the update. The kitchen connection is offline.",
-      );
+      dispatch({
+        type: "statusMessageChanged",
+        statusMessage: "Unable to sync the update. The kitchen connection is offline.",
+      });
       return;
     }
 
@@ -276,7 +358,10 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
     pickupStatus: KitchenTicketPickupStatus,
   ) => {
     if (!isWaiterPickupViewer) {
-      setStatusMessage("Only the waiter pickup display can update delivery.");
+      dispatch({
+        type: "statusMessageChanged",
+        statusMessage: "Only the waiter pickup display can update delivery.",
+      });
       return;
     }
 
@@ -288,7 +373,10 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
       ticket.claimedByWaiterId !== currentUserId &&
       currentUserRole !== "ADMIN"
     ) {
-      setStatusMessage("This ticket is claimed by another waiter.");
+      dispatch({
+        type: "statusMessageChanged",
+        statusMessage: "This ticket is claimed by another waiter.",
+      });
       return;
     }
 
@@ -297,8 +385,10 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
     const claimedByWaiterName =
       pickupStatus === "claimed" ? currentUserName : ticket?.claimedByWaiterName;
 
-    setTickets((current) => {
-      return current.reduce<KitchenTicket[]>((accumulator, currentTicket) => {
+    dispatch({
+      type: "ticketsChanged",
+      update: (current) =>
+        current.reduce<KitchenTicket[]>((accumulator, currentTicket) => {
         if (currentTicket.id !== id) {
           accumulator.push(currentTicket);
           return accumulator;
@@ -317,14 +407,16 @@ export function useKitchenSocket(options?: UseKitchenSocketOptions) {
           ),
         );
         return accumulator;
-      }, []);
+      }, []),
     });
 
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setStatusMessage(
-        "Unable to sync the pickup update. The kitchen connection is offline.",
-      );
+      dispatch({
+        type: "statusMessageChanged",
+        statusMessage:
+          "Unable to sync the pickup update. The kitchen connection is offline.",
+      });
       return;
     }
 

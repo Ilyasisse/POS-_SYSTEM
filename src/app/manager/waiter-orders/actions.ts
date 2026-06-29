@@ -370,6 +370,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           type: snapshot.order.type as "DINE_IN" | "TAKEOUT" | "DELIVERY",
           status: snapshot.order.status as "OPEN" | "PAID" | "CANCELLED",
           tableId: snapshot.order.tableId,
+          // Waiter-originated table orders still settle through cashier flows, so keep both attribution columns.
           cashierId: snapshot.order.cashierId,
           waiterId: snapshot.order.waiterId,
           notes: snapshot.order.notes,

@@ -21,6 +21,7 @@ import {
   faPuzzlePiece,
   faReceipt,
   faTableCells,
+  faTruck,
   faTimes,
   faUser,
   faUserGroup,
@@ -61,7 +62,10 @@ type AdminNavItem = {
     | "staff"
     | "tables"
     | "orders"
+    | "suppliers"
+    | "supplierDeliveries"
     | "reports"
+    | "supplierBills"
     | "settings"
     | "profile";
   href: string;
@@ -172,11 +176,32 @@ function SidebarContent({
       count: counts.orders,
     },
     {
+      key: "suppliers",
+      href: "/admin/suppliers",
+      label: "Suppliers",
+      icon: faTruck,
+      permission: PERMISSIONS.SUPPLIER_MANAGE,
+    },
+    {
+      key: "supplierDeliveries",
+      href: "/admin/supplier-deliveries",
+      label: "Supplier Deliveries",
+      icon: faClipboardList,
+      permission: PERMISSIONS.SUPPLIER_MANAGE,
+    },
+    {
       key: "reports",
       href: "/admin/reports",
       label: "Reports",
       icon: faChartLine,
       permission: PERMISSIONS.REPORT_VIEW,
+    },
+    {
+      key: "supplierBills",
+      href: "/admin/reports/supplier-bills",
+      label: "Supplier Bills",
+      icon: faReceipt,
+      permission: PERMISSIONS.SUPPLIER_MANAGE,
     },
     {
       key: "settings",
@@ -316,6 +341,7 @@ export default function AdminShell({
                 <FontAwesomeIcon icon={faMagnifyingGlass} className="text-sm" />
                 {/* REVIEW: This search is visual-only until global admin search is defined. */}
                 <input
+                  aria-label="Search admin"
                   type="search"
                   placeholder="Search anything..."
                   className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"

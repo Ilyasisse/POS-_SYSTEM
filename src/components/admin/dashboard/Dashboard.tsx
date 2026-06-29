@@ -97,18 +97,23 @@ const quickAccessNEW = [
   },
 ];
 type DashboardProps = {
-  lowStockSupplies: number; 
+  lowStockSupplies: number;
   todayOrders: {
-      id: string;
-      status: string;
-      total: Decimal;
-    }[];
+    id: string;
+    status: string;
+    total: Decimal;
+  }[];
 };
 
-export default function Dashboard({lowStockSupplies,todayOrders }: DashboardProps) {
+export default function Dashboard({
+  lowStockSupplies,
+  todayOrders,
+}: DashboardProps) {
   const openTodayOrders = todayOrders.filter(
     (order) => order.status === "OPEN",
   ).length;
+  const notificationTime = formatTime(new Date());
+
   return (
     <section className="grid gap-5 2xl:grid-cols-[minmax(0,2.2fr)_minmax(22rem,0.95fr)]">
       <DashboardCard
@@ -136,14 +141,14 @@ export default function Dashboard({lowStockSupplies,todayOrders }: DashboardProp
           icon={faExclamationTriangle}
           title="Low Stock Alert"
           description={`${lowStockSupplies} items are running low`}
-          time={formatTime(new Date())}
+          time={notificationTime}
           tone="pink"
         />
         <NotificationCard
           icon={faReceipt}
           title="Today's Orders"
           description={`${openTodayOrders} active orders`}
-          time={formatTime(new Date())}
+          time={notificationTime}
           tone="orange"
         />
         <NotificationCard
@@ -151,7 +156,7 @@ export default function Dashboard({lowStockSupplies,todayOrders }: DashboardProp
           title="WhatsApp Alerts"
           // REVIEW: Replace with live WhatsApp inbox data when that integration exposes status/messages.
           description="Connected and ready"
-          time={formatTime(new Date())}
+          time={notificationTime}
           tone="green"
         />
         <Link

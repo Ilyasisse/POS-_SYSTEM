@@ -21,6 +21,10 @@ model User {
   assignedItems OrderItem[] @relation("AssignedOrderItems")
   payments      Payment[]
   shifts        Shift[]
+  supplierDeliveriesVerified SupplierDelivery[] @relation("SupplierDeliveryVerifiedBy")
+  supplierDeliveriesRejected SupplierDelivery[] @relation("SupplierDeliveryRejectedBy")
+  supplierBillsSettled       SupplierBill[]     @relation("SupplierBillSettledBy")
+  supplierPaymentsRecorded   SupplierPayment[]  @relation("SupplierPaymentRecordedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -61,6 +65,7 @@ model Product {
   updatedAt   DateTime    @updatedAt
   modifiers   Modifier[]
   orderItems  OrderItem[]
+  supplierDeliveryItems SupplierDeliveryItem[]
   category    Category    @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
@@ -79,6 +84,7 @@ model InventorySupply {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   movements            InventoryMovement[]
+  supplierDeliveryItems SupplierDeliveryItem[]
 
   @@unique([name, unit])
   @@index([isActive, inventoryAlertStatus])
@@ -239,6 +245,127 @@ model Shift {
   @@index([userId, openedAt])
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  contactName String?
+  phone       String?
+  email       String?
+  googleEmail String?  @unique
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deliveries  SupplierDelivery[]
+  bills       SupplierBill[]
+
+  @@index([isActive, name])
+}
+
+model SupplierDelivery {
+  id                 String                 @id @default(cuid())
+  supplierId         String
+  uploadedByEmail    String
+  receiptObjectPath  String
+  receiptContentType String
+  status             SupplierDeliveryStatus @default(PENDING_EXTRACTION)
+  invoiceNumber      String?
+  receiptDate        DateTime?
+  deliveryDate       DateTime?
+  subtotalAmount     Decimal?
+  taxAmount          Decimal?
+  discountAmount     Decimal?
+  totalAmount        Decimal?
+  extractedText      String?
+  reviewedText       String?
+  ocrConfidence      Float?
+  ocrError           String?
+  aiRawResponse      Json?
+  aiParsedJson       Json?
+  aiError            String?
+  notes              String?
+  submittedAt        DateTime               @default(now())
+  verifiedAt         DateTime?
+  verifiedByUserId   String?
+  inventoryUpdatedAt DateTime?
+  rejectedAt         DateTime?
+  rejectedByUserId   String?
+  rejectionReason    String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  supplier           Supplier               @relation(fields: [supplierId], references: [id])
+  verifiedBy         User?                  @relation("SupplierDeliveryVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  rejectedBy         User?                  @relation("SupplierDeliveryRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
+  items              SupplierDeliveryItem[]
+  bill               SupplierBill?
+
+  @@index([supplierId, submittedAt])
+  @@index([status, submittedAt])
+}
+
+model SupplierDeliveryItem {
+  id                String   @id @default(cuid())
+  deliveryId        String
+  productId         String?
+  inventorySupplyId String?
+  aiItemName        String
+  matchedItemName   String?
+  quantity          Decimal?
+  verifiedQuantity  Int?
+  unitPrice         Decimal?
+  totalPrice        Decimal?
+  confidenceScore   Float?
+  needsManualReview Boolean  @default(false)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  delivery          SupplierDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  product           Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  inventorySupply   InventorySupply?  @relation(fields: [inventorySupplyId], references: [id], onDelete: SetNull)
+
+  @@index([deliveryId])
+  @@index([productId])
+  @@index([inventorySupplyId])
+}
+
+model SupplierBill {
+  id              String                @id @default(cuid())
+  supplierId      String
+  deliveryId      String                @unique
+  totalAmount     Decimal
+  paidAmount      Decimal               @default(0)
+  status          SupplierPaymentStatus @default(UNPAID)
+  settledAt       DateTime?
+  settledByUserId String?
+  notes           String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  supplier        Supplier              @relation(fields: [supplierId], references: [id])
+  delivery        SupplierDelivery      @relation(fields: [deliveryId], references: [id])
+  settledBy       User?                 @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
+  payments        SupplierPayment[]
+
+  @@index([supplierId, createdAt])
+  @@index([status, createdAt])
+}
+
+model SupplierPayment {
+  id               String   @id @default(cuid())
+  billId           String
+  amount           Decimal
+  paymentMethod    String?
+  notes            String?
+  recordedByUserId String
+  paidAt           DateTime @default(now())
+  createdAt        DateTime @default(now())
+  bill             SupplierBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  recordedBy       User         @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+
+  @@index([billId, paidAt])
+  @@index([recordedByUserId, paidAt])
+}
+
 enum UserRole {
   ADMIN
   MANAGER
@@ -282,4 +409,17 @@ enum Station {
   FAST_FOOD
   CABITAAN
   BARISTA
+}
+
+enum SupplierDeliveryStatus {
+  PENDING_EXTRACTION
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+}
+
+enum SupplierPaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
 }

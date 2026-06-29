@@ -30,8 +30,10 @@ function formatRole(role: string) {
 }
 
 export default async function AdminProfilePage({ searchParams }: ProfilePageProps) {
-  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
-  const params = await searchParams;
+  const [currentUser, params] = await Promise.all([
+    requirePermission(PERMISSIONS.ADMIN_ACCESS),
+    searchParams,
+  ]);
   const status = params?.profileStatus;
 
   return (

@@ -11,7 +11,7 @@ Role arrays were previously repeated across the application and several catalog 
 ## Roles and access
 
 - Admin: all permissions.
-- Manager: dashboard, catalog, inventory, staff, tables, orders, and reports.
+- Manager: dashboard, catalog, inventory, staff, tables, orders, suppliers, and reports.
 - Cashier: orders, tables, payments, and operational reports.
 - Waiter: order creation and assigned-order access.
 - Cook, Barista, Cabitaan: kitchen ticket access restricted by station. Cabitaan retains its existing inventory workflow.
@@ -29,7 +29,7 @@ Admin, Manager, Cashier, Waiter, Kitchen, Inventory, and Settings route segments
 
 ## Server actions and API routes
 
-All existing server actions now authorize before mutation. Order, payment, pronunciation, barista, customer-order, waiter-shift, and kitchen socket APIs use the central permission matrix and return `401` for missing authentication or `403` for forbidden access.
+All existing server actions now authorize before mutation. Order, payment, pronunciation, barista, customer-order, supplier-delivery, waiter-shift, and kitchen socket APIs use the central permission matrix and return `401` for missing authentication or `403` for forbidden access.
 
 ## Database and migration
 
@@ -49,7 +49,7 @@ No new data page is introduced. Existing segment loading and empty states remain
 
 ## Security notes
 
-Navigation filtering is convenience only; every mutation is checked on the server. Client-provided kitchen role, station, and user filters are replaced by authenticated values for scoped users.
+Navigation filtering is convenience only; every mutation is checked on the server. Client-provided kitchen role, station, and user filters are replaced by authenticated values for scoped users. Supplier OAuth creates a `SUPPLIER` user only after matching the assigned supplier email; delivery submission verifies both permission and supplier ownership.
 
 ## Environment variables
 

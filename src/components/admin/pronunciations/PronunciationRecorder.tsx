@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type PronunciationRecorderProps = {
   inputName: string;
@@ -8,6 +8,11 @@ type PronunciationRecorderProps = {
   label: string;
   currentUrl?: string | null;
 };
+
+type AudioUrlOverride = {
+  sourceUrl: string;
+  value: string;
+} | null;
 
 function getSupportedMimeType() {
   if (typeof MediaRecorder === "undefined") {
@@ -30,26 +35,32 @@ export default function PronunciationRecorder({
   label,
   currentUrl,
 }: PronunciationRecorderProps) {
-  const [audioUrl, setAudioUrl] = useState(currentUrl ?? "");
+  const sourceAudioUrl = currentUrl ?? "";
+  const [audioUrlOverride, setAudioUrlOverride] =
+    useState<AudioUrlOverride>(null);
+  const audioUrl =
+    audioUrlOverride?.sourceUrl === sourceAudioUrl
+      ? audioUrlOverride.value
+      : sourceAudioUrl;
   const [error, setError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const stopMediaCapture = useCallback(() => {
+    const mediaRecorder = mediaRecorderRef.current;
+    const mediaStream = mediaStreamRef.current;
 
-  useEffect(() => {
-    setAudioUrl(currentUrl ?? "");
-  }, [currentUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current?.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    };
+    if (mediaRecorder?.state === "recording") {
+      mediaRecorder.stop();
+    }
+    mediaStream?.getTracks().forEach((track) => track.stop());
   }, []);
+
+  useEffect(() => {
+    return stopMediaCapture;
+  }, [stopMediaCapture]);
 
   async function uploadRecording(blob: Blob) {
     const formData = new FormData();
@@ -82,7 +93,10 @@ export default function PronunciationRecorder({
       throw new Error(data.error || "Failed to upload pronunciation audio.");
     }
 
-    setAudioUrl(data.url);
+    setAudioUrlOverride({
+      sourceUrl: sourceAudioUrl,
+      value: data.url,
+    });
   }
 
   async function startRecording() {
@@ -159,7 +173,10 @@ export default function PronunciationRecorder({
   }
 
   function clearRecording() {
-    setAudioUrl("");
+    setAudioUrlOverride({
+      sourceUrl: sourceAudioUrl,
+      value: "",
+    });
     setError("");
   }
 
@@ -210,6 +227,12 @@ export default function PronunciationRecorder({
 
       {audioUrl ? (
         <audio controls preload="none" src={audioUrl} className="w-full">
+          <track
+            kind="captions"
+            src="/captions/empty.vtt"
+            srcLang="en"
+            label="No captions available"
+          />
           Your browser does not support audio playback.
         </audio>
       ) : (

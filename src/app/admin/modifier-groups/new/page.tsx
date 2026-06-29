@@ -11,34 +11,69 @@ export default function NewModifierGroupPage() {
 
         <section className="rounded-2xl bg-white p-6 shadow">
           <form action={createModifierGroup} className="space-y-4">
-            <input
-              name="name"
-              placeholder="Group Name"
-              required
-              className="w-full border p-2 rounded"
-            />
+            <div>
+              <label
+                htmlFor="modifier-group-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Group Name
+              </label>
+              <input
+                id="modifier-group-name"
+                name="name"
+                placeholder="Group Name"
+                required
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-            <input
-              name="minSelect"
-              type="number"
-              defaultValue={0}
-              className="w-full border p-2 rounded"
-            />
+            <div>
+              <label
+                htmlFor="modifier-group-min-select"
+                className="mb-1 block text-sm font-medium"
+              >
+                Minimum selections
+              </label>
+              <input
+                id="modifier-group-min-select"
+                name="minSelect"
+                type="number"
+                defaultValue={0}
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-            <input
-              name="maxSelect"
-              type="number"
-              defaultValue={1}
-              className="w-full border p-2 rounded"
-            />
+            <div>
+              <label
+                htmlFor="modifier-group-max-select"
+                className="mb-1 block text-sm font-medium"
+              >
+                Maximum selections
+              </label>
+              <input
+                id="modifier-group-max-select"
+                name="maxSelect"
+                type="number"
+                defaultValue={1}
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-            <label className="flex gap-2">
-              <input type="checkbox" name="isActive" defaultChecked />
+            <label htmlFor="modifier-group-active" className="flex gap-2">
+              <input
+                id="modifier-group-active"
+                type="checkbox"
+                name="isActive"
+                defaultChecked
+              />
               Active
             </label>
 
             <div className="flex gap-3">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded"
+              >
                 Create
               </button>
 

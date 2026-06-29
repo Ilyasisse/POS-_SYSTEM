@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { Product, StaffSummary } from "@/lib/types";
 import {
   formatCurrency,
@@ -38,10 +39,12 @@ function ProductCard({
       <div className="relative aspect-[4/3] overflow-hidden bg-[linear-gradient(135deg,#fbf7ef_0%,#ece0d1_48%,#d9b980_100%)]">
         {hasImage ? (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={getProductImage(product)}
               alt={product.name}
+              fill
+              sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+              unoptimized
               className="h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
@@ -50,10 +53,11 @@ function ProductCard({
           <>
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(249,239,219,0.78)_50%,rgba(177,117,44,0.26)_100%)]" />
             <div className="absolute left-5 top-5 h-16 w-16 rounded-2xl border border-white/80 bg-white/75 p-2 shadow-[0_14px_30px_rgba(44,28,17,0.12)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/newer_logo.png"
                 alt=""
+                width={64}
+                height={64}
                 className="h-full w-full object-contain"
               />
             </div>
@@ -170,17 +174,17 @@ export default function CustomerProductGrid({
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {products.map((product) => {
-          const unavailable =
-            product.category?.station === "BARISTA" && baristas.length === 0;
+        const unavailable =
+          product.category?.station === "BARISTA" && baristas.length === 0;
 
-          return (
-            <ProductCard
-              key={product.id}
-              product={product}
-              unavailable={unavailable}
-              onProductClick={onProductClick}
-            />
-          );
+        return (
+          <ProductCard
+            key={product.id}
+            product={product}
+            unavailable={unavailable}
+            onProductClick={onProductClick}
+          />
+        );
       })}
     </div>
   );

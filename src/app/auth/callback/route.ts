@@ -20,11 +20,6 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const redirectOrigin = getRedirectOrigin(request, requestUrl);
   const code = requestUrl.searchParams.get("code");
-  let next = requestUrl.searchParams.get("next") ?? "/menu";
-
-  if (!next.startsWith("/")) {
-    next = "/menu";
-  }
 
   if (code) {
     const supabase = await createClient();
@@ -52,7 +47,7 @@ export async function GET(request: Request) {
         );
       }
 
-      return NextResponse.redirect(`${redirectOrigin}${next}`);
+      return NextResponse.redirect(`${redirectOrigin}/menu`);
     }
   }
 

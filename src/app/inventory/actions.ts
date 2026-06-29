@@ -23,7 +23,6 @@ async function requireInventoryUseAccess() {
     stations: ["CABITAAN"],
   });
 }
-
 function redirectWithInventoryEmailStatus(
   result: Awaited<ReturnType<typeof sendInventoryAlerts>>,
 ) {

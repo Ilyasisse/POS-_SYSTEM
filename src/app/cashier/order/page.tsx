@@ -13,20 +13,22 @@ type CashierOrderPageProps = {
 export default async function CashierOrderPage({
   searchParams,
 }: CashierOrderPageProps) {
-  const currentUser = await requirePermission(PERMISSIONS.ORDER_CREATE);
-  const params = await searchParams;
-  const tables = await prisma.table.findMany({
-    where: {
-      isActive: true,
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
+  const [currentUser, params, tables] = await Promise.all([
+    requirePermission(PERMISSIONS.ORDER_CREATE),
+    searchParams,
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    }),
+  ]);
 
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-100 via-blue-50 to-blue-100 px-4 py-6 text-slate-900 md:px-6">
@@ -46,28 +48,10 @@ export default async function CashierOrderPage({
           </Link>
         </div>
 
-        {tables.length === 0 ? (
-          <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-            <h2 className="text-xl font-bold text-slate-900">
-              Add a table first
-            </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-              There are no active tables available for this order. Add active
-              tables from the Admin tables page before sending orders.
-            </p>
-            <Link
-              href="/admin/tables"
-              className="mt-5 inline-flex rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
-            >
-              Go to Admin tables
-            </Link>
-          </section>
-        ) : (
-          <CashierOrderClient
-            tables={tables}
-            initialTableId={params?.tableId ?? ""}
-          />
-        )}
+        <CashierOrderClient
+          tables={tables}
+          initialTableId={params?.tableId ?? ""}
+        />
       </div>
     </main>
   );

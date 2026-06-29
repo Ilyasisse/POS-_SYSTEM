@@ -7,15 +7,13 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
-
 function isPaymentMethod(value: string): value is PaymentMethod {
-  return PAYMENT_METHODS.has(value as PaymentMethod);
+  return (
+    value === "MYCASH" ||
+    value === "GOLIS" ||
+    value === "Dahabshiil" ||
+    value === "OTHER"
+  );
 }
 
 function toDecimal(value: number) {

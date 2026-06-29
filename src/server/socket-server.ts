@@ -24,7 +24,6 @@ function resolveClientFilter(requestUrl?: string | null): KitchenTicketFilter {
   return {
     station: url.searchParams.get("station"),
     userId: url.searchParams.get("userId"),
-    role: url.searchParams.get("role"),
   };
 }
 

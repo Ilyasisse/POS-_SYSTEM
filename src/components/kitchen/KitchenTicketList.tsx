@@ -5,13 +5,15 @@ import type {
 import KitchenTicketCard from "./KitchenTicketCard";
 
 type KitchenTicketListProps = {
-  tickets?: KitchenTicket[];
+  tickets?: readonly KitchenTicket[];
   onUpdateStatus: (id: string, status: KitchenTicketStatus) => void;
   canUpdateStatus?: boolean;
 };
 
+const EMPTY_TICKETS: readonly KitchenTicket[] = [];
+
 export default function KitchenTicketList({
-  tickets = [],
+  tickets = EMPTY_TICKETS,
   onUpdateStatus,
   canUpdateStatus = true,
 }: KitchenTicketListProps) {

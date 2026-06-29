@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { deleteModifier, updateModifier } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
@@ -15,7 +17,12 @@ type ModifierDetailsPageProps = {
 export default async function ModifierDetailsPage({
   params,
 }: ModifierDetailsPageProps) {
-  const { id } = await params;
+  // Params can resolve with auth; modifier reads still need the resolved id.
+  const [resolvedParams] = await Promise.all([
+    params,
+    requirePermission(PERMISSIONS.CATALOG_MANAGE),
+  ]);
+  const id = resolvedParams.id;
 
   const [modifier, products, modifierGroups] = await Promise.all([
     prisma.modifier.findUnique({
@@ -73,8 +80,14 @@ export default async function ModifierDetailsPage({
             <input type="hidden" name="id" value={modifier.id} />
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Name</label>
+              <label
+                htmlFor="modifier-name"
+                className="mb-1 block text-sm font-medium"
+              >
+                Name
+              </label>
               <input
+                id="modifier-name"
                 name="name"
                 type="text"
                 defaultValue={modifier.name}
@@ -84,8 +97,14 @@ export default async function ModifierDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Price</label>
+              <label
+                htmlFor="modifier-price"
+                className="mb-1 block text-sm font-medium"
+              >
+                Price
+              </label>
               <input
+                id="modifier-price"
                 name="price"
                 type="number"
                 step="0.01"
@@ -96,8 +115,14 @@ export default async function ModifierDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Product</label>
+              <label
+                htmlFor="modifier-product"
+                className="mb-1 block text-sm font-medium"
+              >
+                Product
+              </label>
               <select
+                id="modifier-product"
                 name="productId"
                 defaultValue={modifier.productId}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -112,10 +137,14 @@ export default async function ModifierDetailsPage({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">
+              <label
+                htmlFor="modifier-group"
+                className="mb-1 block text-sm font-medium"
+              >
                 Modifier Group
               </label>
               <select
+                id="modifier-group"
                 name="modifierGroupId"
                 defaultValue={modifier.modifierGroupId}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -129,8 +158,12 @@ export default async function ModifierDetailsPage({
               </select>
             </div>
 
-            <label className="flex items-center gap-2 text-sm">
+            <label
+              htmlFor="modifier-active"
+              className="flex items-center gap-2 text-sm"
+            >
               <input
+                id="modifier-active"
                 name="isActive"
                 type="checkbox"
                 defaultChecked={modifier.isActive}

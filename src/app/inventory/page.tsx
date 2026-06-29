@@ -105,8 +105,7 @@ function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
   }[status];
 
   return (
-    <div
-      role="status"
+    <output
       className={`fixed right-4 top-4 z-50 w-[min(360px,calc(100vw-2rem))] rounded-xl border p-4 shadow-xl ${config.classes}`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -122,46 +121,49 @@ function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
           x
         </Link>
       </div>
-    </div>
+    </output>
   );
 }
 
 export default async function InventoryPage({
   searchParams,
 }: InventoryPageProps) {
-  const currentUser = await requirePermission(PERMISSIONS.INVENTORY_VIEW, {
-    stations: ["CABITAAN"],
-  });
-  const params = await searchParams;
-  const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
   const todayStart = getEatDayStart();
 
-  const [supplies, takenTodayMovements] = await Promise.all([
-    prisma.inventorySupply.findMany({
-      where: {
-        isActive: true,
-      },
-      orderBy: [{ stockQty: "asc" }, { name: "asc" }],
-    }),
-    prisma.inventoryMovement.findMany({
-      where: {
-        itemType: "Supply",
-        supplyId: {
-          not: null,
-        },
-        delta: {
-          lt: 0,
-        },
-        createdAt: {
-          gte: todayStart,
-        },
-      },
-      take: 12,
-      orderBy: {
-        createdAt: "desc",
-      },
-    }),
-  ]);
+  const [currentUser, params, [supplies, takenTodayMovements]] =
+    await Promise.all([
+      requirePermission(PERMISSIONS.INVENTORY_VIEW, {
+        stations: ["CABITAAN"],
+      }),
+      searchParams,
+      Promise.all([
+        prisma.inventorySupply.findMany({
+          where: {
+            isActive: true,
+          },
+          orderBy: [{ stockQty: "asc" }, { name: "asc" }],
+        }),
+        prisma.inventoryMovement.findMany({
+          where: {
+            itemType: "Supply",
+            supplyId: {
+              not: null,
+            },
+            delta: {
+              lt: 0,
+            },
+            createdAt: {
+              gte: todayStart,
+            },
+          },
+          take: 12,
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+      ]),
+    ]);
+  const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
 
   const summary = supplies.reduce<StatusSummary>(
     (accumulator, supply) => {

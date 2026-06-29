@@ -364,15 +364,19 @@ export async function POST(request: Request) {
         });
 
         const modifierRows = preparedLines.flatMap((line, index) =>
-          line.modifiers
-            .filter((modifier) => !isPlaceholderModifier(modifier))
-            .map((modifier) => ({
-              orderItemId: savedOrderItems[index]?.id ?? "",
-              modifierId: modifier.optionId,
-              modifierName: modifier.optionName,
-              qty: modifier.qty,
-              price: toDecimal(modifier.price),
-            })),
+          line.modifiers.flatMap((modifier) =>
+            isPlaceholderModifier(modifier)
+              ? []
+              : [
+                  {
+                    orderItemId: savedOrderItems[index]?.id ?? "",
+                    modifierId: modifier.optionId,
+                    modifierName: modifier.optionName,
+                    qty: modifier.qty,
+                    price: toDecimal(modifier.price),
+                  },
+                ],
+          ),
         );
 
         if (modifierRows.length > 0) {
