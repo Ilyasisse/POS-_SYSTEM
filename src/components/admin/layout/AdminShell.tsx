@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import AdminMobileSidebar from "./AdminMobileSidebar";
 import {
   adminNavigationItems,
+  isAdminNavActive,
   type AdminNavCounts,
 } from "./admin-navigation";
 
@@ -49,14 +50,6 @@ function initials(fullName: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-}
-
-export function isAdminNavActive(pathname: string, href: string) {
-  if (href === "/admin/dashboard") {
-    return pathname === "/admin" || pathname === href;
-  }
-
-  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AdminSidebarContent({

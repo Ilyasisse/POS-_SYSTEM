@@ -145,3 +145,11 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.SETTINGS_MANAGE,
   },
 ] as const;
+
+export function isAdminNavActive(pathname: string, href: string) {
+  if (href === "/admin/dashboard") {
+    return pathname === "/admin" || pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
