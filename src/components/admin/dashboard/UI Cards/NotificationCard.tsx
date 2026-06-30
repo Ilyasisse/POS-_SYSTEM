@@ -1,6 +1,5 @@
-import { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+import type { LucideIcon } from "lucide-react";
 import { Tone } from "@/types/admin.types";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getToneClasses } from "@/lib/admin/helper/getToneClasses";
 
 export default function NotificationCard({
@@ -10,7 +9,7 @@ export default function NotificationCard({
   time,
   tone,
 }: {
-  icon: IconDefinition;
+  icon: LucideIcon;
   title: string;
   description: string;
   time: string;
@@ -22,7 +21,10 @@ export default function NotificationCard({
       <div
         className={`grid size-11 shrink-0 place-items-center rounded-xl ${toneClasses.icon}`}
       >
-        <FontAwesomeIcon icon={icon} />
+        {(() => {
+          const Icon = icon;
+          return <Icon className="size-4" />;
+        })()}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-slate-950">{title}</p>

@@ -1,3 +1,6 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import type {
   Prisma,
@@ -5,13 +8,13 @@ import type {
   SupplierPaymentStatus,
 } from "@prisma/client";
 import {
-  AdminPageFrame,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  AdminPage,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   ToneBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 
 const deliveryStatuses = [
@@ -70,12 +73,12 @@ export default async function SupplierDeliveriesPage({
   ]);
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Supplier deliveries"
       description="Review receipt submissions before any inventory is updated."
     >
       <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-5">
-        <select
+        <NativeSelect
           name="supplier"
           defaultValue={params.supplier || ""}
           className="h-10 rounded-lg border border-slate-200 px-2"
@@ -86,8 +89,8 @@ export default async function SupplierDeliveriesPage({
               {row.name}
             </option>
           ))}
-        </select>
-        <select
+        </NativeSelect>
+        <NativeSelect
           name="status"
           defaultValue={status || ""}
           className="h-10 rounded-lg border border-slate-200 px-2"
@@ -98,8 +101,8 @@ export default async function SupplierDeliveriesPage({
               {value.replaceAll("_", " ")}
             </option>
           ))}
-        </select>
-        <select
+        </NativeSelect>
+        <NativeSelect
           name="paymentStatus"
           defaultValue={paymentStatus || ""}
           className="h-10 rounded-lg border border-slate-200 px-2"
@@ -108,8 +111,8 @@ export default async function SupplierDeliveriesPage({
           {paymentStatuses.map((value) => (
             <option key={value}>{value}</option>
           ))}
-        </select>
-        <input
+        </NativeSelect>
+        <Input
           aria-label="Submitted from date"
           type="date"
           name="from"
@@ -117,50 +120,53 @@ export default async function SupplierDeliveriesPage({
           className="h-10 rounded-lg border border-slate-200 px-2"
         />
         <div className="flex gap-2">
-          <input
+          <Input
             aria-label="Submitted through date"
             type="date"
             name="to"
             defaultValue={params.to || ""}
             className="h-10 min-w-0 flex-1 rounded-lg border border-slate-200 px-2"
           />
-          <button type="submit" className="rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
+          <Button
+            type="submit"
+            className="rounded-lg bg-blue-600 px-4 text-sm font-bold text-white"
+          >
             Filter
-          </button>
+          </Button>
         </div>
       </form>
-      <AdminTableShell>
-        <AdminTable>
+      <DataTableCard>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>Supplier</AdminTh>
-              <AdminTh>Submitted</AdminTh>
-              <AdminTh>Total</AdminTh>
-              <AdminTh>Delivery</AdminTh>
-              <AdminTh>Payment</AdminTh>
-              <AdminTh>Inventory</AdminTh>
-              <AdminTh>Action</AdminTh>
+              <TableHead>Supplier</TableHead>
+              <TableHead>Submitted</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Delivery</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Inventory</TableHead>
+              <TableHead>Action</TableHead>
             </tr>
           </thead>
           <tbody>
             {deliveries.length ? (
               deliveries.map((delivery) => (
                 <tr key={delivery.id} className="border-t border-slate-100">
-                  <AdminTd>
+                  <TableCell>
                     <span className="font-bold text-slate-900">
                       {delivery.supplier.name}
                     </span>
                     <div className="text-xs">
                       {delivery.invoiceNumber || "No invoice number"}
                     </div>
-                  </AdminTd>
-                  <AdminTd>{delivery.submittedAt.toLocaleString()}</AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>{delivery.submittedAt.toLocaleString()}</TableCell>
+                  <TableCell>
                     {delivery.totalAmount
                       ? `$${Number(delivery.totalAmount).toFixed(2)}`
                       : "--"}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     <ToneBadge
                       tone={
                         delivery.status === "VERIFIED"
@@ -172,8 +178,8 @@ export default async function SupplierDeliveriesPage({
                     >
                       {delivery.status.replaceAll("_", " ")}
                     </ToneBadge>
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {delivery.bill ? (
                       <ToneBadge
                         tone={
@@ -185,30 +191,30 @@ export default async function SupplierDeliveriesPage({
                     ) : (
                       "--"
                     )}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {delivery.inventoryUpdatedAt ? "Updated" : "Not updated"}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     <Link
                       href={`/admin/supplier-deliveries/${delivery.id}`}
                       className="font-bold text-blue-600"
                     >
                       Review
                     </Link>
-                  </AdminTd>
+                  </TableCell>
                 </tr>
               ))
             ) : (
               <tr>
-                <AdminTd colSpan={7}>
+                <TableCell colSpan={7}>
                   No supplier deliveries match these filters.
-                </AdminTd>
+                </TableCell>
               </tr>
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

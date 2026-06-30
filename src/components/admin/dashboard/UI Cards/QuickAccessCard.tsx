@@ -1,9 +1,7 @@
 import { Tone } from "@/types/admin.types";
-import { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { getToneClasses } from "@/lib/admin/helper/getToneClasses";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
 
 export default function QuickAccessCard({
   href,
@@ -13,12 +11,12 @@ export default function QuickAccessCard({
   tone,
 }: {
   href: string;
-  icon: IconDefinition;
+  icon: LucideIcon;
   title: string;
   description: string;
   tone: Tone;
 }) {
-    const toneClasses =getToneClasses(tone)
+  const toneClasses = getToneClasses(tone);
   return (
     <Link
       href={href}
@@ -27,7 +25,10 @@ export default function QuickAccessCard({
       <span
         className={`grid size-12 place-items-center rounded-2xl transition group-hover:scale-105 ${toneClasses.icon}`}
       >
-        <FontAwesomeIcon icon={icon} className="text-xl" />
+        {(() => {
+          const Icon = icon;
+          return <Icon className="size-5" />;
+        })()}
       </span>
       <span className="mt-3 text-sm font-black text-slate-950">{title}</span>
       <span className="mt-1 text-xs font-medium text-slate-500">

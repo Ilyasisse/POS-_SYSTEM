@@ -1,3 +1,5 @@
+﻿import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { updateModifierGroup, deleteModifierGroup } from "../actions";
@@ -30,7 +32,7 @@ export default async function ModifierGroupPage({
 
         <section className="rounded-2xl bg-white p-6 shadow">
           <form action={updateModifierGroup} className="space-y-4">
-            <input type="hidden" name="id" value={group.id} />
+            <Input type="hidden" name="id" value={group.id} />
 
             <div>
               <label
@@ -39,7 +41,7 @@ export default async function ModifierGroupPage({
               >
                 Group Name
               </label>
-              <input
+              <Input
                 id="edit-modifier-group-name"
                 name="name"
                 defaultValue={group.name}
@@ -54,7 +56,7 @@ export default async function ModifierGroupPage({
               >
                 Minimum selections
               </label>
-              <input
+              <Input
                 id="edit-modifier-group-min-select"
                 name="minSelect"
                 type="number"
@@ -70,7 +72,7 @@ export default async function ModifierGroupPage({
               >
                 Maximum selections
               </label>
-              <input
+              <Input
                 id="edit-modifier-group-max-select"
                 name="maxSelect"
                 type="number"
@@ -80,7 +82,7 @@ export default async function ModifierGroupPage({
             </div>
 
             <label htmlFor="edit-modifier-group-active" className="flex gap-2">
-              <input
+              <Input
                 id="edit-modifier-group-active"
                 type="checkbox"
                 name="isActive"
@@ -89,12 +91,12 @@ export default async function ModifierGroupPage({
               Active
             </label>
 
-            <button
+            <Button
               type="submit"
               className="rounded bg-blue-600 px-4 py-2 text-white"
             >
               Update
-            </button>
+            </Button>
           </form>
         </section>
 
@@ -102,14 +104,14 @@ export default async function ModifierGroupPage({
           <h2 className="mb-3 font-bold text-red-600">Delete Group</h2>
 
           <form action={deleteModifierGroup}>
-            <input type="hidden" name="id" value={group.id} />
+            <Input type="hidden" name="id" value={group.id} />
 
-            <button
+            <Button
               type="submit"
               className="rounded bg-red-600 px-4 py-2 text-white"
             >
               Delete
-            </button>
+            </Button>
           </form>
         </section>
       </div>

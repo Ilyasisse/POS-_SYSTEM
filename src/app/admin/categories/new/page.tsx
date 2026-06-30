@@ -1,3 +1,6 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { createCategory } from "../actions";
 import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
@@ -34,7 +37,7 @@ export default function NewCategoryPage() {
               >
                 Name
               </label>
-              <input
+              <Input
                 id="new-category-name"
                 name="name"
                 type="text"
@@ -51,7 +54,7 @@ export default function NewCategoryPage() {
               >
                 Station
               </label>
-              <select
+              <NativeSelect
                 id="new-category-station"
                 name="station"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -66,7 +69,7 @@ export default function NewCategoryPage() {
                     {station}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
@@ -76,7 +79,7 @@ export default function NewCategoryPage() {
               >
                 Sort Order
               </label>
-              <input
+              <Input
                 id="new-category-sort-order"
                 name="sortOrder"
                 type="number"
@@ -90,7 +93,7 @@ export default function NewCategoryPage() {
               htmlFor="new-category-active"
               className="flex items-center gap-2 text-sm"
             >
-              <input
+              <Input
                 id="new-category-active"
                 name="isActive"
                 type="checkbox"
@@ -100,12 +103,12 @@ export default function NewCategoryPage() {
             </label>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Create Category
-              </button>
+              </Button>
 
               <Link
                 href="/admin/categories"

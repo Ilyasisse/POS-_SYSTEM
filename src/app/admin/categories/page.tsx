@@ -1,16 +1,17 @@
+﻿import { Button } from "@/components/ui/button";
 import {
-  AdminPagination,
-  AdminPageFrame,
-  AdminPrimaryLink,
-  AdminRowActions,
-  AdminSearchToolbar,
-  AdminSelect,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  PaginationBar,
+  AdminPage,
+  PrimaryLink,
+  RowActions,
+  SearchToolbar,
+  NativeSelect,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   StatusBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
 import { prisma } from "@/lib/prisma";
 
@@ -61,18 +62,16 @@ export default async function AdminCategoriesPage({
   const totalPages = Math.max(Math.ceil(totalCategories / pageSize), 1);
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Categories"
       description="Manage your menu categories"
       action={
-        <AdminPrimaryLink href="/admin/categories/new">
-          Add Category
-        </AdminPrimaryLink>
+        <PrimaryLink href="/admin/categories/new">Add Category</PrimaryLink>
       }
     >
-      <AdminTableShell
+      <DataTableCard
         footer={
-          <AdminPagination
+          <PaginationBar
             currentPage={currentPage}
             totalPages={totalPages}
             totalLabel={`Showing ${categoriesList.length} of ${totalCategories} categories`}
@@ -80,66 +79,64 @@ export default async function AdminCategoriesPage({
           />
         }
       >
-        <AdminSearchToolbar placeholder="Search categories..." defaultValue={q}>
-          <AdminSelect name="status" defaultValue={status}>
+        <SearchToolbar placeholder="Search categories..." defaultValue={q}>
+          <NativeSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </AdminSelect>
-          <button
+          </NativeSelect>
+          <Button
             type="button"
             className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
           >
             Filter
-          </button>
-        </AdminSearchToolbar>
-        <AdminTable>
+          </Button>
+        </SearchToolbar>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>#</AdminTh>
-              <AdminTh>Name</AdminTh>
-              <AdminTh>Description</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Items</AdminTh>
-              <AdminTh>Action</AdminTh>
+              <TableHead>#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Action</TableHead>
             </tr>
           </thead>
           <tbody>
             {categoriesList.length === 0 ? (
               <tr>
-                <AdminTd colSpan={6} className="py-10 text-center">
+                <TableCell colSpan={6} className="py-10 text-center">
                   No categories found.
-                </AdminTd>
+                </TableCell>
               </tr>
             ) : (
               categoriesList.map((category, index) => (
                 <tr key={category.id} className="border-b border-slate-50">
-                  <AdminTd className="font-bold text-slate-400">
+                  <TableCell className="font-bold text-slate-400">
                     {(currentPage - 1) * pageSize + index + 1}
-                  </AdminTd>
-                  <AdminTd className="font-black text-slate-950">
+                  </TableCell>
+                  <TableCell className="font-black text-slate-950">
                     {category.name}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {category.station
                       ? `${category.station} station category`
                       : "Menu category"}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     <StatusBadge active={category.isActive} />
-                  </AdminTd>
-                  <AdminTd>{category._count.products}</AdminTd>
-                  <AdminTd>
-                    <AdminRowActions
-                      editHref={`/admin/categories/${category.id}`}
-                    />
-                  </AdminTd>
+                  </TableCell>
+                  <TableCell>{category._count.products}</TableCell>
+                  <TableCell>
+                    <RowActions editHref={`/admin/categories/${category.id}`} />
+                  </TableCell>
                 </tr>
               ))
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

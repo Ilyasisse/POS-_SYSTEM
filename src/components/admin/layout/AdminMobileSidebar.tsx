@@ -11,10 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import type {
-  AdminShellProps,
-  AdminSidebarContentProps,
-} from "./AdminShell";
+import type { AdminShellProps, AdminSidebarContentProps } from "./AdminShell";
 import type { AdminNavCounts } from "./admin-navigation";
 
 type AdminMobileSidebarProps = {
@@ -47,7 +44,9 @@ export default function AdminMobileSidebar({
       <SheetContent side="left" className="w-[min(20rem,calc(100vw-2rem))] p-0">
         <SheetHeader className="sr-only">
           <SheetTitle>Admin navigation</SheetTitle>
-          <SheetDescription>Navigate the administration workspace.</SheetDescription>
+          <SheetDescription>
+            Navigate the administration workspace.
+          </SheetDescription>
         </SheetHeader>
         <SidebarContent
           currentUser={currentUser}

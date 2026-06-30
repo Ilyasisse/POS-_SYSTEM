@@ -1,3 +1,6 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -62,7 +65,7 @@ export default async function ProductDetailsPage({
           </h2>
 
           <form action={updateProduct} className="space-y-4">
-            <input type="hidden" name="id" value={product.id} />
+            <Input type="hidden" name="id" value={product.id} />
 
             <div>
               <label
@@ -71,7 +74,7 @@ export default async function ProductDetailsPage({
               >
                 Name
               </label>
-              <input
+              <Input
                 id="product-name"
                 name="name"
                 type="text"
@@ -88,7 +91,7 @@ export default async function ProductDetailsPage({
               >
                 Price
               </label>
-              <input
+              <Input
                 id="product-price"
                 name="price"
                 type="number"
@@ -106,7 +109,7 @@ export default async function ProductDetailsPage({
               >
                 Category
               </label>
-              <select
+              <NativeSelect
                 id="product-category"
                 name="categoryId"
                 defaultValue={product.categoryId}
@@ -118,14 +121,14 @@ export default async function ProductDetailsPage({
                     {category.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <label
               htmlFor="product-track-stock"
               className="flex items-center gap-2 text-sm"
             >
-              <input
+              <Input
                 id="product-track-stock"
                 name="trackStock"
                 type="checkbox"
@@ -142,12 +145,12 @@ export default async function ProductDetailsPage({
             />
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Save Changes
-              </button>
+              </Button>
             </div>
           </form>
         </section>
@@ -163,13 +166,13 @@ export default async function ProductDetailsPage({
           </p>
 
           <form action={deleteProduct}>
-            <input type="hidden" name="id" value={product.id} />
-            <button
+            <Input type="hidden" name="id" value={product.id} />
+            <Button
               type="submit"
               className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
             >
               Delete Product
-            </button>
+            </Button>
           </form>
         </section>
       </div>

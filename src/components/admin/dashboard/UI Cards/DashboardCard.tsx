@@ -1,6 +1,6 @@
-import { IconDefinition } from "@fortawesome/free-solid-svg-icons";
-import { ReactNode } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { Card } from "@/components/ui/card";
 
 export default function DashboardCard({
   title,
@@ -9,22 +9,25 @@ export default function DashboardCard({
   action,
 }: {
   title: string;
-  icon: IconDefinition;
+  icon: LucideIcon;
   children: ReactNode;
   action?: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
+    <Card className="gap-0 p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <FontAwesomeIcon icon={icon} className="text-blue-600" />
-          <h2 className="truncate text-base font-black text-slate-950 sm:text-lg">
+          {(() => {
+            const Icon = icon;
+            return <Icon className="size-5 text-primary" />;
+          })()}
+          <h2 className="truncate text-base font-semibold sm:text-lg">
             {title}
           </h2>
         </div>
         {action}
       </div>
       {children}
-    </section>
+    </Card>
   );
 }

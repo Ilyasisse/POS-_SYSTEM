@@ -1,4 +1,8 @@
-"use client";
+﻿"use client";
+
+import { Button } from "@/components/ui/button";
+
+import { Input } from "@/components/ui/input";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -74,9 +78,13 @@ export default function PronunciationRecorder({
 
     formData.append(
       "file",
-      new File([blob], `${label.toLowerCase().replace(/\s+/g, "-")}.${extension}`, {
-        type: blob.type || "audio/webm",
-      }),
+      new File(
+        [blob],
+        `${label.toLowerCase().replace(/\s+/g, "-")}.${extension}`,
+        {
+          type: blob.type || "audio/webm",
+        },
+      ),
     );
     formData.append("label", label);
     formData.append("entityType", entityType);
@@ -182,43 +190,46 @@ export default function PronunciationRecorder({
 
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <input type="hidden" name={inputName} value={audioUrl} />
+      <Input type="hidden" name={inputName} value={audioUrl} />
 
       <div>
-        <p className="text-sm font-semibold text-slate-800">Pronunciation Audio</p>
+        <p className="text-sm font-semibold text-slate-800">
+          Pronunciation Audio
+        </p>
         <p className="text-xs text-slate-500">
-          Record yourself saying found &quot;{label}&quot; and the waiter will play this exact sound.
+          Record yourself saying found &quot;{label}&quot; and the waiter will
+          play this exact sound.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {isRecording ? (
-          <button
+          <Button
             type="button"
             onClick={stopRecording}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
           >
             Stop Recording
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             type="button"
             onClick={startRecording}
             disabled={isUploading}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {audioUrl ? "Re-record Audio" : "Start Recording"}
-          </button>
+          </Button>
         )}
 
-        <button
+        <Button
           type="button"
           onClick={clearRecording}
           disabled={!audioUrl || isUploading}
           className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
         >
           Clear Audio
-        </button>
+        </Button>
       </div>
 
       {isUploading ? (
@@ -236,10 +247,14 @@ export default function PronunciationRecorder({
           Your browser does not support audio playback.
         </audio>
       ) : (
-        <p className="text-sm text-slate-500">No pronunciation audio saved yet.</p>
+        <p className="text-sm text-slate-500">
+          No pronunciation audio saved yet.
+        </p>
       )}
 
-      {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="text-sm font-medium text-red-600">{error}</p>
+      ) : null}
     </div>
   );
 }

@@ -2,21 +2,20 @@ import DashboardCard from "./UI Cards/DashboardCard";
 import SalesChartCard from "./UI Cards/SalesChartCard";
 import StatePillCard from "./UI Cards/StatePillCard";
 import {
-  faChartLine,
-  faDollarSign,
-  faReceipt,
-  faCube,
-  faUsers,
-  faRotateLeft,
-  faArrowRight,
-  faShieldHalved,
-  faMugHot,
-  faClipboardList,
-  faCheck,
-  faCommentDots,
-  faExclamationTriangle,
-} from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+  ArrowRight,
+  ChartNoAxesCombined,
+  Check,
+  ClipboardList,
+  Coffee,
+  DollarSign,
+  MessageCircle,
+  Package,
+  ReceiptText,
+  RotateCcw,
+  ShieldCheck,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import StatusRowCard from "./UI Cards/StatusRowCard";
 import Link from "next/link";
 import ActivityItemCard from "./UI Cards/ActivityItemCard";
@@ -64,7 +63,7 @@ export default function Status({
     // Converts recent orders into activity rows.
     ...recentOrders.map((order) => ({
       id: `order-${order.id}`,
-      icon: faReceipt,
+      icon: ReceiptText,
       text: `New order #${order.orderNumber} created`,
       time: formatTime(order.createdAt),
       tone: "blue" as const,
@@ -74,7 +73,7 @@ export default function Status({
     // Converts recently updated products into activity rows.
     ...recentProducts.map((product) => ({
       id: `product-${product.id}`,
-      icon: faChartLine,
+      icon: ChartNoAxesCombined,
       text: `Product "${product.name}" updated`,
       time: formatTime(product.updatedAt),
       tone: "green" as const,
@@ -84,24 +83,23 @@ export default function Status({
     // Converts recent inventory movements into activity rows.
     ...recentMovements.map((movement) => ({
       id: `movement-${movement.id}`,
-      icon: faExclamationTriangle,
+      icon: TriangleAlert,
       text: `Inventory adjusted for ${movement.itemName}`,
       time: formatTime(movement.createdAt),
       tone: "orange" as const,
       date: movement.createdAt,
       urgent: movement.quantityAfter <= 5,
     })),
-  ]// Sorts all activity rows by most recent first.
+  ] // Sorts all activity rows by most recent first.
     .sort((first, second) => second.date.getTime() - first.date.getTime())
     // Limits the visible feed so the card stays compact.
     .slice(0, 5);
-
 
   return (
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.85fr)] 2xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.8fr)_minmax(22rem,0.8fr)]">
       <DashboardCard
         title="Sales Overview"
-        icon={faChartLine}
+        icon={ChartNoAxesCombined}
         action={
           <span className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
             This Week
@@ -111,25 +109,25 @@ export default function Status({
         <SalesChartCard points={chartPoints} />
         <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatePillCard
-            icon={faDollarSign}
+            icon={DollarSign}
             label="Total Sales"
             value={formatMoney(totalSales)}
             tone="blue"
           />
           <StatePillCard
-            icon={faReceipt}
+            icon={ReceiptText}
             label="Total Orders"
             value={totalOrders}
             tone="green"
           />
           <StatePillCard
-            icon={faCube}
+            icon={Package}
             label="Avg. Order Value"
             value={formatMoney(averageOrderValue)}
             tone="purple"
           />
           <StatePillCard
-            icon={faUsers}
+            icon={Users}
             label="New Customers"
             value={newCustomers}
             tone="orange"
@@ -137,7 +135,7 @@ export default function Status({
         </div>
       </DashboardCard>
 
-      <DashboardCard title="Recent Activity" icon={faRotateLeft}>
+      <DashboardCard title="Recent Activity" icon={RotateCcw}>
         <div className="space-y-1">
           {activityItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm font-medium text-slate-500">
@@ -161,32 +159,28 @@ export default function Status({
           className="mt-4 inline-flex items-center gap-2 border-t border-slate-100 pt-4 text-sm font-black text-blue-600 hover:text-blue-700"
         >
           View all activity
-          <FontAwesomeIcon icon={faArrowRight} />
+          <ArrowRight className="size-4" />
         </Link>
       </DashboardCard>
 
-      <DashboardCard title="System Status" icon={faShieldHalved}>
+      <DashboardCard title="System Status" icon={ShieldCheck}>
         <div className="space-y-3">
-          <StatusRowCard icon={faMugHot} label="POS System" status="Online" />
+          <StatusRowCard icon={Coffee} label="POS System" status="Online" />
           <StatusRowCard
-            icon={faClipboardList}
+            icon={ClipboardList}
             label="Database"
             status="Healthy"
           />
           <StatusRowCard
-            icon={faCommentDots}
+            icon={MessageCircle}
             label="WhatsApp Alerts"
             status="Connected"
           />
           {/* REVIEW: Backup status is display-only until backup metadata is stored. */}
-          <StatusRowCard
-            icon={faRotateLeft}
-            label="Last Backup"
-            status="Today"
-          />
+          <StatusRowCard icon={RotateCcw} label="Last Backup" status="Today" />
         </div>
         <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-sm font-black text-emerald-700">
-          <FontAwesomeIcon icon={faCheck} />
+          <Check className="size-4" />
           System is running smoothly
         </div>
       </DashboardCard>

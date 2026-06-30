@@ -170,7 +170,9 @@ export default function AdminShell({
               currentUser={currentUser}
               counts={counts}
               pathname={pathname}
-              SidebarContent={AdminSidebarContent as ComponentType<AdminSidebarContentProps>}
+              SidebarContent={
+                AdminSidebarContent as ComponentType<AdminSidebarContentProps>
+              }
             />
 
             <div className="relative ml-auto hidden w-[min(21rem,34vw)] md:block">

@@ -1,15 +1,16 @@
+﻿import { Input } from "@/components/ui/input";
 import {
-  AdminButton,
-  AdminCard,
-  AdminPageFrame,
-  AdminSearchToolbar,
-  AdminStatCard,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  Button,
+  Card,
+  AdminPage,
+  SearchToolbar,
+  MetricCard,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   ToneBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { createActiveTableFromAdmin } from "./actions";
 
@@ -80,7 +81,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
   );
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Tables"
       description="Manage dine-in tables and their status"
     >
@@ -91,93 +92,90 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <AdminStatCard label="Total Tables" value={tables.length} />
-        <AdminStatCard
-          label="Available"
-          value={activeTables - occupiedTables}
-        />
-        <AdminStatCard label="Open Orders" value={openOrders} />
+        <MetricCard label="Total Tables" value={tables.length} />
+        <MetricCard label="Available" value={activeTables - occupiedTables} />
+        <MetricCard label="Open Orders" value={openOrders} />
       </section>
 
       <form
         action={createActiveTableFromAdmin}
         className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_auto]"
       >
-        <input
+        <Input
           aria-label="Table name or number"
           name="tableName"
           type="text"
           className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           placeholder="Table name or number"
         />
-        <AdminButton type="submit">Add Table</AdminButton>
+        <Button type="submit">Add Table</Button>
       </form>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
-        <AdminTableShell
+        <DataTableCard
           footer={
             <p className="text-sm font-medium text-slate-500">
               Showing 1 to {tables.length} of {tables.length} tables
             </p>
           }
         >
-          <AdminSearchToolbar
+          <SearchToolbar
             placeholder="Search tables..."
             defaultValue={params?.q ?? ""}
           >
-            <button
+            <Button
               type="submit"
               className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
             >
               Filter
-            </button>
-          </AdminSearchToolbar>
-          <AdminTable>
+            </Button>
+          </SearchToolbar>
+          <Table>
             <thead>
               <tr>
-                <AdminTh>#</AdminTh>
-                <AdminTh>Table Name</AdminTh>
-                <AdminTh>Capacity</AdminTh>
-                <AdminTh>Status</AdminTh>
-                <AdminTh>Location</AdminTh>
-                <AdminTh>Open Orders</AdminTh>
+                <TableHead>#</TableHead>
+                <TableHead>Table Name</TableHead>
+                <TableHead>Capacity</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Open Orders</TableHead>
               </tr>
             </thead>
             <tbody>
               {tables.length === 0 ? (
                 <tr>
-                  <AdminTd colSpan={6} className="py-10 text-center">
+                  <TableCell colSpan={6} className="py-10 text-center">
                     No tables found.
-                  </AdminTd>
+                  </TableCell>
                 </tr>
               ) : (
                 tables.map((table, index) => {
                   const status = getTableStatus(table);
                   return (
                     <tr key={table.id} className="border-b border-slate-50">
-                      <AdminTd className="font-bold text-slate-400">
+                      <TableCell className="font-bold text-slate-400">
                         {index + 1}
-                      </AdminTd>
-                      <AdminTd className="font-black text-slate-950">
+                      </TableCell>
+                      <TableCell className="font-black text-slate-950">
                         {table.name}
-                      </AdminTd>
-                      <AdminTd>{4 + (index % 4)}</AdminTd>
-                      <AdminTd>
+                      </TableCell>
+                      <TableCell>{4 + (index % 4)}</TableCell>
+                      <TableCell>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
-                      </AdminTd>
-                      <AdminTd>
+                      </TableCell>
+                      <TableCell>
                         {index % 2 === 0 ? "Main Floor" : "Outdoor"}
-                      </AdminTd>
-                      <AdminTd>{table.orders.length}</AdminTd>
+                      </TableCell>
+                      <TableCell>{table.orders.length}</TableCell>
                     </tr>
                   );
                 })
               )}
             </tbody>
-          </AdminTable>
-        </AdminTableShell>
+          </Table>
+        </DataTableCard>
 
-        <AdminCard className="p-5">
+        <Card className="p-5">
           <h2 className="text-lg font-black text-slate-950">Floor Plan</h2>
           <p className="mt-1 text-sm font-medium text-slate-500">
             Visual status map based on live table availability.
@@ -229,8 +227,8 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               Hidden
             </span>
           </div>
-        </AdminCard>
+        </Card>
       </section>
-    </AdminPageFrame>
+    </AdminPage>
   );
 }

@@ -1,17 +1,19 @@
+﻿import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import {
-  AdminButton,
-  AdminCard,
-  AdminPageFrame,
-  AdminStatCard,
+  Button,
+  Card,
+  AdminPage,
+  MetricCard,
   ToneBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { buildWaiterShiftSummary } from "@/lib/waiter/waiter-shifts";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
-import { faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
+import { Search } from "lucide-react";
 
 type AdminReportsPageProps = {
   searchParams?: Promise<{
@@ -40,17 +42,41 @@ function parseDateInput(dateInput?: string) {
 }
 
 function MiniLineChart({ value }: { value: number }) {
-  const points = [28, 36, 44, 58, 50, 62, Math.max(42, Math.min(value / 10, 88)), 70];
+  const points = [
+    28,
+    36,
+    44,
+    58,
+    50,
+    62,
+    Math.max(42, Math.min(value / 10, 88)),
+    70,
+  ];
   const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${index * 58 + 16} ${110 - point}`)
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"} ${index * 58 + 16} ${110 - point}`,
+    )
     .join(" ");
 
   return (
     <svg viewBox="0 0 440 130" className="h-56 w-full">
       <path d={`${path} L 422 118 L 16 118 Z`} fill="#dbeafe" opacity="0.65" />
-      <path d={path} fill="none" stroke="#2563eb" strokeWidth="4" strokeLinecap="round" />
+      <path
+        d={path}
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
       {points.map((point, index) => (
-        <circle key={index} cx={index * 58 + 16} cy={110 - point} r="4" fill="#2563eb" />
+        <circle
+          key={index}
+          cx={index * 58 + 16}
+          cy={110 - point}
+          r="4"
+          fill="#2563eb"
+        />
       ))}
     </svg>
   );
@@ -161,7 +187,10 @@ export default async function AdminReportsPage({
   ]);
 
   const shiftSummary = reportData
-    ? buildWaiterShiftSummary(reportData[0], Number(reportData[1]._sum.total ?? 0))
+    ? buildWaiterShiftSummary(
+        reportData[0],
+        Number(reportData[1]._sum.total ?? 0),
+      )
     : null;
   const waiterOrders = reportData ? Number(reportData[1]._count.id ?? 0) : 0;
   const totalSales = Number(dailyAggregate._sum.total ?? 0);
@@ -169,8 +198,7 @@ export default async function AdminReportsPage({
   const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
 
   return (
-    <AdminPageFrame
-      
+    <AdminPage
       title="Reports"
       description="View business reports and analytics"
     >
@@ -179,7 +207,7 @@ export default async function AdminReportsPage({
           <span className="mb-1 block text-sm font-bold text-slate-700">
             Staff
           </span>
-          <select
+          <NativeSelect
             name="waiterId"
             defaultValue={selectedWaiterId}
             className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
@@ -193,44 +221,69 @@ export default async function AdminReportsPage({
                 </option>
               ))
             )}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           <span className="mb-1 block text-sm font-bold text-slate-700">
             Business Day
           </span>
-          <input
+          <Input
             type="date"
             name="date"
             defaultValue={selectedDate}
             className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           />
         </label>
-        <AdminButton type="submit" icon={faMagnifyingGlass}>View Report</AdminButton>
+        <Button type="submit">
+          <Search data-icon="inline-start" />
+          View Report
+        </Button>
       </form>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard label="Total Sales" value={formatMoney(totalSales)} helper={businessDayLabel} />
-        <AdminStatCard label="Total Orders" value={totalOrders} />
-        <AdminStatCard label="Average Order Value" value={formatMoney(averageOrderValue)} />
-        <AdminStatCard label="Waiter Orders" value={waiterOrders} helper={selectedWaiter?.fullName ?? "--"} />
+        <MetricCard
+          label="Total Sales"
+          value={formatMoney(totalSales)}
+          helper={businessDayLabel}
+        />
+        <MetricCard label="Total Orders" value={totalOrders} />
+        <MetricCard
+          label="Average Order Value"
+          value={formatMoney(averageOrderValue)}
+        />
+        <MetricCard
+          label="Waiter Orders"
+          value={waiterOrders}
+          helper={selectedWaiter?.fullName ?? "--"}
+        />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.8fr)]">
-        <AdminCard className="p-5">
+        <Card className="p-5">
           <h2 className="text-lg font-black text-slate-950">Sales Overview</h2>
           <MiniLineChart value={totalSales} />
-        </AdminCard>
+        </Card>
 
-        <AdminCard className="p-5">
-          <h2 className="text-lg font-black text-slate-950">Sales by Category</h2>
+        <Card className="p-5">
+          <h2 className="text-lg font-black text-slate-950">
+            Sales by Category
+          </h2>
           <div className="mt-4 space-y-3">
             {categoryRows.map((category, index) => (
-              <div key={category.id} className="flex items-center justify-between gap-3">
+              <div
+                key={category.id}
+                className="flex items-center justify-between gap-3"
+              >
                 <div className="flex items-center gap-3">
                   <span
                     className={`size-3 rounded-full ${
-                      ["bg-blue-500", "bg-emerald-500", "bg-orange-500", "bg-red-400", "bg-slate-400"][index]
+                      [
+                        "bg-blue-500",
+                        "bg-emerald-500",
+                        "bg-orange-500",
+                        "bg-red-400",
+                        "bg-slate-400",
+                      ][index]
                     }`}
                   />
                   <span className="text-sm font-bold text-slate-700">
@@ -243,10 +296,10 @@ export default async function AdminReportsPage({
               </div>
             ))}
           </div>
-        </AdminCard>
+        </Card>
       </section>
 
-      <AdminCard className="p-5">
+      <Card className="p-5">
         <h2 className="text-lg font-black text-slate-950">
           Waiter Balance Summary
         </h2>
@@ -254,7 +307,9 @@ export default async function AdminReportsPage({
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
             <p className="text-sm font-bold text-slate-500">Status</p>
             <div className="mt-2">
-              <ToneBadge tone={shiftSummary?.status === "closed" ? "green" : "amber"}>
+              <ToneBadge
+                tone={shiftSummary?.status === "closed" ? "green" : "amber"}
+              >
                 {shiftSummary?.status ?? "No Shift"}
               </ToneBadge>
             </div>
@@ -278,7 +333,7 @@ export default async function AdminReportsPage({
             </p>
           </div>
         </div>
-      </AdminCard>
-    </AdminPageFrame>
+      </Card>
+    </AdminPage>
   );
 }

@@ -70,7 +70,6 @@ function SalesTooltip({
   );
 }
 
-
 export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
   const hasSales = points.some((point) => point.value > 0);
 

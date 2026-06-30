@@ -1,3 +1,5 @@
+﻿import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { createModifierGroup } from "../actions";
 import Link from "next/link";
 
@@ -18,7 +20,7 @@ export default function NewModifierGroupPage() {
               >
                 Group Name
               </label>
-              <input
+              <Input
                 id="modifier-group-name"
                 name="name"
                 placeholder="Group Name"
@@ -34,7 +36,7 @@ export default function NewModifierGroupPage() {
               >
                 Minimum selections
               </label>
-              <input
+              <Input
                 id="modifier-group-min-select"
                 name="minSelect"
                 type="number"
@@ -50,7 +52,7 @@ export default function NewModifierGroupPage() {
               >
                 Maximum selections
               </label>
-              <input
+              <Input
                 id="modifier-group-max-select"
                 name="maxSelect"
                 type="number"
@@ -60,7 +62,7 @@ export default function NewModifierGroupPage() {
             </div>
 
             <label htmlFor="modifier-group-active" className="flex gap-2">
-              <input
+              <Input
                 id="modifier-group-active"
                 type="checkbox"
                 name="isActive"
@@ -70,12 +72,12 @@ export default function NewModifierGroupPage() {
             </label>
 
             <div className="flex gap-3">
-              <button
+              <Button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded"
               >
                 Create
-              </button>
+              </Button>
 
               <Link
                 href="/admin/modifier-groups"

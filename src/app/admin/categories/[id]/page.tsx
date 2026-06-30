@@ -1,3 +1,6 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -52,7 +55,7 @@ export default async function CategoryDetailsPage({
           </h2>
 
           <form action={updateCategory} className="space-y-4">
-            <input type="hidden" name="id" value={category.id} />
+            <Input type="hidden" name="id" value={category.id} />
 
             <div>
               <label
@@ -61,7 +64,7 @@ export default async function CategoryDetailsPage({
               >
                 Name
               </label>
-              <input
+              <Input
                 id="category-name"
                 name="name"
                 type="text"
@@ -78,7 +81,7 @@ export default async function CategoryDetailsPage({
               >
                 Station
               </label>
-              <select
+              <NativeSelect
                 id="category-station"
                 name="station"
                 defaultValue={category.station ?? ""}
@@ -93,7 +96,7 @@ export default async function CategoryDetailsPage({
                     {station}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
@@ -103,7 +106,7 @@ export default async function CategoryDetailsPage({
               >
                 Sort Order
               </label>
-              <input
+              <Input
                 id="category-sort-order"
                 name="sortOrder"
                 type="number"
@@ -117,7 +120,7 @@ export default async function CategoryDetailsPage({
               htmlFor="category-active"
               className="flex items-center gap-2 text-sm"
             >
-              <input
+              <Input
                 id="category-active"
                 name="isActive"
                 type="checkbox"
@@ -127,12 +130,12 @@ export default async function CategoryDetailsPage({
             </label>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Save Changes
-              </button>
+              </Button>
             </div>
           </form>
         </section>
@@ -148,13 +151,13 @@ export default async function CategoryDetailsPage({
           </p>
 
           <form action={deleteCategory}>
-            <input type="hidden" name="id" value={category.id} />
-            <button
+            <Input type="hidden" name="id" value={category.id} />
+            <Button
               type="submit"
               className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
             >
               Delete Category
-            </button>
+            </Button>
           </form>
         </section>
       </div>
