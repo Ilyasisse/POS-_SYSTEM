@@ -1,19 +1,12 @@
-import { Suspense } from "react";
+﻿import { Suspense } from "react";
 import StaffLoginPageClient from "@/components/auth/StaffLoginPageClient";
 import { redirectAuthenticatedUser } from "@/lib/auth/redirect-authenticated-user";
+import { AuthPageSkeleton } from "@/components/auth/AuthPageSkeleton";
 
 export const dynamic = "force-dynamic";
 
 function StaffLoginFallback() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f7efe6] p-6">
-      <div className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-sm">
-        <p className="text-center text-sm text-[#6d5445]">
-          Loading staff login...
-        </p>
-      </div>
-    </main>
-  );
+  return <AuthPageSkeleton />;
 }
 
 export default async function StaffLoginPage() {

@@ -13,7 +13,7 @@ import { getKitchenSocketUrl } from "@/lib/kitchen/kitchen-socket";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useWaiterData } from "@/hooks/waiter/useWaiterData";
 import { useWaiterSocket } from "@/hooks/waiter/useWaiterSocket";
-import type { CartLine, Category, Product} from "@/lib/types";
+import type { Category, Product } from "@/lib/types";
 import {
   buildModifierLines,
   getProductModifierGroups,
@@ -426,7 +426,7 @@ export default function CustomerOrderPage() {
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-stone-900"
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />

@@ -1,3 +1,4 @@
+﻿import { Button } from "@/components/ui/button";
 type BackToTopButtonProps = {
   show: boolean;
   onClick: () => void;
@@ -12,7 +13,7 @@ export default function BackToTopButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
       aria-label="Back to top"
       onClick={onClick}
@@ -31,6 +32,6 @@ export default function BackToTopButton({
         <path d="M12 19V5" />
         <path d="m5 12 7-7 7 7" />
       </svg>
-    </button>
+    </Button>
   );
 }
