@@ -1,4 +1,10 @@
-"use client";
+﻿"use client";
+
+import { Button } from "@/components/ui/button";
+
+import { NativeSelect } from "@/components/ui/native-select";
+
+import { Textarea } from "@/components/ui/textarea";
 
 import { useMemo, useReducer } from "react";
 import { useRouter } from "next/navigation";
@@ -189,24 +195,24 @@ function CashierProductPicker({
   onPlayProduct,
 }: CashierProductPickerProps) {
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-blue-200/30">
+    <section className="space-y-4 rounded-2xl border border-border bg-card/90 p-4 shadow-xl shadow-blue-200/30">
       <div className="grid gap-3 md:grid-cols-[1fr_0.8fr] md:items-end">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">
+          <h2 className="text-lg font-bold text-foreground">
             Take table order
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Cashier sends food to the kitchen first. Payment is collected later.
           </p>
         </div>
         <label className="block">
-          <span className="mb-1 block text-sm font-semibold text-slate-700">
+          <span className="mb-1 block text-sm font-semibold text-foreground">
             Table
           </span>
-          <select
+          <NativeSelect
             value={selectedTableId}
             onChange={(event) => onTableSelect(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-semibold outline-none focus:border-blue-500"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 font-semibold outline-none focus:border-blue-500"
           >
             {tables.length === 0 ? (
               <option value="">No active tables</option>
@@ -217,7 +223,7 @@ function CashierProductPicker({
                 </option>
               ))
             )}
-          </select>
+          </NativeSelect>
         </label>
       </div>
 
@@ -261,13 +267,13 @@ function CurrentTableOrderPanel({
   onPlayFullOrder,
 }: CurrentTableOrderPanelProps) {
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-300/40">
+    <section className="space-y-4 rounded-2xl border border-border bg-card/95 p-4 shadow-xl shadow-slate-300/40">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">
+          <h2 className="text-lg font-bold text-foreground">
             Current table order
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Send to kitchen as an open order.
           </p>
         </div>
@@ -286,7 +292,7 @@ function CurrentTableOrderPanel({
 
       <div className="space-y-2 overflow-y-auto pr-1">
         {cart.length === 0 ? (
-          <p className="rounded-lg bg-slate-100 p-3 text-sm text-slate-500">
+          <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
             Fadlan marka hore dalbo
           </p>
         ) : (
@@ -302,15 +308,15 @@ function CurrentTableOrderPanel({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-semibold text-slate-600">
+        <span className="mb-1 block text-sm font-semibold text-muted-foreground">
           Qoraallada Dalabka
         </span>
-        <textarea
+        <Textarea
           value={orderNote}
           onChange={(event) => onOrderNoteChange(event.target.value)}
           placeholder="Fadlan halkan ku qor qoraallada dalabka..."
           rows={3}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
+          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
         />
       </label>
 
@@ -324,32 +330,32 @@ function CurrentTableOrderPanel({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <button
+        <Button
           type="button"
           onClick={onClearOrder}
-          className="min-h-11 rounded-lg bg-slate-100 text-sm font-semibold text-slate-700"
+          className="min-h-11 rounded-lg bg-muted text-sm font-semibold text-foreground"
         >
           Nadiifi
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={onSendOrder}
           className="min-h-11 rounded-lg bg-[#2E7D32] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           disabled={isDisabled}
         >
           {isSubmitting ? "Fadlan sug..." : "Send to kitchen"}
-        </button>
+        </Button>
       </div>
 
-      <button
+      <Button
         type="button"
         onClick={onPlayFullOrder}
         disabled={cart.length === 0}
         className="min-h-10 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Ciyaar codka dalabka
-      </button>
+      </Button>
 
       {statusMessage ? (
         <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
@@ -385,7 +391,9 @@ export default function CashierOrderClient({
     calculateCartTotal,
   } = useWaiterCart();
 
-  const initialTableExists = tables.some((table) => table.id === initialTableId);
+  const initialTableExists = tables.some(
+    (table) => table.id === initialTableId,
+  );
   const defaultTableId = initialTableExists
     ? initialTableId
     : (tables[0]?.id ?? "");
@@ -393,8 +401,7 @@ export default function CashierOrderClient({
     cashierOrderReducer,
     initialCashierOrderState,
   );
-  const selectedTableId =
-    orderState.selectedTableIdOverride || defaultTableId;
+  const selectedTableId = orderState.selectedTableIdOverride || defaultTableId;
   const selectedCategory = orderState.selectedCategoryValue || "All";
 
   const filteredProducts =
@@ -527,32 +534,34 @@ export default function CashierOrderClient({
     const modifierGroups = Array.isArray(product.modifierGroups)
       ? product.modifierGroups
       : [];
-    const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap((group) => {
-      const selectedOptionIds = selectedModifiers[group.id] || [];
+    const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap(
+      (group) => {
+        const selectedOptionIds = selectedModifiers[group.id] || [];
 
-      return group.options.flatMap((option) =>
-        selectedOptionIds.includes(option.id)
-          ? [
-              {
-                groupId: group.id,
-                groupName: group.name,
-                optionId: option.id,
-                optionName: option.name,
-                price: Number(option.price),
-                qty: 1,
-                pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
-              },
-            ]
-          : [],
-      );
-    });
+        return group.options.flatMap((option) =>
+          selectedOptionIds.includes(option.id)
+            ? [
+                {
+                  groupId: group.id,
+                  groupName: group.name,
+                  optionId: option.id,
+                  optionName: option.name,
+                  price: Number(option.price),
+                  qty: 1,
+                  pronunciationAudioUrl: option.pronunciationAudioUrl ?? null,
+                },
+              ]
+            : [],
+        );
+      },
+    );
     const modifiersTotal = modifierLines.reduce(
       (sum, modifier) => sum + Number(modifier.price) * modifier.qty,
       0,
     );
     const assignedBarista =
       assignedBaristaId != null
-        ? baristas.find((barista) => barista.id === assignedBaristaId) ?? null
+        ? (baristas.find((barista) => barista.id === assignedBaristaId) ?? null)
         : null;
 
     const productWithConfiguration: ProductWithConfiguration = {

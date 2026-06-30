@@ -20,10 +20,9 @@ export default async function KitchenStationPage({
     notFound();
   }
 
-  const currentUser = await requirePermission(
-    PERMISSIONS.KITCHEN_TICKET_VIEW,
-    { stations: [station] },
-  );
+  const currentUser = await requirePermission(PERMISSIONS.KITCHEN_TICKET_VIEW, {
+    stations: [station],
+  });
 
   return (
     <KitchenClient

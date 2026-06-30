@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SignOutButton from "../SignOutButton";
+import { ModeToggle } from "@/components/mode-toggle";
 import {
   translateKitchenStationName,
   translateSocketStatus,
@@ -36,9 +37,9 @@ export default function KitchenHeader({
         </h1>
       </div>
 
-      <SignOutButton />
-
       <div className="flex flex-wrap items-center gap-2">
+        <ModeToggle />
+        <SignOutButton />
         {canUseInventory ? (
           <Link
             href="/inventory"

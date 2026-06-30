@@ -1,5 +1,8 @@
+﻿import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
+import { ModeToggle } from "@/components/mode-toggle";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
@@ -100,7 +103,7 @@ function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
     none: {
       title: "No inventory email needed",
       message: "The stock change did not create a new alert.",
-      classes: "border-slate-200 bg-white text-slate-900",
+      classes: "border-border bg-card text-foreground",
     },
   }[status];
 
@@ -178,7 +181,7 @@ export default async function InventoryPage({
 
   return (
     <main
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-emerald-50 px-4 py-6 text-slate-900 md:px-6"
+      className="min-h-screen bg-muted/35 px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       {inventoryEmailStatus ? (
@@ -186,30 +189,31 @@ export default async function InventoryPage({
       ) : null}
 
       <div className="mx-auto w-full max-w-7xl space-y-4 pb-24">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Inventory Use
             </p>
             <h1 className="text-2xl font-bold">Take Internal Supplies</h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Record supplies taken out during service. Restocking stays in
               admin.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right">
-              <p className="text-xs uppercase tracking-wide text-slate-400">
+            <ModeToggle />
+            <div className="rounded-xl border border-border bg-muted/50 px-3 py-2 text-right">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Signed in
               </p>
-              <p className="text-sm font-semibold text-slate-800">
+              <p className="text-sm font-semibold text-foreground">
                 {currentUser.fullName}
               </p>
             </div>
             <Link
               href="/kitchen/cabitaan"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
             >
               Back
             </Link>
@@ -218,48 +222,48 @@ export default async function InventoryPage({
         </header>
 
         <section className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               OK
             </p>
             <p className="mt-2 text-3xl font-bold text-emerald-700">
               {summary.ok}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Low
             </p>
             <p className="mt-2 text-3xl font-bold text-amber-700">
               {summary.low}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Out
             </p>
             <p className="mt-2 text-3xl font-bold text-red-700">
               {summary.out}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Taken Today
             </p>
-            <p className="mt-2 text-3xl font-bold text-slate-800">
+            <p className="mt-2 text-3xl font-bold text-foreground">
               {takenTodayMovements.length}
             </p>
           </div>
         </section>
 
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">
+                <h2 className="text-lg font-bold text-foreground">
                   Internal Supplies
                 </h2>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Enter a quantity to subtract it from stock.
                 </p>
               </div>
@@ -267,7 +271,7 @@ export default async function InventoryPage({
 
             <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
               {supplies.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 md:col-span-2 2xl:col-span-3">
+                <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground md:col-span-2 2xl:col-span-3">
                   No internal supplies created yet.
                 </div>
               ) : (
@@ -281,14 +285,14 @@ export default async function InventoryPage({
                   return (
                     <article
                       key={supply.id}
-                      className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      className="min-w-0 rounded-xl border border-border bg-muted/50 p-3"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="break-words text-base font-bold text-slate-800">
+                          <h3 className="break-words text-base font-bold text-foreground">
                             {supply.name}
                           </h3>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             {supply.stockQty} {supply.unit} on hand
                           </p>
                         </div>
@@ -301,12 +305,16 @@ export default async function InventoryPage({
 
                       <form
                         action={takeSupplyInventory}
-                        className="mt-4 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[96px_minmax(0,1fr)]"
+                        className="mt-4 grid min-w-0 grid-cols-1 gap-2 rounded-lg border border-border bg-card p-3 sm:grid-cols-[96px_minmax(0,1fr)]"
                       >
-                        <input type="hidden" name="supplyId" value={supply.id} />
-                        <label className="min-w-0 text-xs font-semibold text-slate-600">
+                        <Input
+                          type="hidden"
+                          name="supplyId"
+                          value={supply.id}
+                        />
+                        <label className="min-w-0 text-xs font-semibold text-muted-foreground">
                           Quantity
-                          <input
+                          <Input
                             name="quantity"
                             type="number"
                             inputMode="numeric"
@@ -315,26 +323,26 @@ export default async function InventoryPage({
                             placeholder="0"
                             disabled={isOut}
                             required
-                            className="mt-1 w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                            className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:bg-muted"
                           />
                         </label>
-                        <label className="min-w-0 text-xs font-semibold text-slate-600">
+                        <label className="min-w-0 text-xs font-semibold text-muted-foreground">
                           Note
-                          <input
+                          <Input
                             name="note"
                             type="text"
                             placeholder="Optional"
                             disabled={isOut}
-                            className="mt-1 w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+                            className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:bg-muted"
                           />
                         </label>
-                        <button
+                        <Button
                           type="submit"
                           disabled={isOut}
                           className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:col-span-2"
                         >
                           {isOut ? "Out of stock" : "Take out"}
-                        </button>
+                        </Button>
                       </form>
                     </article>
                   );
@@ -343,31 +351,31 @@ export default async function InventoryPage({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-lg">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-800">
+              <h2 className="text-lg font-bold text-foreground">
                 Recent Taken
               </h2>
-              <span className="text-sm text-slate-500">Today</span>
+              <span className="text-sm text-muted-foreground">Today</span>
             </div>
 
             <div className="mt-3 space-y-2">
               {takenTodayMovements.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">
                   No supplies taken today.
                 </div>
               ) : (
                 takenTodayMovements.map((movement) => (
                   <div
                     key={movement.id}
-                    className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-3"
+                    className="min-w-0 rounded-xl border border-border bg-muted/50 p-3"
                   >
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="break-words text-sm font-semibold text-slate-700">
+                        <p className="break-words text-sm font-semibold text-foreground">
                           {movement.itemName}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {movement.createdAt.toLocaleString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -382,7 +390,7 @@ export default async function InventoryPage({
                       </span>
                     </div>
                     {movement.note ? (
-                      <p className="mt-2 break-words text-xs text-slate-500">
+                      <p className="mt-2 break-words text-xs text-muted-foreground">
                         {movement.note}
                       </p>
                     ) : null}

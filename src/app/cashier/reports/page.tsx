@@ -22,6 +22,8 @@ export default async function CashierReportsRedirect({
   }
 
   redirect(
-    query.size > 0 ? `/manager/reports?${query.toString()}` : "/manager/reports",
+    query.size > 0
+      ? `/manager/reports?${query.toString()}`
+      : "/manager/reports",
   );
 }

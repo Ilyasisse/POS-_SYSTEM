@@ -1,3 +1,6 @@
+﻿import { Table } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -181,8 +184,8 @@ function ManagerPageHeader({
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 className="text-2xl font-bold">Manager balance dashboard</h1>
-        <p className="mt-2 text-lg text-slate-700">Welcome {fullName}</p>
-        <p className="text-sm text-slate-500">
+        <p className="mt-2 text-lg text-foreground">Welcome {fullName}</p>
+        <p className="text-sm text-muted-foreground">
           Business day: {businessDayLabel}
         </p>
       </div>
@@ -196,7 +199,7 @@ function ManagerPageHeader({
         </Link>
         <Link
           href="/manager/reports"
-          className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
         >
           Reports
         </Link>
@@ -228,22 +231,22 @@ function ManagerMetricCards({
 }: ManagerMetricCardsProps) {
   return (
     <div className="mb-6 grid gap-4 sm:grid-cols-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Waiters</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Waiters</p>
         <h2 className="mt-2 text-2xl font-bold">{waiterCount}</h2>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Waiter orders</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Waiter orders</p>
         <h2 className="mt-2 text-2xl font-bold">{grandTotalOrders}</h2>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Waiter sales</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Waiter sales</p>
         <h2 className="mt-2 text-2xl font-bold">
           {formatMoney(grandTotalSales)}
         </h2>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Open table total</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Open table total</p>
         <h2 className="mt-2 text-2xl font-bold">
           {formatMoney(openTableTotal)}
         </h2>
@@ -254,10 +257,12 @@ function ManagerMetricCards({
 
 function OperationalAlertsPanel({ alerts }: { alerts: Alert[] }) {
   return (
-    <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3">
-        <h2 className="text-lg font-bold text-slate-900">Operational alerts</h2>
-        <p className="text-sm text-slate-500">
+        <h2 className="text-lg font-bold text-foreground">
+          Operational alerts
+        </h2>
+        <p className="text-sm text-muted-foreground">
           Display-only alerts for table flow and balance issues.
         </p>
       </div>
@@ -297,25 +302,25 @@ function WaiterBalanceManagement({
   selectedWaiterIsClosed,
 }: WaiterBalanceManagementProps) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-4">
-        <h2 className="text-lg font-bold text-slate-900">
+        <h2 className="text-lg font-bold text-foreground">
           Waiter balance management
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Select a waiter, start the balance, then close or reopen it.
         </p>
       </div>
 
       <form className="grid gap-3 md:grid-cols-[1.2fr_0.8fr] md:items-end">
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-700">
+          <span className="mb-1 block text-sm font-medium text-foreground">
             Waiter
           </span>
           <AutoSubmitSelect
             name="waiterId"
             defaultValue={selectedWaiterId}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none focus:border-blue-500"
+            className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500"
           >
             {waiters.length === 0 ? (
               <option value="">No waiters found</option>
@@ -328,11 +333,11 @@ function WaiterBalanceManagement({
             )}
           </AutoSubmitSelect>
         </label>
-        <div className="text-sm text-slate-500 md:pb-2">
+        <div className="text-sm text-muted-foreground md:pb-2">
           {selectedWaiterSummary ? (
             <p>
               Today&apos;s sales:{" "}
-              <span className="font-semibold text-slate-800">
+              <span className="font-semibold text-foreground">
                 {formatMoney(selectedWaiterSummary.totalSales)}
               </span>
             </p>
@@ -345,22 +350,22 @@ function WaiterBalanceManagement({
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <form
           action={saveWaiterOpeningBalance}
-          className="rounded-xl border border-slate-200 p-4"
+          className="rounded-xl border border-border p-4"
         >
-          <input type="hidden" name="waiterId" value={selectedWaiterId} />
-          <input
+          <Input type="hidden" name="waiterId" value={selectedWaiterId} />
+          <Input
             type="hidden"
             name="openingAmount"
             value={openingAmountDefaultValue.toFixed(2)}
           />
-          <span className="mb-1 block text-sm font-medium text-slate-700">
+          <span className="mb-1 block text-sm font-medium text-foreground">
             Starting balance
           </span>
-          <div className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-3">
-            <p className="text-lg font-semibold text-slate-900">
+          <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+            <p className="text-lg font-semibold text-foreground">
               {formatMoney(openingAmountDefaultValue)}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               Defaults to $0.00, or yesterday&apos;s negative carry-over.
             </p>
             {showNextShiftCarryOver ? (
@@ -369,7 +374,7 @@ function WaiterBalanceManagement({
               </p>
             ) : null}
           </div>
-          <button
+          <Button
             type="submit"
             disabled={
               !selectedWaiterId ||
@@ -379,19 +384,19 @@ function WaiterBalanceManagement({
             className="mt-4 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             Start shift
-          </button>
+          </Button>
         </form>
 
         <form
           action={closeWaiterBalanceFromManager}
-          className="rounded-xl border border-slate-200 p-4"
+          className="rounded-xl border border-border p-4"
         >
-          <input type="hidden" name="waiterId" value={selectedWaiterId} />
+          <Input type="hidden" name="waiterId" value={selectedWaiterId} />
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-slate-700">
+            <span className="mb-1 block text-sm font-medium text-foreground">
               Closing balance
             </span>
-            <input
+            <Input
               type="number"
               name="closingAmount"
               step="0.01"
@@ -402,25 +407,25 @@ function WaiterBalanceManagement({
                 ) ??
                 ""
               }
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none focus:border-blue-500"
+              className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500"
               placeholder="0.00"
             />
           </label>
-          <button
+          <Button
             type="submit"
             disabled={!selectedWaiterId || Boolean(selectedWaiterIsClosed)}
             className="mt-4 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             Close balance
-          </button>
+          </Button>
           {selectedWaiterIsClosed ? (
-            <button
+            <Button
               type="submit"
               formAction={reopenWaiterBalanceFromManager}
               className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 font-semibold text-amber-800 hover:bg-amber-100"
             >
               Reopen balance
-            </button>
+            </Button>
           ) : null}
         </form>
       </div>
@@ -434,40 +439,40 @@ function SelectedWaiterSummaryCard({
   selectedWaiterSummary: WaiterSummary | null;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-900">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <h2 className="text-lg font-bold text-foreground">
         Selected waiter summary
       </h2>
       {selectedWaiterSummary ? (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
               Waiter
             </p>
-            <p className="mt-1 font-semibold text-slate-900">
+            <p className="mt-1 font-semibold text-foreground">
               {selectedWaiterSummary.fullName}
             </p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
               Status
             </p>
-            <p className="mt-1 font-semibold capitalize text-slate-900">
+            <p className="mt-1 font-semibold capitalize text-foreground">
               {selectedWaiterSummary.shiftSummary.status}
             </p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
               Expected close
             </p>
-            <p className="mt-1 font-semibold text-slate-900">
+            <p className="mt-1 font-semibold text-foreground">
               {formatMoney(
                 selectedWaiterSummary.shiftSummary.expectedClosingAmount,
               )}
             </p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3">
-            <p className="text-xs uppercase tracking-[0.15em] text-slate-500">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
               Difference
             </p>
             <p
@@ -475,7 +480,7 @@ function SelectedWaiterSummaryCard({
                 selectedWaiterSummary.shiftSummary.variance != null &&
                 selectedWaiterSummary.shiftSummary.variance < 0
                   ? "text-red-600"
-                  : "text-slate-900"
+                  : "text-foreground"
               }`}
             >
               {formatMoney(selectedWaiterSummary.shiftSummary.variance)}
@@ -483,7 +488,9 @@ function SelectedWaiterSummaryCard({
           </div>
         </div>
       ) : (
-        <p className="mt-4 text-sm text-slate-500">No waiter selected.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          No waiter selected.
+        </p>
       )}
     </section>
   );
@@ -495,50 +502,50 @@ function OpenTableOrdersSection({
   openTableOrders: OpenTableOrderRow[];
 }) {
   return (
-    <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-4 py-3">
-        <h2 className="font-semibold text-slate-900">Open table orders</h2>
+    <section className="mb-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="font-semibold text-foreground">Open table orders</h2>
       </div>
       {openTableOrders.length === 0 ? (
-        <div className="p-6 text-sm text-slate-500">
+        <div className="p-6 text-sm text-muted-foreground">
           No unpaid table orders.
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50">
+          <Table className="min-w-full text-left text-sm">
+            <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Order
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Table
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Cashier
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Items
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Total
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Created
                 </th>
               </tr>
             </thead>
             <tbody>
               {openTableOrders.map((order) => (
-                <tr key={order.id} className="border-t border-slate-100">
+                <tr key={order.id} className="border-t border-border">
                   <td className="px-4 py-3 font-semibold">
                     #{order.orderNumber}
                   </td>
                   <td className="px-4 py-3">{order.table?.name ?? "-"}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {order.cashier?.fullName ?? "-"}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {order.orderItems
                       .map((item) => `${item.qty}x ${item.productName}`)
                       .join(", ")}
@@ -546,13 +553,13 @@ function OpenTableOrdersSection({
                   <td className="px-4 py-3 font-semibold">
                     {formatMoney(Number(order.total))}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {formatDateTime(order.createdAt)}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </section>
@@ -565,29 +572,35 @@ function WaiterBalanceSummaryTable({
   summaries: WaiterSummary[];
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-4 py-3">
-        <h2 className="font-semibold text-slate-900">Waiter balance summary</h2>
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="font-semibold text-foreground">
+          Waiter balance summary
+        </h2>
       </div>
       <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50">
+        <Table className="min-w-full text-left text-sm">
+          <thead className="bg-muted/50">
             <tr>
-              <th className="px-4 py-3 font-semibold text-slate-700">Name</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Orders</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Sales</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">
+              <th className="px-4 py-3 font-semibold text-foreground">Name</th>
+              <th className="px-4 py-3 font-semibold text-foreground">
+                Orders
+              </th>
+              <th className="px-4 py-3 font-semibold text-foreground">Sales</th>
+              <th className="px-4 py-3 font-semibold text-foreground">
                 Opening
               </th>
-              <th className="px-4 py-3 font-semibold text-slate-700">Status</th>
-              <th className="px-4 py-3 font-semibold text-slate-700">
+              <th className="px-4 py-3 font-semibold text-foreground">
+                Status
+              </th>
+              <th className="px-4 py-3 font-semibold text-foreground">
                 Difference
               </th>
             </tr>
           </thead>
           <tbody>
             {summaries.map((staff) => (
-              <tr key={staff.id} className="border-t border-slate-100">
+              <tr key={staff.id} className="border-t border-border">
                 <td className="px-4 py-3 font-medium">{staff.fullName}</td>
                 <td className="px-4 py-3">{staff.totalOrders}</td>
                 <td className="px-4 py-3">{formatMoney(staff.totalSales)}</td>
@@ -612,7 +625,7 @@ function WaiterBalanceSummaryTable({
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       </div>
     </section>
   );

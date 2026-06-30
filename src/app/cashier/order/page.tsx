@@ -1,8 +1,10 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import CashierOrderClient from "@/components/cashier/CashierOrderClient";
+import { ModeToggle } from "@/components/mode-toggle";
+import { Button } from "@/components/ui/button";
 
 type CashierOrderPageProps = {
   searchParams?: Promise<{
@@ -31,21 +33,21 @@ export default async function CashierOrderPage({
   ]);
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-slate-100 via-blue-50 to-blue-100 px-4 py-6 text-slate-900 md:px-6">
+    <main className="min-h-screen bg-muted/35 px-4 py-6 text-foreground md:px-6">
       <div className="mx-auto w-full max-w-7xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Cashier table order</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Welcome {currentUser.fullName}
             </p>
           </div>
-          <Link
-            href="/cashier"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Back to cashier
-          </Link>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Button asChild variant="outline">
+              <Link href="/cashier">Back to cashier</Link>
+            </Button>
+          </div>
         </div>
 
         <CashierOrderClient

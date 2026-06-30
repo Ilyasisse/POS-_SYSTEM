@@ -1,5 +1,7 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui/native-select";
+
 type AutoSubmitSelectProps = {
   name: string;
   defaultValue: string;
@@ -14,13 +16,13 @@ export default function AutoSubmitSelect({
   children,
 }: AutoSubmitSelectProps) {
   return (
-    <select
+    <NativeSelect
       name={name}
       defaultValue={defaultValue}
       onChange={(event) => event.currentTarget.form?.requestSubmit()}
       className={className}
     >
       {children}
-    </select>
+    </NativeSelect>
   );
 }

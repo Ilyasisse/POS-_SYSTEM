@@ -1,3 +1,4 @@
+﻿import { Button } from "@/components/ui/button";
 import type {
   KitchenTicket,
   KitchenTicketStatus,
@@ -65,10 +66,11 @@ export default function KitchenTicketCard({
                 <p className="text-sm font-semibold text-slate-100">
                   {item.name}
                 </p>
-                <p className="text-sm font-bold text-blue-300">x{item.quantity}</p>
+                <p className="text-sm font-bold text-blue-300">
+                  x{item.quantity}
+                </p>
               </div>
 
-            
               {item.modifiers.length > 0 ? (
                 <div className="mt-2 space-y-1 rounded-md bg-slate-800/70 px-2 py-2">
                   {item.modifiers.map((modifier) => (
@@ -96,30 +98,30 @@ export default function KitchenTicketCard({
       {canUpdateStatus ? (
         <div className="mt-4 grid grid-cols-2 gap-2">
           {ticket.status === "new" ? (
-            <button
+            <Button
               type="button"
               onClick={() => onUpdateStatus(ticket.id, "in_progress")}
               className="min-h-11 rounded-lg bg-blue-600 text-sm font-semibold text-white"
             >
               Bilow
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
               onClick={() => onUpdateStatus(ticket.id, "new")}
               className="min-h-11 rounded-lg bg-slate-600 text-sm font-semibold text-white"
             >
               Dib fur
-            </button>
+            </Button>
           )}
 
-          <button
+          <Button
             type="button"
             onClick={() => onUpdateStatus(ticket.id, "done")}
             className="min-h-11 rounded-lg bg-green-600 text-sm font-semibold text-white"
           >
             Dhammaay
-          </button>
+          </Button>
         </div>
       ) : (
         <p className="mt-4 text-xs text-slate-400">

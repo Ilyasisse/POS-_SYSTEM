@@ -3,10 +3,9 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import KitchenClient from "@/components/kitchen/KitchenClient";
 
 export default async function CuntoSoomaaliKitchenPage() {
-  const currentUser = await requirePermission(
-    PERMISSIONS.KITCHEN_TICKET_VIEW,
-    { stations: ["CUNTO_SOOMAALI"] },
-  );
+  const currentUser = await requirePermission(PERMISSIONS.KITCHEN_TICKET_VIEW, {
+    stations: ["CUNTO_SOOMAALI"],
+  });
 
   return (
     <KitchenClient
