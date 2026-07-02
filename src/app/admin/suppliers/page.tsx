@@ -34,6 +34,10 @@ function Fields({
     isActive: boolean;
   };
 }) {
+  const activeInputId = supplier
+    ? `supplier-${supplier.id}-active`
+    : "new-supplier-active";
+
   return (
     <>
       {supplier ? <Input type="hidden" name="id" value={supplier.id} /> : null}
@@ -82,9 +86,13 @@ function Fields({
         placeholder="Notes"
         className={fieldClass}
       />
-      <label className="flex items-center gap-2 text-md font-semibold text-slate-700">
-        <Input type="hidden" name="isActive" value="false" />
+      <Input type="hidden" name="isActive" value="false" />
+      <label
+        htmlFor={activeInputId}
+        className="flex items-center gap-2 text-md font-semibold text-slate-700"
+      >
         <Input
+          id={activeInputId}
           type="checkbox"
           name="isActive"
           value="true"

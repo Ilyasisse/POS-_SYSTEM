@@ -26,7 +26,7 @@ function parseInvoiceDate(value: string | null) {
 }
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+  return structuredClone(value) as Prisma.InputJsonValue;
 }
 
 export async function processSupplierDelivery(deliveryId: string) {
@@ -55,46 +55,49 @@ export async function processSupplierDelivery(deliveryId: string) {
     await prisma.$transaction(async (tx) => {
       await tx.supplierDeliveryItem.deleteMany({ where: { deliveryId } });
 
-      for (const item of result.parsed.items) {
-        const key = normalizedName(item.description);
-        const product = products.find((row) => normalizedName(row.name) === key);
-        const supply = product ? null : supplies.find((row) => normalizedName(row.name) === key);
+      await Promise.all([
+        tx.supplierDeliveryItem.createMany({
+          data: result.parsed.items.map((item) => {
+            const key = normalizedName(item.description);
+            const product = products.find((row) => normalizedName(row.name) === key);
+            const supply = product
+              ? null
+              : supplies.find((row) => normalizedName(row.name) === key);
 
-        await tx.supplierDeliveryItem.create({
+            return {
+              deliveryId,
+              aiItemName: item.description,
+              matchedItemName: product?.name ?? supply?.name ?? null,
+              productId: product?.id,
+              inventorySupplyId: supply?.id,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              confidenceScore: item.confidence,
+              notes: item.notes,
+              needsManualReview: item.confidence < 0.8 || (!product && !supply),
+            };
+          }),
+        }),
+        tx.supplierDelivery.update({
+          where: { id: deliveryId },
           data: {
-            deliveryId,
-            aiItemName: item.description,
-            matchedItemName: product?.name ?? supply?.name ?? null,
-            productId: product?.id,
-            inventorySupplyId: supply?.id,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: item.totalPrice,
-            confidenceScore: item.confidence,
-            notes: item.notes,
-            needsManualReview: item.confidence < 0.8 || (!product && !supply),
+            status: "PENDING_VERIFICATION",
+            extractedText: result.parsed.transcription,
+            invoiceNumber: result.parsed.invoiceNumber,
+            receiptDate: parseInvoiceDate(result.parsed.invoiceDate),
+            subtotalAmount: result.parsed.subtotal,
+            taxAmount: result.parsed.tax,
+            discountAmount: result.parsed.discount,
+            totalAmount: result.parsed.total,
+            aiRawResponse: jsonValue(result.audit),
+            aiParsedJson: jsonValue(result.parsed),
+            aiError: null,
+            ocrConfidence: null,
+            ocrError: null,
           },
-        });
-      }
-
-      await tx.supplierDelivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: "PENDING_VERIFICATION",
-          extractedText: result.parsed.transcription,
-          invoiceNumber: result.parsed.invoiceNumber,
-          receiptDate: parseInvoiceDate(result.parsed.invoiceDate),
-          subtotalAmount: result.parsed.subtotal,
-          taxAmount: result.parsed.tax,
-          discountAmount: result.parsed.discount,
-          totalAmount: result.parsed.total,
-          aiRawResponse: jsonValue(result.audit),
-          aiParsedJson: jsonValue(result.parsed),
-          aiError: null,
-          ocrConfidence: null,
-          ocrError: null,
-        },
-      });
+        }),
+      ]);
     });
 
     return result.parsed;
@@ -165,69 +168,127 @@ export async function approveExtractedSupplierDelivery(
 
       await tx.supplierDeliveryItem.deleteMany({ where: { deliveryId } });
 
-      let billTotal = new Prisma.Decimal(0);
-
+      const productIdSet = new Set<string>();
+      const supplyIdSet = new Set<string>();
       for (const row of rows) {
-        let matchedItemName: string;
-
         if (row.kind === "product") {
-          const product = await tx.product.findFirst({
-            where: { id: row.targetId, isActive: true },
-          });
-          if (!product) throw new Error(`${row.description} is not an active product.`);
-          matchedItemName = product.name;
-          await setProductInventoryLevel(
+          productIdSet.add(row.targetId);
+        } else {
+          supplyIdSet.add(row.targetId);
+        }
+      }
+      const productIds = Array.from(productIdSet);
+      const supplyIds = Array.from(supplyIdSet);
+      const [products, supplies] = await Promise.all([
+        tx.product.findMany({
+          where: { id: { in: productIds }, isActive: true },
+          select: { id: true, name: true, stockQty: true, lowStockThreshold: true },
+        }),
+        tx.inventorySupply.findMany({
+          where: { id: { in: supplyIds }, isActive: true },
+          select: { id: true, name: true, stockQty: true, lowStockThreshold: true },
+        }),
+      ]);
+      const productById = new Map(products.map((product) => [product.id, product]));
+      const supplyById = new Map(supplies.map((supply) => [supply.id, supply]));
+      const productQuantities = new Map<string, number>();
+      const supplyQuantities = new Map<string, number>();
+
+      const review = rows.reduce(
+        (acc, row) => {
+          const unitPrice = row.unitPrice == null ? null : new Prisma.Decimal(row.unitPrice);
+          const lineTotal = new Prisma.Decimal(row.totalPrice);
+
+          if (row.kind === "product") {
+            const product = productById.get(row.targetId);
+            if (!product) throw new Error(`${row.description} is not an active product.`);
+            productQuantities.set(
+              product.id,
+              (productQuantities.get(product.id) ?? 0) + row.quantity,
+            );
+            acc.deliveryItems.push({
+              deliveryId,
+              productId: product.id,
+              inventorySupplyId: null,
+              aiItemName: row.description,
+              matchedItemName: product.name,
+              quantity: row.quantity,
+              verifiedQuantity: row.quantity,
+              unitPrice,
+              totalPrice: lineTotal,
+              needsManualReview: false,
+            });
+          } else {
+            const supply = supplyById.get(row.targetId);
+            if (!supply) throw new Error(`${row.description} is not an active supply.`);
+            supplyQuantities.set(
+              supply.id,
+              (supplyQuantities.get(supply.id) ?? 0) + row.quantity,
+            );
+            acc.deliveryItems.push({
+              deliveryId,
+              productId: null,
+              inventorySupplyId: supply.id,
+              aiItemName: row.description,
+              matchedItemName: supply.name,
+              quantity: row.quantity,
+              verifiedQuantity: row.quantity,
+              unitPrice,
+              totalPrice: lineTotal,
+              needsManualReview: false,
+            });
+          }
+
+          acc.billTotal = acc.billTotal.add(lineTotal);
+          return acc;
+        },
+        {
+          billTotal: new Prisma.Decimal(0),
+          deliveryItems: [] as Prisma.SupplierDeliveryItemCreateManyInput[],
+        },
+      );
+
+      const inventoryUpdates = Promise.all([
+        ...Array.from(productQuantities, ([productId, quantity]) => {
+          const product = productById.get(productId);
+          if (!product) throw new Error("Product not found.");
+          return setProductInventoryLevel(
             tx,
             product.id,
-            product.stockQty + row.quantity,
+            product.stockQty + quantity,
             product.lowStockThreshold,
           );
-        } else {
-          const supply = await tx.inventorySupply.findFirst({
-            where: { id: row.targetId, isActive: true },
-          });
-          if (!supply) throw new Error(`${row.description} is not an active supply.`);
-          matchedItemName = supply.name;
-          await setSupplyInventoryLevel(
+        }),
+        ...Array.from(supplyQuantities, ([supplyId, quantity]) => {
+          const supply = supplyById.get(supplyId);
+          if (!supply) throw new Error("Supply not found.");
+          return setSupplyInventoryLevel(
             tx,
             supply.id,
-            supply.stockQty + row.quantity,
+            supply.stockQty + quantity,
             supply.lowStockThreshold,
             "SUPPLIER_DELIVERY",
             `Supplier delivery ${deliveryId}`,
           );
-        }
+        }),
+      ]);
 
-        const unitPrice = row.unitPrice == null ? null : new Prisma.Decimal(row.unitPrice);
-        const lineTotal = new Prisma.Decimal(row.totalPrice);
-        billTotal = billTotal.add(lineTotal);
-
-        await tx.supplierDeliveryItem.create({
-          data: {
-            deliveryId,
-            productId: row.kind === "product" ? row.targetId : null,
-            inventorySupplyId: row.kind === "supply" ? row.targetId : null,
-            aiItemName: row.description,
-            matchedItemName,
-            quantity: row.quantity,
-            verifiedQuantity: row.quantity,
-            unitPrice,
-            totalPrice: lineTotal,
-            needsManualReview: false,
-          },
-        });
-      }
-
-      await tx.supplierDelivery.update({
-        where: { id: deliveryId },
-        data: { totalAmount: billTotal },
-      });
+      await Promise.all([
+        tx.supplierDeliveryItem.createMany({
+          data: review.deliveryItems,
+        }),
+        inventoryUpdates,
+        tx.supplierDelivery.update({
+          where: { id: deliveryId },
+          data: { totalAmount: review.billTotal },
+        }),
+      ]);
 
       return tx.supplierBill.create({
         data: {
           supplierId: delivery.supplierId,
           deliveryId,
-          totalAmount: billTotal,
+          totalAmount: review.billTotal,
           paidAmount: 0,
           status: "UNPAID",
         },

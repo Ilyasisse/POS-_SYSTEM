@@ -186,23 +186,30 @@ export function getVisibleStaffNavigationItems(
   });
 }
 
-export function getStaffNavigationSections(
-  currentUser: Pick<PermissionUser, "role" | "station">,
-) {
-  const visibleItems = getVisibleStaffNavigationItems(currentUser);
-  return getStaffNavigationSectionsFromItems(visibleItems);
-}
-
 export function getStaffNavigationSectionsFromItems(
   items: readonly StaffNavigationItem[],
 ) {
-  return (Object.keys(sectionLabels) as StaffNavigationSection[])
-    .map((section) => ({
-      section,
-      label: sectionLabels[section],
-      items: items.filter((item) => (item.section ?? "admin") === section),
-    }))
-    .filter((group) => group.items.length > 0);
+  return (Object.keys(sectionLabels) as StaffNavigationSection[]).reduce<
+    {
+      section: StaffNavigationSection;
+      label: string;
+      items: StaffNavigationItem[];
+    }[]
+  >((groups, section) => {
+    const sectionItems = items.filter(
+      (item) => (item.section ?? "admin") === section,
+    );
+
+    if (sectionItems.length > 0) {
+      groups.push({
+        section,
+        label: sectionLabels[section],
+        items: sectionItems,
+      });
+    }
+
+    return groups;
+  }, []);
 }
 
 export function isStaffNavActive(pathname: string, item: StaffNavigationItem) {

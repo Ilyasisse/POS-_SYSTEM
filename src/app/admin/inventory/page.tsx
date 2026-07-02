@@ -26,6 +26,25 @@ type StatusSummary = {
   out: number;
 };
 
+type InventoryStatus = "OK" | "LOW" | "OUT";
+
+type InventorySupplyRow = {
+  id: string;
+  name: string;
+  stockQty: number;
+  unit: string;
+  lowStockThreshold: number;
+  status: InventoryStatus;
+};
+
+type InventoryMovementRow = {
+  id: string;
+  itemName: string;
+  reason: string;
+  delta: number;
+  createdAt: Date;
+};
+
 type AdminInventoryPageProps = {
   searchParams?: Promise<{
     inventoryEmail?: string;
@@ -47,7 +66,7 @@ function getEatDayStart(date = new Date()) {
   return new Date(eatStart - EAT_OFFSET_HOURS * 60 * 60 * 1000);
 }
 
-function addStatus(summary: StatusSummary, status: "OK" | "LOW" | "OUT") {
+function addStatus(summary: StatusSummary, status: InventoryStatus) {
   if (status === "OUT") {
     summary.out += 1;
   } else if (status === "LOW") {
@@ -57,7 +76,7 @@ function addStatus(summary: StatusSummary, status: "OK" | "LOW" | "OUT") {
   }
 }
 
-function getTone(status: "OK" | "LOW" | "OUT") {
+function getTone(status: InventoryStatus) {
   if (status === "OUT") {
     return "red" as const;
   }
@@ -85,6 +104,266 @@ function getInventoryEmailMessage(value?: string) {
   if (value === "skipped") return "Inventory email skipped.";
   if (value === "none") return "No inventory email needed.";
   return null;
+}
+
+function InventoryNotice({ notice }: { notice: string | null }) {
+  if (!notice) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
+      {notice}
+    </div>
+  );
+}
+
+function InventorySummary({
+  summary,
+  takenTodayCount,
+}: {
+  summary: StatusSummary;
+  takenTodayCount: number;
+}) {
+  return (
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <MetricCard label="In Stock" value={summary.ok} helper="Healthy supplies" />
+      <MetricCard label="Low Stock" value={summary.low} helper="Needs attention" />
+      <MetricCard label="Out of Stock" value={summary.out} helper="Restock now" />
+      <MetricCard
+        label="Taken Today"
+        value={takenTodayCount}
+        helper="Since 12:00 AM EAT"
+      />
+    </section>
+  );
+}
+
+function CreateSupplyForm() {
+  return (
+    <Card className="p-4">
+      <form
+        action={createSupply}
+        className="grid gap-3 lg:grid-cols-[1fr_0.5fr_0.4fr_0.4fr_auto]"
+      >
+        <Input
+          aria-label="Supply name"
+          name="name"
+          type="text"
+          placeholder="Item name"
+          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          required
+        />
+        <Input
+          aria-label="Supply unit"
+          name="unit"
+          type="text"
+          placeholder="Unit"
+          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+        />
+        <Input
+          aria-label="Initial stock quantity"
+          name="stockQty"
+          type="number"
+          min="0"
+          placeholder="Stock"
+          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+        />
+        <Input
+          aria-label="Low stock threshold"
+          name="lowStockThreshold"
+          type="number"
+          min="0"
+          placeholder="Low"
+          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+        />
+        <Button type="submit">Add Supply</Button>
+      </form>
+    </Card>
+  );
+}
+
+function InventorySuppliesTable({
+  visibleSupplies,
+  totalSupplies,
+  searchQuery,
+  statusFilter,
+}: {
+  visibleSupplies: InventorySupplyRow[];
+  totalSupplies: number;
+  searchQuery: string;
+  statusFilter: string;
+}) {
+  return (
+    <DataTableCard
+      footer={
+        <p className="text-sm font-medium text-slate-500">
+          Showing 1 to {visibleSupplies.length} of {totalSupplies} items
+        </p>
+      }
+    >
+      <SearchToolbar placeholder="Search inventory..." defaultValue={searchQuery}>
+        <NativeSelect name="status" defaultValue={statusFilter}>
+          <option value="all">Category All</option>
+          <option value="ok">In Stock</option>
+          <option value="low">Low Stock</option>
+          <option value="out">Out of Stock</option>
+        </NativeSelect>
+        <Button
+          type="submit"
+          className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
+        >
+          Filter
+        </Button>
+      </SearchToolbar>
+      <Table>
+        <thead>
+          <tr>
+            <TableHead>#</TableHead>
+            <TableHead>Item</TableHead>
+            <TableHead>Stock</TableHead>
+            <TableHead>Unit</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Set Stock</TableHead>
+            <TableHead>Restock</TableHead>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleSupplies.length === 0 ? (
+            <tr>
+              <TableCell colSpan={7} className="py-10 text-center">
+                No inventory supplies found.
+              </TableCell>
+            </tr>
+          ) : (
+            visibleSupplies.map((supply, index) => (
+              <InventorySupplyTableRow
+                key={supply.id}
+                supply={supply}
+                rowNumber={index + 1}
+              />
+            ))
+          )}
+        </tbody>
+      </Table>
+    </DataTableCard>
+  );
+}
+
+function InventorySupplyTableRow({
+  supply,
+  rowNumber,
+}: {
+  supply: InventorySupplyRow;
+  rowNumber: number;
+}) {
+  return (
+    <tr className="border-b border-slate-50 align-top">
+      <TableCell className="font-bold text-slate-400">{rowNumber}</TableCell>
+      <TableCell className="font-black text-slate-950">{supply.name}</TableCell>
+      <TableCell>{supply.stockQty}</TableCell>
+      <TableCell>{supply.unit}</TableCell>
+      <TableCell>
+        <ToneBadge tone={getTone(supply.status)}>
+          {supply.status === "OK" ? "In Stock" : supply.status}
+        </ToneBadge>
+      </TableCell>
+      <TableCell>
+        <form action={updateSupplyInventory} className="flex min-w-60 gap-2">
+          <Input type="hidden" name="supplyId" value={supply.id} />
+          <Input
+            name="stockQty"
+            aria-label={`Stock quantity for ${supply.name}`}
+            type="number"
+            min="0"
+            defaultValue={supply.stockQty}
+            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+          />
+          <Input
+            name="lowStockThreshold"
+            aria-label={`Low stock threshold for ${supply.name}`}
+            type="number"
+            min="0"
+            defaultValue={supply.lowStockThreshold}
+            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+          />
+          <Button
+            type="submit"
+            className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white"
+          >
+            Save
+          </Button>
+        </form>
+      </TableCell>
+      <TableCell>
+        <form action={adjustSupplyInventory} className="flex min-w-56 gap-2">
+          <Input type="hidden" name="supplyId" value={supply.id} />
+          <Input
+            name="quantity"
+            aria-label={`Restock quantity for ${supply.name}`}
+            type="number"
+            min="1"
+            placeholder="Qty"
+            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+          />
+          <Input
+            name="note"
+            aria-label={`Restock note for ${supply.name}`}
+            type="text"
+            placeholder="Note"
+            className="h-9 w-24 rounded-lg border border-slate-200 px-2 text-sm"
+          />
+          <Button
+            type="submit"
+            className="h-9 rounded-lg border border-emerald-200 bg-emerald-900 px-3 text-xs font-bold text-white"
+          >
+            Add
+          </Button>
+        </form>
+      </TableCell>
+    </tr>
+  );
+}
+
+function RecentInventoryActivity({
+  movements,
+}: {
+  movements: InventoryMovementRow[];
+}) {
+  return (
+    <Card className="p-5">
+      <h2 className="text-lg font-black text-slate-950">
+        Recent Inventory Activity
+      </h2>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {movements.length === 0 ? (
+          <p className="text-sm font-medium text-slate-500">
+            No supply movements yet.
+          </p>
+        ) : (
+          movements.map((movement) => (
+            <div
+              key={movement.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-slate-950">
+                  {movement.itemName}
+                </p>
+                <p className="text-xs font-medium text-slate-500">
+                  {movement.reason} ~ {formatDateTime(movement.createdAt)}
+                </p>
+              </div>
+              <ToneBadge tone={movement.delta < 0 ? "red" : "green"}>
+                {movement.delta > 0 ? "+" : ""}
+                {movement.delta}
+              </ToneBadge>
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
 }
 
 export default async function AdminInventoryPage({
@@ -161,236 +440,19 @@ export default async function AdminInventoryPage({
       title="Inventory"
       description="Track stock levels and manage inventory"
     >
-      {notice ? (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
-          {notice}
-        </div>
-      ) : null}
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="In Stock"
-          value={summary.ok}
-          helper="Healthy supplies"
-        />
-        <MetricCard
-          label="Low Stock"
-          value={summary.low}
-          helper="Needs attention"
-        />
-        <MetricCard
-          label="Out of Stock"
-          value={summary.out}
-          helper="Restock now"
-        />
-        <MetricCard
-          label="Taken Today"
-          value={takenTodayMovements.length}
-          helper="Since 12:00 AM EAT"
-        />
-      </section>
-
-      <Card className="p-4">
-        <form
-          action={createSupply}
-          className="grid gap-3 lg:grid-cols-[1fr_0.5fr_0.4fr_0.4fr_auto]"
-        >
-          <Input
-            aria-label="Supply name"
-            name="name"
-            type="text"
-            placeholder="Item name"
-            className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
-            required
-          />
-          <Input
-            aria-label="Supply unit"
-            name="unit"
-            type="text"
-            placeholder="Unit"
-            className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
-          />
-          <Input
-            aria-label="Initial stock quantity"
-            name="stockQty"
-            type="number"
-            min="0"
-            placeholder="Stock"
-            className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
-          />
-          <Input
-            aria-label="Low stock threshold"
-            name="lowStockThreshold"
-            type="number"
-            min="0"
-            placeholder="Low"
-            className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
-          />
-          <Button type="submit">Add Supply</Button>
-        </form>
-      </Card>
-
-      <DataTableCard
-        footer={
-          <p className="text-sm font-medium text-slate-500">
-            Showing 1 to {visibleSupplies.length} of {enrichedSupplies.length}{" "}
-            items
-          </p>
-        }
-      >
-        <SearchToolbar
-          placeholder="Search inventory..."
-          defaultValue={params?.q ?? ""}
-        >
-          <NativeSelect name="status" defaultValue={statusFilter}>
-            <option value="all">Category All</option>
-            <option value="ok">In Stock</option>
-            <option value="low">Low Stock</option>
-            <option value="out">Out of Stock</option>
-          </NativeSelect>
-          <Button
-            type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
-          >
-            Filter
-          </Button>
-        </SearchToolbar>
-        <Table>
-          <thead>
-            <tr>
-              <TableHead>#</TableHead>
-              <TableHead>Item</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Set Stock</TableHead>
-              <TableHead>Restock</TableHead>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleSupplies.length === 0 ? (
-              <tr>
-                <TableCell colSpan={7} className="py-10 text-center">
-                  No inventory supplies found.
-                </TableCell>
-              </tr>
-            ) : (
-              visibleSupplies.map((supply, index) => (
-                <tr
-                  key={supply.id}
-                  className="border-b border-slate-50 align-top"
-                >
-                  <TableCell className="font-bold text-slate-400">
-                    {index + 1}
-                  </TableCell>
-                  <TableCell className="font-black text-slate-950">
-                    {supply.name}
-                  </TableCell>
-                  <TableCell>{supply.stockQty}</TableCell>
-                  <TableCell>{supply.unit}</TableCell>
-                  <TableCell>
-                    <ToneBadge tone={getTone(supply.status)}>
-                      {supply.status === "OK" ? "In Stock" : supply.status}
-                    </ToneBadge>
-                  </TableCell>
-                  <TableCell>
-                    <form
-                      action={updateSupplyInventory}
-                      className="flex min-w-60 gap-2"
-                    >
-                      <Input type="hidden" name="supplyId" value={supply.id} />
-                      <Input
-                        name="stockQty"
-                        aria-label={`Stock quantity for ${supply.name}`}
-                        type="number"
-                        min="0"
-                        defaultValue={supply.stockQty}
-                        className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
-                      />
-                      <Input
-                        name="lowStockThreshold"
-                        aria-label={`Low stock threshold for ${supply.name}`}
-                        type="number"
-                        min="0"
-                        defaultValue={supply.lowStockThreshold}
-                        className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
-                      />
-                      <Button
-                        type="submit"
-                        className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white"
-                      >
-                        Save
-                      </Button>
-                    </form>
-                  </TableCell>
-                  <TableCell>
-                    <form
-                      action={adjustSupplyInventory}
-                      className="flex min-w-56 gap-2"
-                    >
-                      <Input type="hidden" name="supplyId" value={supply.id} />
-                      <Input
-                        name="quantity"
-                        aria-label={`Restock quantity for ${supply.name}`}
-                        type="number"
-                        min="1"
-                        placeholder="Qty"
-                        className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
-                      />
-                      <Input
-                        name="note"
-                        aria-label={`Restock note for ${supply.name}`}
-                        type="text"
-                        placeholder="Note"
-                        className="h-9 w-24 rounded-lg border border-slate-200 px-2 text-sm"
-                      />
-                      <Button
-                        type="submit"
-                        className="h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold bg-emerald-900 text-white"
-                      >
-                        Add
-                      </Button>
-                    </form>
-                  </TableCell>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </DataTableCard>
-
-      <Card className="p-5">
-        <h2 className="text-lg font-black text-slate-950">
-          Recent Inventory Activity
-        </h2>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {movements.length === 0 ? (
-            <p className="text-sm font-medium text-slate-500">
-              No supply movements yet.
-            </p>
-          ) : (
-            movements.map((movement) => (
-              <div
-                key={movement.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-slate-950">
-                    {movement.itemName}
-                  </p>
-                  <p className="text-xs font-medium text-slate-500">
-                    {movement.reason} ~ {formatDateTime(movement.createdAt)}
-                  </p>
-                </div>
-                <ToneBadge tone={movement.delta < 0 ? "red" : "green"}>
-                  {movement.delta > 0 ? "+" : ""}
-                  {movement.delta}
-                </ToneBadge>
-              </div>
-            ))
-          )}
-        </div>
-      </Card>
+      <InventoryNotice notice={notice} />
+      <InventorySummary
+        summary={summary}
+        takenTodayCount={takenTodayMovements.length}
+      />
+      <CreateSupplyForm />
+      <InventorySuppliesTable
+        visibleSupplies={visibleSupplies}
+        totalSupplies={enrichedSupplies.length}
+        searchQuery={params?.q ?? ""}
+        statusFilter={statusFilter}
+      />
+      <RecentInventoryActivity movements={movements} />
     </AdminPage>
   );
 }

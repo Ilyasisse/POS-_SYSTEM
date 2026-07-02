@@ -1,6 +1,6 @@
 ﻿import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { displayFont } from "../CustomerOrderPage";
+import { displayFont } from "../customer-order-styles";
 import { formatCurrency } from "../customer-order-utils";
 import { ModeToggle } from "@/components/mode-toggle";
 

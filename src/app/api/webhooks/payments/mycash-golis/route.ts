@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
-  isPaymentWebhookAuthorized,
   processMycashGolisWebhook,
   readPaymentWebhookConfig,
+  verifyPaymentWebhookSignature,
   type MycashGolisWebhookEvent,
   type PaymentWebhookCashier,
   type PaymentWebhookOrder,
@@ -104,11 +104,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: config.error }, { status: 500 });
   }
 
+  const rawBody = await request.text();
+
   if (
-    !isPaymentWebhookAuthorized(
-      request.headers.get("authorization"),
-      request.headers.get("x-webhook-secret"),
-      request.headers.get("x-webhook-secert"),
+    !verifyPaymentWebhookSignature(
+      rawBody,
+      request.headers.get("x-webhook-signature"),
       config.secret,
     )
   ) {
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
   let payload: unknown;
 
   try {
-    payload = await request.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }

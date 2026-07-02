@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import test from "node:test";
 import {
-  isPaymentWebhookAuthorized,
   normalizeMycashGolisWebhookPayload,
   processMycashGolisWebhook,
   readPaymentWebhookConfig,
+  verifyPaymentWebhookSignature,
   type PaymentWebhookCashier,
   type PaymentWebhookOrder,
   type PaymentWebhookStore,
@@ -68,7 +69,11 @@ function store(
   };
 }
 
-test("reads required webhook config and validates webhook auth headers", () => {
+function signBody(rawBody: string, secret: string) {
+  return createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+}
+
+test("reads required webhook config and validates webhook signatures", () => {
   assert.deepEqual(
     readPaymentWebhookConfig({
       PAYMENT_WEBHOOK_SECRET: " secret ",
@@ -81,25 +86,24 @@ test("reads required webhook config and validates webhook auth headers", () => {
     },
   );
 
-  assert.equal(isPaymentWebhookAuthorized(null, null, null, "secret"), false);
+  const rawBody = JSON.stringify(payload());
+  const signature = signBody(rawBody, "secret");
+
+  assert.equal(verifyPaymentWebhookSignature(rawBody, null, "secret"), false);
   assert.equal(
-    isPaymentWebhookAuthorized("Bearer wrong", null, null, "secret"),
+    verifyPaymentWebhookSignature(rawBody, "sha256=wrong", "secret"),
     false,
   );
   assert.equal(
-    isPaymentWebhookAuthorized("Bearer secret", null, null, "secret"),
+    verifyPaymentWebhookSignature(rawBody, `sha256=${signature}`, "secret"),
     true,
   );
   assert.equal(
-    isPaymentWebhookAuthorized(null, "secret", null, "secret"),
-    true,
-  );
-  assert.equal(
-    isPaymentWebhookAuthorized(null, null, "secret", "secret"),
-    true,
-  );
-  assert.equal(
-    isPaymentWebhookAuthorized(null, "wrong", "wrong", "secret"),
+    verifyPaymentWebhookSignature(
+      JSON.stringify(payload({ amount: 1 })),
+      `sha256=${signature}`,
+      "secret",
+    ),
     false,
   );
   assert.equal(

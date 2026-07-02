@@ -2,7 +2,7 @@
 import CustomerProductGrid from "../CustomerProductGrid";
 import { Product } from "@/types";
 import { StaffSummary } from "@/types";
-import { displayFont } from "../CustomerOrderPage";
+import { displayFont } from "../customer-order-styles";
 
 type ProductGridPanelProps = {
   loading: boolean;

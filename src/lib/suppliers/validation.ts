@@ -1,6 +1,6 @@
 export const SUPPLIER_RECEIPT_MAX_BYTES = 10 * 1024 * 1024;
 
-export const SUPPLIER_RECEIPT_TYPES = new Set([
+const SUPPLIER_RECEIPT_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",

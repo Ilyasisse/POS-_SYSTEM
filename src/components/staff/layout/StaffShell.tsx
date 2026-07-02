@@ -27,7 +27,7 @@ export type StaffShellProps = {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 
-export function getDefaultSidebarOpen(
+function getDefaultSidebarOpen(
   cookieStore: Awaited<ReturnType<typeof cookies>>,
 ) {
   return cookieStore.get(SIDEBAR_COOKIE_NAME)?.value !== "false";

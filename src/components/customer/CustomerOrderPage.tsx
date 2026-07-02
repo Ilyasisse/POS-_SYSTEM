@@ -26,10 +26,7 @@ import ProductGridPanel from "./UI/ProductGridPanel";
 import BackToTopButton from "./UI/BackToTopButton";
 import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
-
-export const displayFont =
-  '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif';
-const bodyFont = '"Avenir Next", "Segoe UI", sans-serif';
+import { bodyFont } from "./customer-order-styles";
 
 function isPastScrollOffset(offset: number) {
   return typeof window !== "undefined" && window.scrollY > offset;

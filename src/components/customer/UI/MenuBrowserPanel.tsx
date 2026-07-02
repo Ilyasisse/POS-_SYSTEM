@@ -1,7 +1,7 @@
 ﻿import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CategoryChip } from "@/types/customer-order.types";
-import { displayFont } from "../CustomerOrderPage";
+import { displayFont } from "../customer-order-styles";
 
 type MenuBrowserPanelProps = {
   searchTerm: string;

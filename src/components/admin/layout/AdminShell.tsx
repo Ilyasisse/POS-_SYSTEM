@@ -8,7 +8,7 @@ import StaffShell, {
   type StaffShellCurrentUser,
 } from "@/components/staff/layout/StaffShell";
 
-export const ADMIN_SHELL_NAV_SCOPE = "admin" as const;
+const ADMIN_SHELL_NAV_SCOPE = "admin" as const;
 
 export type AdminShellProps = {
   children: ReactNode;
