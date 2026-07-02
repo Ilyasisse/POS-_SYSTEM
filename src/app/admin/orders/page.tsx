@@ -154,7 +154,7 @@ export default async function AdminOrdersPage({
           </NativeSelect>
           <Button
             type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
           </Button>

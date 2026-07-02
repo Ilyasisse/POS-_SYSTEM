@@ -96,7 +96,7 @@ export default async function AdminInventoryPage({
   const todayStart = getEatDayStart();
   const notice = getInventoryEmailMessage(params?.inventoryEmail);
 
-  const [supplies, movements, takenTodayMovements] = await prisma.$transaction([
+  const [supplies, movements, takenTodayMovements] = await Promise.all([
     prisma.inventorySupply.findMany({
       where: {
         isActive: true,
@@ -250,7 +250,7 @@ export default async function AdminInventoryPage({
           </NativeSelect>
           <Button
             type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
           </Button>
@@ -346,7 +346,7 @@ export default async function AdminInventoryPage({
                       />
                       <Button
                         type="submit"
-                        className="h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold text-emerald-700"
+                        className="h-9 rounded-lg border border-emerald-200 px-3 text-xs font-bold bg-emerald-900 text-white"
                       >
                         Add
                       </Button>
@@ -379,7 +379,7 @@ export default async function AdminInventoryPage({
                     {movement.itemName}
                   </p>
                   <p className="text-xs font-medium text-slate-500">
-                    {movement.reason} Â· {formatDateTime(movement.createdAt)}
+                    {movement.reason} ~ {formatDateTime(movement.createdAt)}
                   </p>
                 </div>
                 <ToneBadge tone={movement.delta < 0 ? "red" : "green"}>

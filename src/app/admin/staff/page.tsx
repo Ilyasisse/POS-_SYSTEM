@@ -99,8 +99,8 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
             <option value="inactive">Inactive</option>
           </NativeSelect>
           <Button
-            type="button"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
           </Button>

@@ -223,11 +223,12 @@ export default async function AdminReportsPage({
             )}
           </NativeSelect>
         </label>
-        <label>
+        <label htmlFor="report-business-date">
           <span className="mb-1 block text-sm font-bold text-slate-700">
             Business Day
           </span>
           <Input
+            id="report-business-date"
             type="date"
             name="date"
             defaultValue={selectedDate}

@@ -27,7 +27,7 @@ export default async function CategoryDetailsPage({
   }
 
   return (
-    <main
+    <div
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -118,12 +118,13 @@ export default async function CategoryDetailsPage({
 
             <label
               htmlFor="category-active"
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-md"
             >
               <Input
                 id="category-active"
                 name="isActive"
                 type="checkbox"
+                className="h-4 w-4 shrink-0"
                 defaultChecked={category.isActive}
               />
               Active
@@ -161,6 +162,6 @@ export default async function CategoryDetailsPage({
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

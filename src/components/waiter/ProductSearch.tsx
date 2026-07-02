@@ -9,11 +9,12 @@ export default function ProductSearch({
   onSearchTermChange,
 }: ProductSearchProps) {
   return (
-    <label className="block">
+    <label htmlFor="waiter-product-search" className="block">
       <span className="mb-1 block text-sm font-semibold text-muted-foreground">
         Raadi magaca dalabka ama SKU
       </span>
       <Input
+        id="waiter-product-search"
         value={searchTerm}
         onChange={(event) => onSearchTermChange(event.target.value)}
         placeholder="Raadi dalab..."

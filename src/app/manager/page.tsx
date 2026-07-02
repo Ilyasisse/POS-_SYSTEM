@@ -1,12 +1,10 @@
 ﻿import { Table } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import SignOutButton from "@/components/SignOutButton";
 import {
   buildWaiterShiftSummary,
   getWaiterNextOpeningAmount,
@@ -190,21 +188,6 @@ function ManagerPageHeader({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href="/manager/waiter-orders"
-          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          Waiter order review
-        </Link>
-        <Link
-          href="/manager/reports"
-          className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
-        >
-          Reports
-        </Link>
-        <SignOutButton />
-      </div>
     </div>
   );
 }
@@ -392,11 +375,12 @@ function WaiterBalanceManagement({
           className="rounded-xl border border-border p-4"
         >
           <Input type="hidden" name="waiterId" value={selectedWaiterId} />
-          <label className="block">
+          <label htmlFor="manager-closing-balance" className="block">
             <span className="mb-1 block text-sm font-medium text-foreground">
               Closing balance
             </span>
             <Input
+              id="manager-closing-balance"
               type="number"
               name="closingAmount"
               step="0.01"
@@ -826,7 +810,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
   ];
 
   return (
-    <main className="p-6">
+    <div className="p-6">
       <ManagerPageHeader
         fullName={currentUser.fullName}
         businessDayLabel={businessDayLabel}
@@ -863,6 +847,6 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       <OpenTableOrdersSection openTableOrders={openTableOrders} />
 
       <WaiterBalanceSummaryTable summaries={summaries} />
-    </main>
+    </div>
   );
 }

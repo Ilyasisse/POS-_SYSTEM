@@ -1,8 +1,6 @@
 ﻿"use client";
 
 import { Button } from "@/components/ui/button";
-import SignOutButton from "@/components/SignOutButton";
-import { ModeToggle } from "@/components/mode-toggle";
 
 import type { KitchenTicket } from "@/lib/kitchen/kitchen-socket";
 import { useKitchenSocket } from "@/hooks/kitchen/useKitchenSocket";
@@ -46,7 +44,7 @@ export default function WaiterPickupPage({
     });
 
   return (
-    <main
+    <div
       className="min-h-screen bg-muted/35 px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -64,8 +62,6 @@ export default function WaiterPickupPage({
             </div>
 
             <div className="flex items-start gap-2 text-right">
-              <ModeToggle />
-              <SignOutButton />
               <div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
@@ -209,6 +205,6 @@ export default function WaiterPickupPage({
           </section>
         )}
       </div>
-    </main>
+    </div>
   );
 }

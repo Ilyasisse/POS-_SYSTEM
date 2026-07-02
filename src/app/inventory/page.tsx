@@ -1,8 +1,6 @@
 ﻿import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import SignOutButton from "@/components/SignOutButton";
-import { ModeToggle } from "@/components/mode-toggle";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
@@ -133,6 +131,7 @@ export default async function InventoryPage({
 }: InventoryPageProps) {
   const todayStart = getEatDayStart();
 
+  // currentUser is not being used but is need to User Premission
   const [currentUser, params, [supplies, takenTodayMovements]] =
     await Promise.all([
       requirePermission(PERMISSIONS.INVENTORY_VIEW, {
@@ -201,24 +200,12 @@ export default async function InventoryPage({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <ModeToggle />
-            <div className="rounded-xl border border-border bg-muted/50 px-3 py-2 text-right">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Signed in
-              </p>
-              <p className="text-sm font-semibold text-foreground">
-                {currentUser.fullName}
-              </p>
-            </div>
-            <Link
-              href="/kitchen/cabitaan"
-              className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
-            >
-              Back
-            </Link>
-            <SignOutButton />
-          </div>
+          <Link
+            href="/kitchen/cabitaan"
+            className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+          >
+            Back
+          </Link>
         </header>
 
         <section className="grid gap-3 sm:grid-cols-4">
@@ -312,9 +299,13 @@ export default async function InventoryPage({
                           name="supplyId"
                           value={supply.id}
                         />
-                        <label className="min-w-0 text-xs font-semibold text-muted-foreground">
+                        <label
+                          htmlFor={`quantity-${supply.id}`}
+                          className="min-w-0 text-xs font-semibold text-muted-foreground"
+                        >
                           Quantity
                           <Input
+                            id={`quantity-${supply.id}`}
                             name="quantity"
                             type="number"
                             inputMode="numeric"
@@ -326,9 +317,13 @@ export default async function InventoryPage({
                             className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:bg-muted"
                           />
                         </label>
-                        <label className="min-w-0 text-xs font-semibold text-muted-foreground">
+                        <label
+                          htmlFor={`note-${supply.id}`}
+                          className="min-w-0 text-xs font-semibold text-muted-foreground"
+                        >
                           Note
                           <Input
+                            id={`note-${supply.id}`}
                             name="note"
                             type="text"
                             placeholder="Optional"

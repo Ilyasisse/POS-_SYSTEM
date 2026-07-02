@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function WaiterPageSkeleton() {
   return (
-    <main className="min-h-screen bg-muted/35 p-4 sm:p-6">
+    <div className="min-h-screen bg-muted/35 p-4 sm:p-6">
       <div className="mx-auto w-full max-w-7xl space-y-4">
         <Card className="gap-3 p-5">
           <Skeleton className="h-8 w-64" />
@@ -23,6 +23,6 @@ export default function WaiterPageSkeleton() {
           ))}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import CashierOrderClient from "@/components/cashier/CashierOrderClient";
-import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 
 type CashierOrderPageProps = {
@@ -33,7 +32,7 @@ export default async function CashierOrderPage({
   ]);
 
   return (
-    <main className="min-h-screen bg-muted/35 px-4 py-6 text-foreground md:px-6">
+    <div className="min-h-screen bg-muted/35 px-4 py-6 text-foreground md:px-6">
       <div className="mx-auto w-full max-w-7xl">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -43,7 +42,6 @@ export default async function CashierOrderPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <ModeToggle />
             <Button asChild variant="outline">
               <Link href="/cashier">Back to cashier</Link>
             </Button>
@@ -55,6 +53,6 @@ export default async function CashierOrderPage({
           initialTableId={params?.tableId ?? ""}
         />
       </div>
-    </main>
+    </div>
   );
 }

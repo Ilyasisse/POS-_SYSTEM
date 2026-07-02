@@ -1,10 +1,22 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function SignOutButton() {
+type SignOutButtonProps = Omit<
+  ComponentProps<typeof Button>,
+  "children" | "onClick" | "type"
+> & {
+  label?: string;
+};
+
+export default function SignOutButton({
+  label = "Sign out",
+  variant = "destructive",
+  ...props
+}: SignOutButtonProps) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -15,12 +27,13 @@ export default function SignOutButton() {
 
   return (
     <Button
-      type="button"
+      type="submit"
       onClick={handleSignOut}
-      variant="destructive"
+      variant={variant}
+      {...props}
     >
       <LogOut data-icon="inline-start" />
-      Sign out
+      {label}
     </Button>
   );
 }

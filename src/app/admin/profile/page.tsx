@@ -82,11 +82,12 @@ export default async function AdminProfilePage({
             action={updateAdminProfile}
             className="grid gap-4 lg:grid-cols-2"
           >
-            <label className="block">
+            <label htmlFor="profile-full-name" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Full Name
               </span>
               <Input
+                id="profile-full-name"
                 name="fullName"
                 type="text"
                 defaultValue={currentUser.fullName}
@@ -95,12 +96,13 @@ export default async function AdminProfilePage({
               />
             </label>
 
-            <label className="block">
+            <label htmlFor="profile-email" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Email
               </span>
               {/* REVIEW: Email is owned by Supabase auth; keep it read-only until auth update flow is designed. */}
               <Input
+                id="profile-email"
                 type="email"
                 value={currentUser.email}
                 readOnly
@@ -108,11 +110,12 @@ export default async function AdminProfilePage({
               />
             </label>
 
-            <label className="block">
+            <label htmlFor="profile-phone" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Phone
               </span>
               <Input
+                id="profile-phone"
                 name="phoneNumber"
                 type="tel"
                 defaultValue={currentUser.phoneNumber ?? ""}
@@ -131,12 +134,13 @@ export default async function AdminProfilePage({
               </div>
             </div>
 
-            <label className="block">
+            <label htmlFor="profile-current-password" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Current Password
               </span>
               {/* REVIEW: Password changes require Supabase auth verification and are intentionally not wired yet. */}
               <Input
+                id="profile-current-password"
                 type="password"
                 value="************"
                 readOnly
@@ -144,11 +148,12 @@ export default async function AdminProfilePage({
               />
             </label>
 
-            <label className="block">
+            <label htmlFor="profile-new-password" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 New Password
               </span>
               <Input
+                id="profile-new-password"
                 type="password"
                 value=""
                 readOnly

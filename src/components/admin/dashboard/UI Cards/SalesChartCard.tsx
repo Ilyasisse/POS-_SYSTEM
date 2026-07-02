@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 
 type ChartPoint = {
@@ -10,6 +11,11 @@ type ChartPoint = {
 type TooltipPayload = {
   payload?: ChartPoint;
   value?: number;
+};
+
+type ElementSize = {
+  width: number;
+  height: number;
 };
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -27,10 +33,6 @@ const AreaChart = dynamic(
 );
 const CartesianGrid = dynamic(
   () => import("recharts").then((mod) => mod.CartesianGrid),
-  { ssr: false },
-);
-const ResponsiveContainer = dynamic(
-  () => import("recharts").then((mod) => mod.ResponsiveContainer),
   { ssr: false },
 );
 const Tooltip = dynamic(() => import("recharts").then((mod) => mod.Tooltip), {
@@ -70,19 +72,97 @@ function SalesTooltip({
   );
 }
 
+function useElementSize<T extends HTMLElement>() {
+  const elementRef = useRef<T | null>(null);
+  const sizeRef = useRef<ElementSize>({ width: 0, height: 0 });
+  const listenersRef = useRef<Set<() => void> | null>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  if (listenersRef.current === null) {
+    listenersRef.current = new Set();
+  }
+
+  const subscribe = useCallback((listener: () => void) => {
+    listenersRef.current?.add(listener);
+
+    return () => {
+      listenersRef.current?.delete(listener);
+    };
+  }, []);
+
+  const getSnapshot = useCallback(() => sizeRef.current, []);
+  const size = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  const setRef = useCallback((node: T | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    elementRef.current = node;
+
+    if (!node) {
+      sizeRef.current = { width: 0, height: 0 };
+      return;
+    }
+
+    const notify = () => {
+      listenersRef.current?.forEach((listener) => listener());
+    };
+
+    const update = () => {
+      const next = {
+        width: Math.max(0, Math.floor(node.clientWidth)),
+        height: Math.max(0, Math.floor(node.clientHeight)),
+      };
+
+      if (
+        next.width === sizeRef.current.width &&
+        next.height === sizeRef.current.height
+      ) {
+        return;
+      }
+
+      sizeRef.current = next;
+      notify();
+    };
+
+    update();
+    queueMicrotask(notify);
+
+    if (typeof ResizeObserver !== "undefined") {
+      observerRef.current = new ResizeObserver(update);
+      observerRef.current.observe(node);
+    }
+  }, []);
+
+  return { ref: setRef, width: size.width, height: size.height };
+}
+
 export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
   const hasSales = points.some((point) => point.value > 0);
+  const { ref, width, height } = useElementSize<HTMLDivElement>();
+  const isReady = width > 0 && height > 0;
 
   return (
-    <div className="relative h-64 overflow-hidden rounded-xl border border-slate-100 bg-linear-to-b from-white to-slate-50 px-2 py-4 sm:h-72 sm:px-3">
+    <div
+      ref={ref}
+      className="relative h-64 min-w-0 overflow-hidden rounded-xl border border-slate-100 bg-linear-to-b from-white to-slate-50 px-2 py-4 sm:h-72 sm:px-3"
+    >
       {!hasSales && (
         <div className="pointer-events-none absolute inset-x-4 top-4 z-10 rounded-xl border border-dashed border-slate-200 bg-white/80 px-4 py-3 text-center text-sm font-semibold text-slate-500 backdrop-blur-sm">
           No sales recorded this week yet.
         </div>
       )}
-      <ResponsiveContainer width="100%" height="100%">
+      {!isReady ? (
+        <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 px-4">
+          <div className="grid w-full gap-3">
+            <div className="h-5 w-40 rounded-full bg-slate-200/80" />
+            <div className="h-40 rounded-2xl bg-slate-200/60" />
+          </div>
+        </div>
+      ) : (
         <AreaChart
           data={points}
+          width={width}
+          height={height}
           margin={{
             top: hasSales ? 10 : 34,
             right: 10,
@@ -142,7 +222,7 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
             type="monotone"
           />
         </AreaChart>
-      </ResponsiveContainer>
+      )}
     </div>
   );
 }

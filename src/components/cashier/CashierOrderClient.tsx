@@ -307,11 +307,12 @@ function CurrentTableOrderPanel({
         )}
       </div>
 
-      <label className="block">
+      <label htmlFor="cashier-order-note" className="block">
         <span className="mb-1 block text-sm font-semibold text-muted-foreground">
           Qoraallada Dalabka
         </span>
         <Textarea
+          id="cashier-order-note"
           value={orderNote}
           onChange={(event) => onOrderNoteChange(event.target.value)}
           placeholder="Fadlan halkan ku qor qoraallada dalabka..."

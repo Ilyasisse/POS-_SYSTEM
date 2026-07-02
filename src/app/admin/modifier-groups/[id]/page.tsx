@@ -24,7 +24,7 @@ export default async function ModifierGroupPage({
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6">
+    <div className="min-h-screen bg-slate-100 p-6">
       <div className="mx-auto max-w-3xl space-y-4">
         <header className="rounded-2xl bg-white p-4 shadow">
           <h1 className="text-2xl font-bold">{group.name}</h1>
@@ -81,11 +81,15 @@ export default async function ModifierGroupPage({
               />
             </div>
 
-            <label htmlFor="edit-modifier-group-active" className="flex gap-2">
+            <label
+              htmlFor="edit-modifier-group-active"
+              className="flex items-center gap-2 text-md"
+            >
               <Input
                 id="edit-modifier-group-active"
                 type="checkbox"
                 name="isActive"
+                className="h-4 w-4 shrink-0"
                 defaultChecked={group.isActive}
               />
               Active
@@ -115,6 +119,6 @@ export default async function ModifierGroupPage({
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

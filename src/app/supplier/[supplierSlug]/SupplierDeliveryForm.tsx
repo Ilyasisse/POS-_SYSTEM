@@ -86,7 +86,10 @@ export default function SupplierDeliveryForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <label className="block rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50/60 p-5 text-center">
+      <label
+        htmlFor="supplier-receipt"
+        className="block rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50/60 p-5 text-center"
+      >
         <span className="block text-sm font-bold text-foreground">
           Receipt or delivery proof
         </span>
@@ -94,6 +97,7 @@ export default function SupplierDeliveryForm({
           JPEG, PNG, or WebP Â· maximum 10 MB
         </span>
         <Input
+          id="supplier-receipt"
           name="receipt"
           type="file"
           accept="image/jpeg,image/png,image/webp"
@@ -123,11 +127,12 @@ export default function SupplierDeliveryForm({
         </div>
       ) : null}
 
-      <label className="block">
+      <label htmlFor="supplier-delivery-notes" className="block">
         <span className="mb-2 block text-sm font-bold text-foreground">
           Delivery notes (optional)
         </span>
         <Textarea
+          id="supplier-delivery-notes"
           name="notes"
           maxLength={2000}
           rows={4}

@@ -212,7 +212,7 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
+    <div className="mx-auto w-full space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
       <Header
         categoryCount={categoryCount}
         productCount={productCount}

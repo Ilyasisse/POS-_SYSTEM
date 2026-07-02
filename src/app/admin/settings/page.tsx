@@ -85,46 +85,59 @@ export default async function AdminSettingsPage() {
 
           {/* REVIEW: Settings form is UI-only until persistent cafe configuration fields are defined. */}
           <form className="mt-5 grid gap-4 lg:grid-cols-2">
-            <label className="block">
+            <label htmlFor="settings-business-name" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Business Name
               </span>
               <Input
+                id="settings-business-name"
                 defaultValue="Mash Allah Cafe"
                 className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
               />
             </label>
-            <label className="block">
+            <label htmlFor="settings-currency" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Currency
               </span>
-              <NativeSelect className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-currency"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>USD - US Dollar</option>
                 <option>SOS - Somali Shilling</option>
               </NativeSelect>
             </label>
-            <label className="block">
+            <label htmlFor="settings-timezone" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Timezone
               </span>
-              <NativeSelect className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-timezone"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>UTC+03:00 Nairobi</option>
               </NativeSelect>
             </label>
-            <label className="block">
+            <label htmlFor="settings-date-format" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Date Format
               </span>
-              <NativeSelect className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-date-format"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>MM/DD/YYYY</option>
                 <option>DD/MM/YYYY</option>
               </NativeSelect>
             </label>
-            <label className="block">
+            <label htmlFor="settings-language" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Language
               </span>
-              <NativeSelect className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-language"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>English</option>
                 <option>Somali</option>
               </NativeSelect>

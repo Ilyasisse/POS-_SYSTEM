@@ -82,14 +82,15 @@ function Fields({
         placeholder="Notes"
         className={fieldClass}
       />
-      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+      <label className="flex items-center gap-2 text-md font-semibold text-slate-700">
         <Input type="hidden" name="isActive" value="false" />
         <Input
           type="checkbox"
           name="isActive"
           value="true"
+          className="h-4 w-4 shrink-0"
           defaultChecked={supplier?.isActive ?? true}
-        />{" "}
+        />
         Active
       </label>
     </>
@@ -193,7 +194,7 @@ export default async function SuppliersPage() {
                       className="grid min-w-72 gap-2"
                     >
                       <Fields supplier={supplier} />
-                      <Button className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">
+                      <Button type="submit" className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">
                         Save changes
                       </Button>
                     </form>

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+
+import StaffShell from "@/components/staff/layout/StaffShell";
+import { getPermissionsForRole, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 
 type CashierLayoutProps = {
@@ -7,6 +9,20 @@ type CashierLayoutProps = {
 };
 
 export default async function CashierLayout({ children }: CashierLayoutProps) {
-  await requirePermission(PERMISSIONS.ORDER_MANAGE);
-  return children;
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
+
+  return (
+    <StaffShell
+      currentUser={{
+        fullName: currentUser.fullName,
+        role: currentUser.role,
+        station: currentUser.station ?? null,
+        permissions: getPermissionsForRole(currentUser.role),
+      }}
+      workspaceLabel="Cashier"
+      workspaceDescription="Checkout and table payments"
+    >
+      {children}
+    </StaffShell>
+  );
 }

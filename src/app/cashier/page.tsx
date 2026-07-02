@@ -9,8 +9,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
-import SignOutButton from "@/components/SignOutButton";
-import { ModeToggle } from "@/components/mode-toggle";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
@@ -145,16 +143,12 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <ModeToggle />
-          <Link
-            href="/cashier/order"
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-          >
-            New table order
-          </Link>
-          <SignOutButton />
-        </div>
+        <Link
+          href="/cashier/order"
+          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          New table order
+        </Link>
       </div>
 
       {paymentNotice ? (

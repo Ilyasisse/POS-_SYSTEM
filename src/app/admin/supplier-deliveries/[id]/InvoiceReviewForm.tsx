@@ -155,18 +155,26 @@ export default function InvoiceReviewForm({
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-bold text-slate-700">
+        <label
+          htmlFor="invoice-number"
+          className="text-sm font-bold text-slate-700"
+        >
           Invoice number
           <Input
+            id="invoice-number"
             name="invoiceNumber"
             maxLength={200}
             defaultValue={invoiceNumber}
             className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal"
           />
         </label>
-        <label className="text-sm font-bold text-slate-700">
+        <label
+          htmlFor="invoice-date"
+          className="text-sm font-bold text-slate-700"
+        >
           Invoice date
           <Input
+            id="invoice-date"
             name="receiptDate"
             type="date"
             defaultValue={receiptDate}
@@ -175,9 +183,13 @@ export default function InvoiceReviewForm({
         </label>
       </div>
 
-      <label className="block text-sm font-bold text-slate-700">
+      <label
+        htmlFor="reviewed-invoice-text"
+        className="block text-sm font-bold text-slate-700"
+      >
         Reviewed invoice text
         <Textarea
+          id="reviewed-invoice-text"
           name="reviewedText"
           rows={12}
           maxLength={20000}

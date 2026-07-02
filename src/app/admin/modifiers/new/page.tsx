@@ -21,7 +21,7 @@ export default async function NewModifierPage() {
   ]);
 
   return (
-    <main
+    <div
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -88,14 +88,15 @@ export default async function NewModifierPage() {
                   products.map((product) => (
                     <label
                       key={product.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-50"
+                      className="flex items-center gap-2 rounded-md px-2 py-1 text-md hover:bg-slate-50"
                     >
                       <Input
                         name="productIds"
                         type="checkbox"
+                        className="h-4 w-4 shrink-0"
                         value={product.id}
                       />
-                      <span className="text-sm">{product.name}</span>
+                      <span>{product.name}</span>
                     </label>
                   ))
                 )}
@@ -132,12 +133,13 @@ export default async function NewModifierPage() {
 
             <label
               htmlFor="new-modifier-active"
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-md"
             >
               <Input
                 id="new-modifier-active"
                 name="isActive"
                 type="checkbox"
+                className="h-4 w-4 shrink-0"
                 defaultChecked
               />
               Active
@@ -167,6 +169,6 @@ export default async function NewModifierPage() {
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

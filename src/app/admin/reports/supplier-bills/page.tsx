@@ -158,7 +158,7 @@ export default async function SupplierBillsReportPage({
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard
-          label="Todayâ€™s bills"
+          label="Today's bills"
           value={money(totalSince(dayStart))}
         />
         <MetricCard label="This week" value={money(totalSince(weekStart))} />

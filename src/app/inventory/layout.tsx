@@ -4,12 +4,16 @@ import StaffShell from "@/components/staff/layout/StaffShell";
 import { getPermissionsForRole, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 
-type ManagerLayoutProps = {
+type InventoryLayoutProps = {
   children: ReactNode;
 };
 
-export default async function ManagerLayout({ children }: ManagerLayoutProps) {
-  const currentUser = await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
+export default async function InventoryLayout({
+  children,
+}: InventoryLayoutProps) {
+  const currentUser = await requirePermission(PERMISSIONS.INVENTORY_VIEW, {
+    stations: ["CABITAAN"],
+  });
 
   return (
     <StaffShell
@@ -19,8 +23,8 @@ export default async function ManagerLayout({ children }: ManagerLayoutProps) {
         station: currentUser.station ?? null,
         permissions: getPermissionsForRole(currentUser.role),
       }}
-      workspaceLabel="Manager"
-      workspaceDescription="Waiter balance operations"
+      workspaceLabel="Inventory"
+      workspaceDescription="Cabitaan supply use"
     >
       {children}
     </StaffShell>

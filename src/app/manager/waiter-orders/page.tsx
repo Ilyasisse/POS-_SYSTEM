@@ -457,7 +457,7 @@ export default async function CashierWaiterOrdersPage({
   );
 
   return (
-    <main className="p-6">
+    <div className="p-6">
       <WaiterOrdersHeader
         fullName={currentUser.fullName}
         businessDayLabel={businessDayLabel}
@@ -478,6 +478,6 @@ export default async function CashierWaiterOrdersPage({
         selectedWaiter={selectedWaiter}
         selectedWaiterId={selectedWaiterId}
       />
-    </main>
+    </div>
   );
 }

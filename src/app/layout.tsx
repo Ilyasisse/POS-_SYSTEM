@@ -4,16 +4,6 @@ import "aos/dist/aos.css";
 import "./globals.css";
 import { AppProviders } from "@/components/AppProviders";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Mash Allah cafe",
   description: "Mash Allah ",
@@ -29,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

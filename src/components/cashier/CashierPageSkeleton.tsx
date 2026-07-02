@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CashierPageSkeleton() {
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">
           <Skeleton className="h-8 w-64" />
@@ -25,6 +25,6 @@ export default function CashierPageSkeleton() {
           <Skeleton key={index} className="h-16 w-full" />
         ))}
       </Card>
-    </main>
+    </div>
   );
 }
