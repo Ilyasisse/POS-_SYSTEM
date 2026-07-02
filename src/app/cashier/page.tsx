@@ -1,9 +1,14 @@
-"use server"
+﻿"use server";
+
+import { Button } from "@/components/ui/button";
+
+import { NativeSelect } from "@/components/ui/native-select";
+
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
-import SignOutButton from "@/components/SignOutButton";
 import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
@@ -125,28 +130,25 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   );
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6 text-slate-900">
+    <main className="min-h-screen bg-muted/35 p-4 text-foreground sm:p-6">
       <CashierLiveSync />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Cashier table settlement</h1>
-          <p className="mt-2 text-lg text-slate-700">
+          <p className="mt-2 text-lg text-foreground">
             Welcome {currentUser.fullName}
           </p>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Business day: {businessDayLabel}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/cashier/order"
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-          >
-            New table order
-          </Link>
-          <SignOutButton />
-        </div>
+        <Link
+          href="/cashier/order"
+          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          New table order
+        </Link>
       </div>
 
       {paymentNotice ? (
@@ -162,16 +164,16 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
       ) : null}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Occupied tables</p>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-sm text-muted-foreground">Occupied tables</p>
           <h2 className="mt-2 text-2xl font-bold">{tables.length}</h2>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Open orders</p>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-sm text-muted-foreground">Open orders</p>
           <h2 className="mt-2 text-2xl font-bold">{openOrders.length}</h2>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm text-slate-500">Open order total</p>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-sm text-muted-foreground">Open order total</p>
           <h2 className="mt-2 text-2xl font-bold">
             {formatMoney(openOrderTotal)}
           </h2>
@@ -180,8 +182,8 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tables.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600 shadow-sm md:col-span-2 xl:col-span-3">
-            <h2 className="text-lg font-bold text-slate-900">
+          <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground shadow-sm md:col-span-2 xl:col-span-3">
+            <h2 className="text-lg font-bold text-foreground">
               No occupied tables
             </h2>
             <p className="mt-2">
@@ -199,12 +201,14 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
             return (
               <article
                 key={table.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-border bg-card p-4 shadow-sm"
               >
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-500">Table</p>
-                    <h2 className="text-2xl font-bold text-slate-900">
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      Table
+                    </p>
+                    <h2 className="text-2xl font-bold text-foreground">
                       {table.name}
                     </h2>
                   </div>
@@ -213,14 +217,16 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                   </span>
                 </div>
 
-                <div className="mb-4 rounded-xl bg-slate-50 px-3 py-2">
+                <div className="mb-4 rounded-xl bg-muted/50 px-3 py-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Open orders</span>
+                    <span className="text-muted-foreground">Open orders</span>
                     <span className="font-semibold">{table.orders.length}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Table total</span>
-                    <span className="font-semibold">{formatMoney(tableTotal)}</span>
+                    <span className="text-muted-foreground">Table total</span>
+                    <span className="font-semibold">
+                      {formatMoney(tableTotal)}
+                    </span>
                   </div>
                 </div>
 
@@ -235,23 +241,23 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     action={payOpenTableOrdersFromCashier}
                     className="grid gap-2 sm:grid-cols-[1fr_auto]"
                   >
-                    <input type="hidden" name="tableId" value={table.id} />
-                    <select
+                    <Input type="hidden" name="tableId" value={table.id} />
+                    <NativeSelect
                       name="paymentMethod"
                       defaultValue="GOLIS"
-                      className="min-h-11 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-blue-500"
+                      className="min-h-11 rounded-xl border border-border px-3 py-2 outline-none focus:border-blue-500"
                     >
                       <option value="GOLIS">GOLIS</option>
                       <option value="MYCASH">MYCASH</option>
                       <option value="Dahabshiil">Dahabshiil</option>
                       <option value="OTHER">OTHER</option>
-                    </select>
-                    <button
+                    </NativeSelect>
+                    <Button
                       type="submit"
                       className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
                     >
                       Pay {formatMoney(tableTotal)}
-                    </button>
+                    </Button>
                   </form>
                 </div>
 
@@ -259,26 +265,26 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                   {table.orders.map((order) => (
                     <div
                       key={order.id}
-                      className="rounded-xl border border-slate-200 px-3 py-3"
+                      className="rounded-xl border border-border px-3 py-3"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-semibold text-foreground">
                             Order #{order.orderNumber}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             {formatDateTime(order.createdAt)}
                             {order.cashier?.fullName
                               ? ` by ${order.cashier.fullName}`
                               : ""}
                           </p>
                         </div>
-                        <p className="font-bold text-slate-900">
+                        <p className="font-bold text-foreground">
                           {formatMoney(Number(order.total))}
                         </p>
                       </div>
 
-                      <p className="mt-2 text-sm text-slate-600">
+                      <p className="mt-2 text-sm text-muted-foreground">
                         {order.orderItems
                           .map((item) => `${item.qty}x ${item.productName}`)
                           .join(", ")}

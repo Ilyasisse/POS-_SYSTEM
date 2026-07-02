@@ -1,16 +1,17 @@
+﻿import { Button } from "@/components/ui/button";
 import {
-  AdminPagination,
-  AdminPageFrame,
-  AdminPrimaryLink,
-  AdminRowActions,
-  AdminSearchToolbar,
-  AdminSelect,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  PaginationBar,
+  AdminPage,
+  PrimaryLink,
+  RowActions,
+  SearchToolbar,
+  NativeSelect,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   StatusBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
@@ -70,15 +71,14 @@ export default async function AdminProductsPage({
   const totalPages = Math.max(Math.ceil(totalProducts / pageSize), 1);
 
   return (
-    <AdminPageFrame
-      
+    <AdminPage
       title="Products"
       description="Manage your menu items and pricing"
-      action={<AdminPrimaryLink href="/admin/products/new">Add Product</AdminPrimaryLink>}
+      action={<PrimaryLink href="/admin/products/new">Add Product</PrimaryLink>}
     >
-      <AdminTableShell
+      <DataTableCard
         footer={
-          <AdminPagination
+          <PaginationBar
             currentPage={currentPage}
             totalPages={totalPages}
             totalLabel={`Showing ${productsList.length} of ${totalProducts} products`}
@@ -86,54 +86,54 @@ export default async function AdminProductsPage({
           />
         }
       >
-        <AdminSearchToolbar placeholder="Search products..." defaultValue={q}>
-          <AdminSelect name="category" defaultValue={category}>
+        <SearchToolbar placeholder="Search products..." defaultValue={q}>
+          <NativeSelect name="category" defaultValue={category}>
             <option value="all">Category All</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
-          </AdminSelect>
-          <AdminSelect name="status" defaultValue={status}>
+          </NativeSelect>
+          <NativeSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </AdminSelect>
-          <button
-            type="button"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          </NativeSelect>
+          <Button
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
-          </button>
-        </AdminSearchToolbar>
-        <AdminTable>
+          </Button>
+        </SearchToolbar>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>#</AdminTh>
-              <AdminTh>Image</AdminTh>
-              <AdminTh>Name</AdminTh>
-              <AdminTh>Category</AdminTh>
-              <AdminTh>Price</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Stock</AdminTh>
-              <AdminTh>Action</AdminTh>
+              <TableHead>#</TableHead>
+              <TableHead>Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead>Action</TableHead>
             </tr>
           </thead>
           <tbody>
             {productsList.length === 0 ? (
               <tr>
-                <AdminTd colSpan={8} className="py-10 text-center">
+                <TableCell colSpan={8} className="py-10 text-center">
                   No products found.
-                </AdminTd>
+                </TableCell>
               </tr>
             ) : (
               productsList.map((product, index) => (
                 <tr key={product.id} className="border-b border-slate-50">
-                  <AdminTd className="font-bold text-slate-400">
+                  <TableCell className="font-bold text-slate-400">
                     {(currentPage - 1) * pageSize + index + 1}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {product.imageUrl ? (
                       <Image
                         src={product.imageUrl}
@@ -148,25 +148,27 @@ export default async function AdminProductsPage({
                         {product.name[0] ?? "P"}
                       </div>
                     )}
-                  </AdminTd>
-                  <AdminTd className="font-black text-slate-950">
+                  </TableCell>
+                  <TableCell className="font-black text-slate-950">
                     {product.name}
-                  </AdminTd>
-                  <AdminTd>{product.category?.name ?? "-"}</AdminTd>
-                  <AdminTd>${Number(product.price).toFixed(2)}</AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>{product.category?.name ?? "-"}</TableCell>
+                  <TableCell>${Number(product.price).toFixed(2)}</TableCell>
+                  <TableCell>
                     <StatusBadge active={product.isActive} />
-                  </AdminTd>
-                  <AdminTd>{product.trackStock ? product.stockQty : "-"}</AdminTd>
-                  <AdminTd>
-                    <AdminRowActions editHref={`/admin/products/${product.id}`} />
-                  </AdminTd>
+                  </TableCell>
+                  <TableCell>
+                    {product.trackStock ? product.stockQty : "-"}
+                  </TableCell>
+                  <TableCell>
+                    <RowActions editHref={`/admin/products/${product.id}`} />
+                  </TableCell>
                 </tr>
               ))
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

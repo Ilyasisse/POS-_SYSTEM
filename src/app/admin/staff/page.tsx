@@ -1,14 +1,15 @@
+﻿import { Button } from "@/components/ui/button";
 import {
-  AdminPageFrame,
-  AdminSearchToolbar,
-  AdminSelect,
-  AdminStatCard,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  AdminPage,
+  SearchToolbar,
+  NativeSelect,
+  MetricCard,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   StatusBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 
 type StaffPageProps = {
@@ -66,99 +67,96 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
   ).toSorted();
 
   return (
-    <AdminPageFrame
-      title="Staff"
-      description="Manage staff members and their roles"
-    >
+    <AdminPage title="Staff" description="Manage staff members and their roles">
       <section className="grid gap-4 sm:grid-cols-3">
-        <AdminStatCard label="Total Staff" value={allStaff.length} />
-        <AdminStatCard label="Active Accounts" value={activeStaff} />
-        <AdminStatCard label="Kitchen Team" value={kitchenStaff} />
+        <MetricCard label="Total Staff" value={allStaff.length} />
+        <MetricCard label="Active Accounts" value={activeStaff} />
+        <MetricCard label="Kitchen Team" value={kitchenStaff} />
       </section>
 
-      <AdminTableShell
+      <DataTableCard
         footer={
           <p className="text-sm font-medium text-slate-500">
             Showing 1 to {staff.length} of {allStaff.length} staff
           </p>
         }
       >
-        <AdminSearchToolbar
+        <SearchToolbar
           placeholder="Search staff..."
           defaultValue={params?.q ?? ""}
         >
-          <AdminSelect name="role" defaultValue={role}>
+          <NativeSelect name="role" defaultValue={role}>
             <option value="all">Role All</option>
             {roles.map((item) => (
               <option key={item} value={item}>
                 {formatRole(item)}
               </option>
             ))}
-          </AdminSelect>
-          <AdminSelect name="status" defaultValue={status}>
+          </NativeSelect>
+          <NativeSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </AdminSelect>
-          <button
-            type="button"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          </NativeSelect>
+          <Button
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
-          </button>
-        </AdminSearchToolbar>
-        <AdminTable>
+          </Button>
+        </SearchToolbar>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>#</AdminTh>
-              <AdminTh>Name</AdminTh>
-              <AdminTh>Role</AdminTh>
-              <AdminTh>Phone</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Joined On</AdminTh>
-              <AdminTh>Activity</AdminTh>
+              <TableHead>#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Phone</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Joined On</TableHead>
+              <TableHead>Activity</TableHead>
             </tr>
           </thead>
           <tbody>
             {staff.length === 0 ? (
               <tr>
-                <AdminTd colSpan={7} className="py-10 text-center">
+                <TableCell colSpan={7} className="py-10 text-center">
                   No staff accounts found.
-                </AdminTd>
+                </TableCell>
               </tr>
             ) : (
               staff.map((member, index) => (
                 <tr key={member.id} className="border-b border-slate-50">
-                  <AdminTd className="font-bold text-slate-400">
+                  <TableCell className="font-bold text-slate-400">
                     {index + 1}
-                  </AdminTd>
-                  <AdminTd className="font-black text-slate-950">
+                  </TableCell>
+                  <TableCell className="font-black text-slate-950">
                     <div>{member.fullName}</div>
                     <div className="text-xs font-medium text-slate-400">
                       {member.email}
                     </div>
-                  </AdminTd>
-                  <AdminTd>{formatRole(member.role)}</AdminTd>
-                  <AdminTd>{member.phoneNumber ?? "-"}</AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>{formatRole(member.role)}</TableCell>
+                  <TableCell>{member.phoneNumber ?? "-"}</TableCell>
+                  <TableCell>
                     <StatusBadge active={member.isActive} />
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {member.createdAt.toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {member._count.waiterOrders + member._count.orders} orders
-                  </AdminTd>
+                  </TableCell>
                 </tr>
               ))
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

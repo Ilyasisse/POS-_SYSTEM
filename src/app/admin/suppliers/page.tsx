@@ -1,38 +1,105 @@
+﻿import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
 import {
-  AdminCard,
-  AdminPageFrame,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  Card,
+  AdminPage,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   StatusBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { createSupplier, updateSupplier } from "./actions";
 
-const fieldClass = "h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500";
+const fieldClass =
+  "h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500";
 
-function Fields({ supplier }: { supplier?: {
-  id: string; name: string; slug: string; contactName: string | null; phone: string | null;
-  email: string | null; googleEmail: string | null; notes: string | null; isActive: boolean;
-} }) {
+function Fields({
+  supplier,
+}: {
+  supplier?: {
+    id: string;
+    name: string;
+    slug: string;
+    contactName: string | null;
+    phone: string | null;
+    email: string | null;
+    googleEmail: string | null;
+    notes: string | null;
+    isActive: boolean;
+  };
+}) {
+  const activeInputId = supplier
+    ? `supplier-${supplier.id}-active`
+    : "new-supplier-active";
+
   return (
     <>
-      {supplier ? <input type="hidden" name="id" value={supplier.id} /> : null}
-      <input name="name" required defaultValue={supplier?.name} placeholder="Supplier name" className={fieldClass} />
-      <input name="slug" defaultValue={supplier?.slug} placeholder="portal-slug" className={fieldClass} />
-      <input name="contactName" defaultValue={supplier?.contactName ?? ""} placeholder="Contact name" className={fieldClass} />
-      <input name="phone" defaultValue={supplier?.phone ?? ""} placeholder="Phone" className={fieldClass} />
-      <input name="email" type="email" defaultValue={supplier?.email ?? ""} placeholder="Business email" className={fieldClass} />
-      <input name="googleEmail" type="email" defaultValue={supplier?.googleEmail ?? ""} placeholder="Assigned Google email" className={fieldClass} />
-      <input name="notes" defaultValue={supplier?.notes ?? ""} placeholder="Notes" className={fieldClass} />
-      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-        <input type="hidden" name="isActive" value="false" />
-        <input type="checkbox" name="isActive" value="true" defaultChecked={supplier?.isActive ?? true} /> Active
+      {supplier ? <Input type="hidden" name="id" value={supplier.id} /> : null}
+      <Input
+        name="name"
+        required
+        defaultValue={supplier?.name}
+        placeholder="Supplier name"
+        className={fieldClass}
+      />
+      <Input
+        name="slug"
+        defaultValue={supplier?.slug}
+        placeholder="portal-slug"
+        className={fieldClass}
+      />
+      <Input
+        name="contactName"
+        defaultValue={supplier?.contactName ?? ""}
+        placeholder="Contact name"
+        className={fieldClass}
+      />
+      <Input
+        name="phone"
+        defaultValue={supplier?.phone ?? ""}
+        placeholder="Phone"
+        className={fieldClass}
+      />
+      <Input
+        name="email"
+        type="email"
+        defaultValue={supplier?.email ?? ""}
+        placeholder="Business email"
+        className={fieldClass}
+      />
+      <Input
+        name="googleEmail"
+        type="email"
+        defaultValue={supplier?.googleEmail ?? ""}
+        placeholder="Assigned Google email"
+        className={fieldClass}
+      />
+      <Input
+        name="notes"
+        defaultValue={supplier?.notes ?? ""}
+        placeholder="Notes"
+        className={fieldClass}
+      />
+      <Input type="hidden" name="isActive" value="false" />
+      <label
+        htmlFor={activeInputId}
+        className="flex items-center gap-2 text-md font-semibold text-slate-700"
+      >
+        <Input
+          id={activeInputId}
+          type="checkbox"
+          name="isActive"
+          value="true"
+          className="h-4 w-4 shrink-0"
+          defaultChecked={supplier?.isActive ?? true}
+        />
+        Active
       </label>
     </>
   );
@@ -40,50 +107,116 @@ function Fields({ supplier }: { supplier?: {
 
 export default async function SuppliersPage() {
   const [suppliers, requestHeaders] = await Promise.all([
-    prisma.supplier.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { deliveries: true } } } }),
+    prisma.supplier.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { deliveries: true } } },
+    }),
     headers(),
   ]);
-  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
-  const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const rows = await Promise.all(suppliers.map(async (supplier) => {
-    const portalUrl = `${protocol}://${host}/supplier/${supplier.slug}`;
-    return { supplier, portalUrl, qrUrl: await QRCode.toDataURL(portalUrl, { width: 180, margin: 1 }) };
-  }));
+  const host =
+    requestHeaders.get("x-forwarded-host") ||
+    requestHeaders.get("host") ||
+    "localhost:3000";
+  const protocol =
+    requestHeaders.get("x-forwarded-proto") ||
+    (host.startsWith("localhost") ? "http" : "https");
+  const rows = await Promise.all(
+    suppliers.map(async (supplier) => {
+      const portalUrl = `${protocol}://${host}/supplier/${supplier.slug}`;
+      return {
+        supplier,
+        portalUrl,
+        qrUrl: await QRCode.toDataURL(portalUrl, { width: 180, margin: 1 }),
+      };
+    }),
+  );
 
   return (
-    <AdminPageFrame title="Suppliers" description="Manage supplier contacts, assigned Google accounts, and delivery portal links.">
-      <AdminCard className="p-5">
+    <AdminPage
+      title="Suppliers"
+      description="Manage supplier contacts, assigned Google accounts, and delivery portal links."
+    >
+      <Card className="p-5">
         <h2 className="font-black">Add supplier</h2>
-        <form action={createSupplier} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <form
+          action={createSupplier}
+          className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+        >
           <Fields />
-          <button className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">Create supplier</button>
+          <Button className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
+            Create supplier
+          </Button>
         </form>
-      </AdminCard>
+      </Card>
 
-      <AdminTableShell>
-        <AdminTable>
-          <thead><tr><AdminTh>Supplier</AdminTh><AdminTh>Portal</AdminTh><AdminTh>Account</AdminTh><AdminTh>Deliveries</AdminTh><AdminTh>Edit</AdminTh></tr></thead>
+      <DataTableCard>
+        <Table>
+          <thead>
+            <tr>
+              <TableHead>Supplier</TableHead>
+              <TableHead>Portal</TableHead>
+              <TableHead>Account</TableHead>
+              <TableHead>Deliveries</TableHead>
+              <TableHead>Edit</TableHead>
+            </tr>
+          </thead>
           <tbody>
-            {rows.length ? rows.map(({ supplier, portalUrl, qrUrl }) => (
-              <tr key={supplier.id} className="border-t border-slate-100 align-top">
-                <AdminTd><div className="font-black">{supplier.name}</div><div className="mt-1"><StatusBadge active={supplier.isActive} /></div></AdminTd>
-                <AdminTd>
-                  <Image src={qrUrl} alt={`${supplier.name} QR code`} width={90} height={90} unoptimized />
-                  <Link href={portalUrl} target="_blank" className="mt-1 block max-w-48 break-all text-xs font-bold text-blue-600">{portalUrl}</Link>
-                </AdminTd>
-                <AdminTd><div>{supplier.googleEmail || "Not assigned"}</div><div className="text-xs text-slate-500">{supplier.phone || supplier.email || "No contact"}</div></AdminTd>
-                <AdminTd>{supplier._count.deliveries}</AdminTd>
-                <AdminTd>
-                  <form action={updateSupplier} className="grid min-w-72 gap-2">
-                    <Fields supplier={supplier} />
-                    <button className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">Save changes</button>
-                  </form>
-                </AdminTd>
+            {rows.length ? (
+              rows.map(({ supplier, portalUrl, qrUrl }) => (
+                <tr
+                  key={supplier.id}
+                  className="border-t border-slate-100 align-top"
+                >
+                  <TableCell>
+                    <div className="font-black">{supplier.name}</div>
+                    <div className="mt-1">
+                      <StatusBadge active={supplier.isActive} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Image
+                      src={qrUrl}
+                      alt={`${supplier.name} QR code`}
+                      width={90}
+                      height={90}
+                      unoptimized
+                    />
+                    <Link
+                      href={portalUrl}
+                      target="_blank"
+                      className="mt-1 block max-w-48 break-all text-xs font-bold text-blue-600"
+                    >
+                      {portalUrl}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div>{supplier.googleEmail || "Not assigned"}</div>
+                    <div className="text-xs text-slate-500">
+                      {supplier.phone || supplier.email || "No contact"}
+                    </div>
+                  </TableCell>
+                  <TableCell>{supplier._count.deliveries}</TableCell>
+                  <TableCell>
+                    <form
+                      action={updateSupplier}
+                      className="grid min-w-72 gap-2"
+                    >
+                      <Fields supplier={supplier} />
+                      <Button type="submit" className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">
+                        Save changes
+                      </Button>
+                    </form>
+                  </TableCell>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <TableCell colSpan={5}>No suppliers have been added.</TableCell>
               </tr>
-            )) : <tr><AdminTd colSpan={5}>No suppliers have been added.</AdminTd></tr>}
+            )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

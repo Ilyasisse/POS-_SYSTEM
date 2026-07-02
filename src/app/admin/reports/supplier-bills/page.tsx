@@ -1,14 +1,17 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import {
-  AdminCard,
-  AdminPageFrame,
-  AdminStatCard,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  Card,
+  AdminPage,
+  MetricCard,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   ToneBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import PaymentForm from "./PaymentForm";
@@ -114,12 +117,12 @@ export default async function SupplierBillsReportPage({
     );
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Supplier bills"
       description="Audit verified deliveries, balances, and every supplier payment."
     >
       <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
-        <select
+        <NativeSelect
           name="supplier"
           defaultValue={params.supplier || ""}
           className="h-10 rounded-lg border border-slate-200 px-2"
@@ -130,41 +133,38 @@ export default async function SupplierBillsReportPage({
               {row.name}
             </option>
           ))}
-        </select>
-        <input
+        </NativeSelect>
+        <Input
           type="date"
           name="from"
           defaultValue={from.toISOString().slice(0, 10)}
           className="h-10 rounded-lg border border-slate-200 px-2"
         />
-        <input
+        <Input
           type="date"
           name="to"
           defaultValue={to.toISOString().slice(0, 10)}
           className="h-10 rounded-lg border border-slate-200 px-2"
         />
-        <button className="rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
+        <Button className="rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
           View report
-        </button>
+        </Button>
       </form>
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard label="Unpaid balance" value={money(unpaid)} />
-        <AdminStatCard label="Payments received" value={money(paid)} />
-        <AdminStatCard label="Pending verification" value={money(pending)} />
-        <AdminStatCard label="Rejected deliveries" value={rejected} />
+        <MetricCard label="Unpaid balance" value={money(unpaid)} />
+        <MetricCard label="Payments received" value={money(paid)} />
+        <MetricCard label="Pending verification" value={money(pending)} />
+        <MetricCard label="Rejected deliveries" value={rejected} />
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
-        <AdminStatCard
-          label="Today’s bills"
+        <MetricCard
+          label="Today's bills"
           value={money(totalSince(dayStart))}
         />
-        <AdminStatCard label="This week" value={money(totalSince(weekStart))} />
-        <AdminStatCard
-          label="This month"
-          value={money(totalSince(monthStart))}
-        />
+        <MetricCard label="This week" value={money(totalSince(weekStart))} />
+        <MetricCard label="This month" value={money(totalSince(monthStart))} />
       </section>
-      <AdminCard className="p-4">
+      <Card className="p-4">
         <h2 className="font-black">Supplier totals</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {[...supplierTotals].map(([name, total]) => (
@@ -177,17 +177,17 @@ export default async function SupplierBillsReportPage({
             </div>
           ))}
         </div>
-      </AdminCard>
-      <AdminTableShell>
-        <AdminTable>
+      </Card>
+      <DataTableCard>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>Supplier / delivery</AdminTh>
-              <AdminTh>Total / balance</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Audit</AdminTh>
-              <AdminTh>Payments</AdminTh>
-              <AdminTh>Record payment</AdminTh>
+              <TableHead>Supplier / delivery</TableHead>
+              <TableHead>Total / balance</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Audit</TableHead>
+              <TableHead>Payments</TableHead>
+              <TableHead>Record payment</TableHead>
             </tr>
           </thead>
           <tbody>
@@ -202,7 +202,7 @@ export default async function SupplierBillsReportPage({
                     key={delivery.id}
                     className="border-t border-slate-100 align-top"
                   >
-                    <AdminTd>
+                    <TableCell>
                       <Link
                         href={`/admin/supplier-deliveries/${delivery.id}`}
                         className="font-bold text-blue-600"
@@ -210,7 +210,7 @@ export default async function SupplierBillsReportPage({
                         {delivery.supplier.name}
                       </Link>
                       <div className="text-xs">
-                        {delivery.submittedAt.toLocaleDateString()} ·{" "}
+                        {delivery.submittedAt.toLocaleDateString()} Â·{" "}
                         {delivery.invoiceNumber || "No invoice #"}
                       </div>
                       <a
@@ -221,12 +221,12 @@ export default async function SupplierBillsReportPage({
                       >
                         Receipt image
                       </a>
-                    </AdminTd>
-                    <AdminTd>
+                    </TableCell>
+                    <TableCell>
                       {money(Number(delivery.totalAmount || 0))}
                       <div className="text-xs">Balance {money(remaining)}</div>
-                    </AdminTd>
-                    <AdminTd>
+                    </TableCell>
+                    <TableCell>
                       <ToneBadge
                         tone={
                           delivery.status === "VERIFIED"
@@ -247,8 +247,8 @@ export default async function SupplierBillsReportPage({
                           </ToneBadge>
                         ) : null}
                       </div>
-                    </AdminTd>
-                    <AdminTd>
+                    </TableCell>
+                    <TableCell>
                       <div>
                         Verified: {delivery.verifiedBy?.fullName || "--"}
                       </div>
@@ -256,21 +256,21 @@ export default async function SupplierBillsReportPage({
                       <div className="text-xs">
                         {bill?.settledAt?.toLocaleString() || ""}
                       </div>
-                    </AdminTd>
-                    <AdminTd>
+                    </TableCell>
+                    <TableCell>
                       {bill?.payments.length
                         ? bill.payments.map((payment) => (
                             <div key={payment.id} className="mb-2 text-xs">
-                              <strong>{money(Number(payment.amount))}</strong> ·{" "}
-                              {payment.paymentMethod || "Unspecified"}
+                              <strong>{money(Number(payment.amount))}</strong>{" "}
+                              Â· {payment.paymentMethod || "Unspecified"}
                               <br />
-                              {payment.recordedBy.fullName} ·{" "}
+                              {payment.recordedBy.fullName} Â·{" "}
                               {payment.paidAt.toLocaleDateString()}
                             </div>
                           ))
                         : "--"}
-                    </AdminTd>
-                    <AdminTd>
+                    </TableCell>
+                    <TableCell>
                       {bill && remaining > 0 ? (
                         <PaymentForm billId={bill.id} remaining={remaining} />
                       ) : bill ? (
@@ -278,20 +278,20 @@ export default async function SupplierBillsReportPage({
                       ) : (
                         "Verify first"
                       )}
-                    </AdminTd>
+                    </TableCell>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <AdminTd colSpan={6}>
+                <TableCell colSpan={6}>
                   No supplier activity in this date range.
-                </AdminTd>
+                </TableCell>
               </tr>
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

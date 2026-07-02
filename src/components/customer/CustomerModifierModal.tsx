@@ -1,7 +1,18 @@
-"use client";
+﻿"use client";
+
+import { Button } from "@/components/ui/button";
+
+import { NativeSelect } from "@/components/ui/native-select";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type {
   ModifierGroup,
   Product,
@@ -130,13 +141,13 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
             </h2>
           </div>
 
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:px-4"
+            className="rounded-full border border-white/15 bg-card/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-card/15 sm:px-4"
           >
             Close
-          </button>
+          </Button>
         </div>
 
         <div className="  pl-5 pt-30 pr-0.5 text-right">
@@ -171,14 +182,14 @@ function ModifierGroupList({
           key={group.id}
           data-aos="fade-up"
           data-aos-delay={String(groupIndex * 50)}
-          className="rounded-[1.5rem] border border-stone-200 bg-white p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
+          className="rounded-[1.5rem] border border-border bg-card p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-stone-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 {group.name}
               </h3>
-              <p className="mt-1 text-xs uppercase tracking-[0.2em] text-stone-500">
+              <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
                 Choose {getMinSelect(group)} to {getMaxSelect(group)}
               </p>
             </div>
@@ -194,22 +205,22 @@ function ModifierGroupList({
               const checked = (selected[group.id] || []).includes(option.id);
 
               return (
-                <button
+                <Button
                   key={option.id}
                   type="button"
                   onClick={() => onToggleOption(group, option.id)}
                   className={`rounded-[1.25rem] border px-4 py-4 text-left transition ${
                     checked
                       ? "border-[#7c5c37] bg-[#f5ebde] shadow-[0_16px_32px_rgba(124,92,55,0.15)]"
-                      : "border-stone-200 bg-stone-50 hover:border-stone-300 hover:bg-white"
+                      : "border-border bg-muted/50 hover:border-border hover:bg-card"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-stone-900">
+                      <p className="font-semibold text-foreground">
                         {option.name}
                       </p>
-                      <p className="mt-1 text-sm text-stone-500">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {Number(option.price) > 0
                           ? `+${formatCurrency(Number(option.price))}`
                           : "Included"}
@@ -219,13 +230,13 @@ function ModifierGroupList({
                       className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold uppercase ${
                         checked
                           ? "border-[#7c5c37] bg-[#7c5c37] text-white"
-                          : "border-stone-300 bg-white text-transparent"
+                          : "border-border bg-card text-transparent"
                       }`}
                     >
                       ok
                     </span>
                   </div>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -251,10 +262,10 @@ function BaristaAssignment({
             Choose who will prepare this drink.
           </p>
         </div>
-        <select
+        <NativeSelect
           value={selectedBaristaId}
           onChange={(event) => onSelectedBaristaIdChange(event.target.value)}
-          className="rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-stone-900 outline-none"
+          className="rounded-full border border-amber-300 bg-card px-4 py-2 text-sm font-medium text-foreground outline-none"
         >
           <option value="">Select barista</option>
           {baristas.map((barista) => (
@@ -262,7 +273,7 @@ function BaristaAssignment({
               {barista.fullName}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </div>
     </div>
   );
@@ -275,36 +286,36 @@ function ModifierModalFooter({
   onAddToCart,
 }: ModifierModalFooterProps) {
   return (
-    <div className="sticky bottom-0 z-10 border-t border-stone-200 bg-white px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
+    <div className="sticky bottom-0 z-10 border-t border-border bg-card px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
             Selected add-ons
           </p>
-          <p className="mt-2 text-sm text-stone-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             {selectedLines.length === 0
               ? "No extra selections yet."
               : selectedLines.map((modifier) => modifier.optionName).join(", ")}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-[0.24em] text-stone-500">
+          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
             Item total
           </p>
-          <p className="mt-2 text-3xl font-semibold text-stone-950">
+          <p className="mt-2 text-3xl font-semibold text-foreground">
             {formatCurrency(previewTotal)}
           </p>
         </div>
       </div>
 
-      <button
+      <Button
         type="button"
         onClick={onAddToCart}
         disabled={disabled}
         className="mt-5 w-full rounded-full bg-stone-950 px-6 py-4 text-base font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
       >
         Add to cart
-      </button>
+      </Button>
     </div>
   );
 }
@@ -335,7 +346,10 @@ function CustomerModifierContent({
   const previewTotal = useMemo(() => {
     return (
       Number(product.price) +
-      selectedLines.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0)
+      selectedLines.reduce(
+        (sum, modifier) => sum + modifier.price * modifier.qty,
+        0,
+      )
     );
   }, [product, selectedLines]);
 
@@ -396,65 +410,47 @@ function CustomerModifierContent({
   }
 
   return (
-    <div
-      data-aos="fade"
-      data-aos-duration="200"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-3 backdrop-blur-md sm:p-6"
-    >
-      <button
-        type="button"
-        aria-label="Close item customization"
-        className="absolute inset-0 h-full w-full cursor-default border-0 bg-transparent p-0"
-        onClick={onClose}
-      />
-      <div
-        data-aos="zoom-in"
-        data-aos-duration="240"
-        className="relative flex max-h-[95vh] w-full max-w-6xl flex-col overflow-y-auto rounded-[1.75rem] border border-white/10 bg-[#f6efe6] text-stone-900 shadow-[0_45px_140px_rgba(28,16,10,0.45)] sm:rounded-[2rem]"
-      >
-        <div className="grid flex-1 items-start lg:grid-cols-[1.05fr_0.95fr]">
-          <CustomerModifierHero product={product} onClose={onClose} />
+    <div className="grid flex-1 items-start lg:grid-cols-[1.05fr_0.95fr]">
+      <CustomerModifierHero product={product} onClose={onClose} />
 
-          <div className="flex flex-col bg-[#f9f4ee]">
-            <div className="border-b border-stone-200 px-4 py-4 sm:px-6 hidden sm:block">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-stone-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white">
-                  {modifierGroups.length} groups
-                </span>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-stone-600">
-                Pick your size, extras, and finishing touches. Your total
-                updates instantly as you select options.
-              </p>
-            </div>
-
-            <div className="flex-1 space-y-4 px-4 py-4 sm:px-6 sm:py-5">
-              <ModifierGroupList
-                modifierGroups={modifierGroups}
-                selected={selected}
-                errors={errors}
-                onToggleOption={toggleOption}
-              />
-
-              {product.category?.station === "BARISTA" ? (
-                <BaristaAssignment
-                  baristas={baristas}
-                  selectedBaristaId={selectedBaristaId}
-                  onSelectedBaristaIdChange={setSelectedBaristaId}
-                />
-              ) : null}
-            </div>
-
-            <ModifierModalFooter
-              selectedLines={selectedLines}
-              previewTotal={previewTotal}
-              disabled={disabled}
-              onAddToCart={() =>
-                onConfirm(product, selected, selectedBaristaId || null)
-              }
-            />
+      <div className="flex flex-col bg-[#f9f4ee]">
+        <div className="border-b border-border px-4 py-4 sm:px-6 hidden sm:block">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-stone-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white">
+              {modifierGroups.length} groups
+            </span>
           </div>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Pick your size, extras, and finishing touches. Your total updates
+            instantly as you select options.
+          </p>
         </div>
+
+        <div className="flex-1 space-y-4 px-4 py-4 sm:px-6 sm:py-5">
+          <ModifierGroupList
+            modifierGroups={modifierGroups}
+            selected={selected}
+            errors={errors}
+            onToggleOption={toggleOption}
+          />
+
+          {product.category?.station === "BARISTA" ? (
+            <BaristaAssignment
+              baristas={baristas}
+              selectedBaristaId={selectedBaristaId}
+              onSelectedBaristaIdChange={setSelectedBaristaId}
+            />
+          ) : null}
+        </div>
+
+        <ModifierModalFooter
+          selectedLines={selectedLines}
+          previewTotal={previewTotal}
+          disabled={disabled}
+          onAddToCart={() =>
+            onConfirm(product, selected, selectedBaristaId || null)
+          }
+        />
       </div>
     </div>
   );
@@ -467,33 +463,33 @@ export default function CustomerModifierModal({
   onClose,
   onConfirm,
 }: CustomerModifierModalProps) {
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  if (!open || !product) {
+  if (!product) {
     return null;
   }
 
   const defaultBaristaId = getDefaultBaristaId(product, baristas);
 
   return (
-    <CustomerModifierContent
-      key={`${product.id}:${defaultBaristaId}`}
-      product={product}
-      baristas={baristas}
-      defaultBaristaId={defaultBaristaId}
-      onClose={onClose}
-      onConfirm={onConfirm}
-    />
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-h-[95vh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem]"
+      >
+        <DialogHeader className="sr-only">
+          <DialogTitle>Customize {product.name}</DialogTitle>
+          <DialogDescription>
+            Choose modifiers and an optional barista before adding the item.
+          </DialogDescription>
+        </DialogHeader>
+        <CustomerModifierContent
+          key={`${product.id}:${defaultBaristaId}`}
+          product={product}
+          baristas={baristas}
+          defaultBaristaId={defaultBaristaId}
+          onClose={onClose}
+          onConfirm={onConfirm}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }

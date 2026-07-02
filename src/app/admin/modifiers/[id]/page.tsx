@@ -1,4 +1,6 @@
-"use server"
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -48,7 +50,7 @@ export default async function ModifierDetailsPage({
   }
 
   return (
-    <main
+    <div
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -76,7 +78,7 @@ export default async function ModifierDetailsPage({
           </h2>
 
           <form action={updateModifier} className="space-y-4">
-            <input type="hidden" name="id" value={modifier.id} />
+            <Input type="hidden" name="id" value={modifier.id} />
 
             <div>
               <label
@@ -85,7 +87,7 @@ export default async function ModifierDetailsPage({
               >
                 Name
               </label>
-              <input
+              <Input
                 id="modifier-name"
                 name="name"
                 type="text"
@@ -102,7 +104,7 @@ export default async function ModifierDetailsPage({
               >
                 Price
               </label>
-              <input
+              <Input
                 id="modifier-price"
                 name="price"
                 type="number"
@@ -120,7 +122,7 @@ export default async function ModifierDetailsPage({
               >
                 Product
               </label>
-              <select
+              <NativeSelect
                 id="modifier-product"
                 name="productId"
                 defaultValue={modifier.productId}
@@ -132,7 +134,7 @@ export default async function ModifierDetailsPage({
                     {product.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
@@ -142,7 +144,7 @@ export default async function ModifierDetailsPage({
               >
                 Modifier Group
               </label>
-              <select
+              <NativeSelect
                 id="modifier-group"
                 name="modifierGroupId"
                 defaultValue={modifier.modifierGroupId}
@@ -154,17 +156,18 @@ export default async function ModifierDetailsPage({
                     {group.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <label
               htmlFor="modifier-active"
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-md"
             >
-              <input
+              <Input
                 id="modifier-active"
                 name="isActive"
                 type="checkbox"
+                className="h-4 w-4 shrink-0"
                 defaultChecked={modifier.isActive}
               />
               Active
@@ -178,12 +181,12 @@ export default async function ModifierDetailsPage({
             />
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Save Changes
-              </button>
+              </Button>
             </div>
           </form>
         </section>
@@ -199,16 +202,16 @@ export default async function ModifierDetailsPage({
           </p>
 
           <form action={deleteModifier}>
-            <input type="hidden" name="id" value={modifier.id} />
-            <button
+            <Input type="hidden" name="id" value={modifier.id} />
+            <Button
               type="submit"
               className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
             >
               Delete Modifier
-            </button>
+            </Button>
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

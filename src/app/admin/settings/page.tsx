@@ -1,9 +1,6 @@
-import {
-  AdminButton,
-  AdminCard,
-  AdminPageFrame,
-  AdminStatCard,
-} from "@/components/admin/AdminUi";
+﻿import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
+import { Button, Card, AdminPage, MetricCard } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -48,19 +45,19 @@ export default async function AdminSettingsPage() {
     ]);
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Settings"
       description="Manage system settings and preferences"
     >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard label="Active Categories" value={activeCategories} />
-        <AdminStatCard label="Active Products" value={activeProducts} />
-        <AdminStatCard label="Active Tables" value={activeTables} />
-        <AdminStatCard label="Active Staff" value={activeStaff} />
+        <MetricCard label="Active Categories" value={activeCategories} />
+        <MetricCard label="Active Products" value={activeProducts} />
+        <MetricCard label="Active Tables" value={activeTables} />
+        <MetricCard label="Active Staff" value={activeStaff} />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
-        <AdminCard className="overflow-hidden p-2">
+        <Card className="overflow-hidden p-2">
           <nav className="space-y-1">
             {tabs.map((tab, index) => (
               <a
@@ -76,9 +73,9 @@ export default async function AdminSettingsPage() {
               </a>
             ))}
           </nav>
-        </AdminCard>
+        </Card>
 
-        <AdminCard className="p-5">
+        <Card className="p-5">
           <h2 id="general" className="text-lg font-black text-slate-950">
             General Settings
           </h2>
@@ -88,56 +85,69 @@ export default async function AdminSettingsPage() {
 
           {/* REVIEW: Settings form is UI-only until persistent cafe configuration fields are defined. */}
           <form className="mt-5 grid gap-4 lg:grid-cols-2">
-            <label className="block">
+            <label htmlFor="settings-business-name" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Business Name
               </span>
-              <input
+              <Input
+                id="settings-business-name"
                 defaultValue="Mash Allah Cafe"
                 className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
               />
             </label>
-            <label className="block">
+            <label htmlFor="settings-currency" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Currency
               </span>
-              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-currency"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>USD - US Dollar</option>
                 <option>SOS - Somali Shilling</option>
-              </select>
+              </NativeSelect>
             </label>
-            <label className="block">
+            <label htmlFor="settings-timezone" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Timezone
               </span>
-              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-timezone"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>UTC+03:00 Nairobi</option>
-              </select>
+              </NativeSelect>
             </label>
-            <label className="block">
+            <label htmlFor="settings-date-format" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Date Format
               </span>
-              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-date-format"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>MM/DD/YYYY</option>
                 <option>DD/MM/YYYY</option>
-              </select>
+              </NativeSelect>
             </label>
-            <label className="block">
+            <label htmlFor="settings-language" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Language
               </span>
-              <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50">
+              <NativeSelect
+                id="settings-language"
+                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+              >
                 <option>English</option>
                 <option>Somali</option>
-              </select>
+              </NativeSelect>
             </label>
             <div className="flex items-end lg:col-span-2">
-              <AdminButton type="button">Save Changes</AdminButton>
+              <Button type="button">Save Changes</Button>
             </div>
           </form>
-        </AdminCard>
+        </Card>
       </section>
-    </AdminPageFrame>
+    </AdminPage>
   );
 }

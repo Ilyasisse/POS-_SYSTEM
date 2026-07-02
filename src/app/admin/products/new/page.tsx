@@ -1,3 +1,6 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createProduct } from "../actions";
@@ -11,7 +14,7 @@ export default async function NewProductPage() {
   });
 
   return (
-    <main
+    <div
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -34,7 +37,7 @@ export default async function NewProductPage() {
               >
                 Name
               </label>
-              <input
+              <Input
                 id="new-product-name"
                 name="name"
                 type="text"
@@ -51,7 +54,7 @@ export default async function NewProductPage() {
               >
                 Price
               </label>
-              <input
+              <Input
                 id="new-product-price"
                 name="price"
                 type="number"
@@ -69,7 +72,7 @@ export default async function NewProductPage() {
               >
                 Category
               </label>
-              <select
+              <NativeSelect
                 id="new-product-category"
                 name="categoryId"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -84,17 +87,18 @@ export default async function NewProductPage() {
                     {category.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <label
               htmlFor="new-product-track-stock"
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-md"
             >
-              <input
+              <Input
                 id="new-product-track-stock"
                 name="trackStock"
                 type="checkbox"
+                className="h-4 w-4 shrink-0"
               />
               Track Stock
             </label>
@@ -106,12 +110,12 @@ export default async function NewProductPage() {
             />
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Create Product
-              </button>
+              </Button>
 
               <Link
                 href="/admin/products"
@@ -123,6 +127,6 @@ export default async function NewProductPage() {
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

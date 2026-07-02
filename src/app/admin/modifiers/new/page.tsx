@@ -1,3 +1,6 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createModifier } from "../actions";
@@ -18,7 +21,7 @@ export default async function NewModifierPage() {
   ]);
 
   return (
-    <main
+    <div
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -48,7 +51,7 @@ export default async function NewModifierPage() {
               >
                 Name
               </label>
-              <input
+              <Input
                 id="new-modifier-name"
                 name="name"
                 type="text"
@@ -65,7 +68,7 @@ export default async function NewModifierPage() {
               >
                 Price
               </label>
-              <input
+              <Input
                 id="new-modifier-price"
                 name="price"
                 type="number"
@@ -85,14 +88,15 @@ export default async function NewModifierPage() {
                   products.map((product) => (
                     <label
                       key={product.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-50"
+                      className="flex items-center gap-2 rounded-md px-2 py-1 text-md hover:bg-slate-50"
                     >
-                      <input
+                      <Input
                         name="productIds"
                         type="checkbox"
+                        className="h-4 w-4 shrink-0"
                         value={product.id}
                       />
-                      <span className="text-sm">{product.name}</span>
+                      <span>{product.name}</span>
                     </label>
                   ))
                 )}
@@ -109,7 +113,7 @@ export default async function NewModifierPage() {
               >
                 Modifier Group
               </label>
-              <select
+              <NativeSelect
                 id="new-modifier-group"
                 name="modifierGroupId"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -124,17 +128,18 @@ export default async function NewModifierPage() {
                     {group.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <label
               htmlFor="new-modifier-active"
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-md"
             >
-              <input
+              <Input
                 id="new-modifier-active"
                 name="isActive"
                 type="checkbox"
+                className="h-4 w-4 shrink-0"
                 defaultChecked
               />
               Active
@@ -147,12 +152,12 @@ export default async function NewModifierPage() {
             />
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Create Modifier
-              </button>
+              </Button>
 
               <Link
                 href="/admin/modifiers"
@@ -164,6 +169,6 @@ export default async function NewModifierPage() {
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

@@ -1,10 +1,13 @@
+﻿import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { createCategory } from "../actions";
 import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
 
 export default function NewCategoryPage() {
   return (
-    <main
+    <div
       className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
@@ -34,7 +37,7 @@ export default function NewCategoryPage() {
               >
                 Name
               </label>
-              <input
+              <Input
                 id="new-category-name"
                 name="name"
                 type="text"
@@ -51,7 +54,7 @@ export default function NewCategoryPage() {
               >
                 Station
               </label>
-              <select
+              <NativeSelect
                 id="new-category-station"
                 name="station"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -66,7 +69,7 @@ export default function NewCategoryPage() {
                     {station}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <div>
@@ -76,7 +79,7 @@ export default function NewCategoryPage() {
               >
                 Sort Order
               </label>
-              <input
+              <Input
                 id="new-category-sort-order"
                 name="sortOrder"
                 type="number"
@@ -88,24 +91,25 @@ export default function NewCategoryPage() {
 
             <label
               htmlFor="new-category-active"
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-md"
             >
-              <input
+              <Input
                 id="new-category-active"
                 name="isActive"
                 type="checkbox"
+                className="h-4 w-4 shrink-0"
                 defaultChecked
               />
               Active
             </label>
 
             <div className="flex gap-3 pt-2">
-              <button
+              <Button
                 type="submit"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Create Category
-              </button>
+              </Button>
 
               <Link
                 href="/admin/categories"
@@ -117,6 +121,6 @@ export default function NewCategoryPage() {
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

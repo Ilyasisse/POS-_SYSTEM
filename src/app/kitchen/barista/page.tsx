@@ -3,10 +3,9 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import KitchenClient from "@/components/kitchen/KitchenClient";
 
 export default async function BaristaPage() {
-  const currentUser = await requirePermission(
-    PERMISSIONS.KITCHEN_TICKET_VIEW,
-    { stations: ["BARISTA"] },
-  );
+  const currentUser = await requirePermission(PERMISSIONS.KITCHEN_TICKET_VIEW, {
+    stations: ["BARISTA"],
+  });
 
   return (
     <KitchenClient

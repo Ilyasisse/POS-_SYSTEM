@@ -1,6 +1,6 @@
 type Tone = "blue" | "green" | "purple" | "orange" | "pink" | "slate";
-import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { LucideIcon } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { getToneClasses } from "@/lib/admin/helper/getToneClasses";
 
 export default function StateCard({
@@ -10,7 +10,7 @@ export default function StateCard({
   description,
   tone,
 }: {
-  icon: IconDefinition;
+  icon: LucideIcon;
   label: string;
   value: number | string;
   description: string;
@@ -19,28 +19,29 @@ export default function StateCard({
   const toneClasses = getToneClasses(tone);
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
+    <Card className="p-4 transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
       <div className="flex items-center gap-4">
         <div
           className={`grid size-14 shrink-0 place-items-center rounded-2xl ${toneClasses.icon}`}
         >
-          <FontAwesomeIcon icon={icon} className="text-2xl" />
+          {(() => {
+            const Icon = icon;
+            return <Icon className="size-6" />;
+          })()}
         </div>
 
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-600">
+          <p className="truncate text-sm font-medium text-muted-foreground">
             {label}
           </p>
 
-          <p className="text-3xl font-black leading-tight text-slate-950">
-            {value}
-          </p>
+          <p className="text-3xl font-semibold leading-tight">{value}</p>
 
-          <p className="truncate text-sm font-medium text-slate-500">
+          <p className="truncate text-sm text-muted-foreground">
             {description}
           </p>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

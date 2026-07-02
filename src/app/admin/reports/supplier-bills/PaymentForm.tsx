@@ -1,10 +1,22 @@
-"use client";
+﻿"use client";
+
+import { Button } from "@/components/ui/button";
+
+import { NativeSelect } from "@/components/ui/native-select";
+
+import { Input } from "@/components/ui/input";
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { recordPaymentAction } from "../../supplier-deliveries/actions";
 
-export default function PaymentForm({ billId, remaining }: { billId: string; remaining: number }) {
+export default function PaymentForm({
+  billId,
+  remaining,
+}: {
+  billId: string;
+  remaining: number;
+}) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
   const router = useRouter();
@@ -26,14 +38,47 @@ export default function PaymentForm({ billId, remaining }: { billId: string; rem
 
   return (
     <form onSubmit={submit} className="grid min-w-64 gap-2">
-      <input type="hidden" name="billId" value={billId} />
+      <Input type="hidden" name="billId" value={billId} />
       <div className="flex gap-2">
-        <input required name="amount" type="number" min="0.01" max={remaining} step="0.01" defaultValue={remaining.toFixed(2)} className="h-9 w-28 rounded-lg border border-slate-200 px-2" aria-label="Payment amount" />
-        <select name="paymentMethod" className="h-9 min-w-28 rounded-lg border border-slate-200 px-2" aria-label="Payment method"><option value="">Method</option><option>MYCASH</option><option>GOLIS</option><option>Dahabshiil</option><option>Cash</option><option>Bank</option><option>Other</option></select>
+        <Input
+          required
+          name="amount"
+          type="number"
+          min="0.01"
+          max={remaining}
+          step="0.01"
+          defaultValue={remaining.toFixed(2)}
+          className="h-9 w-28 rounded-lg border border-slate-200 px-2"
+          aria-label="Payment amount"
+        />
+        <NativeSelect
+          name="paymentMethod"
+          className="h-9 min-w-28 rounded-lg border border-slate-200 px-2"
+          aria-label="Payment method"
+        >
+          <option value="">Method</option>
+          <option>MYCASH</option>
+          <option>GOLIS</option>
+          <option>Dahabshiil</option>
+          <option>Cash</option>
+          <option>Bank</option>
+          <option>Other</option>
+        </NativeSelect>
       </div>
-      <input name="notes" placeholder="Payment note" className="h-9 rounded-lg border border-slate-200 px-2" />
-      <button disabled={pending} className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white disabled:opacity-50">{pending ? "Recording…" : remaining > 0 ? "Record payment" : "Paid"}</button>
-      {message ? <span className="text-xs font-semibold text-slate-600">{message}</span> : null}
+      <Input
+        name="notes"
+        placeholder="Payment note"
+        className="h-9 rounded-lg border border-slate-200 px-2"
+      />
+      <Button
+        disabled={pending}
+        className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white disabled:opacity-50"
+      >
+        {pending ? "Recordingâ€¦" : remaining > 0 ? "Record payment" : "Paid"}
+      </Button>
+      {message ? (
+        <span className="text-xs font-semibold text-slate-600">{message}</span>
+      ) : null}
     </form>
   );
 }

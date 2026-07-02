@@ -1,23 +1,22 @@
 import DashboardCard from "./UI Cards/DashboardCard";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import {
-  faBolt,
-  faArrowRight,
-  faExclamationTriangle,
-  faBell,
-  faReceipt,
-  faCommentDots,
-  faLayerGroup,
-  faBoxesStacked,
-  faCube,
-  faPuzzlePiece,
-  faUsers,
-  faUserGroup,
-  faTableCells,
-  faChartLine,
-  faGear,
-} from "@fortawesome/free-solid-svg-icons";
+  ArrowRight,
+  Bell,
+  Boxes,
+  ChartNoAxesCombined,
+  Layers3,
+  ListTree,
+  MessageCircle,
+  Package,
+  Puzzle,
+  ReceiptText,
+  Settings,
+  TableProperties,
+  TriangleAlert,
+  Users,
+  Zap,
+} from "lucide-react";
 
 import { formatTime } from "@/lib/admin/helper/formartTime";
 import NotificationCard from "./UI Cards/NotificationCard";
@@ -27,70 +26,70 @@ import { Decimal } from "@prisma/client/runtime/client";
 const quickAccessNEW = [
   {
     href: "/admin/categories",
-    icon: faLayerGroup,
+    icon: Layers3,
     title: "Categories",
     description: "Organize menu",
     tone: "blue" as const,
   },
   {
     href: "/admin/products",
-    icon: faBoxesStacked,
+    icon: Boxes,
     title: "Products",
     description: "Manage items",
     tone: "green" as const,
   },
   {
     href: "/admin/inventory",
-    icon: faCube,
+    icon: Package,
     title: "Inventory",
     description: "Stock tracking",
     tone: "orange" as const,
   },
   {
     href: "/admin/modifiers",
-    icon: faPuzzlePiece,
+    icon: Puzzle,
     title: "Modifiers",
     description: "Add-ons & extras",
     tone: "purple" as const,
   },
   {
     href: "/admin/modifier-groups",
-    icon: faUsers,
+    icon: ListTree,
     title: "Modifier Groups",
     description: "Option groups",
     tone: "pink" as const,
   },
   {
     href: "/admin/staff",
-    icon: faUserGroup,
+    icon: Users,
     title: "Staff",
     description: "Manage users",
     tone: "blue" as const,
   },
   {
     href: "/admin/tables",
-    icon: faTableCells,
+    icon: TableProperties,
     title: "Tables",
     description: "Dine-in tables",
     tone: "green" as const,
   },
   {
     href: "/admin/orders",
-    icon: faReceipt,
+    icon: ReceiptText,
     title: "Orders",
     description: "Live orders",
     tone: "orange" as const,
   },
   {
     href: "/admin/reports",
-    icon: faChartLine,
+    icon: ChartNoAxesCombined,
     title: "Reports",
     description: "Analytics",
     tone: "blue" as const,
   },
   {
     href: "/admin/settings",
-    icon: faGear,
+    icon: Settings,
     title: "Settings",
     description: "System setup",
     tone: "slate" as const,
@@ -118,41 +117,41 @@ export default function Dashboard({
     <section className="grid gap-5 2xl:grid-cols-[minmax(0,2.2fr)_minmax(22rem,0.95fr)]">
       <DashboardCard
         title="Quick Access"
-        icon={faBolt}
+        icon={Zap}
         action={
           <Link
             href="/admin/settings"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
             Manage All
-            <FontAwesomeIcon icon={faArrowRight} />
+            <ArrowRight className="size-4" />
           </Link>
         }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {quickAccessNEW.map((item) => (
-            <QuickAccessCard key={item.href} {...item} />
+            <QuickAccessCard {...item} key={item.href} />
           ))}
         </div>
       </DashboardCard>
 
-      <DashboardCard title="Alerts & Notifications" icon={faBell}>
+      <DashboardCard title="Alerts & Notifications" icon={Bell}>
         <NotificationCard
-          icon={faExclamationTriangle}
+          icon={TriangleAlert}
           title="Low Stock Alert"
           description={`${lowStockSupplies} items are running low`}
           time={notificationTime}
           tone="pink"
         />
         <NotificationCard
-          icon={faReceipt}
+          icon={ReceiptText}
           title="Today's Orders"
           description={`${openTodayOrders} active orders`}
           time={notificationTime}
           tone="orange"
         />
         <NotificationCard
-          icon={faCommentDots}
+          icon={MessageCircle}
           title="WhatsApp Alerts"
           // REVIEW: Replace with live WhatsApp inbox data when that integration exposes status/messages.
           description="Connected and ready"
@@ -164,7 +163,7 @@ export default function Dashboard({
           className="mt-3 inline-flex items-center gap-2 text-sm font-black text-blue-600 hover:text-blue-700"
         >
           View all notifications
-          <FontAwesomeIcon icon={faArrowRight} />
+          <ArrowRight className="size-4" />
         </Link>
       </DashboardCard>
     </section>

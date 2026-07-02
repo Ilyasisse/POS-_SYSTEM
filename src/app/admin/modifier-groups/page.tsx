@@ -1,15 +1,16 @@
+﻿import { Button } from "@/components/ui/button";
 import {
-  AdminPageFrame,
-  AdminPrimaryLink,
-  AdminRowActions,
-  AdminSearchToolbar,
-  AdminSelect,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  AdminPage,
+  PrimaryLink,
+  RowActions,
+  SearchToolbar,
+  NativeSelect,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   StatusBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 
 type ModifierGroupsPageProps = {
@@ -45,84 +46,82 @@ export default async function ModifierGroupsPage({
   });
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Modifier Groups"
       description="Group modifiers for every selection"
       action={
-        <AdminPrimaryLink href="/admin/modifier-groups/new">
-          Add Group
-        </AdminPrimaryLink>
+        <PrimaryLink href="/admin/modifier-groups/new">Add Group</PrimaryLink>
       }
     >
-      <AdminTableShell
+      <DataTableCard
         footer={
           <p className="text-sm font-medium text-slate-500">
             Showing 1 to {groups.length} of {groups.length} groups
           </p>
         }
       >
-        <AdminSearchToolbar placeholder="Search groups..." defaultValue={q}>
-          <AdminSelect name="status" defaultValue={status}>
+        <SearchToolbar placeholder="Search groups..." defaultValue={q}>
+          <NativeSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </AdminSelect>
-          <button
-            type="button"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          </NativeSelect>
+          <Button
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
-          </button>
-        </AdminSearchToolbar>
-        <AdminTable>
+          </Button>
+        </SearchToolbar>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>#</AdminTh>
-              <AdminTh>Name</AdminTh>
-              <AdminTh>Selection Type</AdminTh>
-              <AdminTh>Min</AdminTh>
-              <AdminTh>Max</AdminTh>
-              <AdminTh>Modifiers</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Action</AdminTh>
+              <TableHead>#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Selection Type</TableHead>
+              <TableHead>Min</TableHead>
+              <TableHead>Max</TableHead>
+              <TableHead>Modifiers</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Action</TableHead>
             </tr>
           </thead>
           <tbody>
             {groups.length === 0 ? (
               <tr>
-                <AdminTd colSpan={8} className="py-10 text-center">
+                <TableCell colSpan={8} className="py-10 text-center">
                   No modifier groups found.
-                </AdminTd>
+                </TableCell>
               </tr>
             ) : (
               groups.map((group, index) => (
                 <tr key={group.id} className="border-b border-slate-50">
-                  <AdminTd className="font-bold text-slate-400">
+                  <TableCell className="font-bold text-slate-400">
                     {index + 1}
-                  </AdminTd>
-                  <AdminTd className="font-black text-slate-950">
+                  </TableCell>
+                  <TableCell className="font-black text-slate-950">
                     {group.name}
-                  </AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
                     {group.isRequired ? "Required" : "Optional"}
-                  </AdminTd>
-                  <AdminTd>{group.minSelect}</AdminTd>
-                  <AdminTd>{group.maxSelect}</AdminTd>
-                  <AdminTd>{group._count.modifiers}</AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>{group.minSelect}</TableCell>
+                  <TableCell>{group.maxSelect}</TableCell>
+                  <TableCell>{group._count.modifiers}</TableCell>
+                  <TableCell>
                     <StatusBadge active={group.isActive} />
-                  </AdminTd>
-                  <AdminTd>
-                    <AdminRowActions
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
                       editHref={`/admin/modifier-groups/${group.id}`}
                     />
-                  </AdminTd>
+                  </TableCell>
                 </tr>
               ))
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

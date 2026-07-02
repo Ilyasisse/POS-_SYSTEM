@@ -1,4 +1,5 @@
 import { MenuProduct } from "@/lib/menu/menu-data";
+import { Card } from "@/components/ui/card";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -11,9 +12,9 @@ function formatPrice(value: number) {
 
 export default function ProductCard({ product }: { product: MenuProduct }) {
   return (
-    <article
+    <Card
       data-aos="fade-right"
-      className="group overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 shadow-[0_22px_60px_rgba(73,37,16,0.10)]"
+      className="group gap-0 overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 py-0 shadow-[0_22px_60px_rgba(73,37,16,0.10)] dark:bg-card"
     >
       {/* Product image container */}
       <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)]">
@@ -56,6 +57,6 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
           {formatPrice(product.price)}
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

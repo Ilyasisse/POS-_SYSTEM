@@ -11,36 +11,32 @@ type AdminLayoutProps = {
 export default async function AdminLayout({ children }: AdminLayoutProps) {
   const [
     currentUser,
-    [
-      categoryCount,
-      productCount,
-      modifierCount,
-      modifierGroupCount,
-      staffCount,
-      tableCount,
-      openOrdersCount,
-    ],
+    categoryCount,
+    productCount,
+    modifierCount,
+    modifierGroupCount,
+    staffCount,
+    tableCount,
+    openOrdersCount,
   ] = await Promise.all([
     requirePermission(PERMISSIONS.ADMIN_ACCESS),
-    prisma.$transaction([
-      prisma.category.count(),
-      prisma.product.count(),
-      prisma.modifier.count(),
-      prisma.modifierGroup.count(),
-      prisma.user.count({
-        where: {
-          role: {
-            not: "CUSTOMER",
-          },
+    prisma.category.count(),
+    prisma.product.count(),
+    prisma.modifier.count(),
+    prisma.modifierGroup.count(),
+    prisma.user.count({
+      where: {
+        role: {
+          not: "CUSTOMER",
         },
-      }),
-      prisma.table.count(),
-      prisma.order.count({
-        where: {
-          status: "OPEN",
-        },
-      }),
-    ]),
+      },
+    }),
+    prisma.table.count(),
+    prisma.order.count({
+      where: {
+        status: "OPEN",
+      },
+    }),
   ]);
 
   return (
@@ -48,6 +44,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       currentUser={{
         fullName: currentUser.fullName,
         role: currentUser.role,
+        station: currentUser.station ?? null,
         permissions: getPermissionsForRole(currentUser.role),
       }}
       counts={{

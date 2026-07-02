@@ -1,16 +1,17 @@
+﻿import { Button } from "@/components/ui/button";
 import {
-  AdminPagination,
-  AdminPageFrame,
-  AdminPrimaryLink,
-  AdminRowActions,
-  AdminSearchToolbar,
-  AdminSelect,
-  AdminTable,
-  AdminTableShell,
-  AdminTd,
-  AdminTh,
+  PaginationBar,
+  AdminPage,
+  PrimaryLink,
+  RowActions,
+  SearchToolbar,
+  NativeSelect,
+  Table,
+  DataTableCard,
+  TableCell,
+  TableHead,
   StatusBadge,
-} from "@/components/admin/AdminUi";
+} from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
 import { prisma } from "@/lib/prisma";
 
@@ -58,18 +59,16 @@ export default async function AdminModifiersPage({
   const totalPages = Math.max(Math.ceil(totalModifiers / pageSize), 1);
 
   return (
-    <AdminPageFrame
+    <AdminPage
       title="Modifiers"
       description="Manage add-ons and extra options"
       action={
-        <AdminPrimaryLink href="/admin/modifiers/new">
-          Add Modifier
-        </AdminPrimaryLink>
+        <PrimaryLink href="/admin/modifiers/new">Add Modifier</PrimaryLink>
       }
     >
-      <AdminTableShell
+      <DataTableCard
         footer={
-          <AdminPagination
+          <PaginationBar
             currentPage={currentPage}
             totalPages={totalPages}
             totalLabel={`Showing ${modifiersList.length} of ${totalModifiers} modifiers`}
@@ -77,64 +76,64 @@ export default async function AdminModifiersPage({
           />
         }
       >
-        <AdminSearchToolbar placeholder="Search modifiers..." defaultValue={q}>
-          <AdminSelect name="status" defaultValue={status}>
+        <SearchToolbar placeholder="Search modifiers..." defaultValue={q}>
+          <NativeSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </AdminSelect>
-          <button
-            type="button"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
+          </NativeSelect>
+          <Button
+            type="submit"
+            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
           >
             Filter
-          </button>
-        </AdminSearchToolbar>
-        <AdminTable>
+          </Button>
+        </SearchToolbar>
+        <Table>
           <thead>
             <tr>
-              <AdminTh>#</AdminTh>
-              <AdminTh>Name</AdminTh>
-              <AdminTh>Type</AdminTh>
-              <AdminTh>Product</AdminTh>
-              <AdminTh>Price</AdminTh>
-              <AdminTh>Status</AdminTh>
-              <AdminTh>Action</AdminTh>
+              <TableHead>#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Action</TableHead>
             </tr>
           </thead>
           <tbody>
             {modifiersList.length === 0 ? (
               <tr>
-                <AdminTd colSpan={7} className="py-10 text-center">
+                <TableCell colSpan={7} className="py-10 text-center">
                   No modifiers found.
-                </AdminTd>
+                </TableCell>
               </tr>
             ) : (
               modifiersList.map((modifier, index) => (
                 <tr key={modifier.id} className="border-b border-slate-50">
-                  <AdminTd className="font-bold text-slate-400">
+                  <TableCell className="font-bold text-slate-400">
                     {(currentPage - 1) * pageSize + index + 1}
-                  </AdminTd>
-                  <AdminTd className="font-black text-slate-950">
+                  </TableCell>
+                  <TableCell className="font-black text-slate-950">
                     {modifier.name}
-                  </AdminTd>
-                  <AdminTd>{modifier.modifierGroup?.name ?? "Option"}</AdminTd>
-                  <AdminTd>{modifier.product?.name ?? "-"}</AdminTd>
-                  <AdminTd>${Number(modifier.price).toFixed(2)}</AdminTd>
-                  <AdminTd>
+                  </TableCell>
+                  <TableCell>
+                    {modifier.modifierGroup?.name ?? "Option"}
+                  </TableCell>
+                  <TableCell>{modifier.product?.name ?? "-"}</TableCell>
+                  <TableCell>${Number(modifier.price).toFixed(2)}</TableCell>
+                  <TableCell>
                     <StatusBadge active={modifier.isActive} />
-                  </AdminTd>
-                  <AdminTd>
-                    <AdminRowActions
-                      editHref={`/admin/modifiers/${modifier.id}`}
-                    />
-                  </AdminTd>
+                  </TableCell>
+                  <TableCell>
+                    <RowActions editHref={`/admin/modifiers/${modifier.id}`} />
+                  </TableCell>
                 </tr>
               ))
             )}
           </tbody>
-        </AdminTable>
-      </AdminTableShell>
-    </AdminPageFrame>
+        </Table>
+      </DataTableCard>
+    </AdminPage>
   );
 }

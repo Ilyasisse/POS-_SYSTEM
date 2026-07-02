@@ -1,3 +1,6 @@
+﻿import { Table } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -91,15 +94,15 @@ function WaiterOrdersHeader({
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 className="text-2xl font-bold">Manager waiter order review</h1>
-        <p className="mt-2 text-sm text-slate-600">Welcome {fullName}</p>
-        <p className="text-sm text-slate-500">
+        <p className="mt-2 text-sm text-muted-foreground">Welcome {fullName}</p>
+        <p className="text-sm text-muted-foreground">
           Maalinta cashier-ka: {businessDayLabel}
         </p>
       </div>
 
       <Link
         href="/manager"
-        className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
       >
         Back to manager
       </Link>
@@ -109,16 +112,16 @@ function WaiterOrdersHeader({
 
 function WaiterFilter({ waiters, selectedWaiterId }: WaiterFilterProps) {
   return (
-    <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <form className="flex flex-col gap-3 md:flex-row md:items-end">
         <label className="w-full">
-          <span className="mb-1 block text-sm font-medium text-slate-700">
+          <span className="mb-1 block text-sm font-medium text-foreground">
             Kabalyeeri
           </span>
           <AutoSubmitSelect
             name="waiterId"
             defaultValue={selectedWaiterId}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 outline-none focus:border-blue-500"
+            className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500"
           >
             {waiters.length === 0 ? (
               <option value="">Waiters lama helin</option>
@@ -148,9 +151,7 @@ function DeletedOrderItemsPanel({
   return (
     <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
       <div className="mb-3">
-        <p className="text-sm font-semibold text-amber-900">
-          Dalabyo tirtiran
-        </p>
+        <p className="text-sm font-semibold text-amber-900">Dalabyo tirtiran</p>
         <p className="text-sm text-amber-800">
           Waad soo celin kartaa ama ka saar liiska.
         </p>
@@ -160,14 +161,14 @@ function DeletedOrderItemsPanel({
         {deletedItems.map((deletedItem) => (
           <div
             key={deletedItem.undoId}
-            className="rounded-xl border border-amber-200 bg-white px-4 py-3"
+            className="rounded-xl border border-amber-200 bg-card px-4 py-3"
           >
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="font-semibold text-slate-900">
+                <p className="font-semibold text-foreground">
                   {deletedItem.item.qty}x {deletedItem.item.productName}
                 </p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   Order #{deletedItem.order.orderNumber}
                   {deletedItem.waiterName ? `, ${deletedItem.waiterName}` : ""}
                 </p>
@@ -175,41 +176,41 @@ function DeletedOrderItemsPanel({
 
               <div className="flex flex-wrap gap-2">
                 <form action={restoreDeletedWaiterOrderItem}>
-                  <input
+                  <Input
                     type="hidden"
                     name="undoId"
                     value={deletedItem.undoId}
                   />
-                  <input
+                  <Input
                     type="hidden"
                     name="waiterId"
                     value={deletedItem.waiterId}
                   />
-                  <button
+                  <Button
                     type="submit"
                     className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
                   >
                     Soo celi
-                  </button>
+                  </Button>
                 </form>
 
                 <form action={discardDeletedWaiterOrderItem}>
-                  <input
+                  <Input
                     type="hidden"
                     name="undoId"
                     value={deletedItem.undoId}
                   />
-                  <input
+                  <Input
                     type="hidden"
                     name="waiterId"
                     value={deletedItem.waiterId}
                   />
-                  <button
+                  <Button
                     type="submit"
-                    className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                    className="rounded-xl border border-red-300 bg-card px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </form>
               </div>
             </div>
@@ -227,20 +228,20 @@ function WaiterOrderMetrics({
 }: WaiterOrderMetricsProps) {
   return (
     <div className="mb-6 grid gap-4 sm:grid-cols-3">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Waiter la doortay</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Waiter la doortay</p>
         <h2 className="mt-2 text-xl font-bold">
           {selectedWaiter?.fullName ?? "None"}
         </h2>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Dalabyo la helay</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Dalabyo la helay</p>
         <h2 className="mt-2 text-2xl font-bold">{totalOrders}</h2>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-500">Qiimaha dalabyada</p>
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <p className="text-sm text-muted-foreground">Qiimaha dalabyada</p>
         <h2 className="mt-2 text-2xl font-bold">{formatMoney(totalSales)}</h2>
       </div>
     </div>
@@ -253,37 +254,37 @@ function WaiterOrdersTable({
   selectedWaiterId,
 }: WaiterOrdersTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border px-4 py-3">
         <h2 className="font-semibold">Dalabyada waiter-ka la doortay</h2>
       </div>
 
       {selectedWaiter === null ? (
-        <div className="p-6 text-sm text-slate-500">
+        <div className="p-6 text-sm text-muted-foreground">
           Ma jiraan waiters la muujiyo
         </div>
       ) : orders.length === 0 ? (
-        <div className="p-6 text-sm text-slate-500">
+        <div className="p-6 text-sm text-muted-foreground">
           Dalabyo looma helin {selectedWaiter.fullName}
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50">
+          <Table className="min-w-full text-left text-sm">
+            <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Order
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   La sameeyay
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Alaabaha dalabka
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Total
                 </th>
-                <th className="px-4 py-3 font-semibold text-slate-700">
+                <th className="px-4 py-3 font-semibold text-foreground">
                   Delete orderka
                 </th>
               </tr>
@@ -298,7 +299,7 @@ function WaiterOrdersTable({
                 />
               ))}
             </tbody>
-          </table>
+          </Table>
         </div>
       )}
     </div>
@@ -317,16 +318,16 @@ function WaiterOrderRow({
     .join(", ");
 
   return (
-    <tr className="border-t border-slate-100">
+    <tr className="border-t border-border">
       <td className="px-4 py-3 font-medium">#{order.orderNumber}</td>
-      <td className="px-4 py-3 text-slate-600">
+      <td className="px-4 py-3 text-muted-foreground">
         {formatDateTime(order.createdAt)}
       </td>
-      <td className="px-4 py-3 text-slate-600">
+      <td className="px-4 py-3 text-muted-foreground">
         <p>{orderItemsText || "No items"}</p>
         <div className="mt-2 space-y-1">
           {order.orderItems.map((item) => (
-            <p key={item.id} className="text-xs text-slate-500">
+            <p key={item.id} className="text-xs text-muted-foreground">
               {item.qty}x {item.productName} (
               {formatMoney(Number(item.lineTotal))})
             </p>
@@ -341,16 +342,23 @@ function WaiterOrderRow({
           {order.orderItems.map((item) => (
             <div key={item.id} className="space-y-2">
               {Array.from({ length: item.qty }).map((_, unitIndex) => (
-                <form key={`${item.id}-${unitIndex}`} action={deleteWaiterOrderItem}>
-                  <input type="hidden" name="orderId" value={order.id} />
-                  <input type="hidden" name="orderItemId" value={item.id} />
-                  <input type="hidden" name="waiterId" value={selectedWaiterId} />
-                  <button
+                <form
+                  key={`${item.id}-${unitIndex}`}
+                  action={deleteWaiterOrderItem}
+                >
+                  <Input type="hidden" name="orderId" value={order.id} />
+                  <Input type="hidden" name="orderItemId" value={item.id} />
+                  <Input
+                    type="hidden"
+                    name="waiterId"
+                    value={selectedWaiterId}
+                  />
+                  <Button
                     type="submit"
                     className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
                   >
                     Delete 1 {item.productName}
-                  </button>
+                  </Button>
                 </form>
               ))}
             </div>
@@ -449,7 +457,7 @@ export default async function CashierWaiterOrdersPage({
   );
 
   return (
-    <main className="p-6">
+    <div className="p-6">
       <WaiterOrdersHeader
         fullName={currentUser.fullName}
         businessDayLabel={businessDayLabel}
@@ -470,6 +478,6 @@ export default async function CashierWaiterOrdersPage({
         selectedWaiter={selectedWaiter}
         selectedWaiterId={selectedWaiterId}
       />
-    </main>
+    </div>
   );
 }

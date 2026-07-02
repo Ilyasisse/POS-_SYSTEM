@@ -65,7 +65,6 @@ A production-grade Point of Sale system designed for cafeterias, featuring fast 
 - Backend (target architecture): Supabase (PostgreSQL + Auth + Storage)
 - State Management: React Context + Hooks
 - Charts: Recharts
-- Date Handling: date-fns
 
 ## Database Schema (Target)
 

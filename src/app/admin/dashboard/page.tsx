@@ -71,8 +71,6 @@ export default async function AdminPage() {
     productCount,
     // Total number of modifier rows.
     modifierCount,
-    // Total number of modifier groups.
-    modifierGroupCount,
     // Total staff users, excluding customers.
     staffCount,
     // Orders created during the current cafe-local day.
@@ -93,7 +91,6 @@ export default async function AdminPage() {
     prisma.category.count(),
     prisma.product.count(),
     prisma.modifier.count(),
-    prisma.modifierGroup.count(),
     prisma.user.count({
       where: {
         role: {
@@ -215,32 +212,30 @@ export default async function AdminPage() {
   });
 
   return (
-    <main className="px-3 py-5 text-slate-950 sm:px-5 lg:px-6 xl:px-8">
-      <div className="mx-auto w-full max-w-448 space-y-5 pb-10">
-        <Header
-          categoryCount={categoryCount}
-          productCount={productCount}
-          modifierCount={modifierCount}
-          todayOrders={todayOrders}
-          staffCount={staffCount}
-        />
+    <div className="mx-auto w-full space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
+      <Header
+        categoryCount={categoryCount}
+        productCount={productCount}
+        modifierCount={modifierCount}
+        todayOrders={todayOrders}
+        staffCount={staffCount}
+      />
 
-        <Dashboard
-          lowStockSupplies={lowStockSupplies}
-          todayOrders={todayOrders}
-        />
+      <Dashboard
+        lowStockSupplies={lowStockSupplies}
+        todayOrders={todayOrders}
+      />
 
-        <Status
-          recentOrders={recentOrders}
-          recentProducts={recentProducts}
-          recentMovements={recentMovements}
-          chartPoints={chartPoints}
-          totalSales={totalSales}
-          totalOrder={totalOrders}
-          averageOrderValue={averageOrderValue}
-          newCustomers={newCustomers}
-        />
-      </div>
-    </main>
+      <Status
+        recentOrders={recentOrders}
+        recentProducts={recentProducts}
+        recentMovements={recentMovements}
+        chartPoints={chartPoints}
+        totalSales={totalSales}
+        totalOrder={totalOrders}
+        averageOrderValue={averageOrderValue}
+        newCustomers={newCustomers}
+      />
+    </div>
   );
 }

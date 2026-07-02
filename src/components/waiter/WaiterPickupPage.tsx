@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { Button } from "@/components/ui/button";
 
 import type { KitchenTicket } from "@/lib/kitchen/kitchen-socket";
 import { useKitchenSocket } from "@/hooks/kitchen/useKitchenSocket";
@@ -34,50 +36,48 @@ export default function WaiterPickupPage({
   currentUserName,
   currentUserRole,
 }: WaiterPickupPageProps) {
-  const {
-    activeTickets,
-    socketStatus,
-    statusMessage,
-    updatePickupStatus,
-  } = useKitchenSocket({
-    currentUserId,
-    currentUserName,
-    currentUserRole,
-  });
+  const { activeTickets, socketStatus, statusMessage, updatePickupStatus } =
+    useKitchenSocket({
+      currentUserId,
+      currentUserName,
+      currentUserRole,
+    });
 
   return (
-    <main
-      className="min-h-screen bg-linear-to-br from-slate-100 via-blue-50 to-blue-100 px-4 py-6 text-slate-900 md:px-6"
+    <div
+      className="min-h-screen bg-muted/35 px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-7xl space-y-4">
-        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
+        <header className="rounded-2xl border border-border bg-card p-5 shadow-lg">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">Waiter pickup display</h1>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Ready kitchen orders to claim and deliver to tables.
               </p>
-              <p className="mt-1 text-sm font-semibold text-slate-700">
+              <p className="mt-1 text-sm font-semibold text-foreground">
                 {currentUserName}
               </p>
             </div>
 
-            <div className="text-right">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-                  socketStatus === "connected"
-                    ? "bg-green-100 text-green-700"
-                    : socketStatus === "connecting"
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-red-100 text-red-700"
-                }`}
-              >
-                {translateSocketStatus(socketStatus)}
-              </span>
-              <p className="mt-2 text-sm text-slate-500">
-                {activeTickets.length} ready order(s)
-              </p>
+            <div className="flex items-start gap-2 text-right">
+              <div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
+                    socketStatus === "connected"
+                      ? "bg-green-100 text-green-700"
+                      : socketStatus === "connecting"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {translateSocketStatus(socketStatus)}
+                </span>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {activeTickets.length} ready order(s)
+                </p>
+              </div>
             </div>
           </div>
         </header>
@@ -89,12 +89,13 @@ export default function WaiterPickupPage({
         ) : null}
 
         {activeTickets.length === 0 ? (
-          <section className="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-10 text-center shadow-sm">
-            <h2 className="text-xl font-bold text-slate-800">
+          <section className="rounded-2xl border border-dashed border-border bg-card/80 p-10 text-center shadow-sm">
+            <h2 className="text-xl font-bold text-foreground">
               No ready orders
             </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Orders appear here after every kitchen station marks its work done.
+            <p className="mt-2 text-sm text-muted-foreground">
+              Orders appear here after every kitchen station marks its work
+              done.
             </p>
           </section>
         ) : (
@@ -115,17 +116,17 @@ export default function WaiterPickupPage({
               return (
                 <article
                   key={ticket.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg"
+                  className="rounded-2xl border border-border bg-card p-4 shadow-lg"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-500">
+                      <p className="text-sm font-semibold text-muted-foreground">
                         Order #{ticket.orderNumber}
                       </p>
-                      <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                      <h2 className="mt-1 text-2xl font-bold text-foreground">
                         Table {ticket.tableName ?? "-"}
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Ready at {formatTime(ticket.createdAt)}
                       </p>
                     </div>
@@ -157,10 +158,10 @@ export default function WaiterPickupPage({
                     {ticket.items.map((item) => (
                       <div
                         key={`${ticket.id}-${item.id}`}
-                        className="rounded-xl bg-slate-100 px-3 py-2"
+                        className="rounded-xl bg-muted px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-semibold text-foreground">
                             {item.name}
                           </p>
                           <p className="font-bold text-blue-700">
@@ -168,7 +169,7 @@ export default function WaiterPickupPage({
                           </p>
                         </div>
                         {item.modifiers.length > 0 ? (
-                          <div className="mt-2 space-y-1 text-xs text-slate-600">
+                          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                             {item.modifiers.map((modifier) => (
                               <p key={`${item.id}-${modifier.id}`}>
                                 + {modifier.name} x{modifier.qty}
@@ -181,22 +182,22 @@ export default function WaiterPickupPage({
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button
+                    <Button
                       type="button"
                       disabled={isClaimed}
                       onClick={() => updatePickupStatus(ticket.id, "claimed")}
                       className="min-h-11 rounded-xl bg-blue-600 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       Claim
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       disabled={!canDeliver || claimedByOther}
                       onClick={() => updatePickupStatus(ticket.id, "delivered")}
                       className="min-h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       Delivered
-                    </button>
+                    </Button>
                   </div>
                 </article>
               );
@@ -204,6 +205,6 @@ export default function WaiterPickupPage({
           </section>
         )}
       </div>
-    </main>
+    </div>
   );
 }

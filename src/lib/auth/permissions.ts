@@ -27,7 +27,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
-export const ROLE_PERMISSIONS = {
+const ROLE_PERMISSIONS = {
   ADMIN: ALL_PERMISSIONS,
   MANAGER: [
     PERMISSIONS.ADMIN_ACCESS,

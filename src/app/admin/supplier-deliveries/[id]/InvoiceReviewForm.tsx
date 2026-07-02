@@ -1,4 +1,14 @@
-"use client";
+﻿"use client";
+
+import { Table } from "@/components/ui/table";
+
+import { Button } from "@/components/ui/button";
+
+import { NativeSelect } from "@/components/ui/native-select";
+
+import { Textarea } from "@/components/ui/textarea";
+
+import { Input } from "@/components/ui/input";
 
 import { FormEvent, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +55,9 @@ export default function InvoiceReviewForm({
 }) {
   const router = useRouter();
   const nextRowId = useRef(initialItems.length + 1);
-  const [rows, setRows] = useState<ReviewRow[]>(initialItems.length ? initialItems : [blankRow("new-1")]);
+  const [rows, setRows] = useState<ReviewRow[]>(
+    initialItems.length ? initialItems : [blankRow("new-1")],
+  );
   const [pending, startTransition] = useTransition();
   const [extractionPending, startExtractionTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -62,7 +74,12 @@ export default function InvoiceReviewForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!confirm("Accept this invoice, update inventory, and create the supplier bill? This cannot be undone.")) return;
+    if (
+      !confirm(
+        "Accept this invoice, update inventory, and create the supplier bill? This cannot be undone.",
+      )
+    )
+      return;
 
     const data = new FormData(event.currentTarget);
     setMessage("");
@@ -70,17 +87,26 @@ export default function InvoiceReviewForm({
       try {
         await approveExtractedDeliveryAction(data);
         setHasError(false);
-        setMessage("Invoice accepted. Inventory and the supplier bill were updated.");
+        setMessage(
+          "Invoice accepted. Inventory and the supplier bill were updated.",
+        );
         router.refresh();
       } catch (error) {
         setHasError(true);
-        setMessage(error instanceof Error ? error.message : "Invoice approval failed.");
+        setMessage(
+          error instanceof Error ? error.message : "Invoice approval failed.",
+        );
       }
     });
   }
 
   function rerunExtraction() {
-    if (!confirm("Re-run invoice extraction? Unsaved edits on this page will be lost, but saved reviewed text is preserved.")) return;
+    if (
+      !confirm(
+        "Re-run invoice extraction? Unsaved edits on this page will be lost, but saved reviewed text is preserved.",
+      )
+    )
+      return;
     const data = new FormData();
     data.set("deliveryId", deliveryId);
     setMessage("");
@@ -88,57 +114,217 @@ export default function InvoiceReviewForm({
       try {
         await retryDeliveryExtractionAction(data);
         setHasError(false);
-        setMessage("Invoice extraction completed. Review the refreshed data before accepting.");
+        setMessage(
+          "Invoice extraction completed. Review the refreshed data before accepting.",
+        );
         router.refresh();
       } catch (error) {
         setHasError(true);
-        setMessage(error instanceof Error ? error.message : "Invoice extraction failed.");
+        setMessage(
+          error instanceof Error ? error.message : "Invoice extraction failed.",
+        );
       }
     });
   }
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <input type="hidden" name="deliveryId" value={deliveryId} />
+      <Input type="hidden" name="deliveryId" value={deliveryId} />
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="font-black text-blue-950">Review extracted invoice</h3>
-            <p className="mt-1 text-sm text-blue-800">Compare every field with the original image. Inventory changes only after acceptance.</p>
+            <h3 className="font-black text-blue-950">
+              Review extracted invoice
+            </h3>
+            <p className="mt-1 text-sm text-blue-800">
+              Compare every field with the original image. Inventory changes
+              only after acceptance.
+            </p>
           </div>
-          <button type="button" onClick={rerunExtraction} disabled={pending || extractionPending} className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50">
-            {extractionPending ? "Extracting invoice…" : "Re-run invoice extraction"}
-          </button>
+          <Button
+            type="button"
+            onClick={rerunExtraction}
+            disabled={pending || extractionPending}
+            className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-bold text-blue-700 disabled:opacity-50"
+          >
+            {extractionPending
+              ? "Extracting invoiceâ€¦"
+              : "Re-run invoice extraction"}
+          </Button>
         </div>
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-bold text-slate-700">Invoice number<input name="invoiceNumber" maxLength={200} defaultValue={invoiceNumber} className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal" /></label>
-        <label className="text-sm font-bold text-slate-700">Invoice date<input name="receiptDate" type="date" defaultValue={receiptDate} className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal" /></label>
+        <label
+          htmlFor="invoice-number"
+          className="text-sm font-bold text-slate-700"
+        >
+          Invoice number
+          <Input
+            id="invoice-number"
+            name="invoiceNumber"
+            maxLength={200}
+            defaultValue={invoiceNumber}
+            className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal"
+          />
+        </label>
+        <label
+          htmlFor="invoice-date"
+          className="text-sm font-bold text-slate-700"
+        >
+          Invoice date
+          <Input
+            id="invoice-date"
+            name="receiptDate"
+            type="date"
+            defaultValue={receiptDate}
+            className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 font-normal"
+          />
+        </label>
       </div>
 
-      <label className="block text-sm font-bold text-slate-700">Reviewed invoice text<textarea name="reviewedText" rows={12} maxLength={20000} defaultValue={reviewedText || extractedText} className="mt-2 w-full rounded-xl border border-slate-200 p-3 font-mono text-sm" /></label>
+      <label
+        htmlFor="reviewed-invoice-text"
+        className="block text-sm font-bold text-slate-700"
+      >
+        Reviewed invoice text
+        <Textarea
+          id="reviewed-invoice-text"
+          name="reviewedText"
+          rows={12}
+          maxLength={20000}
+          defaultValue={reviewedText || extractedText}
+          className="mt-2 w-full rounded-xl border border-slate-200 p-3 font-mono text-sm"
+        />
+      </label>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200">
-        <table className="min-w-[920px] w-full text-left text-sm">
-          <thead className="bg-slate-50"><tr>{["Description", "Inventory match", "Quantity", "Unit price", "Line total", ""].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-3 text-xs font-black text-slate-600">{label}</th>)}</tr></thead>
-          <tbody>{rows.map((row) => (
-            <tr key={row.id} className="border-t border-slate-100 align-top">
-              <td className="px-3 py-3"><input type="hidden" name="rowId" value={row.id} /><input required maxLength={300} name={`description-${row.id}`} defaultValue={row.description} className="h-10 min-w-56 rounded-lg border border-slate-200 px-2" /></td>
-              <td className="px-3 py-3"><select required name={`target-${row.id}`} defaultValue={row.target} className="h-10 min-w-56 rounded-lg border border-slate-200 px-2"><option value="">Choose item…</option>{targets.map((target) => <option key={target.value} value={target.value}>{target.label}</option>)}</select></td>
-              <td className="px-3 py-3"><input required min={1} step={1} type="number" name={`quantity-${row.id}`} defaultValue={row.quantity} className="h-10 w-24 rounded-lg border border-slate-200 px-2" /></td>
-              <td className="px-3 py-3"><input min={0} step="0.01" type="number" name={`unitPrice-${row.id}`} defaultValue={row.unitPrice} className="h-10 w-28 rounded-lg border border-slate-200 px-2" /></td>
-              <td className="px-3 py-3"><input required min={0} step="0.01" type="number" name={`totalPrice-${row.id}`} defaultValue={row.totalPrice} className="h-10 w-28 rounded-lg border border-slate-200 px-2" /></td>
-              <td className="px-3 py-3"><button type="button" onClick={() => removeRow(row.id)} disabled={rows.length === 1} className="h-10 rounded-lg border border-red-200 px-3 font-bold text-red-700 disabled:opacity-40">Remove</button></td>
+        <Table className="min-w-[920px] w-full text-left text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              {[
+                "Description",
+                "Inventory match",
+                "Quantity",
+                "Unit price",
+                "Line total",
+                "",
+              ].map((label, index) => (
+                <th
+                  key={`${label}-${index}`}
+                  className="px-3 py-3 text-xs font-black text-slate-600"
+                >
+                  {label}
+                </th>
+              ))}
             </tr>
-          ))}</tbody>
-        </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className="border-t border-slate-100 align-top">
+                <td className="px-3 py-3">
+                  <Input type="hidden" name="rowId" value={row.id} />
+                  <Input
+                    required
+                    maxLength={300}
+                    name={`description-${row.id}`}
+                    defaultValue={row.description}
+                    className="h-10 min-w-56 rounded-lg border border-slate-200 px-2"
+                  />
+                </td>
+                <td className="px-3 py-3">
+                  <NativeSelect
+                    required
+                    name={`target-${row.id}`}
+                    defaultValue={row.target}
+                    className="h-10 min-w-56 rounded-lg border border-slate-200 px-2"
+                  >
+                    <option value="">Choose itemâ€¦</option>
+                    {targets.map((target) => (
+                      <option key={target.value} value={target.value}>
+                        {target.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </td>
+                <td className="px-3 py-3">
+                  <Input
+                    required
+                    min={1}
+                    step={1}
+                    type="number"
+                    name={`quantity-${row.id}`}
+                    defaultValue={row.quantity}
+                    className="h-10 w-24 rounded-lg border border-slate-200 px-2"
+                  />
+                </td>
+                <td className="px-3 py-3">
+                  <Input
+                    min={0}
+                    step="0.01"
+                    type="number"
+                    name={`unitPrice-${row.id}`}
+                    defaultValue={row.unitPrice}
+                    className="h-10 w-28 rounded-lg border border-slate-200 px-2"
+                  />
+                </td>
+                <td className="px-3 py-3">
+                  <Input
+                    required
+                    min={0}
+                    step="0.01"
+                    type="number"
+                    name={`totalPrice-${row.id}`}
+                    defaultValue={row.totalPrice}
+                    className="h-10 w-28 rounded-lg border border-slate-200 px-2"
+                  />
+                </td>
+                <td className="px-3 py-3">
+                  <Button
+                    type="button"
+                    onClick={() => removeRow(row.id)}
+                    disabled={rows.length === 1}
+                    className="h-10 rounded-lg border border-red-200 px-3 font-bold text-red-700 disabled:opacity-40"
+                  >
+                    Remove
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       </div>
 
-      <button type="button" onClick={addRow} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700">Add invoice item</button>
-      <textarea aria-label="Manager verification notes" name="notes" rows={3} maxLength={2000} placeholder="Manager verification notes" className="w-full rounded-xl border border-slate-200 p-3 text-sm" />
-      <button type="submit" disabled={pending || extractionPending} className="min-h-11 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white disabled:opacity-50">{pending ? "Accepting…" : "Accept invoice and update inventory"}</button>
-      {message ? <p role="status" className={`rounded-xl p-3 text-sm font-semibold ${hasError ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message}</p> : null}
+      <Button
+        type="button"
+        onClick={addRow}
+        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700"
+      >
+        Add invoice item
+      </Button>
+      <Textarea
+        aria-label="Manager verification notes"
+        name="notes"
+        rows={3}
+        maxLength={2000}
+        placeholder="Manager verification notes"
+        className="w-full rounded-xl border border-slate-200 p-3 text-sm"
+      />
+      <Button
+        type="submit"
+        disabled={pending || extractionPending}
+        className="min-h-11 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white disabled:opacity-50"
+      >
+        {pending ? "Acceptingâ€¦" : "Accept invoice and update inventory"}
+      </Button>
+      {message ? (
+        <p
+          role="status"
+          className={`rounded-xl p-3 text-sm font-semibold ${hasError ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
+        >
+          {message}
+        </p>
+      ) : null}
     </form>
   );
 }

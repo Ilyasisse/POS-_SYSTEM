@@ -1,13 +1,8 @@
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle, faUser } from "@fortawesome/free-solid-svg-icons";
+﻿import { Input } from "@/components/ui/input";
+import { Circle, User } from "lucide-react";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
-import {
-  AdminButton,
-  AdminCard,
-  AdminPageFrame,
-  ToneBadge,
-} from "@/components/admin/AdminUi";
+import { Button, Card, AdminPage, ToneBadge } from "@/components/admin/shared";
 import { updateAdminProfile } from "./actions";
 
 type ProfilePageProps = {
@@ -37,10 +32,7 @@ export default async function AdminProfilePage({
   const status = params?.profileStatus;
 
   return (
-    <AdminPageFrame
-      title="My Profile"
-      description="Manage your profile information"
-    >
+    <AdminPage title="My Profile" description="Manage your profile information">
       {status === "updated" ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
           Profile updated.
@@ -53,7 +45,7 @@ export default async function AdminProfilePage({
       ) : null}
 
       <section className="grid gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
-        <AdminCard className="p-6">
+        <Card className="p-6">
           <div className="flex flex-col items-center text-center">
             <div className="grid size-28 place-items-center rounded-full bg-slate-600 text-3xl font-black text-white shadow-lg shadow-slate-300">
               {getInitials(currentUser.fullName)}
@@ -65,16 +57,16 @@ export default async function AdminProfilePage({
               {formatRole(currentUser.role)}
             </p>
             <p className="mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
-              <FontAwesomeIcon icon={faCircle} className="text-[8px]" />
+              <Circle className="size-2 fill-success text-success" />
               Online
             </p>
           </div>
-        </AdminCard>
+        </Card>
 
-        <AdminCard className="p-5">
+        <Card className="p-5">
           <div className="mb-5 flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-600">
-              <FontAwesomeIcon icon={faUser} />
+              <User className="size-5" />
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-950">
@@ -90,11 +82,12 @@ export default async function AdminProfilePage({
             action={updateAdminProfile}
             className="grid gap-4 lg:grid-cols-2"
           >
-            <label className="block">
+            <label htmlFor="profile-full-name" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Full Name
               </span>
-              <input
+              <Input
+                id="profile-full-name"
                 name="fullName"
                 type="text"
                 defaultValue={currentUser.fullName}
@@ -103,12 +96,13 @@ export default async function AdminProfilePage({
               />
             </label>
 
-            <label className="block">
+            <label htmlFor="profile-email" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Email
               </span>
               {/* REVIEW: Email is owned by Supabase auth; keep it read-only until auth update flow is designed. */}
-              <input
+              <Input
+                id="profile-email"
                 type="email"
                 value={currentUser.email}
                 readOnly
@@ -116,11 +110,12 @@ export default async function AdminProfilePage({
               />
             </label>
 
-            <label className="block">
+            <label htmlFor="profile-phone" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Phone
               </span>
-              <input
+              <Input
+                id="profile-phone"
                 name="phoneNumber"
                 type="tel"
                 defaultValue={currentUser.phoneNumber ?? ""}
@@ -139,12 +134,13 @@ export default async function AdminProfilePage({
               </div>
             </div>
 
-            <label className="block">
+            <label htmlFor="profile-current-password" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 Current Password
               </span>
               {/* REVIEW: Password changes require Supabase auth verification and are intentionally not wired yet. */}
-              <input
+              <Input
+                id="profile-current-password"
                 type="password"
                 value="************"
                 readOnly
@@ -152,11 +148,12 @@ export default async function AdminProfilePage({
               />
             </label>
 
-            <label className="block">
+            <label htmlFor="profile-new-password" className="block">
               <span className="mb-1 block text-sm font-bold text-slate-700">
                 New Password
               </span>
-              <input
+              <Input
+                id="profile-new-password"
                 type="password"
                 value=""
                 readOnly
@@ -166,11 +163,11 @@ export default async function AdminProfilePage({
             </label>
 
             <div className="lg:col-span-2">
-              <AdminButton type="submit">Update Profile</AdminButton>
+              <Button type="submit">Update Profile</Button>
             </div>
           </form>
-        </AdminCard>
+        </Card>
       </section>
-    </AdminPageFrame>
+    </AdminPage>
   );
 }

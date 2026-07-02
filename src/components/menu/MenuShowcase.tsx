@@ -1,4 +1,6 @@
-"use client";
+﻿"use client";
+
+import { Button } from "@/components/ui/button";
 
 import Image from "next/image";
 // Next.js component used for page navigation without full page reload
@@ -12,15 +14,13 @@ import { useAos } from "@/components/AosInitializer";
 
 // TypeScript types for menu data and products
 import type { MenuData, MenuProduct } from "@/lib/menu/menu-data";
+import { ModeToggle } from "@/components/mode-toggle";
 
 // Props type for the MenuShowcase component
 type MenuShowcaseProps = {
   // Complete menu data passed into this component
   data: MenuData;
 };
-
-
-
 
 // Initial number of products visible when category first opens
 const INITIAL_CATEGORY_ITEMS = 10;
@@ -105,22 +105,14 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-
-
-
 // Component used to display a single product card
 import ProductCard from "@/components/menu/MenuProductCard";
-
 
 // Component used to display featured menu items
 import FeaturedCard from "@/components/menu/FeaturedCard";
 
-
 // Main menu showcase page component
 export default function MenuShowcase({ data }: MenuShowcaseProps) {
-
-
-
   const hasFeaturedItems = data.featuredItems.length > 0;
 
   // Gets the slug of the first category for default selection
@@ -141,8 +133,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   const selectedCategoryData =
     data.categories.find(
       (category) => category.slug === menuState.selectedCategory,
-    ) ??
-    data.categories[0];
+    ) ?? data.categories[0];
 
   // Gets products from currently selected category
   const selectedCategoryProducts =
@@ -235,13 +226,11 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   useAos(visibleProducts.length, menuState.selectedCategory);
 
   return (
-    <main className="min-h-screen bg-[#f7efe6] text-[#2f180d]">
+    <main className="min-h-screen bg-[#f7efe6] text-[#2f180d] dark:bg-[#120d09] dark:text-stone-50">
       <MenuHeader
         cafeName={data.cafeName}
         mobileNavOpen={menuState.mobileNavOpen}
-        onCloseMobileNav={() =>
-          dispatchMenuState({ type: "mobileNavClosed" })
-        }
+        onCloseMobileNav={() => dispatchMenuState({ type: "mobileNavClosed" })}
         onToggleMobileNav={() =>
           dispatchMenuState({ type: "mobileNavToggled" })
         }
@@ -329,6 +318,7 @@ function MenuHeader({
             </nav>
 
             <div className="flex items-center gap-3">
+              <ModeToggle />
               <Link
                 href="/customer"
                 className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] md:inline-flex"
@@ -336,7 +326,7 @@ function MenuHeader({
                 Order Now
               </Link>
 
-              <button
+              <Button
                 type="button"
                 onClick={onToggleMobileNav}
                 aria-expanded={mobileNavOpen}
@@ -354,7 +344,7 @@ function MenuHeader({
                     className={`h-0.5 w-5 rounded-full bg-current transition ${mobileNavOpen ? "-translate-y-2 -rotate-45" : ""}`}
                   />
                 </span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -437,7 +427,7 @@ function MenuHero({ heroImage }: { heroImage: string }) {
             </p>
             <p className="mt-4 max-w-2xl text-[12px] leading-7 text-white/60 sm:text-base">
               Take a look at our menu, find your favorites, and order when
-              you’re ready.
+              youâ€™re ready.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4  ">
@@ -479,21 +469,19 @@ function MenuCategoryTabs({
               const active = selectedCategory === category.slug;
 
               return (
-                <button
+                <Button
                   key={category.slug}
                   type="button"
                   onClick={() => onOpenCategory(category.slug)}
                   className={`relative rounded-full px-5 py-3 text-sm font-semibold transition ${
-                    active
-                      ? "text-white"
-                      : "text-[#5f4637] hover:bg-[#f3e5d5]"
+                    active ? "text-white" : "text-[#5f4637] hover:bg-[#f3e5d5]"
                   }`}
                 >
                   {active ? (
                     <span className="absolute inset-0 rounded-full bg-[#2a170d]" />
                   ) : null}
                   <span className="relative">{category.name}</span>
-                </button>
+                </Button>
               );
             })
           ) : (
@@ -555,8 +543,8 @@ function MenuProductSection({
               Menu updating
             </p>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#7b6557] sm:text-base">
-              No active menu products are available right now. Please check
-              back soon or place an order from the customer screen.
+              No active menu products are available right now. Please check back
+              soon or place an order from the customer screen.
             </p>
             <Link
               href="/customer"
@@ -569,13 +557,13 @@ function MenuProductSection({
       </div>
       {remainingProductCount > 0 ? (
         <div className="mt-10 flex justify-center">
-          <button
+          <Button
             type="button"
             onClick={onLoadMore}
             className="rounded-full bg-[#2a170d] px-8 py-5 text-sm font-bold text-white shadow-[0_16px_34px_rgba(42,23,13,0.16)] transition hover:bg-[#3d2417]"
           >
             Load More
-          </button>
+          </Button>
         </div>
       ) : null}
     </section>
@@ -681,7 +669,7 @@ function MenuFooter({ cafeName }: { cafeName: string }) {
 
 function BackToTopButton({ onClick }: { onClick: () => void }) {
   return (
-    <button
+    <Button
       type="button"
       aria-label="Back to top"
       onClick={onClick}
@@ -700,6 +688,6 @@ function BackToTopButton({ onClick }: { onClick: () => void }) {
         <path d="M12 19V5" />
         <path d="m5 12 7-7 7 7" />
       </svg>
-    </button>
+    </Button>
   );
 }

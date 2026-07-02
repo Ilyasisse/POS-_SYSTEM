@@ -14,13 +14,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import StateCard from "./UI Cards/StateCard";
 
-import {
-  faBoxesStacked,
-  faCubesStacked,
-  faLayerGroup,
-  faReceipt,
-  faUserGroup,
-} from "@fortawesome/free-solid-svg-icons";
+import { Boxes, Layers3, Puzzle, ReceiptText, Users } from "lucide-react";
 import { Decimal } from "@prisma/client/runtime/client";
 
 export default async function Header({
@@ -49,35 +43,35 @@ export default async function Header({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StateCard
-          icon={faLayerGroup}
+          icon={Layers3}
           label="Total Categories"
           value={categoryCount}
           description="Active categories"
           tone="blue"
         />
         <StateCard
-          icon={faBoxesStacked}
+          icon={Boxes}
           label="Total Products"
           value={productCount}
           description="Active items"
           tone="green"
         />
         <StateCard
-          icon={faCubesStacked}
+          icon={Puzzle}
           label="Total Modifiers"
           value={modifierCount}
           description="Add-ons & extras"
           tone="purple"
         />
         <StateCard
-          icon={faUserGroup}
+          icon={Users}
           label="Total Staff"
           value={staffCount}
           description={staffActiveDescription}
           tone="orange"
         />
         <StateCard
-          icon={faReceipt}
+          icon={ReceiptText}
           label="Today's Orders"
           value={todayOrders.length}
           description={`${openTodayOrders} live orders`}

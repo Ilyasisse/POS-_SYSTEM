@@ -1,6 +1,9 @@
 "use client";
 
-import type { KitchenStation, KitchenTicket } from "@/lib/kitchen/kitchen-socket";
+import type {
+  KitchenStation,
+  KitchenTicket,
+} from "@/lib/kitchen/kitchen-socket";
 import KitchenEmptyState from "./KitchenEmptyState";
 import KitchenHeader from "./KitchenHeader";
 import KitchenStatusBanner from "./KitchenStatusBanner";
@@ -20,24 +23,20 @@ export default function KitchenClient({
   currentUserName,
   currentUserRole,
 }: KitchenClientProps) {
-  const {
-    activeTickets,
-    socketStatus,
-    statusMessage,
-    updateTicketStatus,
-  } = useKitchenSocket({
-    station,
-    currentUserId,
-    currentUserName,
-    currentUserRole,
-  });
+  const { activeTickets, socketStatus, statusMessage, updateTicketStatus } =
+    useKitchenSocket({
+      station,
+      currentUserId,
+      currentUserName,
+      currentUserRole,
+    });
 
   const visibleTickets: KitchenTicket[] = activeTickets;
   const canUpdateStatus = Boolean(station);
 
   return (
-    <main
-      className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 px-4 py-6 text-slate-100 md:px-6"
+    <div
+      className="dark min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-6 text-slate-100 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-7xl space-y-4">
@@ -61,6 +60,6 @@ export default function KitchenClient({
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }
