@@ -1,12 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  hasCurrencyPrecision,
+  parseCurrencyAmount,
+} from "../../src/lib/currency/amount-input";
+import {
+  buildWaiterBalanceWaiterWhere,
+  getWaiterBalanceCapabilities,
+} from "../../src/lib/waiter/waiter-balance-access";
+import {
   assertLedgerBusinessDate,
   calculateWaiterBalance,
   getBusinessDayRangeForKey,
   isLedgerActive,
   parseBusinessDateKey,
 } from "../../src/lib/waiter/waiter-balance-calculations";
+import { buildActiveWaiterShiftWhere } from "../../src/lib/waiter/waiter-shift-gate";
 
 test("records a new shortage from sales and the end-day amount", () => {
   assert.deepEqual(calculateWaiterBalance(0, 100, 90), {
@@ -74,4 +83,110 @@ test("uses the established 7 AM to 5 AM POS business-day window", () => {
 test("activates at the start of the July 1 POS business day", () => {
   assert.equal(isLedgerActive(new Date(2026, 6, 1, 6, 59, 59)), false);
   assert.equal(isLedgerActive(new Date(2026, 6, 1, 7, 0, 0)), true);
+});
+
+test("strictly parses currency form input", () => {
+  assert.equal(parseCurrencyAmount("0"), 0);
+  assert.equal(parseCurrencyAmount("12.34"), 12.34);
+  assert.equal(hasCurrencyPrecision(0.29), true);
+  assert.equal(hasCurrencyPrecision(10.015), false);
+  assert.equal(parseCurrencyAmount("10.015"), null);
+  assert.equal(parseCurrencyAmount("1e3"), null);
+  assert.equal(parseCurrencyAmount("-1"), null);
+  assert.equal(
+    parseCurrencyAmount("-10.50", {
+      allowNegative: true,
+      requireNonPositive: true,
+    }),
+    -10.5,
+  );
+  assert.equal(
+    parseCurrencyAmount("0.00", {
+      allowNegative: true,
+      requireNonPositive: true,
+    }),
+    0,
+  );
+  assert.equal(
+    parseCurrencyAmount("1.00", {
+      allowNegative: true,
+      requireNonPositive: true,
+    }),
+    null,
+  );
+});
+
+test("uses business date for active waiter ordering gate after ledger activation", () => {
+  const where = buildActiveWaiterShiftWhere(
+    "waiter-1",
+    new Date(2026, 6, 1, 12, 0, 0),
+  );
+
+  assert.equal(where.userId, "waiter-1");
+  assert.equal(where.closedAt, null);
+  assert.equal(where.openedAt, undefined);
+  assert.equal(
+    where.businessDate instanceof Date
+      ? where.businessDate.toISOString().slice(0, 10)
+      : null,
+    "2026-07-01",
+  );
+});
+
+test("uses openedAt range for active waiter ordering gate before ledger activation", () => {
+  const where = buildActiveWaiterShiftWhere(
+    "waiter-1",
+    new Date(2026, 5, 30, 12, 0, 0),
+  );
+
+  assert.equal(where.userId, "waiter-1");
+  assert.equal(where.closedAt, null);
+  assert.equal(where.businessDate, undefined);
+  assert.ok(where.openedAt);
+});
+
+test("hides inactive waiters by default on the balance page", () => {
+  assert.deepEqual(buildWaiterBalanceWaiterWhere(), {
+    role: "WAITER",
+    isActive: true,
+  });
+  assert.deepEqual(buildWaiterBalanceWaiterWhere(true), {
+    role: "WAITER",
+  });
+});
+
+test("derives waiter balance capabilities from activity and settlement state", () => {
+  assert.deepEqual(
+    getWaiterBalanceCapabilities({
+      isActive: true,
+      hasInitialization: false,
+      hasClosedShift: false,
+    }),
+    {
+      canInitialize: true,
+      canEditSettlement: false,
+    },
+  );
+  assert.deepEqual(
+    getWaiterBalanceCapabilities({
+      isActive: false,
+      hasInitialization: true,
+      hasClosedShift: true,
+    }),
+    {
+      canInitialize: false,
+      canEditSettlement: true,
+    },
+  );
+  assert.deepEqual(
+    getWaiterBalanceCapabilities({
+      isActive: false,
+      hasInitialization: true,
+      hasClosedShift: false,
+    }),
+    {
+      canInitialize: false,
+      canEditSettlement: false,
+    },
+  );
 });

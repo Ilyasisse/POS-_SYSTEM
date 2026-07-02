@@ -1,13 +1,16 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
+import { buildActiveWaiterShiftWhere } from "@/lib/waiter/waiter-shift-gate";
 import {
   businessDateKeyToDatabaseDate,
   calculateWaiterBalance,
   getCurrentBusinessDateKey,
   getWaiterOpeningBalanceForBusinessDate,
   isLedgerActive,
+  reopenWaiterSettlement,
   roundCurrency,
+  saveWaiterSettlement,
   WAITER_BALANCE_LEDGER_START_DATE,
 } from "@/lib/waiter/waiter-balance-ledger";
 
@@ -46,6 +49,17 @@ function isLedgerShift(shift: ShiftLike) {
     shift.businessDate.toISOString().slice(0, 10) >=
       WAITER_BALANCE_LEDGER_START_DATE
   );
+}
+
+export async function getActiveWaiterOrderingShift(
+  waiterId: string,
+  now: Date = new Date(),
+) {
+  return prisma.shift.findFirst({
+    where: buildActiveWaiterShiftWhere(waiterId, now),
+    orderBy: { openedAt: "desc" },
+    select: { id: true },
+  });
 }
 
 export function buildWaiterShiftSummary(
@@ -309,6 +323,19 @@ export async function closeWaiterBusinessDayShift(
       })
     : null;
 
+  if (ledgerActive) {
+    await saveWaiterSettlement({
+      waiterId,
+      businessDateKey,
+      reportedSales: roundCurrency(Number(salesSummary?._sum.total ?? 0)),
+      endDayAmount: roundCurrency(closingAmount),
+      settledByUserId,
+      now,
+    });
+
+    return getWaiterBusinessDayShiftSummary(waiterId, now);
+  }
+
   await prisma.shift.update({
     where: { id: openShift.id },
     data: {
@@ -334,20 +361,23 @@ export async function reopenWaiterBusinessDayShift(
 ) {
   const { start, end } = getCashierBusinessDayRange(now);
   const ledgerActive = isLedgerActive(now);
+
+  if (ledgerActive) {
+    await reopenWaiterSettlement({
+      waiterId,
+      businessDateKey: getCurrentBusinessDateKey(now),
+      now,
+    });
+
+    return getWaiterBusinessDayShiftSummary(waiterId, now);
+  }
+
   const closedShift = await prisma.shift.findFirst({
-    where: ledgerActive
-      ? {
-          userId: waiterId,
-          businessDate: businessDateKeyToDatabaseDate(
-            getCurrentBusinessDateKey(now),
-          ),
-          closedAt: { not: null },
-        }
-      : {
-          userId: waiterId,
-          openedAt: { gte: start, lt: end },
-          closedAt: { not: null },
-        },
+    where: {
+      userId: waiterId,
+      openedAt: { gte: start, lt: end },
+      closedAt: { not: null },
+    },
     orderBy: { openedAt: "desc" },
     select: { id: true },
   });

@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import {
+  buildWaiterBalanceWaiterWhere,
+  getWaiterBalanceCapabilities,
+} from "@/lib/waiter/waiter-balance-access";
+import {
   assertLedgerBusinessDate,
   businessDateKeyToDatabaseDate,
   calculateWaiterBalance,
@@ -13,6 +17,8 @@ export type WaiterBalanceAdminRow = {
   fullName: string;
   email: string;
   isActive: boolean;
+  canInitialize: boolean;
+  canEditSettlement: boolean;
   initialization: {
     openingBalance: number;
     createdAt: Date;
@@ -31,14 +37,18 @@ export type WaiterBalanceAdminRow = {
 
 export async function getWaiterBalanceAdminRows(
   businessDateKey: string,
-  now: Date = new Date(),
+  optionsOrNow: { includeInactive?: boolean; now?: Date } | Date = {},
 ) {
+  const options =
+    optionsOrNow instanceof Date ? { now: optionsOrNow } : optionsOrNow;
+  const includeInactive = options.includeInactive ?? false;
+  const now = options.now ?? new Date();
   const selectedDate = assertLedgerBusinessDate(businessDateKey, now);
   const selectedDatabaseDate = businessDateKeyToDatabaseDate(selectedDate);
   const { start, end } = getBusinessDayRangeForKey(selectedDate);
 
   const waiters = await prisma.user.findMany({
-    where: { role: "WAITER" },
+    where: buildWaiterBalanceWaiterWhere(includeInactive),
     select: {
       id: true,
       fullName: true,
@@ -145,12 +155,19 @@ export async function getWaiterBalanceAdminRows(
             endDayAmount,
           )
         : null;
+    const capabilities = getWaiterBalanceCapabilities({
+      isActive: waiter.isActive,
+      hasInitialization: initialization != null,
+      hasClosedShift: shift?.closedAt != null,
+    });
 
     return {
       waiterId: waiter.id,
       fullName: waiter.fullName,
       email: waiter.email,
       isActive: waiter.isActive,
+      canInitialize: capabilities.canInitialize,
+      canEditSettlement: capabilities.canEditSettlement,
       initialization: initialization
         ? {
             openingBalance: roundCurrency(
@@ -179,9 +196,15 @@ export async function getWaiterBalanceAdminRows(
   });
 }
 
-export async function getWaiterInitializationRows() {
+export async function getWaiterInitializationRows(includeInactive = false) {
+  return getWaiterInitializationRowsWithInactive(includeInactive);
+}
+
+export async function getWaiterInitializationRowsWithInactive(
+  includeInactive = false,
+) {
   return prisma.user.findMany({
-    where: { role: "WAITER" },
+    where: buildWaiterBalanceWaiterWhere(includeInactive),
     select: {
       id: true,
       fullName: true,

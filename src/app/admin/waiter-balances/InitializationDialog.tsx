@@ -23,12 +23,14 @@ type InitializationDialogProps = {
   waiterId: string;
   waiterName: string;
   businessDate: string;
+  showInactive: boolean;
 };
 
 export function InitializationDialog({
   waiterId,
   waiterName,
   businessDate,
+  showInactive,
 }: InitializationDialogProps) {
   const [openingBalance, setOpeningBalance] = useState("0.00");
 
@@ -44,6 +46,9 @@ export function InitializationDialog({
         <form action={initializeWaiterOpeningBalance}>
           <input type="hidden" name="waiterId" value={waiterId} />
           <input type="hidden" name="businessDate" value={businessDate} />
+          {showInactive ? (
+            <input type="hidden" name="showInactive" value="1" />
+          ) : null}
           <AlertDialogHeader>
             <AlertDialogMedia>
               <LockKeyhole aria-hidden="true" />

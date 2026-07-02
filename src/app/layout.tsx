@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "aos/dist/aos.css";
 import "./globals.css";
 import { AppProviders } from "@/components/AppProviders";
@@ -22,6 +23,19 @@ export const metadata: Metadata = {
   }
 };
 
+const themeBootstrapScript = `
+(() => {
+  try {
+    const storedTheme = window.localStorage.getItem("theme");
+    const theme = storedTheme === "light" || storedTheme === "dark" || storedTheme === "system" ? storedTheme : "system";
+    const resolvedTheme = theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : theme;
+    document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+  } catch {
+    document.documentElement.classList.remove("dark");
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,6 +43,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          id="theme-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeBootstrapScript }}
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AppProviders>{children}</AppProviders>
       </body>

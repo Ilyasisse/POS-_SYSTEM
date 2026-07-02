@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -25,7 +26,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import {
   getWaiterBalanceAdminRows,
-  getWaiterInitializationRows,
+  getWaiterInitializationRowsWithInactive,
   type WaiterBalanceAdminRow,
 } from "@/lib/waiter/waiter-balance-admin";
 import {
@@ -42,7 +43,11 @@ import { saveWaiterDailySettlement } from "./actions";
 export const dynamic = "force-dynamic";
 
 type WaiterBalancesPageProps = {
-  searchParams?: Promise<{ date?: string; status?: string }>;
+  searchParams?: Promise<{
+    date?: string;
+    status?: string;
+    showInactive?: string;
+  }>;
 };
 
 const businessDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -84,6 +89,12 @@ function getStatusNotice(status?: string) {
       return { title: "Waiter not found", description: "The selected staff record is no longer a waiter.", destructive: true };
     case "save_failed":
       return { title: "Could not save", description: "No balance changes were applied. Please try again.", destructive: true };
+    case "inactive_waiter":
+      return {
+        title: "Inactive waiter blocked",
+        description: "Inactive waiters can only correct a closed historical settlement.",
+        destructive: true,
+      };
     default:
       return null;
   }
@@ -123,9 +134,11 @@ function MetricCard({
 function BalanceTable({
   rows,
   businessDate,
+  showInactive,
 }: {
   rows: WaiterBalanceAdminRow[];
   businessDate: string;
+  showInactive: boolean;
 }) {
   if (rows.length === 0) {
     return (
@@ -138,7 +151,7 @@ function BalanceTable({
   }
 
   return (
-    <Table>
+    <Table className="min-w-[1100px]">
       <TableHeader>
         <TableRow>
           <TableHead>Waiter</TableHead>
@@ -155,8 +168,10 @@ function BalanceTable({
       <TableBody>
         {rows.map((row) => {
           const formId = `settlement-${row.waiterId}`;
-          const isInitialized = row.initialization != null;
           const hasExistingSettlement = row.shiftId != null;
+          const canEditSettlement = row.canEditSettlement;
+          const canInitialize = row.canInitialize;
+          const isEditable = canEditSettlement;
 
           return (
             <TableRow key={row.waiterId}>
@@ -191,7 +206,7 @@ function BalanceTable({
                   min="0"
                   step="0.01"
                   required
-                  disabled={!isInitialized}
+                  disabled={!isEditable}
                   defaultValue={(row.reportedSales ?? row.posSales).toFixed(2)}
                   className="w-32"
                 />
@@ -210,7 +225,7 @@ function BalanceTable({
                   min="0"
                   step="0.01"
                   required
-                  disabled={!isInitialized}
+                  disabled={!isEditable}
                   defaultValue={row.endDayAmount?.toFixed(2) ?? ""}
                   placeholder="0.00"
                   className="w-32"
@@ -223,18 +238,33 @@ function BalanceTable({
                 {formatMoney(row.endingBalance)}
               </TableCell>
               <TableCell className="text-right">
-                {isInitialized ? (
+                {canEditSettlement ? (
                   <form id={formId} action={saveWaiterDailySettlement}>
                     <input type="hidden" name="waiterId" value={row.waiterId} />
                     <input type="hidden" name="businessDate" value={businessDate} />
+                    {showInactive ? (
+                      <input type="hidden" name="showInactive" value="1" />
+                    ) : null}
                     <SettlementSubmitButton hasExistingSettlement={hasExistingSettlement} />
                   </form>
-                ) : (
+                ) : canInitialize ? (
                   <InitializationDialog
                     waiterId={row.waiterId}
                     waiterName={row.fullName}
                     businessDate={businessDate}
+                    showInactive={showInactive}
                   />
+                ) : (
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant="outline" className="whitespace-nowrap">
+                      Inactive
+                    </Badge>
+                    {showInactive ? (
+                      <p className="max-w-44 text-xs text-muted-foreground">
+                        Historical corrections are only allowed when a closed settlement already exists.
+                      </p>
+                    ) : null}
+                  </div>
                 )}
               </TableCell>
             </TableRow>
@@ -254,6 +284,7 @@ export default async function WaiterBalancesPage({
   const currentBusinessDate = getCurrentBusinessDateKey(now);
   const ledgerActive = isLedgerActive(now);
   const requestedDate = parseBusinessDateKey(params?.date ?? "");
+  const showInactive = params?.showInactive === "1";
   const selectedDateIsValid =
     requestedDate != null &&
     requestedDate >= WAITER_BALANCE_LEDGER_START_DATE &&
@@ -264,7 +295,7 @@ export default async function WaiterBalancesPage({
   const notice = getStatusNotice(params?.status);
 
   if (!ledgerActive) {
-    const waiters = await getWaiterInitializationRows();
+    const waiters = await getWaiterInitializationRowsWithInactive(showInactive);
 
     return (
       <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
@@ -281,14 +312,25 @@ export default async function WaiterBalancesPage({
           </AlertDescription>
         </Alert>
         <div className="grid gap-4 sm:grid-cols-2">
-          <MetricCard label="Waiters ready for setup" value={waiters.length} helper="Active and inactive waiter accounts" />
+          <MetricCard
+            label="Waiters ready for setup"
+            value={waiters.length}
+            helper={
+              showInactive
+                ? "Active and inactive waiter accounts"
+                : "Active waiters only; enable Show inactive to include the rest."
+            }
+          />
           <MetricCard label="Starting business day" value="Jul 1" helper="POS window: 7:00 AM to 5:00 AM" />
         </div>
       </div>
     );
   }
 
-  const rows = await getWaiterBalanceAdminRows(selectedBusinessDate, now);
+  const rows = await getWaiterBalanceAdminRows(selectedBusinessDate, {
+    includeInactive: showInactive,
+    now,
+  });
   const initializedCount = rows.filter((row) => row.initialization).length;
   const recordedCount = rows.filter((row) => row.status === "closed").length;
   const posSalesTotal = rows.reduce((total, row) => total + row.posSales, 0);
@@ -341,6 +383,20 @@ export default async function WaiterBalancesPage({
                 max={currentBusinessDate}
                 defaultValue={selectedBusinessDate}
               />
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="show-inactive"
+                  name="showInactive"
+                  value="1"
+                  defaultChecked={showInactive}
+                />
+                <Label htmlFor="show-inactive" className="text-sm font-normal">
+                  Show inactive waiters
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Inactive waiters are hidden unless you enable this filter.
+              </p>
             </div>
             <Button type="submit" variant="outline">View day</Button>
           </form>
@@ -372,7 +428,11 @@ export default async function WaiterBalancesPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0">
-          <BalanceTable rows={rows} businessDate={selectedBusinessDate} />
+          <BalanceTable
+            rows={rows}
+            businessDate={selectedBusinessDate}
+            showInactive={showInactive}
+          />
         </CardContent>
       </Card>
     </div>

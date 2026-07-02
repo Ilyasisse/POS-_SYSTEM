@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 export type MycashGolisProvider = "MYCASH" | "GOLIS";
 
 export type MycashGolisSuccessStatus = "SUCCESS" | "PAID" | "COMPLETED";
@@ -69,6 +71,8 @@ const SUCCESS_STATUSES = new Set<MycashGolisSuccessStatus>([
   "COMPLETED",
 ]);
 
+const WEBHOOK_SIGNATURE_PREFIX = "sha256=";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -123,6 +127,48 @@ function toCents(value: unknown) {
   return Math.round(Number(value) * 100);
 }
 
+function normalizeWebhookSignature(signatureHeader: string | null) {
+  const signature = normalizeString(signatureHeader)
+    .split(",")
+    .map((part) => part.trim())
+    .find(Boolean);
+
+  if (!signature) {
+    return null;
+  }
+
+  const normalized = signature
+    .toLowerCase()
+    .startsWith(WEBHOOK_SIGNATURE_PREFIX)
+    ? signature.slice(WEBHOOK_SIGNATURE_PREFIX.length)
+    : signature;
+
+  return /^[a-f0-9]{64}$/i.test(normalized) ? normalized.toLowerCase() : null;
+}
+
+export function verifyPaymentWebhookSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret: string,
+) {
+  const signature = normalizeWebhookSignature(signatureHeader);
+
+  if (!signature) {
+    return false;
+  }
+
+  const expectedSignature = createHmac("sha256", secret)
+    .update(rawBody, "utf8")
+    .digest("hex");
+  const signatureBytes = Buffer.from(signature, "hex");
+  const expectedBytes = Buffer.from(expectedSignature, "hex");
+
+  return (
+    signatureBytes.length === expectedBytes.length &&
+    timingSafeEqual(signatureBytes, expectedBytes)
+  );
+}
+
 export function readPaymentWebhookConfig(
   env: Record<string, string | undefined>,
 ): PaymentWebhookConfig {
@@ -148,19 +194,6 @@ export function readPaymentWebhookConfig(
     secret,
     cashierId,
   };
-}
-
-export function isPaymentWebhookAuthorized(
-  authorization: string | null,
-  webhookSecret: string | null,
-  misspelledWebhookSecret: string | null,
-  secret: string,
-) {
-  return (
-    authorization === `Bearer ${secret}` ||
-    webhookSecret === secret ||
-    misspelledWebhookSecret === secret
-  );
 }
 
 export function normalizeMycashGolisWebhookPayload(

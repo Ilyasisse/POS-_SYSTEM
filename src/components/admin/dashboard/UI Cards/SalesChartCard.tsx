@@ -75,13 +75,13 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
   const hasSales = points.some((point) => point.value > 0);
 
   return (
-    <div className="relative h-64 overflow-hidden rounded-xl border border-slate-100 bg-linear-to-b from-white to-slate-50 px-2 py-4 sm:h-72 sm:px-3">
+    <div className="relative h-64 min-w-0 overflow-hidden rounded-xl border border-slate-100 bg-linear-to-b from-white to-slate-50 px-2 py-4 sm:h-72 sm:px-3">
       {!hasSales && (
         <div className="pointer-events-none absolute inset-x-4 top-4 z-10 rounded-xl border border-dashed border-slate-200 bg-white/80 px-4 py-3 text-center text-sm font-semibold text-slate-500 backdrop-blur-sm">
           No sales recorded this week yet.
         </div>
       )}
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer minWidth={0} minHeight={256} width="100%" height="100%">
         <AreaChart
           data={points}
           margin={{
