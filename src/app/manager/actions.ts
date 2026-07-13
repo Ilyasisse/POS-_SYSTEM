@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { parseCurrencyAmount } from "@/lib/currency/amount-input";
 import {
   closeWaiterBusinessDayShift,
   openWaiterBusinessDayShift,
@@ -17,12 +18,6 @@ function buildReturnPath(waiterId: string, balanceStatus: string) {
   if (balanceStatus) params.set("balanceStatus", balanceStatus);
 
   return params.size > 0 ? `/manager?${params.toString()}` : "/manager";
-}
-
-function parseAmount(value: FormDataEntryValue | null) {
-  const parsedAmount = Number(String(value ?? "").trim());
-
-  return Number.isFinite(parsedAmount) ? parsedAmount : null;
 }
 
 function refreshManagerViews() {
@@ -39,7 +34,10 @@ export async function saveWaiterOpeningBalance(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const waiterId = String(formData.get("waiterId") ?? "").trim();
-  const openingAmount = parseAmount(formData.get("openingAmount")) ?? 0;
+  const openingAmount =
+    parseCurrencyAmount(formData.get("openingAmount"), {
+      allowNegative: true,
+    }) ?? 0;
 
   if (!waiterId) {
     redirect(buildReturnPath(waiterId, "invalid_opening_amount"));
@@ -59,6 +57,8 @@ export async function saveWaiterOpeningBalance(formData: FormData) {
       error instanceof Error
         ? error.message.includes("already been closed today")
           ? "shift_already_closed"
+          : error.message.includes("one-time opening balance")
+            ? "balance_not_initialized"
           : error.message.includes("Waiter not found")
             ? "waiter_not_found"
             : "opening_failed"
@@ -69,10 +69,10 @@ export async function saveWaiterOpeningBalance(formData: FormData) {
 }
 
 export async function closeWaiterBalanceFromManager(formData: FormData) {
-  await requirePermission(PERMISSIONS.ORDER_MANAGE);
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const waiterId = String(formData.get("waiterId") ?? "").trim();
-  const closingAmount = parseAmount(formData.get("closingAmount"));
+  const closingAmount = parseCurrencyAmount(formData.get("closingAmount"));
 
   if (!waiterId || closingAmount == null) {
     redirect(buildReturnPath(waiterId, "invalid_closing_amount"));
@@ -81,7 +81,12 @@ export async function closeWaiterBalanceFromManager(formData: FormData) {
   let balanceStatus = "closing_saved";
 
   try {
-    await closeWaiterBusinessDayShift(waiterId, closingAmount);
+    await closeWaiterBusinessDayShift(
+      waiterId,
+      closingAmount,
+      new Date(),
+      currentUser.id,
+    );
     refreshManagerViews();
   } catch (error) {
     console.error("Failed to save closing balance:", error);

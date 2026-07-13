@@ -90,6 +90,12 @@ function getBalanceStatusMessage(balanceStatus?: string) {
         tone: "error" as const,
         message: "The selected waiter could not be found.",
       };
+    case "balance_not_initialized":
+      return {
+        tone: "error" as const,
+        message:
+          "An admin must lock this waiter's one-time opening balance before the shift can start.",
+      };
     case "no_open_shift":
       return {
         tone: "error" as const,
@@ -660,6 +666,8 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
               id: true,
               openingAmount: true,
               closingAmount: true,
+              reportedSales: true,
+              businessDate: true,
               openedAt: true,
               closedAt: true,
             },

@@ -47,6 +47,10 @@ test("operational roles receive only their required capabilities", () => {
     true,
   );
   assert.equal(
+    hasPermission(user("MANAGER"), PERMISSIONS.WAITER_BALANCE_ADMIN),
+    false,
+  );
+  assert.equal(
     hasPermission(user("CLEANER"), PERMISSIONS.TABLE_RESET_ASSIGNED),
     true,
   );

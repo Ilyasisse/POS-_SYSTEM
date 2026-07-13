@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen/kitchen-socket";
 import type { SelectedModifierLine } from "@/lib/types";
-import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
+import { getActiveWaiterOrderingShift } from "@/lib/waiter/waiter-shifts";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
@@ -139,20 +139,7 @@ export async function POST(request: Request) {
     }
 
     if (currentUser.role === "WAITER") {
-      const { start, end } = getCashierBusinessDayRange();
-      const activeShift = await prisma.shift.findFirst({
-        where: {
-          userId: currentUser.id,
-          openedAt: {
-            gte: start,
-            lt: end,
-          },
-          closedAt: null,
-        },
-        select: {
-          id: true,
-        },
-      });
+      const activeShift = await getActiveWaiterOrderingShift(currentUser.id);
 
       if (!activeShift) {
         return NextResponse.json(

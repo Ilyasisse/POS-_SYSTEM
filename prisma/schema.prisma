@@ -20,7 +20,10 @@ model User {
   waiterOrders  Order[]     @relation("WaiterOrders")
   assignedItems OrderItem[] @relation("AssignedOrderItems")
   payments      Payment[]
-  shifts        Shift[]
+  shifts        Shift[]     @relation("WaiterShifts")
+  shiftsSettled Shift[]     @relation("ShiftSettledBy")
+  waiterBalanceInitialization WaiterBalanceInitialization? @relation("WaiterBalanceOwner")
+  waiterBalanceInitializationsCreated WaiterBalanceInitialization[] @relation("WaiterBalanceCreatedBy")
   supplierDeliveriesVerified SupplierDelivery[] @relation("SupplierDeliveryVerifiedBy")
   supplierDeliveriesRejected SupplierDelivery[] @relation("SupplierDeliveryRejectedBy")
   supplierBillsSettled       SupplierBill[]     @relation("SupplierBillSettledBy")
@@ -240,10 +243,30 @@ model Shift {
   closedAt      DateTime?
   openingAmount Decimal   @default(0)
   closingAmount Decimal?
-  waiter        User      @relation(fields: [userId], references: [id])
+  businessDate  DateTime? @db.Date
+  reportedSales Decimal?
+  settledByUserId String?
+  updatedAt     DateTime  @updatedAt
+  waiter        User      @relation("WaiterShifts", fields: [userId], references: [id])
+  settledBy     User?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
 
   @@index([openedAt])
   @@index([userId, openedAt])
+  @@index([settledByUserId])
+  @@unique([userId, businessDate])
+}
+
+model WaiterBalanceInitialization {
+  id                    String   @id @default(cuid())
+  waiterId              String   @unique
+  effectiveBusinessDate DateTime @db.Date
+  openingBalance        Decimal
+  createdByUserId       String
+  createdAt             DateTime @default(now())
+  waiter                User     @relation("WaiterBalanceOwner", fields: [waiterId], references: [id])
+  createdBy             User     @relation("WaiterBalanceCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([createdByUserId])
 }
 
 model Supplier {
