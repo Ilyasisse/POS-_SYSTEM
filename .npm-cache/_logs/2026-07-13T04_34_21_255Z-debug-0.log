@@ -1,0 +1,36 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.2
+2 info using node@v22.16.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\ILYAS ISSE\Desktop\cafe-pos\.npmrc
+5 silly config load:file:C:\Users\ILYAS ISSE\.npmrc
+6 silly config load:file:C:\Users\ILYAS ISSE\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--package-lock-only" "--ignore-scripts" "--no-audit" "--no-fund"
+9 verbose logfile logs-max:10 dir:C:\Users\ILYAS ISSE\Desktop\cafe-pos\.npm-cache\_logs\2026-07-13T04_34_21_255Z-
+10 verbose logfile C:\Users\ILYAS ISSE\Desktop\cafe-pos\.npm-cache\_logs\2026-07-13T04_34_21_255Z-debug-0.log
+11 silly logfile done cleaning log files
+12 http fetch GET https://registry.npmjs.org/npm attempt 1 failed with ECONNREFUSED
+13 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+14 silly idealTree buildDeps
+15 silly fetch manifest @floating-ui/core@^1.7.5
+16 silly packumentCache full:https://registry.npmjs.org/@floating-ui%2fcore cache-miss
+17 silly placeDep node_modules/@floating-ui/dom @floating-ui/core@ OK for: @floating-ui/dom@1.7.6 want: ^1.7.5
+18 http cache https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.2.1.tgz 0ms (cache hit)
+19 silly tarball no local data for https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.2.1.tgz. Extracting by manifest.
+20 verbose stack Error: request to https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.2.1.tgz failed: cache mode is 'only-if-cached' but no cached response is available.
+20 verbose stack     at cacheFetch (C:\Program Files\nodejs\node_modules\npm\node_modules\make-fetch-happen\lib\cache\index.js:12:13)
+20 verbose stack     at async fetch (C:\Program Files\nodejs\node_modules\npm\node_modules\make-fetch-happen\lib\fetch.js:98:7)
+21 error code ENOTCACHED
+22 error request to https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.2.1.tgz failed: cache mode is 'only-if-cached' but no cached response is available.
+23 silly unfinished npm timer reify 1783917262699
+24 silly unfinished npm timer reify:loadTrees 1783917262699
+25 silly unfinished npm timer idealTree:buildDeps 1783917263930
+26 silly unfinished npm timer idealTree:node_modules/@tailwindcss/oxide-wasm32-wasi 1783917263939
+27 verbose cwd C:\Users\ILYAS ISSE\Desktop\cafe-pos
+28 verbose os Windows_NT 10.0.19045
+29 verbose node v22.16.0
+30 verbose npm  v10.9.2
+31 verbose exit 1
+32 verbose code 1
+33 error A complete log of this run can be found in: C:\Users\ILYAS ISSE\Desktop\cafe-pos\.npm-cache\_logs\2026-07-13T04_34_21_255Z-debug-0.log
