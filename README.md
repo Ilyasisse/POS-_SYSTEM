@@ -127,24 +127,31 @@ Prerequisites:
 - Node.js 18+
 - npm
 
-Install and run:
+Install dependencies and create your local environment file:
 
 ```bash
-npm install
+npm ci
+copy .env.example .env
 npm run dev
 ```
 
-`npm run dev` now starts both:
-- Next.js app on port `3000`
-- Kitchen WebSocket server on port `8080`
+Fill these required values in `.env` before starting the app:
 
-If you need only the socket server, run:
+- `DATABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+`.env` is ignored by Git and is not copied into new Git worktrees. Copy a trusted local `.env` into each worktree, or use `.env.example` to create a new one. Restart `npm run dev` whenever `.env` changes.
+
+`npm run dev` starts the Next.js app on port `3000`.
+
+For kitchen real-time updates, start the WebSocket server separately:
 
 ```bash
-npm run ws:server
+npm run dev:ws
 ```
 
-Default socket URL uses your current host at port `8080`. You can override with `NEXT_PUBLIC_KITCHEN_WS_URL`.
+The default socket URL is `ws://localhost:3001`; override it with `NEXT_PUBLIC_KITCHEN_SOCKET_URL` when needed.
 
 Lint:
 
