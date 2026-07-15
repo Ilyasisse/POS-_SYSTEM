@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { LockKeyhole } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -25,6 +25,16 @@ type InitializationDialogProps = {
   businessDate: string;
   showInactive: boolean;
 };
+
+function LockOpeningBalanceButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? "Saving..." : "Lock balance"}
+    </Button>
+  );
+}
 
 export function InitializationDialog({
   waiterId,
@@ -80,7 +90,7 @@ export function InitializationDialog({
 
           <AlertDialogFooter>
             <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
-            <AlertDialogAction type="submit">Lock balance</AlertDialogAction>
+            <LockOpeningBalanceButton />
           </AlertDialogFooter>
         </form>
       </AlertDialogContent>

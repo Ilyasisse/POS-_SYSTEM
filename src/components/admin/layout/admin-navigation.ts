@@ -13,6 +13,7 @@ import {
   Truck,
   Users,
   WalletCards,
+  ShoppingBasket,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -130,6 +131,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Supplier deliveries",
     icon: ClipboardList,
     permission: PERMISSIONS.SUPPLIER_MANAGE,
+  },
+  {
+    key: "supplies",
+    href: "/admin/supplies",
+    label: "Supply",
+    icon: ShoppingBasket,
+    permission: PERMISSIONS.SUPPLY_MANAGE,
   },
   {
     key: "reports",

@@ -28,6 +28,7 @@ model User {
   supplierDeliveriesRejected SupplierDelivery[] @relation("SupplierDeliveryRejectedBy")
   supplierBillsSettled       SupplierBill[]     @relation("SupplierBillSettledBy")
   supplierPaymentsRecorded   SupplierPayment[]  @relation("SupplierPaymentRecordedBy")
+  supplyPurchasesCreated     SupplyPurchase[]   @relation("SupplyPurchaseCreatedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -388,6 +389,21 @@ model SupplierPayment {
 
   @@index([billId, paidAt])
   @@index([recordedByUserId, paidAt])
+}
+
+model SupplyPurchase {
+  id              String   @id @default(cuid())
+  purchaseDate    DateTime @db.Date
+  itemName        String
+  quantity        Decimal  @db.Decimal(12, 3)
+  unitPrice       Decimal  @db.Decimal(12, 2)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       User     @relation("SupplyPurchaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([purchaseDate])
+  @@index([createdByUserId, purchaseDate])
 }
 
 enum UserRole {

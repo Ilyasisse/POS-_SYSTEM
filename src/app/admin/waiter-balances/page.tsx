@@ -2,8 +2,6 @@ import { AlertCircle, CalendarDays, CircleDollarSign, Users } from "lucide-react
 import { PageHeader } from "@/components/ui/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -38,6 +36,7 @@ import {
 } from "@/lib/waiter/waiter-balance-ledger";
 import { InitializationDialog } from "./InitializationDialog";
 import { SettlementSubmitButton } from "./SettlementSubmitButton";
+import { WaiterBalanceDateFilter } from "./WaiterBalanceDateFilter";
 import { saveWaiterDailySettlement } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -167,14 +166,14 @@ function BalanceTable({
       </TableHeader>
       <TableBody>
         {rows.map((row) => {
-          const formId = `settlement-${row.waiterId}`;
+          const formId = `settlement-${businessDate}-${row.waiterId}`;
           const hasExistingSettlement = row.shiftId != null;
           const canEditSettlement = row.canEditSettlement;
           const canInitialize = row.canInitialize;
           const isEditable = canEditSettlement;
 
           return (
-            <TableRow key={row.waiterId}>
+            <TableRow key={`${businessDate}-${row.waiterId}`}>
               <TableCell>
                 <div className="min-w-44">
                   <div className="flex items-center gap-2 font-medium">
@@ -194,11 +193,11 @@ function BalanceTable({
                 {formatMoney(row.openingBalance)}
               </TableCell>
               <TableCell>
-                <Label className="sr-only" htmlFor={`sales-${row.waiterId}`}>
+                <Label className="sr-only" htmlFor={`sales-${businessDate}-${row.waiterId}`}>
                   Manual sales for {row.fullName}
                 </Label>
                 <Input
-                  id={`sales-${row.waiterId}`}
+                  id={`sales-${businessDate}-${row.waiterId}`}
                   form={formId}
                   name="reportedSales"
                   type="number"
@@ -213,11 +212,11 @@ function BalanceTable({
               </TableCell>
               <TableCell className="font-medium">{formatMoney(row.posSales)}</TableCell>
               <TableCell>
-                <Label className="sr-only" htmlFor={`end-day-${row.waiterId}`}>
+                <Label className="sr-only" htmlFor={`end-day-${businessDate}-${row.waiterId}`}>
                   End-day amount for {row.fullName}
                 </Label>
                 <Input
-                  id={`end-day-${row.waiterId}`}
+                  id={`end-day-${businessDate}-${row.waiterId}`}
                   form={formId}
                   name="endDayAmount"
                   type="number"
@@ -373,32 +372,12 @@ export default async function WaiterBalancesPage({
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="grid gap-2">
-              <Label htmlFor="business-date">POS business date</Label>
-              <Input
-                id="business-date"
-                name="date"
-                type="date"
-                min={WAITER_BALANCE_LEDGER_START_DATE}
-                max={currentBusinessDate}
-                defaultValue={selectedBusinessDate}
-              />
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="show-inactive"
-                  name="showInactive"
-                  value="1"
-                  defaultChecked={showInactive}
-                />
-                <Label htmlFor="show-inactive" className="text-sm font-normal">
-                  Show inactive waiters
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Inactive waiters are hidden unless you enable this filter.
-              </p>
-            </div>
-            <Button type="submit" variant="outline">View day</Button>
+            <WaiterBalanceDateFilter
+              currentBusinessDate={currentBusinessDate}
+              ledgerStartDate={WAITER_BALANCE_LEDGER_START_DATE}
+              selectedBusinessDate={selectedBusinessDate}
+              showInactive={showInactive}
+            />
           </form>
         </CardContent>
       </Card>
@@ -429,6 +408,7 @@ export default async function WaiterBalancesPage({
         </CardHeader>
         <CardContent className="px-0">
           <BalanceTable
+            key={selectedBusinessDate}
             rows={rows}
             businessDate={selectedBusinessDate}
             showInactive={showInactive}
