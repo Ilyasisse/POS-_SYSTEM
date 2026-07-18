@@ -145,13 +145,11 @@ Fill these required values in `.env` before starting the app:
 
 `npm run dev` starts the Next.js app on port `3000`.
 
-For kitchen real-time updates, start the WebSocket server separately:
-
-```bash
-npm run dev:ws
-```
-
-The default socket URL is `ws://localhost:3001`; override it with `NEXT_PUBLIC_KITCHEN_SOCKET_URL` when needed.
+Kitchen live updates use Supabase Realtime. Apply the Prisma migrations to your
+Supabase database, enable Realtime, and set its channel restrictions to
+private-only. The application subscribes to the private `kitchen:tickets`
+channel with the signed-in user session; no separate WebSocket server or socket
+URL is required.
 
 Lint:
 

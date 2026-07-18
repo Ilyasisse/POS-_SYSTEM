@@ -3,7 +3,7 @@ import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
-import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen/kitchen-socket";
+import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   deductProductInventoryForSale,
@@ -69,40 +69,6 @@ function toDecimal(value: number) {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
-}
-
-function buildKitchenTicketItems(
-  orderItems: SavedOrderItemForTicket[],
-): KitchenTicketItem[] {
-  return orderItems.flatMap((item) =>
-    item.station
-      ? [
-          {
-            id: item.id,
-            name: item.productName,
-            quantity: item.qty,
-            station: item.station,
-            assignedUserId: item.assignedUserId,
-            assignedUserName: item.assignedUserName,
-            modifiers: item.modifiers.map((modifier) => ({
-              id: modifier.optionId,
-              name: modifier.optionName,
-              qty: modifier.qty,
-              price: modifier.price,
-            })),
-          },
-        ]
-      : [],
-  );
-}
-
-function buildKitchenTicketStationStatuses(
-  items: KitchenTicketItem[],
-): KitchenTicket["stationStatuses"] {
-  return items.reduce<KitchenTicket["stationStatuses"]>((accumulator, item) => {
-    accumulator[item.station] = "new";
-    return accumulator;
-  }, {});
 }
 
 export async function POST(request: Request) {
@@ -389,6 +355,11 @@ export async function POST(request: Request) {
         });
       }
 
+      await createKitchenTicketState(tx, {
+        orderId: order.id,
+        lines: preparedLines,
+      });
+
       await tx.payment.create({
         data: {
           orderId: order.id,
@@ -414,36 +385,12 @@ export async function POST(request: Request) {
 
     await sendInventoryAlerts(result.inventoryAlerts);
 
-    const kitchenTicketItems = buildKitchenTicketItems(result.savedOrderItems);
-
-    const kitchenTicket: KitchenTicket | null =
-      kitchenTicketItems.length > 0
-        ? {
-            id: result.order.id,
-            orderId: result.order.id,
-            orderNumber: result.order.orderNumber,
-            createdAt: result.order.createdAt.toISOString(),
-            status: "new",
-            stationStatuses: buildKitchenTicketStationStatuses(kitchenTicketItems),
-            pickupStatus: "preparing",
-            tableId: null,
-            tableName: null,
-            cashierId: currentUser.id,
-            cashierName: currentUser.fullName,
-            note: body.notes ?? null,
-            waiterId: currentUser.id,
-            waiterName: currentUser.fullName,
-            items: kitchenTicketItems,
-          }
-        : null;
-
     return NextResponse.json({
       success: true,
       order: {
         id: result.order.id,
         orderNumber: result.order.orderNumber,
       },
-      kitchenTicket,
       receipt: {
         receiptNo: result.order.orderNumber,
         createdAt: result.order.createdAt.toISOString(),

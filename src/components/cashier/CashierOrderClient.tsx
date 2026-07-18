@@ -6,15 +6,13 @@ import { NativeSelect } from "@/components/ui/native-select";
 
 import { Textarea } from "@/components/ui/textarea";
 
-import { useMemo, useReducer } from "react";
+import { useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getKitchenSocketUrl } from "@/lib/kitchen/kitchen-socket";
 import type {
   CartLine,
   Category,
   Product,
   SelectedModifierLine,
-  SocketStatus,
   Station,
 } from "@/lib/types";
 import ProductQuickItems from "@/components/waiter/ProductQuickItems";
@@ -26,7 +24,6 @@ import ModifierModal from "@/components/waiter/ModifierModel";
 import WaiterPageSkeleton from "@/components/waiter/WaiterPageSkeleton";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useWaiterData } from "@/hooks/waiter/useWaiterData";
-import { useWaiterSocket } from "@/hooks/waiter/useWaiterSocket";
 import {
   buildFullOrderPronunciationSegments,
   cancelPronunciationPlayback,
@@ -70,7 +67,6 @@ type CashierProductPickerProps = {
 
 type CurrentTableOrderPanelProps = {
   cart: CartLine[];
-  socketStatus: SocketStatus;
   orderNote: string;
   total: number;
   isSubmitting: boolean;
@@ -252,7 +248,6 @@ function CashierProductPicker({
 
 function CurrentTableOrderPanel({
   cart,
-  socketStatus,
   orderNote,
   total,
   isSubmitting,
@@ -277,17 +272,6 @@ function CurrentTableOrderPanel({
             Send to kitchen as an open order.
           </p>
         </div>
-        <span
-          className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${
-            socketStatus === "connected"
-              ? "bg-green-100 text-green-700"
-              : socketStatus === "connecting"
-                ? "bg-amber-100 text-amber-700"
-                : "bg-red-100 text-red-700"
-          }`}
-        >
-          {socketStatus}
-        </span>
       </div>
 
       <div className="space-y-2 overflow-y-auto pr-1">
@@ -378,9 +362,7 @@ export default function CashierOrderClient({
   initialTableId = "",
 }: CashierOrderClientProps) {
   const router = useRouter();
-  const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
-  const { socketStatus, statusMessage, setStatusMessage, sendKitchenTicket } =
-    useWaiterSocket(socketUrl);
+  const [statusMessage, setStatusMessage] = useState("");
   const { products, categories, loading, productsAll, baristas } =
     useWaiterData();
   const {
@@ -508,10 +490,6 @@ export default function CashierOrderClient({
         throw new Error(data?.error || "The table order could not be sent.");
       }
 
-      if (data.kitchenTicket) {
-        sendKitchenTicket(data.kitchenTicket);
-      }
-
       clearCart();
       dispatchOrderState({
         type: "orderSent",
@@ -619,7 +597,6 @@ export default function CashierOrderClient({
 
         <CurrentTableOrderPanel
           cart={cart}
-          socketStatus={socketStatus}
           orderNote={orderState.orderNote}
           total={total}
           isSubmitting={orderState.isSubmitting}

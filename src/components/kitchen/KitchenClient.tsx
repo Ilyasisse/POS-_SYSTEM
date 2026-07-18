@@ -8,7 +8,7 @@ import KitchenEmptyState from "./KitchenEmptyState";
 import KitchenHeader from "./KitchenHeader";
 import KitchenStatusBanner from "./KitchenStatusBanner";
 import KitchenTicketList from "./KitchenTicketList";
-import { useKitchenSocket } from "@/hooks/kitchen/useKitchenSocket";
+import { useKitchenTickets } from "@/hooks/kitchen/useKitchenTickets";
 
 type KitchenClientProps = {
   station?: KitchenStation;
@@ -23,13 +23,12 @@ export default function KitchenClient({
   currentUserName,
   currentUserRole,
 }: KitchenClientProps) {
-  const { activeTickets, socketStatus, statusMessage, updateTicketStatus } =
-    useKitchenSocket({
-      station,
-      currentUserId,
-      currentUserName,
-      currentUserRole,
-    });
+  const { activeTickets, statusMessage, updateTicketStatus } = useKitchenTickets({
+    station,
+    currentUserId,
+    currentUserName,
+    currentUserRole,
+  });
 
   const visibleTickets: KitchenTicket[] = activeTickets;
   const canUpdateStatus = Boolean(station);
@@ -41,7 +40,6 @@ export default function KitchenClient({
     >
       <div className="mx-auto w-full max-w-7xl space-y-4">
         <KitchenHeader
-          socketStatus={socketStatus}
           queueCount={visibleTickets.length}
           station={station}
           currentUserName={currentUserName}

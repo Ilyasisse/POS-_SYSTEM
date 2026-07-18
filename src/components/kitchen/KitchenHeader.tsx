@@ -1,12 +1,10 @@
 import Link from "next/link";
 import {
   translateKitchenStationName,
-  translateSocketStatus,
   translateUserRole,
 } from "@/lib/ui/ui-text";
 
 type KitchenHeaderProps = {
-  socketStatus: "connecting" | "connected" | "disconnected";
   queueCount: number;
   station?: string;
   currentUserName: string;
@@ -14,7 +12,6 @@ type KitchenHeaderProps = {
 };
 
 export default function KitchenHeader({
-  socketStatus,
   queueCount,
   station,
   currentUserName,
@@ -56,18 +53,6 @@ export default function KitchenHeader({
             {translateUserRole(currentUserRole)}
           </p>
         </div>
-
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-            socketStatus === "connected"
-              ? "bg-green-900/60 text-green-300"
-              : socketStatus === "connecting"
-                ? "bg-amber-900/60 text-amber-300"
-                : "bg-red-900/60 text-red-300"
-          }`}
-        >
-          {translateSocketStatus(socketStatus)}
-        </span>
 
         <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold uppercase">
           Queue {queueCount}

@@ -52,33 +52,6 @@ export type KitchenTicket = {
   items: KitchenTicketItem[];
 };
 
-export type KitchenSocketMessage =
-  | {
-      type: "ORDER_SNAPSHOT";
-      payload: KitchenTicket[];
-    }
-  | {
-      type: "NEW_ORDER";
-      payload: KitchenTicket;
-    }
-  | {
-      type: "UPDATE_ORDER_STATUS";
-      payload: {
-        id: string;
-        station: KitchenStation;
-        status: KitchenTicketStatus;
-      };
-    }
-  | {
-      type: "UPDATE_PICKUP_STATUS";
-      payload: {
-        id: string;
-        pickupStatus: KitchenTicketPickupStatus;
-        claimedByWaiterId?: string | null;
-        claimedByWaiterName?: string | null;
-      };
-    };
-
 type KitchenTicketModifierLike = Partial<KitchenTicketModifier>;
 
 type KitchenTicketLike = Partial<KitchenTicket> & {
@@ -259,10 +232,6 @@ export function setKitchenTicketPickupStatus(
     claimedByWaiterName:
       pickupStatus === "claimed" ? (claimedByWaiterName ?? null) : null,
   };
-}
-
-function isKitchenStation(value: string): value is KitchenStation {
-  return KITCHEN_STATIONS.includes(value as KitchenStation);
 }
 
 export function normalizeKitchenStation(
@@ -460,28 +429,6 @@ export function filterKitchenTicketsByStation(
     .filter((ticket): ticket is KitchenTicket => ticket !== null);
 }
 
-function normalizeKitchenStationParam(
-  station?: string | null,
-): KitchenStation | undefined {
-  return normalizeKitchenStation(station);
-}
-
-function stationPathSegment(station: KitchenStation) {
-  if (station === "FAST_FOOD") {
-    return "fast-food";
-  }
-
-  if (station === "CUNTO_SOOMAALI") {
-    return "cunto-soomaali";
-  }
-
-  if (station === "BARISTA") {
-    return "barista";
-  }
-
-  return "cabitaan";
-}
-
 export function stationFromPathSegment(
   station?: string | null,
 ): KitchenStation | undefined {
@@ -508,28 +455,4 @@ export function stationFromPathSegment(
   }
 
   return normalizeKitchenStation(station);
-}
-
-export function getKitchenSocketUrl(
-  filter?: string | KitchenTicketFilter | null
-) {
-  const base =
-    process.env.NEXT_PUBLIC_KITCHEN_SOCKET_URL ?? "ws://localhost:3001";
-
-  const resolvedFilter = resolveFilter(filter);
-  const normalizedStation = normalizeKitchenStation(resolvedFilter.station);
-  const params = new URLSearchParams();
-
-  if (normalizedStation) {
-    params.set("station", normalizedStation);
-  }
-
-  if (resolvedFilter.userId) {
-    params.set("userId", resolvedFilter.userId);
-  }
-
-  const query = params.toString();
-
-  // ✅ FIX: remove /api/kitchen/ws
-  return query ? `${base}?${query}` : base;
 }

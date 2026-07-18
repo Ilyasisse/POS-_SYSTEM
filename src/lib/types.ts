@@ -9,7 +9,6 @@ export type {
   ReceiptSnapshot,
   ReceiptSnapshotLine,
   SelectedModifierLine,
-  SocketStatus,
   StaffSummary,
   Station,
 } from "@/types";

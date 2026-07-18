@@ -8,11 +8,7 @@ export type Product = {
   id: string;
   name: string;
   price: number;
-  cost?: number | null;
-  isActive: boolean;
   description?: string | null;
-  trackStock: boolean;
-  stockQty: number;
   imageUrl?: string | null;
   pronunciationAudioUrl?: string | null;
   isPopular: boolean;

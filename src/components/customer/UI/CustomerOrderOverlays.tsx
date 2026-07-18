@@ -10,8 +10,6 @@ type CustomerOrderOverlaysProps = {
   cart: CartLine[];
   cartSubtotal: number;
   cartCount: number;
-  statusMessage: string;
-  socketStatus: string;
   onCloseModifier: () => void;
   onConfirmModifier: (
     product: Product,
@@ -34,8 +32,6 @@ export default function CustomerOrderOverlays({
   cart,
   cartSubtotal,
   cartCount,
-  statusMessage,
-  socketStatus,
   onCloseModifier,
   onConfirmModifier,
   onCloseCart,
@@ -68,9 +64,6 @@ export default function CustomerOrderOverlays({
         isSubmitting={orderState.isSubmitting}
         submitMessage={orderState.submitMessage}
         submitError={orderState.submitError}
-        statusMessage={statusMessage}
-        socketStatus={socketStatus}
-        lastOrderNumber={orderState.lastOrderNumber}
         onClose={onCloseCart}
         onCustomerNameChange={onCustomerNameChange}
         onCustomerPhoneChange={onCustomerPhoneChange}

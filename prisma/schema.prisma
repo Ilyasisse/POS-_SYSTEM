@@ -19,6 +19,7 @@ model User {
   orders        Order[]     @relation("Cashier")
   waiterOrders  Order[]     @relation("WaiterOrders")
   assignedItems OrderItem[] @relation("AssignedOrderItems")
+  claimedKitchenTickets KitchenTicketState[] @relation("KitchenTicketClaimant")
   payments      Payment[]
   shifts        Shift[]     @relation("WaiterShifts")
   shiftsSettled Shift[]     @relation("ShiftSettledBy")
@@ -175,6 +176,7 @@ model Order {
   table       Table?      @relation(fields: [tableId], references: [id])
   orderItems  OrderItem[]
   payments    Payment[]
+  kitchenTicketState KitchenTicketState?
 
   @@index([status])
   @@index([createdAt])
@@ -203,6 +205,37 @@ model OrderItem {
   @@index([productId])
   @@index([station])
   @@index([assignedUserId])
+}
+
+/// Durable kitchen workflow state for an order. The order and its ticket state
+/// are created atomically so Supabase Realtime can always rebuild a snapshot.
+model KitchenTicketState {
+  orderId             String              @id
+  pickupStatus        KitchenPickupStatus @default(PREPARING)
+  customerName        String?
+  claimedByWaiterId   String?
+  claimedByWaiterName String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  claimedByWaiter     User?               @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
+  stationStates       KitchenTicketStationState[]
+
+  @@index([pickupStatus, updatedAt])
+  @@index([claimedByWaiterId])
+}
+
+/// One independently updateable kitchen status per order station.
+model KitchenTicketStationState {
+  orderId   String
+  station   Station
+  status    KitchenStationTicketStatus @default(NEW)
+  createdAt DateTime                   @default(now())
+  updatedAt DateTime                   @updatedAt
+  ticket    KitchenTicketState         @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@id([orderId, station])
+  @@index([station, status])
 }
 
 model OrderItemModifier {
@@ -449,6 +482,19 @@ enum Station {
   FAST_FOOD
   CABITAAN
   BARISTA
+}
+
+enum KitchenStationTicketStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+}
+
+enum KitchenPickupStatus {
+  PREPARING
+  READY
+  CLAIMED
+  DELIVERED
 }
 
 enum SupplierDeliveryStatus {
