@@ -2,20 +2,6 @@ import type {
   KitchenStation,
   KitchenTicketStatus,
 } from "@/lib/kitchen/kitchen-socket";
-import type { SocketStatus } from "@/lib/types";
-
-export function translateSocketStatus(status: SocketStatus): string {
-  switch (status) {
-    case "connected":
-      return "Connected";
-    case "connecting":
-      return "Connecting";
-    case "disconnected":
-      return "Disconnected";
-    default:
-      return status;
-  }
-}
 
 export function translateKitchenStationName(
   station?: KitchenStation | string | null,

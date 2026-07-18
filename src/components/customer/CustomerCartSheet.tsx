@@ -12,7 +12,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import type { CartLine } from "@/lib/types";
 import { formatCurrency } from "./customer-order-utils";
@@ -28,9 +27,6 @@ type CustomerCartSheetProps = {
   isSubmitting: boolean;
   submitMessage: string;
   submitError: string;
-  statusMessage: string;
-  socketStatus: string;
-  lastOrderNumber: number | null;
   onClose: () => void;
   onCustomerNameChange: (value: string) => void;
   onCustomerPhoneChange: (value: string) => void;
@@ -52,9 +48,6 @@ export default function CustomerCartSheet({
   isSubmitting,
   submitMessage,
   submitError,
-  statusMessage,
-  socketStatus,
-  lastOrderNumber,
   onClose,
   onCustomerNameChange,
   onCustomerPhoneChange,
@@ -119,14 +112,6 @@ export default function CustomerCartSheet({
               <div className="rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
                 {submitError}
               </div>
-            ) : null}
-            {statusMessage ? (
-              <Alert>
-                <AlertDescription>
-                  {statusMessage}
-                  {lastOrderNumber ? ` Order #${lastOrderNumber}.` : ""}
-                </AlertDescription>
-              </Alert>
             ) : null}
             {cart.length === 0 ? (
               <div className="flex min-h-[16rem] items-center justify-center rounded-[1.75rem] border border-dashed border-border bg-card/75 p-8 text-center text-sm text-muted-foreground">
@@ -280,12 +265,6 @@ export default function CustomerCartSheet({
               </Button>
             </div>
 
-            <p className="mt-4 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              Kitchen connection:{" "}
-              <span className="font-semibold text-foreground">
-                {socketStatus}
-              </span>
-            </p>
           </div>
         </div>
       </SheetContent>

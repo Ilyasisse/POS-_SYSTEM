@@ -12,7 +12,6 @@ export type CustomerOrderResponse = {
     total: number;
     createdAt: string;
   };
-  kitchenTicket?: import("@/lib/kitchen/kitchen-socket").KitchenTicket | null;
   error?: string;
 };
 

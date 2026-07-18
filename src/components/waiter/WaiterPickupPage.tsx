@@ -3,8 +3,7 @@
 import { Button } from "@/components/ui/button";
 
 import type { KitchenTicket } from "@/lib/kitchen/kitchen-socket";
-import { useKitchenSocket } from "@/hooks/kitchen/useKitchenSocket";
-import { translateSocketStatus } from "@/lib/ui/ui-text";
+import { useKitchenTickets } from "@/hooks/kitchen/useKitchenTickets";
 
 type WaiterPickupPageProps = {
   currentUserId: string;
@@ -36,12 +35,11 @@ export default function WaiterPickupPage({
   currentUserName,
   currentUserRole,
 }: WaiterPickupPageProps) {
-  const { activeTickets, socketStatus, statusMessage, updatePickupStatus } =
-    useKitchenSocket({
-      currentUserId,
-      currentUserName,
-      currentUserRole,
-    });
+  const { activeTickets, statusMessage, updatePickupStatus } = useKitchenTickets({
+    currentUserId,
+    currentUserName,
+    currentUserRole,
+  });
 
   return (
     <div
@@ -61,24 +59,9 @@ export default function WaiterPickupPage({
               </p>
             </div>
 
-            <div className="flex items-start gap-2 text-right">
-              <div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-                    socketStatus === "connected"
-                      ? "bg-green-100 text-green-700"
-                      : socketStatus === "connecting"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {translateSocketStatus(socketStatus)}
-                </span>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {activeTickets.length} ready order(s)
-                </p>
-              </div>
-            </div>
+            <p className="text-right text-sm text-muted-foreground">
+              {activeTickets.length} ready order(s)
+            </p>
           </div>
         </header>
 

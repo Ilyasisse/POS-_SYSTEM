@@ -3,7 +3,7 @@ import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import type { KitchenTicket, KitchenTicketItem } from "@/lib/kitchen/kitchen-socket";
+import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   deductProductInventoryForSale,
@@ -72,40 +72,6 @@ function isPlaceholderModifier(
     "isPlaceholder" in modifier ? modifier.isPlaceholder === true : false;
 
   return modifierId.startsWith("placeholder__") || explicitPlaceholder;
-}
-
-function buildKitchenTicketItems(
-  orderItems: SavedOrderItemForTicket[],
-): KitchenTicketItem[] {
-  return orderItems.flatMap((item) =>
-    item.station
-      ? [
-          {
-            id: item.id,
-            name: item.productName,
-            quantity: item.qty,
-            station: item.station,
-            assignedUserId: item.assignedUserId,
-            assignedUserName: item.assignedUserName,
-            modifiers: item.modifiers.map((modifier) => ({
-              id: modifier.optionId,
-              name: modifier.optionName,
-              qty: modifier.qty,
-              price: modifier.price,
-            })),
-          },
-        ]
-      : [],
-  );
-}
-
-function buildKitchenTicketStationStatuses(
-  items: KitchenTicketItem[],
-): KitchenTicket["stationStatuses"] {
-  return items.reduce<KitchenTicket["stationStatuses"]>((accumulator, item) => {
-    accumulator[item.station] = "new";
-    return accumulator;
-  }, {});
 }
 
 function buildCustomerOrderNote(
@@ -385,6 +351,12 @@ export async function POST(request: Request) {
           });
         }
 
+        await createKitchenTicketState(tx, {
+          orderId: createdOrder.id,
+          lines: preparedLines,
+          customerName,
+        });
+
         const inventoryAlerts = await deductProductInventoryForSale(
           tx,
           preparedLines.map((line) => ({
@@ -403,28 +375,6 @@ export async function POST(request: Request) {
     await sendInventoryAlerts(result.inventoryAlerts);
 
     const order = result.order;
-    const kitchenTicketItems = buildKitchenTicketItems(savedOrderItems);
-    const kitchenTicket: KitchenTicket | null =
-      kitchenTicketItems.length > 0
-        ? {
-            id: order.id,
-            orderId: order.id,
-            orderNumber: order.orderNumber,
-            createdAt: order.createdAt.toISOString(),
-            status: "new",
-            stationStatuses: buildKitchenTicketStationStatuses(kitchenTicketItems),
-            pickupStatus: "preparing",
-            tableId: null,
-            tableName: null,
-            cashierId: null,
-            cashierName: null,
-            note: orderNote || null,
-            waiterId: null,
-            waiterName: customerName,
-            items: kitchenTicketItems,
-          }
-        : null;
-
     return NextResponse.json({
       success: true,
       order: {
@@ -433,7 +383,6 @@ export async function POST(request: Request) {
         total: calculatedTotal,
         createdAt: order.createdAt.toISOString(),
       },
-      kitchenTicket,
     });
   } catch (error) {
     console.error("Customer order error:", error);

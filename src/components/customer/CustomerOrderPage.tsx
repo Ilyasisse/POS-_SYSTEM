@@ -9,10 +9,8 @@ import {
   useTransition,
 } from "react";
 import { useAos } from "@/components/AosInitializer";
-import { getKitchenSocketUrl } from "@/lib/kitchen/kitchen-socket";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useWaiterData } from "@/hooks/waiter/useWaiterData";
-import { useWaiterSocket } from "@/hooks/waiter/useWaiterSocket";
 import type { Category, Product } from "@/lib/types";
 import {
   buildModifierLines,
@@ -204,9 +202,6 @@ function customerOrderReducer(
 }
 
 export default function CustomerOrderPage() {
-  const socketUrl = useMemo(() => getKitchenSocketUrl(), []);
-  const { socketStatus, statusMessage, sendKitchenTicket } =
-    useWaiterSocket(socketUrl);
   const { productsAll, categories, baristas, loading } = useWaiterData();
   const {
     cart,
@@ -401,10 +396,6 @@ export default function CustomerOrderPage() {
         throw new Error(data.error || "The order could not be placed.");
       }
 
-      if (data.kitchenTicket) {
-        sendKitchenTicket(data.kitchenTicket);
-      }
-
       dispatchOrderState({
         type: "checkoutSucceeded",
         orderNumber: data.order.orderNumber,
@@ -473,8 +464,6 @@ export default function CustomerOrderPage() {
         cart={cart}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
-        statusMessage={statusMessage}
-        socketStatus={socketStatus}
         onCloseModifier={closeModifierModal}
         onConfirmModifier={handleModifierConfirm}
         onCloseCart={() => dispatchOrderState({ type: "cartClosed" })}
