@@ -19,7 +19,7 @@ type TransactionClient = Prisma.TransactionClient;
 const adjustmentSchema = z.object({
   orderId: z.string().trim().min(1),
   orderItemId: z.string().trim().min(1).nullable().optional(),
-  type: z.nativeEnum(SalesAdjustmentType),
+  type: z.enum(SalesAdjustmentType),
   amount: z.string().regex(/^\d+(?:\.\d{1,2})?$/),
   quantity: z.string().regex(/^\d+(?:\.\d{1,3})?$/).nullable().optional(),
   reason: z.string().trim().min(3).max(500),
