@@ -7,32 +7,70 @@ datasource db {
 }
 
 model User {
-  id            String      @id
-  phoneNumber   String?     @unique
-  fullName      String
-  role          UserRole    @default(CASHIER)
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  email         String      @unique
-  station       Station?
-  orders        Order[]     @relation("Cashier")
-  waiterOrders  Order[]     @relation("WaiterOrders")
-  assignedItems OrderItem[] @relation("AssignedOrderItems")
-  claimedKitchenTickets KitchenTicketState[] @relation("KitchenTicketClaimant")
-  payments      Payment[]
-  shifts        Shift[]     @relation("WaiterShifts")
-  shiftsSettled Shift[]     @relation("ShiftSettledBy")
-  waiterBalanceInitialization WaiterBalanceInitialization? @relation("WaiterBalanceOwner")
+  id                                  String                        @id
+  phoneNumber                         String?                       @unique
+  fullName                            String
+  role                                UserRole                      @default(CASHIER)
+  isActive                            Boolean                       @default(true)
+  createdAt                           DateTime                      @default(now())
+  updatedAt                           DateTime                      @updatedAt
+  email                               String                        @unique
+  station                             Station?
+  orders                              Order[]                       @relation("Cashier")
+  waiterOrders                        Order[]                       @relation("WaiterOrders")
+  assignedItems                       OrderItem[]                   @relation("AssignedOrderItems")
+  claimedKitchenTickets               KitchenTicketState[]          @relation("KitchenTicketClaimant")
+  payments                            Payment[]
+  shifts                              Shift[]                       @relation("WaiterShifts")
+  shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
+  waiterBalanceInitialization         WaiterBalanceInitialization?  @relation("WaiterBalanceOwner")
   waiterBalanceInitializationsCreated WaiterBalanceInitialization[] @relation("WaiterBalanceCreatedBy")
-  supplierDeliveriesVerified SupplierDelivery[] @relation("SupplierDeliveryVerifiedBy")
-  supplierDeliveriesRejected SupplierDelivery[] @relation("SupplierDeliveryRejectedBy")
-  supplierBillsSettled       SupplierBill[]     @relation("SupplierBillSettledBy")
-  supplierPaymentsRecorded   SupplierPayment[]  @relation("SupplierPaymentRecordedBy")
-  supplyPurchasesCreated     SupplyPurchase[]   @relation("SupplyPurchaseCreatedBy")
+  supplierDeliveriesVerified          SupplierDelivery[]            @relation("SupplierDeliveryVerifiedBy")
+  supplierDeliveriesRejected          SupplierDelivery[]            @relation("SupplierDeliveryRejectedBy")
+  supplierBillsSettled                SupplierBill[]                @relation("SupplierBillSettledBy")
+  supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
+  supplyPurchasesCreated              SupplyPurchase[]              @relation("SupplyPurchaseCreatedBy")
+  auditLogsCreated                    AuditLog[]                    @relation("AuditLogActor")
+  cafeSettingsUpdated                 CafeSetting[]                 @relation("CafeSettingUpdatedBy")
 
   @@index([role, isActive])
   @@index([station])
+}
+
+model CafeSetting {
+  id                     String   @id @default("default")
+  businessName           String   @default("Mash Allah Cafe")
+  currencyCode           String   @default("USD")
+  timezone               String   @default("Africa/Nairobi")
+  businessDayStartMinute Int      @default(420)
+  businessDayEndMinute   Int      @default(300)
+  weekStartDay           Int      @default(6)
+  updatedByUserId        String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  updatedBy              User?    @relation("CafeSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedByUserId])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  actorUserId       String?
+  action            String
+  entityType        String
+  entityId          String
+  reason            String?
+  previousValue     Json?
+  newValue          Json?
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime @default(now())
+  actor             User?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([relatedEntityType, relatedEntityId])
 }
 
 model Category {
@@ -51,27 +89,27 @@ model Category {
 }
 
 model Product {
-  id          String      @id @default(cuid())
-  name        String
- 
-  description String?
-  imageUrl    String?
+  id   String @id @default(cuid())
+  name String
+
+  description           String?
+  imageUrl              String?
   pronunciationAudioUrl String?
-  isActive    Boolean     @default(true)
-  isPopular   Boolean     @default(false)
-  price       Decimal
-  cost        Decimal?
-  categoryId  String
-  trackStock  Boolean     @default(false)
-  stockQty    Int         @default(0)
-  lowStockThreshold Int    @default(5)
-  inventoryAlertStatus InventoryAlertStatus @default(OK)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  modifiers   Modifier[]
-  orderItems  OrderItem[]
+  isActive              Boolean                @default(true)
+  isPopular             Boolean                @default(false)
+  price                 Decimal
+  cost                  Decimal?
+  categoryId            String
+  trackStock            Boolean                @default(false)
+  stockQty              Int                    @default(0)
+  lowStockThreshold     Int                    @default(5)
+  inventoryAlertStatus  InventoryAlertStatus   @default(OK)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  modifiers             Modifier[]
+  orderItems            OrderItem[]
   supplierDeliveryItems SupplierDeliveryItem[]
-  category    Category    @relation(fields: [categoryId], references: [id])
+  category              Category               @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
   @@index([trackStock, inventoryAlertStatus])
@@ -79,16 +117,16 @@ model Product {
 }
 
 model InventorySupply {
-  id                   String               @id @default(cuid())
-  name                 String
-  unit                 String               @default("unit")
-  stockQty             Int                  @default(0)
-  lowStockThreshold    Int                  @default(5)
-  inventoryAlertStatus InventoryAlertStatus @default(OK)
-  isActive             Boolean              @default(true)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  movements            InventoryMovement[]
+  id                    String                 @id @default(cuid())
+  name                  String
+  unit                  String                 @default("unit")
+  stockQty              Int                    @default(0)
+  lowStockThreshold     Int                    @default(5)
+  inventoryAlertStatus  InventoryAlertStatus   @default(OK)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  movements             InventoryMovement[]
   supplierDeliveryItems SupplierDeliveryItem[]
 
   @@unique([name, unit])
@@ -99,17 +137,17 @@ model InventorySupply {
 /// Product stock still lives on Product, but product changes are no longer written here
 /// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
 model InventoryMovement {
-  id            String           @id @default(cuid())
-  supplyId      String?
-  itemName      String
-  itemType      String
-  delta         Int
+  id             String           @id @default(cuid())
+  supplyId       String?
+  itemName       String
+  itemType       String
+  delta          Int
   quantityBefore Int
   quantityAfter  Int
-  reason        String
-  note          String?
-  createdAt     DateTime         @default(now())
-  supply        InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
+  reason         String
+  note           String?
+  createdAt      DateTime         @default(now())
+  supply         InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
   @@index([supplyId, createdAt])
   @@index([createdAt])
@@ -130,18 +168,18 @@ model ModifierGroup {
 }
 
 model Modifier {
-  id                 String              @id @default(cuid())
-  productId          String
-  modifierGroupId    String
-  name               String
-  price              Decimal
+  id                    String              @id @default(cuid())
+  productId             String
+  modifierGroupId       String
+  name                  String
+  price                 Decimal
   pronunciationAudioUrl String?
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  modifierGroup      ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
-  product            Product             @relation(fields: [productId], references: [id])
-  orderItemModifiers OrderItemModifier[]
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  modifierGroup         ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
+  product               Product             @relation(fields: [productId], references: [id])
+  orderItemModifiers    OrderItemModifier[]
 
   @@index([productId])
   @@index([modifierGroupId])
@@ -159,23 +197,23 @@ model Table {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber Int         @unique @default(autoincrement())
-  type        OrderType   @default(DINE_IN)
-  status      OrderStatus @default(OPEN)
-  tableId     String?
-  cashierId   String?
-  waiterId    String?
-  notes       String?
-  total       Decimal
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  closedAt    DateTime?
-  cashier     User?       @relation("Cashier", fields: [cashierId], references: [id])
-  waiter      User?       @relation("WaiterOrders", fields: [waiterId], references: [id])
-  table       Table?      @relation(fields: [tableId], references: [id])
-  orderItems  OrderItem[]
-  payments    Payment[]
+  id                 String              @id @default(cuid())
+  orderNumber        Int                 @unique @default(autoincrement())
+  type               OrderType           @default(DINE_IN)
+  status             OrderStatus         @default(OPEN)
+  tableId            String?
+  cashierId          String?
+  waiterId           String?
+  notes              String?
+  total              Decimal
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  closedAt           DateTime?
+  cashier            User?               @relation("Cashier", fields: [cashierId], references: [id])
+  waiter             User?               @relation("WaiterOrders", fields: [waiterId], references: [id])
+  table              Table?              @relation(fields: [tableId], references: [id])
+  orderItems         OrderItem[]
+  payments           Payment[]
   kitchenTicketState KitchenTicketState?
 
   @@index([status])
@@ -210,15 +248,15 @@ model OrderItem {
 /// Durable kitchen workflow state for an order. The order and its ticket state
 /// are created atomically so Supabase Realtime can always rebuild a snapshot.
 model KitchenTicketState {
-  orderId             String              @id
-  pickupStatus        KitchenPickupStatus @default(PREPARING)
+  orderId             String                      @id
+  pickupStatus        KitchenPickupStatus         @default(PREPARING)
   customerName        String?
   claimedByWaiterId   String?
   claimedByWaiterName String?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  claimedByWaiter     User?               @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  order               Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  claimedByWaiter     User?                       @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
   stationStates       KitchenTicketStationState[]
 
   @@index([pickupStatus, updatedAt])
@@ -264,30 +302,30 @@ model Payment {
   cashier     User          @relation(fields: [cashierId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id])
 
+  @@unique([method, reference])
   @@index([createdAt])
   @@index([orderId])
   @@index([cashierId, createdAt])
-  @@unique([method, reference])
 }
 
 model Shift {
-  id            String    @id @default(cuid())
-  userId        String
-  openedAt      DateTime  @default(now())
-  closedAt      DateTime?
-  openingAmount Decimal   @default(0)
-  closingAmount Decimal?
-  businessDate  DateTime? @db.Date
-  reportedSales Decimal?
+  id              String    @id @default(cuid())
+  userId          String
+  openedAt        DateTime  @default(now())
+  closedAt        DateTime?
+  openingAmount   Decimal   @default(0)
+  closingAmount   Decimal?
+  businessDate    DateTime? @db.Date
+  reportedSales   Decimal?
   settledByUserId String?
-  updatedAt     DateTime  @updatedAt
-  waiter        User      @relation("WaiterShifts", fields: [userId], references: [id])
-  settledBy     User?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
+  updatedAt       DateTime  @updatedAt
+  waiter          User      @relation("WaiterShifts", fields: [userId], references: [id])
+  settledBy       User?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, businessDate])
   @@index([openedAt])
   @@index([userId, openedAt])
   @@index([settledByUserId])
-  @@unique([userId, businessDate])
 }
 
 model WaiterBalanceInitialization {
@@ -304,17 +342,17 @@ model WaiterBalanceInitialization {
 }
 
 model Supplier {
-  id          String   @id @default(cuid())
+  id          String             @id @default(cuid())
   name        String
-  slug        String   @unique
+  slug        String             @unique
   contactName String?
   phone       String?
   email       String?
-  googleEmail String?  @unique
+  googleEmail String?            @unique
   notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   deliveries  SupplierDelivery[]
   bills       SupplierBill[]
 
@@ -363,7 +401,7 @@ model SupplierDelivery {
 }
 
 model SupplierDeliveryItem {
-  id                String   @id @default(cuid())
+  id                String           @id @default(cuid())
   deliveryId        String
   productId         String?
   inventorySupplyId String?
@@ -374,13 +412,13 @@ model SupplierDeliveryItem {
   unitPrice         Decimal?
   totalPrice        Decimal?
   confidenceScore   Float?
-  needsManualReview Boolean  @default(false)
+  needsManualReview Boolean          @default(false)
   notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
   delivery          SupplierDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  product           Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
-  inventorySupply   InventorySupply?  @relation(fields: [inventorySupplyId], references: [id], onDelete: SetNull)
+  product           Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  inventorySupply   InventorySupply? @relation(fields: [inventorySupplyId], references: [id], onDelete: SetNull)
 
   @@index([deliveryId])
   @@index([productId])
@@ -409,14 +447,14 @@ model SupplierBill {
 }
 
 model SupplierPayment {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   billId           String
   amount           Decimal
   paymentMethod    String?
   notes            String?
   recordedByUserId String
-  paidAt           DateTime @default(now())
-  createdAt        DateTime @default(now())
+  paidAt           DateTime     @default(now())
+  createdAt        DateTime     @default(now())
   bill             SupplierBill @relation(fields: [billId], references: [id], onDelete: Cascade)
   recordedBy       User         @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
 

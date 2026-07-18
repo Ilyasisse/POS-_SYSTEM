@@ -1,37 +1,19 @@
+import { getBusinessDayRange } from "@/lib/reports/reporting-calendar";
+
 const businessDayDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
+  timeZone: "Africa/Nairobi",
 });
 
 const businessDayTimeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
+  timeZone: "Africa/Nairobi",
 });
 
 export function getCashierBusinessDayRange(now: Date = new Date()) {
-  const start = new Date(now);
-  const end = new Date(now);
-  const currentHour = now.getHours();
-
-  if (currentHour >= 7) {
-    start.setHours(7, 0, 0, 0);
-    end.setDate(end.getDate() + 1);
-    end.setHours(5, 0, 0, 0);
-    return { start, end };
-  }
-
-  if (currentHour < 5) {
-    start.setDate(start.getDate() - 1);
-    start.setHours(7, 0, 0, 0);
-    end.setHours(5, 0, 0, 0);
-    return { start, end };
-  }
-
-  start.setHours(7, 0, 0, 0);
-  end.setDate(end.getDate() + 1);
-  end.setHours(5, 0, 0, 0);
-
-  return { start, end };
+  return getBusinessDayRange(now);
 }
 
 export function formatCashierBusinessDayRange(start: Date, end: Date) {

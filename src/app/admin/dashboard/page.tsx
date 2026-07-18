@@ -3,66 +3,25 @@ import Header from "@/components/admin/dashboard/Header";
 import Dashboard from "@/components/admin/dashboard/Dashboard";
 
 import Status from "@/components/admin/dashboard/Status";
-
-// Convert UTC TimeZone to my local EAST AFRICA time zone
-const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-// Represents one full day in milliseconds for date-range calculations.
-const DAY_MS = 24 * 60 * 60 * 1000;
+import {
+  getBusinessDayRange,
+  getReportingWeekRange,
+  shiftRange,
+} from "@/lib/reports/reporting-calendar";
+import {
+  averageOrderValue as calculateAverageOrderValue,
+  sumMoney,
+} from "@/lib/reports/financial-formulas";
 
 const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
   timeZone: "Africa/Nairobi",
 });
 
-// Returns a new date shifted by a whole number of days.
-function addDays(date: Date, days: number) {
-  return new Date(date.getTime() + days * DAY_MS);
-}
-
-// Finds the start of the current cafe business day in East Africa Time.
-function getEatDayStart(date = new Date()) {
-  // REVIEW: Dashboard metrics use the cafe's East Africa Time business day.
-  // Shifts the input date into EAT before truncating it to midnight.
-  const eatNow = new Date(date.getTime());
-
-  // Stores the UTC timestamp for midnight of the EAT calendar day.
-  const eatStart = Date.UTC(
-    eatNow.getUTCFullYear(),
-    eatNow.getUTCMonth(),
-    eatNow.getUTCDate(),
-  );
-
-  return new Date(eatStart - EAT_OFFSET_MS);
-}
-
-// Finds the Monday start for the current cafe reporting week.
-function getEatWeekStart(date = new Date()) {
-  // Reuses the EAT day start so weekly ranges align with daily ranges.
-  const todayStart = getEatDayStart(date);
-
-  // Shifts the input into EAT for weekday math.
-  const eatNow = new Date(date.getTime() + EAT_OFFSET_MS);
-
-  // Converts JavaScript's Sunday-first week into a Monday-first week.
-  const daysSinceMonday = (eatNow.getUTCDay() + 6) % 7;
-
-  return addDays(todayStart, -daysSinceMonday);
-}
-
 // Renders the admin dashboard page with live Prisma-backed metrics.
 export default async function AdminPage() {
-  // Defines the start of the current cafe-local day.
-  const todayStart = getEatDayStart();
-
-  // Defines the exclusive end of the current cafe-local day.
-  const tomorrowStart = addDays(todayStart, 1);
-
-  // Defines the start of the current cafe-local reporting week.
-  const weekStart = getEatWeekStart();
-
-  // Defines the exclusive end of the current cafe-local reporting week.
-  const weekEnd = addDays(weekStart, 7);
+  const { start: todayStart, end: tomorrowStart } = getBusinessDayRange();
+  const { start: weekStart, end: weekEnd } = getReportingWeekRange();
 
   const [
     // Total number of menu categories.
@@ -179,36 +138,35 @@ export default async function AdminPage() {
   ]);
 
   // Sums weekly order totals for the sales KPI.
-  const totalSales = weekOrders.reduce(
-    (sum, order) => sum + Number(order.total),
-    0,
-  );
+  const totalSalesDecimal = sumMoney(weekOrders.map((order) => order.total));
+  const totalSales = totalSalesDecimal.toNumber();
 
   // Counts weekly orders for the sales summary.
   const totalOrders = weekOrders.length;
 
   // Calculates average order value while avoiding division by zero.
-  const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+  const averageOrderValue =
+    calculateAverageOrderValue(totalSalesDecimal, totalOrders)?.toNumber() ?? 0;
 
   // Builds seven chart points, one for each day in the current week.
   const chartPoints = Array.from({ length: 7 }, (_, index) => {
     // Defines the inclusive start for this chart day.
-    const dayStart = addDays(weekStart, index);
-
-    // Defines the exclusive end for this chart day.
-    const dayEnd = addDays(dayStart, 1);
+    const dayStart = shiftRange({ start: weekStart, end: weekStart }, index).start;
+    const dayEnd = new Date(dayStart.getTime() + 22 * 60 * 60 * 1000);
 
     // Sums orders that fall inside this chart day.
-    const value = weekOrders
-      .filter(
-        (order) => order.createdAt >= dayStart && order.createdAt < dayEnd,
-      )
-      .reduce((sum, order) => sum + Number(order.total), 0);
+    const value = [];
+    for (const order of weekOrders) {
+      if (order.createdAt >= dayStart && order.createdAt < dayEnd) {
+        value.push(order.total);
+      }
+    }
+    const decimalValue = sumMoney(value);
 
     // Formats the chart day label in cafe-local time.
     const label = weekdayFormatter.format(dayStart);
 
-    return { label, value };
+    return { label, value: decimalValue.toNumber() };
   });
 
   return (
