@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdminPage, Card, MetricCard } from "@/components/admin/shared";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,10 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
 import { getSalesReport } from "@/lib/reports/services/sales-report-service";
 import { reportQuerySchema } from "@/lib/reports/validation";
+import {
+  isReportSchemaNotReady,
+  REPORT_SCHEMA_NOT_READY_MESSAGE,
+} from "@/lib/reports/report-errors";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type Props = {
@@ -50,7 +55,25 @@ export async function SalesReportPage({
     Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
   );
   const parsed = reportQuerySchema.parse({ ...normalized, preset: normalized.preset ?? defaultPreset });
-  const report = await getSalesReport(resolveReportRange(parsed), parsed);
+  let report: Awaited<ReturnType<typeof getSalesReport>>;
+  try {
+    report = await getSalesReport(resolveReportRange(parsed), parsed);
+  } catch (error) {
+    if (!isReportSchemaNotReady(error)) throw error;
+    return (
+      <AdminPage title={title} description={description}>
+        <Alert variant="destructive">
+          <AlertTitle>Reporting database migration required</AlertTitle>
+          <AlertDescription>
+            {REPORT_SCHEMA_NOT_READY_MESSAGE} Required migrations:
+            <code className="mt-2 block text-xs">
+              20260718_reporting_foundation, 20260718_sales_integrity
+            </code>
+          </AlertDescription>
+        </Alert>
+      </AdminPage>
+    );
+  }
   const canSeeFinancials = user.role === "ADMIN";
   const rows = focus === "products" ? report.products : report.categories;
 

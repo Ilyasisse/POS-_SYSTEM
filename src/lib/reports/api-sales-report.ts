@@ -4,6 +4,10 @@ import { hasPermission, PERMISSIONS, type Permission } from "@/lib/auth/permissi
 import { getSalesReport } from "@/lib/reports/services/sales-report-service";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
 import { reportQuerySchema } from "@/lib/reports/validation";
+import {
+  isReportSchemaNotReady,
+  REPORT_SCHEMA_NOT_READY_MESSAGE,
+} from "@/lib/reports/report-errors";
 
 export async function salesReportResponse(
   request: Request,
@@ -22,7 +26,25 @@ export async function salesReportResponse(
       { status: 400 },
     );
   }
-  const report = await getSalesReport(resolveReportRange(parsed.data), parsed.data);
+  let report: Awaited<ReturnType<typeof getSalesReport>>;
+  try {
+    report = await getSalesReport(resolveReportRange(parsed.data), parsed.data);
+  } catch (error) {
+    if (isReportSchemaNotReady(error)) {
+      return NextResponse.json(
+        {
+          error: REPORT_SCHEMA_NOT_READY_MESSAGE,
+          code: "REPORT_SCHEMA_NOT_READY",
+          requiredMigrations: [
+            "20260718_reporting_foundation",
+            "20260718_sales_integrity",
+          ],
+        },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
   const authorizedReport = hasPermission(
     authorization.user,
     PERMISSIONS.REPORT_FINANCIAL_VIEW,
