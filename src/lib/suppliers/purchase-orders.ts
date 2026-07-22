@@ -38,19 +38,24 @@ const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
 const MAX_QUANTITY = new Prisma.Decimal("999999999.999");
 const MAX_UNIT_PRICE = new Prisma.Decimal("9999999999.99");
 const MAX_ORDER_TOTAL = new Prisma.Decimal("999999999999.99");
+const NAIROBI_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: SUPPLIER_PURCHASE_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export type SupplierCatalogPriceTrend =
+  | "new"
+  | "increased"
+  | "decreased"
+  | "unchanged";
 
 function dateKeyInNairobi(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: SUPPLIER_PURCHASE_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
+  const values: Record<string, string> = {};
+  for (const part of NAIROBI_DATE_KEY_FORMATTER.formatToParts(date)) {
+    if (part.type !== "literal") values[part.type] = part.value;
+  }
 
   return `${values.year}-${values.month}-${values.day}`;
 }
@@ -189,4 +194,18 @@ export function calculateSupplierPurchaseOrderTotal(
     }
   }
   return total.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+}
+
+export function getSupplierCatalogPriceTrend(
+  currentPrice: Prisma.Decimal.Value,
+  lastOrderedPrice: Prisma.Decimal.Value | null | undefined,
+): SupplierCatalogPriceTrend {
+  if (lastOrderedPrice === null || lastOrderedPrice === undefined) return "new";
+
+  const comparison = new Prisma.Decimal(currentPrice).comparedTo(
+    lastOrderedPrice,
+  );
+  if (comparison > 0) return "increased";
+  if (comparison < 0) return "decreased";
+  return "unchanged";
 }

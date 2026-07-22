@@ -4,6 +4,7 @@ import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
   getSupplierBillDefaultDueDateKey,
+  getSupplierCatalogPriceTrend,
   getSupplierPurchaseTodayDateKey,
   isValidSupplierPurchaseDateKey,
   parseSupplierCatalogItemInput,
@@ -108,4 +109,11 @@ test("rounds each line before summing the purchase-order total", () => {
     ]).toString(),
     "2.02",
   );
+});
+
+test("compares the current catalog price with the latest ordered price", () => {
+  assert.equal(getSupplierCatalogPriceTrend("10", null), "new");
+  assert.equal(getSupplierCatalogPriceTrend("12", "10"), "increased");
+  assert.equal(getSupplierCatalogPriceTrend("8", "10"), "decreased");
+  assert.equal(getSupplierCatalogPriceTrend("10.00", "10"), "unchanged");
 });

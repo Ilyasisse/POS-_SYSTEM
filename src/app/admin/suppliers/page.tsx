@@ -109,7 +109,9 @@ export default async function SuppliersPage() {
   const [suppliers, requestHeaders] = await Promise.all([
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
-      include: { _count: { select: { deliveries: true } } },
+      include: {
+        _count: { select: { catalogItems: true, deliveries: true } },
+      },
     }),
     headers(),
   ]);
@@ -157,6 +159,7 @@ export default async function SuppliersPage() {
               <TableHead>Portal</TableHead>
               <TableHead>Account</TableHead>
               <TableHead>Deliveries</TableHead>
+              <TableHead>Catalog</TableHead>
               <TableHead>Edit</TableHead>
             </tr>
           </thead>
@@ -197,6 +200,16 @@ export default async function SuppliersPage() {
                   </TableCell>
                   <TableCell>{supplier._count.deliveries}</TableCell>
                   <TableCell>
+                    <div className="font-semibold">
+                      {supplier._count.catalogItems} items
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="mt-2">
+                      <Link href={`/admin/suppliers/${supplier.id}`}>
+                        Manage catalog
+                      </Link>
+                    </Button>
+                  </TableCell>
+                  <TableCell>
                     <form
                       action={updateSupplier}
                       className="grid min-w-72 gap-2"
@@ -211,7 +224,7 @@ export default async function SuppliersPage() {
               ))
             ) : (
               <tr>
-                <TableCell colSpan={5}>No suppliers have been added.</TableCell>
+                <TableCell colSpan={6}>No suppliers have been added.</TableCell>
               </tr>
             )}
           </tbody>
