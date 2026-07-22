@@ -3,9 +3,12 @@ import test from "node:test";
 import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
+  canTransitionSupplierPurchaseOrderStatus,
   getSupplierBillDefaultDueDateKey,
   getSupplierCatalogPriceTrend,
   getSupplierPurchaseTodayDateKey,
+  getSupplierPurchaseDefaultDeliveryDateKey,
+  isSupplierPurchaseDeliveryDateAllowed,
   isValidSupplierPurchaseDateKey,
   parseSupplierCatalogItemInput,
   supplierPurchaseDateKeyToDatabaseDate,
@@ -16,6 +19,15 @@ test("uses Nairobi dates and defaults supplier bills to the next day", () => {
   const now = new Date("2026-07-22T22:30:00.000Z");
   assert.equal(getSupplierPurchaseTodayDateKey(now), "2026-07-23");
   assert.equal(getSupplierBillDefaultDueDateKey(now), "2026-07-24");
+  assert.equal(getSupplierPurchaseDefaultDeliveryDateKey(now), "2026-07-24");
+});
+
+test("requires purchase-order delivery dates to be today or later in Nairobi", () => {
+  const now = new Date("2026-07-22T22:30:00.000Z");
+  assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-22", now), false);
+  assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-23", now), true);
+  assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-24", now), true);
+  assert.equal(isSupplierPurchaseDeliveryDateAllowed("not-a-date", now), false);
 });
 
 test("validates real purchase-order calendar dates", () => {
@@ -116,4 +128,23 @@ test("compares the current catalog price with the latest ordered price", () => {
   assert.equal(getSupplierCatalogPriceTrend("12", "10"), "increased");
   assert.equal(getSupplierCatalogPriceTrend("8", "10"), "decreased");
   assert.equal(getSupplierCatalogPriceTrend("10.00", "10"), "unchanged");
+});
+
+test("allows purchase orders to leave OPEN only once", () => {
+  assert.equal(
+    canTransitionSupplierPurchaseOrderStatus("OPEN", "COMPLETED"),
+    true,
+  );
+  assert.equal(
+    canTransitionSupplierPurchaseOrderStatus("OPEN", "CANCELLED"),
+    true,
+  );
+  assert.equal(
+    canTransitionSupplierPurchaseOrderStatus("COMPLETED", "CANCELLED"),
+    false,
+  );
+  assert.equal(
+    canTransitionSupplierPurchaseOrderStatus("CANCELLED", "COMPLETED"),
+    false,
+  );
 });

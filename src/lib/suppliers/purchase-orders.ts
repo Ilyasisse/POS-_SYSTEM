@@ -88,6 +88,30 @@ export function getSupplierBillDefaultDueDateKey(now = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+export function getSupplierPurchaseDefaultDeliveryDateKey(now = new Date()) {
+  return getSupplierBillDefaultDueDateKey(now);
+}
+
+export function isSupplierPurchaseDeliveryDateAllowed(
+  value: string,
+  now = new Date(),
+) {
+  return (
+    isValidSupplierPurchaseDateKey(value) &&
+    value >= getSupplierPurchaseTodayDateKey(now)
+  );
+}
+
+export function canTransitionSupplierPurchaseOrderStatus(
+  currentStatus: "OPEN" | "COMPLETED" | "CANCELLED",
+  nextStatus: "COMPLETED" | "CANCELLED",
+) {
+  return (
+    currentStatus === "OPEN" &&
+    (nextStatus === "COMPLETED" || nextStatus === "CANCELLED")
+  );
+}
+
 export function parseSupplierCatalogItemInput(input: {
   targetKind?: unknown;
   targetId?: unknown;
