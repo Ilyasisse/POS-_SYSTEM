@@ -30,6 +30,7 @@ model User {
   supplierBillsSettled       SupplierBill[]     @relation("SupplierBillSettledBy")
   supplierPaymentsRecorded   SupplierPayment[]  @relation("SupplierPaymentRecordedBy")
   supplyPurchasesCreated     SupplyPurchase[]   @relation("SupplyPurchaseCreatedBy")
+  supplierPurchaseOrdersCreated SupplierPurchaseOrder[] @relation("SupplierPurchaseOrderCreatedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -71,6 +72,7 @@ model Product {
   modifiers   Modifier[]
   orderItems  OrderItem[]
   supplierDeliveryItems SupplierDeliveryItem[]
+  supplierCatalogItems  SupplierCatalogItem[]
   category    Category    @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
@@ -90,6 +92,7 @@ model InventorySupply {
   updatedAt            DateTime             @updatedAt
   movements            InventoryMovement[]
   supplierDeliveryItems SupplierDeliveryItem[]
+  supplierCatalogItems   SupplierCatalogItem[]
 
   @@unique([name, unit])
   @@index([isActive, inventoryAlertStatus])
@@ -317,6 +320,8 @@ model Supplier {
   updatedAt   DateTime @updatedAt
   deliveries  SupplierDelivery[]
   bills       SupplierBill[]
+  catalogItems SupplierCatalogItem[]
+  purchaseOrders SupplierPurchaseOrder[]
 
   @@index([isActive, name])
 }
@@ -394,6 +399,7 @@ model SupplierBill {
   totalAmount     Decimal
   paidAmount      Decimal               @default(0)
   status          SupplierPaymentStatus @default(UNPAID)
+  dueDate         DateTime               @default(dbgenerated("(CURRENT_DATE + 1)")) @db.Date
   settledAt       DateTime?
   settledByUserId String?
   notes           String?
@@ -406,6 +412,7 @@ model SupplierBill {
 
   @@index([supplierId, createdAt])
   @@index([status, createdAt])
+  @@index([status, dueDate])
 }
 
 model SupplierPayment {
@@ -422,6 +429,67 @@ model SupplierPayment {
 
   @@index([billId, paidAt])
   @@index([recordedByUserId, paidAt])
+}
+
+model SupplierCatalogItem {
+  id                 String   @id @default(cuid())
+  supplierId         String
+  productId          String?
+  inventorySupplyId  String?
+  unit               String   @default("unit")
+  unitPrice          Decimal  @db.Decimal(12, 2)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  supplier           Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product            Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  inventorySupply    InventorySupply? @relation(fields: [inventorySupplyId], references: [id], onDelete: Restrict)
+  purchaseOrderItems SupplierPurchaseOrderItem[]
+
+  @@unique([supplierId, productId])
+  @@unique([supplierId, inventorySupplyId])
+  @@index([supplierId, isActive])
+  @@index([productId])
+  @@index([inventorySupplyId])
+}
+
+model SupplierPurchaseOrder {
+  id                   String                       @id @default(cuid())
+  orderNumber          Int                          @unique @default(autoincrement())
+  supplierId           String
+  status               SupplierPurchaseOrderStatus @default(OPEN)
+  expectedDeliveryDate DateTime                     @db.Date
+  notes                String?
+  totalAmount          Decimal                      @default(0) @db.Decimal(14, 2)
+  createdByUserId      String
+  completedAt          DateTime?
+  cancelledAt          DateTime?
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  supplier             Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy            User                         @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items                SupplierPurchaseOrderItem[]
+
+  @@index([supplierId, status, expectedDeliveryDate])
+  @@index([status, expectedDeliveryDate])
+  @@index([createdByUserId, createdAt])
+}
+
+model SupplierPurchaseOrderItem {
+  id                    String   @id @default(cuid())
+  purchaseOrderId       String
+  supplierCatalogItemId String
+  itemName              String
+  itemUnit              String
+  quantity              Decimal  @db.Decimal(12, 3)
+  unitPrice             Decimal  @db.Decimal(12, 2)
+  lineTotal             Decimal  @db.Decimal(14, 2)
+  createdAt             DateTime @default(now())
+  purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  supplierCatalogItem   SupplierCatalogItem    @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseOrderId, supplierCatalogItemId])
+  @@index([supplierCatalogItemId])
 }
 
 model SupplyPurchase {
@@ -508,4 +576,10 @@ enum SupplierPaymentStatus {
   UNPAID
   PARTIAL
   PAID
+}
+
+enum SupplierPurchaseOrderStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
 }
