@@ -7,30 +7,33 @@ datasource db {
 }
 
 model User {
-  id            String      @id
-  phoneNumber   String?     @unique
-  fullName      String
-  role          UserRole    @default(CASHIER)
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  email         String      @unique
-  station       Station?
-  orders        Order[]     @relation("Cashier")
-  waiterOrders  Order[]     @relation("WaiterOrders")
-  assignedItems OrderItem[] @relation("AssignedOrderItems")
-  claimedKitchenTickets KitchenTicketState[] @relation("KitchenTicketClaimant")
-  payments      Payment[]
-  shifts        Shift[]     @relation("WaiterShifts")
-  shiftsSettled Shift[]     @relation("ShiftSettledBy")
-  waiterBalanceInitialization WaiterBalanceInitialization? @relation("WaiterBalanceOwner")
+  id                                  String                        @id
+  phoneNumber                         String?                       @unique
+  fullName                            String
+  role                                UserRole                      @default(CASHIER)
+  isActive                            Boolean                       @default(true)
+  createdAt                           DateTime                      @default(now())
+  updatedAt                           DateTime                      @updatedAt
+  email                               String                        @unique
+  station                             Station?
+  orders                              Order[]                       @relation("Cashier")
+  waiterOrders                        Order[]                       @relation("WaiterOrders")
+  assignedItems                       OrderItem[]                   @relation("AssignedOrderItems")
+  claimedKitchenTickets               KitchenTicketState[]          @relation("KitchenTicketClaimant")
+  payments                            Payment[]
+  shifts                              Shift[]                       @relation("WaiterShifts")
+  shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
+  waiterBalanceInitialization         WaiterBalanceInitialization?  @relation("WaiterBalanceOwner")
   waiterBalanceInitializationsCreated WaiterBalanceInitialization[] @relation("WaiterBalanceCreatedBy")
-  supplierDeliveriesVerified SupplierDelivery[] @relation("SupplierDeliveryVerifiedBy")
-  supplierDeliveriesRejected SupplierDelivery[] @relation("SupplierDeliveryRejectedBy")
-  supplierBillsSettled       SupplierBill[]     @relation("SupplierBillSettledBy")
-  supplierPaymentsRecorded   SupplierPayment[]  @relation("SupplierPaymentRecordedBy")
-  supplyPurchasesCreated     SupplyPurchase[]   @relation("SupplyPurchaseCreatedBy")
-  supplierPurchaseOrdersCreated SupplierPurchaseOrder[] @relation("SupplierPurchaseOrderCreatedBy")
+  supplierDeliveriesVerified          SupplierDelivery[]            @relation("SupplierDeliveryVerifiedBy")
+  supplierDeliveriesRejected          SupplierDelivery[]            @relation("SupplierDeliveryRejectedBy")
+  supplierBillsSettled                SupplierBill[]                @relation("SupplierBillSettledBy")
+  supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
+  supplyPurchasesCreated              SupplyPurchase[]              @relation("SupplyPurchaseCreatedBy")
+  supplierPurchaseOrdersCreated       SupplierPurchaseOrder[]       @relation("SupplierPurchaseOrderCreatedBy")
+  supplierInvoicesCreated             SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
+  supplierInvoicesFinalized           SupplierInvoice[]             @relation("SupplierInvoiceFinalizedBy")
+  supplierInvoicesVoided              SupplierInvoice[]             @relation("SupplierInvoiceVoidedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -52,28 +55,28 @@ model Category {
 }
 
 model Product {
-  id          String      @id @default(cuid())
-  name        String
- 
-  description String?
-  imageUrl    String?
+  id   String @id @default(cuid())
+  name String
+
+  description           String?
+  imageUrl              String?
   pronunciationAudioUrl String?
-  isActive    Boolean     @default(true)
-  isPopular   Boolean     @default(false)
-  price       Decimal
-  cost        Decimal?
-  categoryId  String
-  trackStock  Boolean     @default(false)
-  stockQty    Int         @default(0)
-  lowStockThreshold Int    @default(5)
-  inventoryAlertStatus InventoryAlertStatus @default(OK)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  modifiers   Modifier[]
-  orderItems  OrderItem[]
+  isActive              Boolean                @default(true)
+  isPopular             Boolean                @default(false)
+  price                 Decimal
+  cost                  Decimal?
+  categoryId            String
+  trackStock            Boolean                @default(false)
+  stockQty              Int                    @default(0)
+  lowStockThreshold     Int                    @default(5)
+  inventoryAlertStatus  InventoryAlertStatus   @default(OK)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  modifiers             Modifier[]
+  orderItems            OrderItem[]
   supplierDeliveryItems SupplierDeliveryItem[]
   supplierCatalogItems  SupplierCatalogItem[]
-  category    Category    @relation(fields: [categoryId], references: [id])
+  category              Category               @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
   @@index([trackStock, inventoryAlertStatus])
@@ -81,18 +84,18 @@ model Product {
 }
 
 model InventorySupply {
-  id                   String               @id @default(cuid())
-  name                 String
-  unit                 String               @default("unit")
-  stockQty             Int                  @default(0)
-  lowStockThreshold    Int                  @default(5)
-  inventoryAlertStatus InventoryAlertStatus @default(OK)
-  isActive             Boolean              @default(true)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  movements            InventoryMovement[]
+  id                    String                 @id @default(cuid())
+  name                  String
+  unit                  String                 @default("unit")
+  stockQty              Int                    @default(0)
+  lowStockThreshold     Int                    @default(5)
+  inventoryAlertStatus  InventoryAlertStatus   @default(OK)
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  movements             InventoryMovement[]
   supplierDeliveryItems SupplierDeliveryItem[]
-  supplierCatalogItems   SupplierCatalogItem[]
+  supplierCatalogItems  SupplierCatalogItem[]
 
   @@unique([name, unit])
   @@index([isActive, inventoryAlertStatus])
@@ -102,17 +105,17 @@ model InventorySupply {
 /// Product stock still lives on Product, but product changes are no longer written here
 /// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
 model InventoryMovement {
-  id            String           @id @default(cuid())
-  supplyId      String?
-  itemName      String
-  itemType      String
-  delta         Int
+  id             String           @id @default(cuid())
+  supplyId       String?
+  itemName       String
+  itemType       String
+  delta          Int
   quantityBefore Int
   quantityAfter  Int
-  reason        String
-  note          String?
-  createdAt     DateTime         @default(now())
-  supply        InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
+  reason         String
+  note           String?
+  createdAt      DateTime         @default(now())
+  supply         InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
   @@index([supplyId, createdAt])
   @@index([createdAt])
@@ -133,18 +136,18 @@ model ModifierGroup {
 }
 
 model Modifier {
-  id                 String              @id @default(cuid())
-  productId          String
-  modifierGroupId    String
-  name               String
-  price              Decimal
+  id                    String              @id @default(cuid())
+  productId             String
+  modifierGroupId       String
+  name                  String
+  price                 Decimal
   pronunciationAudioUrl String?
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  modifierGroup      ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
-  product            Product             @relation(fields: [productId], references: [id])
-  orderItemModifiers OrderItemModifier[]
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  modifierGroup         ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
+  product               Product             @relation(fields: [productId], references: [id])
+  orderItemModifiers    OrderItemModifier[]
 
   @@index([productId])
   @@index([modifierGroupId])
@@ -162,23 +165,23 @@ model Table {
 }
 
 model Order {
-  id          String      @id @default(cuid())
-  orderNumber Int         @unique @default(autoincrement())
-  type        OrderType   @default(DINE_IN)
-  status      OrderStatus @default(OPEN)
-  tableId     String?
-  cashierId   String?
-  waiterId    String?
-  notes       String?
-  total       Decimal
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  closedAt    DateTime?
-  cashier     User?       @relation("Cashier", fields: [cashierId], references: [id])
-  waiter      User?       @relation("WaiterOrders", fields: [waiterId], references: [id])
-  table       Table?      @relation(fields: [tableId], references: [id])
-  orderItems  OrderItem[]
-  payments    Payment[]
+  id                 String              @id @default(cuid())
+  orderNumber        Int                 @unique @default(autoincrement())
+  type               OrderType           @default(DINE_IN)
+  status             OrderStatus         @default(OPEN)
+  tableId            String?
+  cashierId          String?
+  waiterId           String?
+  notes              String?
+  total              Decimal
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  closedAt           DateTime?
+  cashier            User?               @relation("Cashier", fields: [cashierId], references: [id])
+  waiter             User?               @relation("WaiterOrders", fields: [waiterId], references: [id])
+  table              Table?              @relation(fields: [tableId], references: [id])
+  orderItems         OrderItem[]
+  payments           Payment[]
   kitchenTicketState KitchenTicketState?
 
   @@index([status])
@@ -213,15 +216,15 @@ model OrderItem {
 /// Durable kitchen workflow state for an order. The order and its ticket state
 /// are created atomically so Supabase Realtime can always rebuild a snapshot.
 model KitchenTicketState {
-  orderId             String              @id
-  pickupStatus        KitchenPickupStatus @default(PREPARING)
+  orderId             String                      @id
+  pickupStatus        KitchenPickupStatus         @default(PREPARING)
   customerName        String?
   claimedByWaiterId   String?
   claimedByWaiterName String?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  order               Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  claimedByWaiter     User?               @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  order               Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  claimedByWaiter     User?                       @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
   stationStates       KitchenTicketStationState[]
 
   @@index([pickupStatus, updatedAt])
@@ -267,30 +270,30 @@ model Payment {
   cashier     User          @relation(fields: [cashierId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id])
 
+  @@unique([method, reference])
   @@index([createdAt])
   @@index([orderId])
   @@index([cashierId, createdAt])
-  @@unique([method, reference])
 }
 
 model Shift {
-  id            String    @id @default(cuid())
-  userId        String
-  openedAt      DateTime  @default(now())
-  closedAt      DateTime?
-  openingAmount Decimal   @default(0)
-  closingAmount Decimal?
-  businessDate  DateTime? @db.Date
-  reportedSales Decimal?
+  id              String    @id @default(cuid())
+  userId          String
+  openedAt        DateTime  @default(now())
+  closedAt        DateTime?
+  openingAmount   Decimal   @default(0)
+  closingAmount   Decimal?
+  businessDate    DateTime? @db.Date
+  reportedSales   Decimal?
   settledByUserId String?
-  updatedAt     DateTime  @updatedAt
-  waiter        User      @relation("WaiterShifts", fields: [userId], references: [id])
-  settledBy     User?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
+  updatedAt       DateTime  @updatedAt
+  waiter          User      @relation("WaiterShifts", fields: [userId], references: [id])
+  settledBy       User?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, businessDate])
   @@index([openedAt])
   @@index([userId, openedAt])
   @@index([settledByUserId])
-  @@unique([userId, businessDate])
 }
 
 model WaiterBalanceInitialization {
@@ -307,21 +310,22 @@ model WaiterBalanceInitialization {
 }
 
 model Supplier {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  contactName String?
-  phone       String?
-  email       String?
-  googleEmail String?  @unique
-  notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deliveries  SupplierDelivery[]
-  bills       SupplierBill[]
-  catalogItems SupplierCatalogItem[]
+  id             String                  @id @default(cuid())
+  name           String
+  slug           String                  @unique
+  contactName    String?
+  phone          String?
+  email          String?
+  googleEmail    String?                 @unique
+  notes          String?
+  isActive       Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  deliveries     SupplierDelivery[]
+  bills          SupplierBill[]
+  catalogItems   SupplierCatalogItem[]
   purchaseOrders SupplierPurchaseOrder[]
+  invoices       SupplierInvoice[]
 
   @@index([isActive, name])
 }
@@ -368,7 +372,7 @@ model SupplierDelivery {
 }
 
 model SupplierDeliveryItem {
-  id                String   @id @default(cuid())
+  id                String           @id @default(cuid())
   deliveryId        String
   productId         String?
   inventorySupplyId String?
@@ -379,13 +383,13 @@ model SupplierDeliveryItem {
   unitPrice         Decimal?
   totalPrice        Decimal?
   confidenceScore   Float?
-  needsManualReview Boolean  @default(false)
+  needsManualReview Boolean          @default(false)
   notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
   delivery          SupplierDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  product           Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
-  inventorySupply   InventorySupply?  @relation(fields: [inventorySupplyId], references: [id], onDelete: SetNull)
+  product           Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  inventorySupply   InventorySupply? @relation(fields: [inventorySupplyId], references: [id], onDelete: SetNull)
 
   @@index([deliveryId])
   @@index([productId])
@@ -395,18 +399,20 @@ model SupplierDeliveryItem {
 model SupplierBill {
   id              String                @id @default(cuid())
   supplierId      String
-  deliveryId      String                @unique
+  deliveryId      String?               @unique
+  invoiceId       String?               @unique
   totalAmount     Decimal
   paidAmount      Decimal               @default(0)
   status          SupplierPaymentStatus @default(UNPAID)
-  dueDate         DateTime               @default(dbgenerated("(CURRENT_DATE + 1)")) @db.Date
+  dueDate         DateTime              @default(dbgenerated("(CURRENT_DATE + 1)")) @db.Date
   settledAt       DateTime?
   settledByUserId String?
   notes           String?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   supplier        Supplier              @relation(fields: [supplierId], references: [id])
-  delivery        SupplierDelivery      @relation(fields: [deliveryId], references: [id])
+  delivery        SupplierDelivery?     @relation(fields: [deliveryId], references: [id])
+  invoice         SupplierInvoice?      @relation(fields: [invoiceId], references: [id])
   settledBy       User?                 @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
   payments        SupplierPayment[]
 
@@ -416,14 +422,14 @@ model SupplierBill {
 }
 
 model SupplierPayment {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   billId           String
   amount           Decimal
   paymentMethod    String?
   notes            String?
   recordedByUserId String
-  paidAt           DateTime @default(now())
-  createdAt        DateTime @default(now())
+  paidAt           DateTime     @default(now())
+  createdAt        DateTime     @default(now())
   bill             SupplierBill @relation(fields: [billId], references: [id], onDelete: Cascade)
   recordedBy       User         @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
 
@@ -432,19 +438,20 @@ model SupplierPayment {
 }
 
 model SupplierCatalogItem {
-  id                 String   @id @default(cuid())
+  id                 String                      @id @default(cuid())
   supplierId         String
   productId          String?
   inventorySupplyId  String?
-  unit               String   @default("unit")
-  unitPrice          Decimal  @db.Decimal(12, 2)
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  supplier           Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  product            Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
-  inventorySupply    InventorySupply? @relation(fields: [inventorySupplyId], references: [id], onDelete: Restrict)
+  unit               String                      @default("unit")
+  unitPrice          Decimal                     @db.Decimal(12, 2)
+  isActive           Boolean                     @default(true)
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  supplier           Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product            Product?                    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  inventorySupply    InventorySupply?            @relation(fields: [inventorySupplyId], references: [id], onDelete: Restrict)
   purchaseOrderItems SupplierPurchaseOrderItem[]
+  invoiceItems       SupplierInvoiceItem[]
 
   @@unique([supplierId, productId])
   @@unique([supplierId, inventorySupplyId])
@@ -454,21 +461,22 @@ model SupplierCatalogItem {
 }
 
 model SupplierPurchaseOrder {
-  id                   String                       @id @default(cuid())
-  orderNumber          Int                          @unique @default(autoincrement())
+  id                   String                      @id @default(cuid())
+  orderNumber          Int                         @unique @default(autoincrement())
   supplierId           String
   status               SupplierPurchaseOrderStatus @default(OPEN)
-  expectedDeliveryDate DateTime                     @db.Date
+  expectedDeliveryDate DateTime                    @db.Date
   notes                String?
-  totalAmount          Decimal                      @default(0) @db.Decimal(14, 2)
+  totalAmount          Decimal                     @default(0) @db.Decimal(14, 2)
   createdByUserId      String
   completedAt          DateTime?
   cancelledAt          DateTime?
-  createdAt            DateTime                     @default(now())
-  updatedAt            DateTime                     @updatedAt
-  supplier             Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy            User                         @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  supplier             Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy            User                        @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   items                SupplierPurchaseOrderItem[]
+  invoices             SupplierInvoice[]
 
   @@index([supplierId, status, expectedDeliveryDate])
   @@index([status, expectedDeliveryDate])
@@ -476,19 +484,76 @@ model SupplierPurchaseOrder {
 }
 
 model SupplierPurchaseOrderItem {
-  id                    String   @id @default(cuid())
+  id                    String                @id @default(cuid())
   purchaseOrderId       String
   supplierCatalogItemId String
   itemName              String
   itemUnit              String
-  quantity              Decimal  @db.Decimal(12, 3)
-  unitPrice             Decimal  @db.Decimal(12, 2)
-  lineTotal             Decimal  @db.Decimal(14, 2)
-  createdAt             DateTime @default(now())
+  quantity              Decimal               @db.Decimal(12, 3)
+  unitPrice             Decimal               @db.Decimal(12, 2)
+  lineTotal             Decimal               @db.Decimal(14, 2)
+  createdAt             DateTime              @default(now())
   purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  supplierCatalogItem   SupplierCatalogItem    @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict)
+  supplierCatalogItem   SupplierCatalogItem   @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict)
 
   @@unique([purchaseOrderId, supplierCatalogItemId])
+  @@index([supplierCatalogItemId])
+}
+
+model SupplierInvoice {
+  id                       String                 @id @default(cuid())
+  supplierId               String
+  purchaseOrderId          String?
+  source                   SupplierInvoiceSource
+  status                   SupplierInvoiceStatus  @default(DRAFT)
+  invoiceNumber            String?
+  invoiceDate              DateTime               @db.Date
+  dueDate                  DateTime               @db.Date
+  notes                    String?
+  totalAmount              Decimal                @default(0) @db.Decimal(14, 2)
+  receiptObjectPath        String?
+  receiptContentType       String?
+  uploadedByEmail          String?
+  submittedAt              DateTime               @default(now())
+  legacyInventoryUpdatedAt DateTime?
+  createdByUserId          String?
+  finalizedAt              DateTime?
+  finalizedByUserId        String?
+  voidedAt                 DateTime?
+  voidedByUserId           String?
+  voidReason               String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  supplier                 Supplier               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder            SupplierPurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  createdBy                User?                  @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  finalizedBy              User?                  @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  voidedBy                 User?                  @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  items                    SupplierInvoiceItem[]
+  bill                     SupplierBill?
+
+  @@index([supplierId, status, dueDate])
+  @@index([purchaseOrderId, status])
+  @@index([source, status, createdAt])
+  @@index([createdByUserId, createdAt])
+}
+
+model SupplierInvoiceItem {
+  id                    String               @id @default(cuid())
+  invoiceId             String
+  supplierCatalogItemId String?
+  itemName              String
+  itemUnit              String
+  quantity              Decimal              @db.Decimal(12, 3)
+  unitPrice             Decimal              @db.Decimal(12, 2)
+  lineTotal             Decimal              @db.Decimal(14, 2)
+  notes                 String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  invoice               SupplierInvoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  supplierCatalogItem   SupplierCatalogItem? @relation(fields: [supplierCatalogItemId], references: [id], onDelete: SetNull)
+
+  @@unique([invoiceId, supplierCatalogItemId])
   @@index([supplierCatalogItemId])
 }
 
@@ -582,4 +647,15 @@ enum SupplierPurchaseOrderStatus {
   OPEN
   COMPLETED
   CANCELLED
+}
+
+enum SupplierInvoiceStatus {
+  DRAFT
+  FINALIZED
+  VOID
+}
+
+enum SupplierInvoiceSource {
+  PURCHASE_ORDER
+  LEGACY_UPLOAD
 }
