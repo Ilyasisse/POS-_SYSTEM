@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  buildSupplierInvoiceDraftFromPurchaseOrder,
   type SupplierInvoiceDraftInput,
   type SupplierInvoiceDraftCreationMetadataInput,
   type ValidatedSupplierInvoiceDraft,
@@ -82,6 +83,58 @@ function duplicateActiveInvoice(error: unknown) {
   );
 }
 
+function concurrentTransaction(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2034"
+  );
+}
+
+type PurchaseOrderInvoiceFailure =
+  "not_found" | "not_open" | "not_completed" | "concurrent_change";
+
+export class SupplierPurchaseOrderInvoiceError extends Error {
+  constructor(readonly code: PurchaseOrderInvoiceFailure) {
+    super(code);
+  }
+}
+
+async function insertSupplierInvoiceDraft(
+  tx: Prisma.TransactionClient,
+  input: CreateSupplierInvoiceDraftInput,
+  metadata: ReturnType<typeof validateSupplierInvoiceDraftCreationMetadata>,
+  draft: ValidatedSupplierInvoiceDraft,
+) {
+  await assertCatalogOwnership(tx, metadata.supplierId, draft);
+  return tx.supplierInvoice.create({
+    data: {
+      supplierId: metadata.supplierId,
+      purchaseOrderId: metadata.purchaseOrderId,
+      source: input.source,
+      status: "DRAFT",
+      ...draftUpdateData(draft),
+      receiptObjectPath: metadata.receiptObjectPath,
+      receiptContentType: metadata.receiptContentType,
+      uploadedByEmail: metadata.uploadedByEmail,
+      submittedAt: input.submittedAt,
+      legacyInventoryUpdatedAt: input.legacyInventoryUpdatedAt ?? null,
+      createdByUserId: metadata.createdByUserId,
+      items: {
+        create: draft.lines.map((line) => ({
+          supplierCatalogItemId: line.supplierCatalogItemId,
+          itemName: line.itemName,
+          itemUnit: line.itemUnit,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          lineTotal: line.lineTotal,
+          notes: line.notes,
+        })),
+      },
+    },
+    include: { items: true, bill: true },
+  });
+}
+
 export async function createSupplierInvoiceDraft(
   input: CreateSupplierInvoiceDraftInput,
 ) {
@@ -115,40 +168,131 @@ export async function createSupplierInvoiceDraft(
           );
         }
 
-        await assertCatalogOwnership(tx, metadata.supplierId, draft);
-        return tx.supplierInvoice.create({
-          data: {
-            supplierId: metadata.supplierId,
-            purchaseOrderId: metadata.purchaseOrderId,
-            source: input.source,
-            status: "DRAFT",
-            ...draftUpdateData(draft),
-            receiptObjectPath: metadata.receiptObjectPath,
-            receiptContentType: metadata.receiptContentType,
-            uploadedByEmail: metadata.uploadedByEmail,
-            submittedAt: input.submittedAt,
-            legacyInventoryUpdatedAt: input.legacyInventoryUpdatedAt ?? null,
-            createdByUserId: metadata.createdByUserId,
-            items: {
-              create: draft.lines.map((line) => ({
-                supplierCatalogItemId: line.supplierCatalogItemId,
-                itemName: line.itemName,
-                itemUnit: line.itemUnit,
-                quantity: line.quantity,
-                unitPrice: line.unitPrice,
-                lineTotal: line.lineTotal,
-                notes: line.notes,
-              })),
-            },
-          },
-          include: { items: true, bill: true },
-        });
+        return insertSupplierInvoiceDraft(tx, input, metadata, draft);
       },
       { isolationLevel: SERIALIZABLE },
     );
   } catch (error) {
     if (duplicateActiveInvoice(error)) {
       throw new Error("This purchase order already has an active invoice.");
+    }
+    throw error;
+  }
+}
+
+const purchaseOrderInvoiceInclude = {
+  items: { orderBy: { createdAt: "asc" as const } },
+  invoices: {
+    where: { status: { in: ["DRAFT", "FINALIZED"] as const } },
+    select: { id: true },
+    take: 1,
+  },
+} satisfies Prisma.SupplierPurchaseOrderInclude;
+
+async function createPurchaseOrderInvoiceDraft(
+  tx: Prisma.TransactionClient,
+  purchaseOrder: Prisma.SupplierPurchaseOrderGetPayload<{
+    include: typeof purchaseOrderInvoiceInclude;
+  }>,
+  createdByUserId: string,
+  now: Date,
+) {
+  const input: CreateSupplierInvoiceDraftInput = {
+    supplierId: purchaseOrder.supplierId,
+    purchaseOrderId: purchaseOrder.id,
+    source: "PURCHASE_ORDER",
+    createdByUserId,
+    submittedAt: now,
+    draft: buildSupplierInvoiceDraftFromPurchaseOrder(purchaseOrder, now),
+  };
+  const metadata = validateSupplierInvoiceDraftCreationMetadata(input);
+  const draft = validateSupplierInvoiceDraftInput(input.draft);
+  return insertSupplierInvoiceDraft(tx, input, metadata, draft);
+}
+
+export async function completePurchaseOrderAndCreateInvoiceDraft(
+  purchaseOrderId: string,
+  createdByUserId: string,
+  now = new Date(),
+) {
+  const id = purchaseOrderId.trim();
+  const userId = createdByUserId.trim();
+  if (!id) throw new SupplierPurchaseOrderInvoiceError("not_found");
+  if (!userId) throw new Error("Invoice creator is required.");
+
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const order = await tx.supplierPurchaseOrder.findUnique({
+          where: { id },
+          include: purchaseOrderInvoiceInclude,
+        });
+        if (!order) throw new SupplierPurchaseOrderInvoiceError("not_found");
+        if (order.invoices[0]) return { invoiceId: order.invoices[0].id };
+        if (order.status !== "OPEN") {
+          throw new SupplierPurchaseOrderInvoiceError("not_open");
+        }
+
+        const completed = await tx.supplierPurchaseOrder.updateMany({
+          where: { id, status: "OPEN" },
+          data: { status: "COMPLETED", completedAt: now, cancelledAt: null },
+        });
+        if (completed.count !== 1) {
+          throw new SupplierPurchaseOrderInvoiceError("concurrent_change");
+        }
+        const invoice = await createPurchaseOrderInvoiceDraft(
+          tx,
+          order,
+          userId,
+          now,
+        );
+        return { invoiceId: invoice.id };
+      },
+      { isolationLevel: SERIALIZABLE },
+    );
+  } catch (error) {
+    if (duplicateActiveInvoice(error) || concurrentTransaction(error)) {
+      throw new SupplierPurchaseOrderInvoiceError("concurrent_change");
+    }
+    throw error;
+  }
+}
+
+export async function createInvoiceDraftForCompletedPurchaseOrder(
+  purchaseOrderId: string,
+  createdByUserId: string,
+  now = new Date(),
+) {
+  const id = purchaseOrderId.trim();
+  const userId = createdByUserId.trim();
+  if (!id) throw new SupplierPurchaseOrderInvoiceError("not_found");
+  if (!userId) throw new Error("Invoice creator is required.");
+
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const order = await tx.supplierPurchaseOrder.findUnique({
+          where: { id },
+          include: purchaseOrderInvoiceInclude,
+        });
+        if (!order) throw new SupplierPurchaseOrderInvoiceError("not_found");
+        if (order.invoices[0]) return { invoiceId: order.invoices[0].id };
+        if (order.status !== "COMPLETED") {
+          throw new SupplierPurchaseOrderInvoiceError("not_completed");
+        }
+        const invoice = await createPurchaseOrderInvoiceDraft(
+          tx,
+          order,
+          userId,
+          now,
+        );
+        return { invoiceId: invoice.id };
+      },
+      { isolationLevel: SERIALIZABLE },
+    );
+  } catch (error) {
+    if (duplicateActiveInvoice(error) || concurrentTransaction(error)) {
+      throw new SupplierPurchaseOrderInvoiceError("concurrent_change");
     }
     throw error;
   }
@@ -166,7 +310,13 @@ export async function saveSupplierInvoiceDraft(
     async (tx) => {
       const invoice = await tx.supplierInvoice.findUnique({
         where: { id },
-        select: { id: true, supplierId: true, status: true, bill: true },
+        select: {
+          id: true,
+          supplierId: true,
+          purchaseOrderId: true,
+          status: true,
+          bill: true,
+        },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
         throw new Error("Only a draft supplier invoice can be edited.");
@@ -210,7 +360,13 @@ export async function finalizeSupplierInvoice(
     async (tx) => {
       const invoice = await tx.supplierInvoice.findUnique({
         where: { id },
-        select: { id: true, supplierId: true, status: true, bill: true },
+        select: {
+          id: true,
+          supplierId: true,
+          purchaseOrderId: true,
+          status: true,
+          bill: true,
+        },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
         throw new Error("Only a draft supplier invoice can be finalized.");
@@ -250,7 +406,12 @@ export async function finalizeSupplierInvoice(
         },
       });
 
-      return { invoiceId: id, billId: bill.id, finalizedAt };
+      return {
+        invoiceId: id,
+        purchaseOrderId: invoice.purchaseOrderId,
+        billId: bill.id,
+        finalizedAt,
+      };
     },
     { isolationLevel: SERIALIZABLE },
   );

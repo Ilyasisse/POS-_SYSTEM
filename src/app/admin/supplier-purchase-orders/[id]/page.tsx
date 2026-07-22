@@ -29,9 +29,17 @@ function statusNotice(status: string | undefined) {
     case "created":
       return { tone: "success", message: "Purchase order created." };
     case "completed":
-      return { tone: "success", message: "Purchase order marked completed." };
+      return {
+        tone: "success",
+        message: "Purchase order completed and its invoice draft was created.",
+      };
     case "cancelled":
       return { tone: "success", message: "Purchase order cancelled." };
+    case "invoice_voided":
+      return {
+        tone: "success",
+        message: "Invoice voided and purchase order reopened.",
+      };
     case "not_open":
       return {
         tone: "error",
@@ -41,6 +49,23 @@ function statusNotice(status: string | undefined) {
       return {
         tone: "error",
         message: "Choose a valid purchase-order status.",
+      };
+    case "not_completed":
+      return {
+        tone: "error",
+        message: "Only a completed purchase order can use invoice recovery.",
+      };
+    case "concurrent_change":
+      return {
+        tone: "error",
+        message:
+          "This purchase order changed while the invoice was being created. Refresh and try again.",
+      };
+    case "not_found":
+    case "invoice_failed":
+      return {
+        tone: "error",
+        message: "The invoice could not be created. Refresh and try again.",
       };
     default:
       return null;
@@ -62,10 +87,17 @@ export default async function SupplierPurchaseOrderDetailPage({
       supplier: { select: { name: true, phone: true, email: true } },
       createdBy: { select: { fullName: true } },
       items: { orderBy: { createdAt: "asc" } },
+      invoices: {
+        select: { id: true, status: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!order) notFound();
   const notice = statusNotice(query?.orderStatus);
+  const activeInvoice = order.invoices.find(
+    (invoice) => invoice.status === "DRAFT" || invoice.status === "FINALIZED",
+  );
   const statusTone =
     order.status === "COMPLETED"
       ? "green"
@@ -177,14 +209,52 @@ export default async function SupplierPurchaseOrderDetailPage({
         </Card>
       ) : null}
 
+      {activeInvoice ? (
+        <Card className="p-5">
+          <h2 className="font-semibold">Linked supplier invoice</h2>
+          <p className="text-sm text-muted-foreground">
+            This purchase order has a {activeInvoice.status.toLowerCase()}{" "}
+            invoice.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button asChild>
+              <Link href={`/admin/supplier-invoices/${activeInvoice.id}`}>
+                Open invoice
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link
+                href={`/print/supplier-invoices/${activeInvoice.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Print invoice
+              </Link>
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
       {order.status === "OPEN" ? (
         <Card className="p-5">
           <h2 className="font-semibold">Order status</h2>
           <p className="text-sm text-muted-foreground">
-            These actions only close this internal order. They do not receive
-            inventory or create a supplier bill.
+            Completing this order creates an editable invoice draft. The draft
+            does not update inventory or create money owed until it is
+            finalized.
           </p>
           <PurchaseOrderStatusActions orderId={order.id} />
+        </Card>
+      ) : null}
+
+      {order.status === "COMPLETED" && !activeInvoice ? (
+        <Card className="border-amber-200 bg-amber-50 p-5">
+          <h2 className="font-semibold text-amber-950">Invoice not created</h2>
+          <p className="text-sm text-amber-900">
+            This order was completed before the invoice workflow was added. Use
+            the recovery action to create its editable invoice draft.
+          </p>
+          <PurchaseOrderStatusActions orderId={order.id} mode="recovery" />
         </Card>
       ) : null}
     </AdminPage>

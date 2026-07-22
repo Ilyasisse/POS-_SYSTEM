@@ -1,11 +1,10 @@
-﻿import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
-import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Card, AdminPage, MetricCard } from "@/components/admin/shared";
+import { AdminPage, Button, Card, MetricCard } from "@/components/admin/shared";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { prisma } from "@/lib/prisma";
-import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import { getSupplierBillDueCutoffDate } from "@/lib/suppliers/supplier-bills";
+import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import SupplierBillsTable from "./SupplierBillsTable";
 
 function startOfDay(date: Date) {
@@ -13,9 +12,11 @@ function startOfDay(date: Date) {
   copy.setHours(0, 0, 0, 0);
   return copy;
 }
+
 function money(value: number) {
   return `$${value.toFixed(2)}`;
 }
+
 function dateInput(
   value: string | undefined,
   fallback: Date,
@@ -43,52 +44,90 @@ export default async function SupplierBillsReportPage({
   const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
   const from = dateInput(params.from, defaultFrom);
   const to = dateInput(params.to, now, true);
-  const [deliveries, suppliers] = await Promise.all([
-    prisma.supplierDelivery.findMany({
+
+  const [bills, suppliers, legacyPending] = await Promise.all([
+    prisma.supplierBill.findMany({
       where: {
         supplierId: params.supplier || undefined,
-        submittedAt: showingDueThroughTomorrow
-          ? undefined
-          : { gte: from, lte: to },
-        bill: showingDueThroughTomorrow
+        ...(showingDueThroughTomorrow
           ? {
-              is: {
-                status: { in: ["UNPAID", "PARTIAL"] },
-                dueDate: { lte: dueCutoff },
-              },
+              status: { in: ["UNPAID", "PARTIAL"] },
+              dueDate: { lte: dueCutoff },
             }
-          : undefined,
+          : { createdAt: { gte: from, lte: to } }),
       },
       include: {
-        supplier: true,
-        verifiedBy: { select: { fullName: true } },
-        bill: {
-          include: {
-            settledBy: { select: { fullName: true } },
-            payments: {
-              include: { recordedBy: { select: { fullName: true } } },
-              orderBy: { paidAt: "desc" },
-            },
-          },
+        supplier: { select: { name: true } },
+        delivery: {
+          include: { verifiedBy: { select: { fullName: true } } },
+        },
+        invoice: {
+          include: { finalizedBy: { select: { fullName: true } } },
+        },
+        settledBy: { select: { fullName: true } },
+        payments: {
+          include: { recordedBy: { select: { fullName: true } } },
+          orderBy: { paidAt: "desc" },
         },
       },
-      orderBy: { submittedAt: "desc" },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
       take: 500,
     }),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.supplierDelivery.findMany({
+      where: {
+        supplierId: params.supplier || undefined,
+        submittedAt: showingDueThroughTomorrow
+          ? undefined
+          : { gte: from, lte: to },
+        status: {
+          in: ["PENDING_EXTRACTION", "PENDING_VERIFICATION", "REJECTED"],
+        },
+      },
+      select: { status: true, totalAmount: true },
+      take: 500,
+    }),
   ]);
+
   const rows = await Promise.all(
-    deliveries.map(async (delivery) => ({
-      delivery,
-      receiptUrl: await createSupplierReceiptUrl(delivery.receiptObjectPath),
-    })),
+    bills.map(async (bill) => {
+      const source = bill.invoice
+        ? {
+            kind: "invoice" as const,
+            id: bill.invoice.id,
+            occurredAt: bill.invoice.submittedAt,
+            invoiceNumber: bill.invoice.invoiceNumber,
+            status: bill.invoice.status,
+            auditLabel: "Finalized",
+            auditName: bill.invoice.finalizedBy?.fullName || null,
+            receiptObjectPath: bill.invoice.receiptObjectPath,
+          }
+        : {
+            kind: "delivery" as const,
+            id: bill.delivery!.id,
+            occurredAt: bill.delivery!.submittedAt,
+            invoiceNumber: bill.delivery!.invoiceNumber,
+            status: bill.delivery!.status,
+            auditLabel: "Verified",
+            auditName: bill.delivery!.verifiedBy?.fullName || null,
+            receiptObjectPath: bill.delivery!.receiptObjectPath,
+          };
+      return {
+        source: {
+          ...source,
+          supplierName: bill.supplier.name,
+          receiptUrl: source.receiptObjectPath
+            ? await createSupplierReceiptUrl(source.receiptObjectPath)
+            : null,
+        },
+        bill,
+      };
+    }),
   );
-  const bills = deliveries.flatMap((delivery) =>
-    delivery.bill ? [delivery.bill] : [],
-  );
+
   const unpaid = bills
     .filter((bill) => bill.status !== "PAID")
     .reduce(
@@ -96,14 +135,12 @@ export default async function SupplierBillsReportPage({
       0,
     );
   const paid = bills.reduce((sum, bill) => sum + Number(bill.paidAmount), 0);
-  const pending = deliveries
-    .filter(
-      (row) =>
-        row.status === "PENDING_EXTRACTION" ||
-        row.status === "PENDING_VERIFICATION",
-    )
+  const pending = legacyPending
+    .filter((row) => row.status !== "REJECTED")
     .reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
-  const rejected = deliveries.filter((row) => row.status === "REJECTED").length;
+  const rejected = legacyPending.filter(
+    (row) => row.status === "REJECTED",
+  ).length;
   const dayStart = startOfDay(now);
   const weekStart = startOfDay(
     new Date(
@@ -118,17 +155,17 @@ export default async function SupplierBillsReportPage({
       .filter((bill) => bill.createdAt >= date)
       .reduce((sum, bill) => sum + Number(bill.totalAmount), 0);
   const supplierTotals = new Map<string, number>();
-  for (const delivery of deliveries)
+  for (const bill of bills) {
     supplierTotals.set(
-      delivery.supplier.name,
-      (supplierTotals.get(delivery.supplier.name) || 0) +
-        Number(delivery.bill?.totalAmount || 0),
+      bill.supplier.name,
+      (supplierTotals.get(bill.supplier.name) || 0) + Number(bill.totalAmount),
     );
+  }
 
   return (
     <AdminPage
       title="Supplier bills"
-      description="Audit verified deliveries, balances, and every supplier payment."
+      description="Audit finalized invoices, legacy verified deliveries, balances, and every supplier payment."
     >
       <form
         className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
@@ -139,7 +176,7 @@ export default async function SupplierBillsReportPage({
         <NativeSelect
           name="supplier"
           defaultValue={params.supplier || ""}
-          className="h-10 rounded-lg border border-slate-200 px-2"
+          className="h-10 w-full rounded-lg border border-slate-200 px-2"
         >
           <option value="">All suppliers</option>
           {suppliers.map((row) => (
@@ -154,41 +191,39 @@ export default async function SupplierBillsReportPage({
               type="date"
               name="from"
               defaultValue={from.toISOString().slice(0, 10)}
-              className="h-10 rounded-lg border border-slate-200 px-2"
             />
             <Input
               type="date"
               name="to"
               defaultValue={to.toISOString().slice(0, 10)}
-              className="h-10 rounded-lg border border-slate-200 px-2"
             />
           </>
         )}
-        <Button className="rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
-          View report
-        </Button>
+        <Button>View report</Button>
       </form>
+
       {showingDueThroughTomorrow ? (
         <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-amber-900">
-            Showing every unpaid or partially paid bill due through tomorrow, regardless of delivery date.
+            Showing every unpaid or partially paid bill due through tomorrow,
+            regardless of source date.
           </p>
           <Button asChild variant="outline" size="sm">
-            <Link href="/admin/reports/supplier-bills">View date-range report</Link>
+            <Link href="/admin/reports/supplier-bills">
+              View date-range report
+            </Link>
           </Button>
         </Card>
       ) : null}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Unpaid balance" value={money(unpaid)} />
-        <MetricCard label="Payments received" value={money(paid)} />
-        <MetricCard label="Pending verification" value={money(pending)} />
-        <MetricCard label="Rejected deliveries" value={rejected} />
+        <MetricCard label="Payments recorded" value={money(paid)} />
+        <MetricCard label="Legacy pending review" value={money(pending)} />
+        <MetricCard label="Legacy rejected" value={rejected} />
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          label="Today's bills"
-          value={money(totalSince(dayStart))}
-        />
+        <MetricCard label="Today's bills" value={money(totalSince(dayStart))} />
         <MetricCard label="This week" value={money(totalSince(weekStart))} />
         <MetricCard label="This month" value={money(totalSince(monthStart))} />
       </section>

@@ -75,11 +75,16 @@ export default async function SupplierPurchaseOrdersPage({
       title="Supplier purchase orders"
       description="Record orders placed by phone, track expected delivery dates, and preserve historical supplier prices."
       action={
-        <Button asChild>
-          <Link href="/admin/supplier-purchase-orders/new">
-            Create purchase order
-          </Link>
-        </Button>
+        <>
+          <Button asChild>
+            <Link href="/admin/supplier-purchase-orders/new">
+              Create purchase order
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-invoices">View invoices</Link>
+          </Button>
+        </>
       }
     >
       <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">

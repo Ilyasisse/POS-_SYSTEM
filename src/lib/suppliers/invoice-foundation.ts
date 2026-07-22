@@ -1,5 +1,9 @@
 import { Prisma, type SupplierInvoiceSource } from "@prisma/client";
-import { supplierPurchaseDateKeyToDatabaseDate } from "@/lib/suppliers/purchase-orders";
+import {
+  getSupplierBillDefaultDueDateKey,
+  getSupplierPurchaseTodayDateKey,
+  supplierPurchaseDateKeyToDatabaseDate,
+} from "@/lib/suppliers/purchase-orders";
 
 const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
 const PRICE_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/;
@@ -25,6 +29,17 @@ export type SupplierInvoiceDraftInput = {
   dueDate: string;
   notes?: string | null;
   lines: readonly SupplierInvoiceLineInput[];
+};
+
+export type SupplierPurchaseOrderInvoiceSnapshot = {
+  orderNumber: number;
+  items: readonly {
+    supplierCatalogItemId: string;
+    itemName: string;
+    itemUnit: string;
+    quantity: Prisma.Decimal.Value;
+    unitPrice: Prisma.Decimal.Value;
+  }[];
 };
 
 export type SupplierInvoiceDraftCreationMetadataInput = {
@@ -176,6 +191,26 @@ export function calculateSupplierInvoiceLineTotal(
     throw new Error("Invoice line total exceeds the supported limit.");
   }
   return lineTotal;
+}
+
+export function buildSupplierInvoiceDraftFromPurchaseOrder(
+  order: SupplierPurchaseOrderInvoiceSnapshot,
+  now = new Date(),
+): SupplierInvoiceDraftInput {
+  return {
+    invoiceNumber: `PO-${order.orderNumber}`,
+    invoiceDate: getSupplierPurchaseTodayDateKey(now),
+    dueDate: getSupplierBillDefaultDueDateKey(now),
+    notes: null,
+    lines: order.items.map((item) => ({
+      kind: "catalog" as const,
+      catalogItemId: item.supplierCatalogItemId,
+      itemName: item.itemName,
+      itemUnit: item.itemUnit,
+      quantity: item.quantity.toString(),
+      unitPrice: item.unitPrice.toString(),
+    })),
+  };
 }
 
 export function validateSupplierInvoiceDraftInput(

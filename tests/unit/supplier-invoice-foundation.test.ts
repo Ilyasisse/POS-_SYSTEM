@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildSupplierInvoiceDraftFromPurchaseOrder,
   calculateSupplierInvoiceLineTotal,
   type SupplierInvoiceDraftInput,
   validateSupplierInvoiceDraftCreationMetadata,
@@ -305,4 +306,40 @@ test("validates purchase-order and legacy draft creation metadata", () => {
   assert.equal(metadata.receiptObjectPath, "supplier/receipt.png");
   assert.equal(metadata.receiptContentType, "image/png");
   assert.equal(metadata.uploadedByEmail, "supplier@example.com");
+});
+
+test("prefills a purchase-order invoice from snapshots using Nairobi dates", () => {
+  const input = buildSupplierInvoiceDraftFromPurchaseOrder(
+    {
+      orderNumber: 1042,
+      items: [
+        {
+          supplierCatalogItemId: "catalog-milk",
+          itemName: "Milk crate",
+          itemUnit: "crate",
+          quantity: "2.500",
+          unitPrice: "12.40",
+        },
+      ],
+    },
+    new Date("2026-07-22T22:30:00.000Z"),
+  );
+
+  assert.equal(input.invoiceNumber, "PO-1042");
+  assert.equal(input.invoiceDate, "2026-07-23");
+  assert.equal(input.dueDate, "2026-07-24");
+  assert.deepEqual(input.lines, [
+    {
+      kind: "catalog",
+      catalogItemId: "catalog-milk",
+      itemName: "Milk crate",
+      itemUnit: "crate",
+      quantity: "2.500",
+      unitPrice: "12.40",
+    },
+  ]);
+  assert.equal(
+    validateSupplierInvoiceDraftInput(input).totalAmount.toString(),
+    "31",
+  );
 });

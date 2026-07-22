@@ -7,6 +7,11 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 import {
+  completePurchaseOrderAndCreateInvoiceDraft,
+  createInvoiceDraftForCompletedPurchaseOrder,
+  SupplierPurchaseOrderInvoiceError,
+} from "@/lib/suppliers/invoice-service";
+import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
   isSupplierPurchaseDeliveryDateAllowed,
@@ -42,13 +47,26 @@ function redirectToNewOrder(supplierId: string, status: NewOrderStatus): never {
   redirect(newOrderPath(supplierId, status));
 }
 
-function refreshPurchaseOrders(id?: string) {
+function refreshPurchaseOrders(id?: string, invoiceId?: string) {
   revalidatePath("/admin/supplier-purchase-orders");
+  revalidatePath("/admin/supplier-invoices");
   revalidatePath("/admin/suppliers");
   if (id) {
     revalidatePath(`/admin/supplier-purchase-orders/${id}`);
     revalidatePath(`/print/supplier-purchase-orders/${id}`);
   }
+  if (invoiceId) {
+    revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
+    revalidatePath(`/print/supplier-invoices/${invoiceId}`);
+  }
+}
+
+function purchaseOrderInvoiceFailurePath(id: string, error: unknown) {
+  const status =
+    error instanceof SupplierPurchaseOrderInvoiceError
+      ? error.code
+      : "invoice_failed";
+  return `/admin/supplier-purchase-orders/${encodeURIComponent(id)}?orderStatus=${status}`;
 }
 
 export async function createSupplierPurchaseOrder(formData: FormData) {
@@ -162,7 +180,7 @@ export async function createSupplierPurchaseOrder(formData: FormData) {
 }
 
 export async function updateSupplierPurchaseOrderStatus(formData: FormData) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const id = text(formData, "id");
   const requestedStatus = text(formData, "status");
   if (!id) redirect("/admin/supplier-purchase-orders");
@@ -172,13 +190,28 @@ export async function updateSupplierPurchaseOrderStatus(formData: FormData) {
     );
   }
 
+  if (requestedStatus === "COMPLETED") {
+    let invoiceId: string;
+    try {
+      const result = await completePurchaseOrderAndCreateInvoiceDraft(
+        id,
+        user.id,
+      );
+      invoiceId = result.invoiceId;
+    } catch (error) {
+      redirect(purchaseOrderInvoiceFailurePath(id, error));
+    }
+    refreshPurchaseOrders(id, invoiceId);
+    redirect(`/admin/supplier-invoices/${encodeURIComponent(invoiceId)}`);
+  }
+
   const now = new Date();
   const result = await prisma.supplierPurchaseOrder.updateMany({
     where: { id, status: "OPEN" },
     data: {
       status: requestedStatus,
-      completedAt: requestedStatus === "COMPLETED" ? now : null,
-      cancelledAt: requestedStatus === "CANCELLED" ? now : null,
+      completedAt: null,
+      cancelledAt: now,
     },
   });
   if (result.count !== 1) {
@@ -188,8 +221,28 @@ export async function updateSupplierPurchaseOrderStatus(formData: FormData) {
   }
 
   refreshPurchaseOrders(id);
-  const status = requestedStatus === "COMPLETED" ? "completed" : "cancelled";
   redirect(
-    `/admin/supplier-purchase-orders/${encodeURIComponent(id)}?orderStatus=${status}`,
+    `/admin/supplier-purchase-orders/${encodeURIComponent(id)}?orderStatus=cancelled`,
   );
+}
+
+export async function createInvoiceForCompletedPurchaseOrderAction(
+  formData: FormData,
+) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const id = text(formData, "id");
+  if (!id) redirect("/admin/supplier-purchase-orders");
+
+  let invoiceId: string;
+  try {
+    const result = await createInvoiceDraftForCompletedPurchaseOrder(
+      id,
+      user.id,
+    );
+    invoiceId = result.invoiceId;
+  } catch (error) {
+    redirect(purchaseOrderInvoiceFailurePath(id, error));
+  }
+  refreshPurchaseOrders(id, invoiceId);
+  redirect(`/admin/supplier-invoices/${encodeURIComponent(invoiceId)}`);
 }

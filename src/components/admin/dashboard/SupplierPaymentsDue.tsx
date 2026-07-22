@@ -33,7 +33,8 @@ export default function SupplierPaymentsDue({
               Supplier payments due by tomorrow
             </h2>
             <p className="text-sm text-slate-600">
-              Unpaid and partially paid verified-delivery bills, including all overdue balances.
+              Unpaid finalized-invoice and legacy delivery bills, including all
+              overdue balances.
             </p>
           </div>
         </div>
@@ -84,21 +85,27 @@ export default function SupplierPaymentsDue({
                   ) : null}
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
-                  {supplier.billCount} {supplier.billCount === 1 ? "bill" : "bills"} · oldest due {formatDateKey(supplier.oldestDueDateKey)}
+                  {supplier.billCount}{" "}
+                  {supplier.billCount === 1 ? "bill" : "bills"} · oldest due{" "}
+                  {formatDateKey(supplier.oldestDueDateKey)}
                 </p>
               </div>
               <div className="sm:text-right">
                 <p className="text-lg font-black text-slate-950">
                   {formatMoney(supplier.totalRemaining)}
                 </p>
-                <p className="text-xs text-slate-500">remaining through tomorrow</p>
+                <p className="text-xs text-slate-500">
+                  remaining through tomorrow
+                </p>
               </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="p-6 text-center">
-          <p className="font-bold text-emerald-700">Nothing is due by tomorrow.</p>
+          <p className="font-bold text-emerald-700">
+            Nothing is due by tomorrow.
+          </p>
           <p className="mt-1 text-sm text-slate-500">
             Future bills remain available in the supplier-bills report.
           </p>
