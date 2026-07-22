@@ -2,19 +2,11 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import {
-  Card,
-  AdminPage,
-  MetricCard,
-  Table,
-  DataTableCard,
-  TableCell,
-  TableHead,
-  ToneBadge,
-} from "@/components/admin/shared";
+import { Card, AdminPage, MetricCard } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
-import PaymentForm from "./PaymentForm";
+import { getSupplierBillDueCutoffDate } from "@/lib/suppliers/supplier-bills";
+import SupplierBillsTable from "./SupplierBillsTable";
 
 function startOfDay(date: Date) {
   const copy = new Date(date);
@@ -37,10 +29,17 @@ function dateInput(
 export default async function SupplierBillsReportPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ from?: string; to?: string; supplier?: string }>;
+  searchParams?: Promise<{
+    from?: string;
+    to?: string;
+    supplier?: string;
+    scope?: string;
+  }>;
 }) {
   const params = (await searchParams) || {};
   const now = new Date();
+  const showingDueThroughTomorrow = params.scope === "due-through-tomorrow";
+  const dueCutoff = getSupplierBillDueCutoffDate(now);
   const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
   const from = dateInput(params.from, defaultFrom);
   const to = dateInput(params.to, now, true);
@@ -48,7 +47,17 @@ export default async function SupplierBillsReportPage({
     prisma.supplierDelivery.findMany({
       where: {
         supplierId: params.supplier || undefined,
-        submittedAt: { gte: from, lte: to },
+        submittedAt: showingDueThroughTomorrow
+          ? undefined
+          : { gte: from, lte: to },
+        bill: showingDueThroughTomorrow
+          ? {
+              is: {
+                status: { in: ["UNPAID", "PARTIAL"] },
+                dueDate: { lte: dueCutoff },
+              },
+            }
+          : undefined,
       },
       include: {
         supplier: true,
@@ -121,7 +130,12 @@ export default async function SupplierBillsReportPage({
       title="Supplier bills"
       description="Audit verified deliveries, balances, and every supplier payment."
     >
-      <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
+      <form
+        className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
+      >
+        {showingDueThroughTomorrow ? (
+          <Input type="hidden" name="scope" value="due-through-tomorrow" />
+        ) : null}
         <NativeSelect
           name="supplier"
           defaultValue={params.supplier || ""}
@@ -134,22 +148,36 @@ export default async function SupplierBillsReportPage({
             </option>
           ))}
         </NativeSelect>
-        <Input
-          type="date"
-          name="from"
-          defaultValue={from.toISOString().slice(0, 10)}
-          className="h-10 rounded-lg border border-slate-200 px-2"
-        />
-        <Input
-          type="date"
-          name="to"
-          defaultValue={to.toISOString().slice(0, 10)}
-          className="h-10 rounded-lg border border-slate-200 px-2"
-        />
+        {showingDueThroughTomorrow ? null : (
+          <>
+            <Input
+              type="date"
+              name="from"
+              defaultValue={from.toISOString().slice(0, 10)}
+              className="h-10 rounded-lg border border-slate-200 px-2"
+            />
+            <Input
+              type="date"
+              name="to"
+              defaultValue={to.toISOString().slice(0, 10)}
+              className="h-10 rounded-lg border border-slate-200 px-2"
+            />
+          </>
+        )}
         <Button className="rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
           View report
         </Button>
       </form>
+      {showingDueThroughTomorrow ? (
+        <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-amber-900">
+            Showing every unpaid or partially paid bill due through tomorrow, regardless of delivery date.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/reports/supplier-bills">View date-range report</Link>
+          </Button>
+        </Card>
+      ) : null}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Unpaid balance" value={money(unpaid)} />
         <MetricCard label="Payments received" value={money(paid)} />
@@ -178,120 +206,7 @@ export default async function SupplierBillsReportPage({
           ))}
         </div>
       </Card>
-      <DataTableCard>
-        <Table>
-          <thead>
-            <tr>
-              <TableHead>Supplier / delivery</TableHead>
-              <TableHead>Total / balance</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Audit</TableHead>
-              <TableHead>Payments</TableHead>
-              <TableHead>Record payment</TableHead>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length ? (
-              rows.map(({ delivery, receiptUrl }) => {
-                const bill = delivery.bill;
-                const remaining = bill
-                  ? Number(bill.totalAmount) - Number(bill.paidAmount)
-                  : 0;
-                return (
-                  <tr
-                    key={delivery.id}
-                    className="border-t border-slate-100 align-top"
-                  >
-                    <TableCell>
-                      <Link
-                        href={`/admin/supplier-deliveries/${delivery.id}`}
-                        className="font-bold text-blue-600"
-                      >
-                        {delivery.supplier.name}
-                      </Link>
-                      <div className="text-xs">
-                        {delivery.submittedAt.toLocaleDateString()} Â·{" "}
-                        {delivery.invoiceNumber || "No invoice #"}
-                      </div>
-                      <a
-                        href={receiptUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-bold text-slate-500 underline"
-                      >
-                        Receipt image
-                      </a>
-                    </TableCell>
-                    <TableCell>
-                      {money(Number(delivery.totalAmount || 0))}
-                      <div className="text-xs">Balance {money(remaining)}</div>
-                    </TableCell>
-                    <TableCell>
-                      <ToneBadge
-                        tone={
-                          delivery.status === "VERIFIED"
-                            ? "green"
-                            : delivery.status === "REJECTED"
-                              ? "red"
-                              : "amber"
-                        }
-                      >
-                        {delivery.status.replaceAll("_", " ")}
-                      </ToneBadge>
-                      <div className="mt-1">
-                        {bill ? (
-                          <ToneBadge
-                            tone={bill.status === "PAID" ? "green" : "amber"}
-                          >
-                            {bill.status}
-                          </ToneBadge>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        Verified: {delivery.verifiedBy?.fullName || "--"}
-                      </div>
-                      <div>Paid: {bill?.settledBy?.fullName || "--"}</div>
-                      <div className="text-xs">
-                        {bill?.settledAt?.toLocaleString() || ""}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {bill?.payments.length
-                        ? bill.payments.map((payment) => (
-                            <div key={payment.id} className="mb-2 text-xs">
-                              <strong>{money(Number(payment.amount))}</strong>{" "}
-                              Â· {payment.paymentMethod || "Unspecified"}
-                              <br />
-                              {payment.recordedBy.fullName} Â·{" "}
-                              {payment.paidAt.toLocaleDateString()}
-                            </div>
-                          ))
-                        : "--"}
-                    </TableCell>
-                    <TableCell>
-                      {bill && remaining > 0 ? (
-                        <PaymentForm billId={bill.id} remaining={remaining} />
-                      ) : bill ? (
-                        "Paid in full"
-                      ) : (
-                        "Verify first"
-                      )}
-                    </TableCell>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <TableCell colSpan={6}>
-                  No supplier activity in this date range.
-                </TableCell>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </DataTableCard>
+      <SupplierBillsTable rows={rows} now={now} />
     </AdminPage>
   );
 }

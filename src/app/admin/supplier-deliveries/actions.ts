@@ -7,7 +7,9 @@ import {
   processSupplierDelivery,
   recordSupplierPayment,
   rejectSupplierDelivery,
+  updateSupplierBillDueDate,
 } from "@/lib/suppliers/delivery-service";
+import { supplierPurchaseDateKeyToDatabaseDate } from "@/lib/suppliers/purchase-orders";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -34,9 +36,16 @@ function optionalDate(value: string) {
   return date;
 }
 
+function requiredSupplierBillDueDate(value: string) {
+  const dueDate = supplierPurchaseDateKeyToDatabaseDate(value);
+  if (!dueDate) throw new Error("Enter a valid supplier bill due date.");
+  return dueDate;
+}
+
 function refreshSupplierPages(id?: string) {
   revalidatePath("/admin/supplier-deliveries");
   revalidatePath("/admin/reports/supplier-bills");
+  revalidatePath("/admin/dashboard");
   revalidatePath("/admin/inventory");
   if (id) revalidatePath(`/admin/supplier-deliveries/${id}`);
 }
@@ -51,6 +60,7 @@ export async function approveExtractedDeliveryAction(formData: FormData) {
   await approveExtractedSupplierDelivery(deliveryId, user.id, {
     invoiceNumber: text(formData, "invoiceNumber"),
     receiptDate: optionalDate(text(formData, "receiptDate")),
+    dueDate: requiredSupplierBillDueDate(text(formData, "dueDate")),
     reviewedText: text(formData, "reviewedText"),
     notes: text(formData, "notes"),
     rows: rowIds.map((rowId) => ({
@@ -91,5 +101,13 @@ export async function recordPaymentAction(formData: FormData) {
     text(formData, "paymentMethod"),
     text(formData, "notes"),
   );
+  refreshSupplierPages();
+}
+
+export async function updateSupplierBillDueDateAction(formData: FormData) {
+  await requireRole(["ADMIN", "MANAGER"]);
+  const billId = text(formData, "billId");
+  const dueDate = requiredSupplierBillDueDate(text(formData, "dueDate"));
+  await updateSupplierBillDueDate(billId, dueDate);
   refreshSupplierPages();
 }

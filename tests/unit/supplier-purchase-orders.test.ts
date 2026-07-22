@@ -14,6 +14,11 @@ import {
   supplierPurchaseDateKeyToDatabaseDate,
   validateSupplierPurchaseOrderRows,
 } from "../../src/lib/suppliers/purchase-orders";
+import {
+  getSupplierBillDueCutoffDate,
+  getSupplierBillDueState,
+  summarizeSupplierBillsDue,
+} from "../../src/lib/suppliers/supplier-bills";
 
 test("uses Nairobi dates and defaults supplier bills to the next day", () => {
   const now = new Date("2026-07-22T22:30:00.000Z");
@@ -28,6 +33,97 @@ test("requires purchase-order delivery dates to be today or later in Nairobi", (
   assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-23", now), true);
   assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-24", now), true);
   assert.equal(isSupplierPurchaseDeliveryDateAllowed("not-a-date", now), false);
+});
+
+test("classifies supplier bill due dates using Nairobi business dates", () => {
+  const now = new Date("2026-07-22T22:30:00.000Z");
+  assert.equal(
+    getSupplierBillDueCutoffDate(now).toISOString(),
+    "2026-07-24T00:00:00.000Z",
+  );
+  assert.equal(
+    getSupplierBillDueState(new Date("2026-07-22T00:00:00.000Z"), now),
+    "overdue",
+  );
+  assert.equal(
+    getSupplierBillDueState(new Date("2026-07-23T00:00:00.000Z"), now),
+    "today",
+  );
+  assert.equal(
+    getSupplierBillDueState(new Date("2026-07-24T00:00:00.000Z"), now),
+    "tomorrow",
+  );
+  assert.equal(
+    getSupplierBillDueState(new Date("2026-07-25T00:00:00.000Z"), now),
+    "future",
+  );
+});
+
+test("groups unpaid supplier balances due through tomorrow", () => {
+  const now = new Date("2026-07-22T22:30:00.000Z");
+  const summary = summarizeSupplierBillsDue(
+    [
+      {
+        id: "bill-a-overdue",
+        supplierId: "supplier-a",
+        supplierName: "Alpha Foods",
+        dueDate: new Date("2026-07-22T00:00:00.000Z"),
+        totalAmount: "100.00",
+        paidAmount: "25.00",
+        status: "PARTIAL",
+      },
+      {
+        id: "bill-a-tomorrow",
+        supplierId: "supplier-a",
+        supplierName: "Alpha Foods",
+        dueDate: new Date("2026-07-24T00:00:00.000Z"),
+        totalAmount: "50.00",
+        paidAmount: "0.00",
+        status: "UNPAID",
+      },
+      {
+        id: "bill-b-today",
+        supplierId: "supplier-b",
+        supplierName: "Beta Supplies",
+        dueDate: new Date("2026-07-23T00:00:00.000Z"),
+        totalAmount: "20.15",
+        paidAmount: "0.10",
+        status: "UNPAID",
+      },
+      {
+        id: "bill-paid",
+        supplierId: "supplier-c",
+        supplierName: "Paid Supplier",
+        dueDate: new Date("2026-07-22T00:00:00.000Z"),
+        totalAmount: "90.00",
+        paidAmount: "90.00",
+        status: "PAID",
+      },
+      {
+        id: "bill-future",
+        supplierId: "supplier-d",
+        supplierName: "Future Supplier",
+        dueDate: new Date("2026-07-25T00:00:00.000Z"),
+        totalAmount: "40.00",
+        paidAmount: "0.00",
+        status: "UNPAID",
+      },
+    ],
+    now,
+  );
+
+  assert.equal(summary.supplierCount, 2);
+  assert.equal(summary.billCount, 3);
+  assert.equal(summary.totalRemaining, 145.05);
+  assert.equal(summary.overdueRemaining, 75);
+  assert.equal(summary.dueTodayRemaining, 20.05);
+  assert.equal(summary.dueTomorrowRemaining, 50);
+  assert.deepEqual(
+    summary.suppliers.map((supplier) => supplier.supplierName),
+    ["Alpha Foods", "Beta Supplies"],
+  );
+  assert.equal(summary.suppliers[0].billCount, 2);
+  assert.equal(summary.suppliers[0].oldestDueDateKey, "2026-07-22");
 });
 
 test("validates real purchase-order calendar dates", () => {

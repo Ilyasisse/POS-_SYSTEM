@@ -117,6 +117,7 @@ export async function processSupplierDelivery(deliveryId: string) {
 export type ExtractedDeliveryReviewInput = {
   invoiceNumber?: string;
   receiptDate: Date | null;
+  dueDate: Date;
   reviewedText?: string;
   notes?: string;
   rows: InvoiceReviewRowInput[];
@@ -291,6 +292,7 @@ export async function approveExtractedSupplierDelivery(
           totalAmount: review.billTotal,
           paidAmount: 0,
           status: "UNPAID",
+          dueDate: input.dueDate,
         },
       });
     },
@@ -362,4 +364,21 @@ export async function recordSupplierPayment(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+}
+
+export async function updateSupplierBillDueDate(
+  billId: string,
+  dueDate: Date,
+) {
+  const result = await prisma.supplierBill.updateMany({
+    where: {
+      id: billId,
+      status: { in: ["UNPAID", "PARTIAL"] },
+    },
+    data: { dueDate },
+  });
+
+  if (result.count !== 1) {
+    throw new Error("Only unpaid supplier bills can have their due date changed.");
+  }
 }

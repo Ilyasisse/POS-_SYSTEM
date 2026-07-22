@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import Header from "@/components/admin/dashboard/Header";
 import Dashboard from "@/components/admin/dashboard/Dashboard";
+import SupplierPaymentsDue from "@/components/admin/dashboard/SupplierPaymentsDue";
 
 import Status from "@/components/admin/dashboard/Status";
+import {
+  getSupplierBillDueCutoffDate,
+  summarizeSupplierBillsDue,
+} from "@/lib/suppliers/supplier-bills";
 
 // Convert UTC TimeZone to my local EAST AFRICA time zone
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -52,17 +57,21 @@ function getEatWeekStart(date = new Date()) {
 
 // Renders the admin dashboard page with live Prisma-backed metrics.
 export default async function AdminPage() {
+  const now = new Date();
+
   // Defines the start of the current cafe-local day.
-  const todayStart = getEatDayStart();
+  const todayStart = getEatDayStart(now);
 
   // Defines the exclusive end of the current cafe-local day.
   const tomorrowStart = addDays(todayStart, 1);
 
   // Defines the start of the current cafe-local reporting week.
-  const weekStart = getEatWeekStart();
+  const weekStart = getEatWeekStart(now);
 
   // Defines the exclusive end of the current cafe-local reporting week.
   const weekEnd = addDays(weekStart, 7);
+
+  const supplierBillDueCutoff = getSupplierBillDueCutoffDate(now);
 
   const [
     // Total number of menu categories.
@@ -87,6 +96,8 @@ export default async function AdminPage() {
     recentMovements,
     // New customer accounts created this week.
     newCustomers,
+    // Unsettled verified-delivery bills due on or before tomorrow.
+    supplierBillsDue,
   ] = await prisma.$transaction([
     prisma.category.count(),
     prisma.product.count(),
@@ -176,7 +187,36 @@ export default async function AdminPage() {
         },
       },
     }),
+    prisma.supplierBill.findMany({
+      where: {
+        status: { in: ["UNPAID", "PARTIAL"] },
+        dueDate: { lte: supplierBillDueCutoff },
+      },
+      select: {
+        id: true,
+        supplierId: true,
+        dueDate: true,
+        totalAmount: true,
+        paidAmount: true,
+        status: true,
+        supplier: { select: { name: true } },
+      },
+      orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
+    }),
   ]);
+
+  const supplierDueSummary = summarizeSupplierBillsDue(
+    supplierBillsDue.map((bill) => ({
+      id: bill.id,
+      supplierId: bill.supplierId,
+      supplierName: bill.supplier.name,
+      dueDate: bill.dueDate,
+      totalAmount: bill.totalAmount,
+      paidAmount: bill.paidAmount,
+      status: bill.status,
+    })),
+    now,
+  );
 
   // Sums weekly order totals for the sales KPI.
   const totalSales = weekOrders.reduce(
@@ -225,6 +265,8 @@ export default async function AdminPage() {
         lowStockSupplies={lowStockSupplies}
         todayOrders={todayOrders}
       />
+
+      <SupplierPaymentsDue summary={supplierDueSummary} />
 
       <Status
         recentOrders={recentOrders}

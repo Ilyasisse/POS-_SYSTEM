@@ -31,6 +31,7 @@ export default function DeliveryVerificationForm({
   reviewedText,
   invoiceNumber,
   receiptDate,
+  dueDate,
   targets,
   items,
 }: {
@@ -41,6 +42,7 @@ export default function DeliveryVerificationForm({
   reviewedText: string;
   invoiceNumber: string;
   receiptDate: string;
+  dueDate: string;
   targets: Target[];
   items: DeliveryItem[];
 }) {
@@ -142,6 +144,7 @@ export default function DeliveryVerificationForm({
         reviewedText={reviewedText}
         invoiceNumber={invoiceNumber}
         receiptDate={receiptDate}
+        dueDate={dueDate}
         targets={targets}
         initialItems={items.map((item) => ({
           id: item.id,

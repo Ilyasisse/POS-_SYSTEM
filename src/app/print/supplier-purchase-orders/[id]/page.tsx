@@ -32,7 +32,7 @@ export default async function PrintableSupplierPurchaseOrderPage({
   if (!order) notFound();
 
   return (
-    <main className="min-h-screen bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
+    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
       <div className="mx-auto mb-4 flex max-w-4xl justify-end print:hidden">
         <PrintButton />
       </div>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Card, AdminPage, ToneBadge } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
+import { getSupplierBillDefaultDueDateKey } from "@/lib/suppliers/purchase-orders";
 import DeliveryVerificationForm from "./DeliveryVerificationForm";
 
 function money(value: { toString(): string } | null) {
@@ -113,6 +114,16 @@ export default async function SupplierDeliveryDetailPage({
                 {delivery.inventoryUpdatedAt ? "Yes" : "No"}
               </dd>
             </div>
+            {delivery.bill ? (
+              <div>
+                <dt className="text-slate-500">Bill due</dt>
+                <dd className="font-bold">
+                  {delivery.bill.dueDate.toLocaleDateString("en-US", {
+                    timeZone: "UTC",
+                  })}
+                </dd>
+              </div>
+            ) : null}
           </dl>
           {delivery.notes ? (
             <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm">
@@ -130,6 +141,10 @@ export default async function SupplierDeliveryDetailPage({
             reviewedText={delivery.reviewedText || ""}
             invoiceNumber={delivery.invoiceNumber || ""}
             receiptDate={delivery.receiptDate?.toISOString().slice(0, 10) || ""}
+            dueDate={
+              delivery.bill?.dueDate.toISOString().slice(0, 10) ||
+              getSupplierBillDefaultDueDateKey()
+            }
             targets={targets}
             items={delivery.items.map((item) => ({
               id: item.id,

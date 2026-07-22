@@ -74,7 +74,11 @@ export default function PurchaseOrderBuilder({
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
   );
-  const selectedIds = new Set(rows.map((row) => row.catalogItemId).filter(Boolean));
+  const selectedIds = new Set(
+    rows.flatMap((row) =>
+      row.catalogItemId ? [row.catalogItemId] : [],
+    ),
+  );
   const orderTotal = rows.reduce((total, row) => {
     const item = catalogById.get(row.catalogItemId);
     return total +
@@ -125,9 +129,11 @@ export default function PurchaseOrderBuilder({
                   type="button"
                   variant="outline"
                   onClick={() => {
+                    const key = nextKey.current;
+                    nextKey.current += 1;
                     setRows((current) => [
                       ...current,
-                      { key: nextKey.current++, catalogItemId: "", quantity: "1" },
+                      { key, catalogItemId: "", quantity: "1" },
                     ]);
                   }}
                   disabled={rows.length >= catalogItems.length}
