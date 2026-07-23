@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
   calculateSupplierInvoiceLineTotal,
+  getSupplierInvoiceVoidEffect,
   type SupplierInvoiceDraftInput,
   validateSupplierInvoiceDraftCreationMetadata,
   validateSupplierInvoiceDraftInput,
@@ -342,4 +343,15 @@ test("prefills a purchase-order invoice from snapshots using Nairobi dates", () 
     validateSupplierInvoiceDraftInput(input).totalAmount.toString(),
     "31",
   );
+});
+
+test("voiding reopens only purchase-order invoices", () => {
+  assert.deepEqual(getSupplierInvoiceVoidEffect(" po-1 "), {
+    purchaseOrderId: "po-1",
+    reopensPurchaseOrder: true,
+  });
+  assert.deepEqual(getSupplierInvoiceVoidEffect(null), {
+    purchaseOrderId: null,
+    reopensPurchaseOrder: false,
+  });
 });

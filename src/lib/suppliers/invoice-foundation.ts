@@ -72,6 +72,16 @@ export type ValidatedSupplierInvoiceDraft = {
   totalAmount: Prisma.Decimal;
 };
 
+export function getSupplierInvoiceVoidEffect(
+  purchaseOrderId: string | null | undefined,
+) {
+  const normalizedPurchaseOrderId = purchaseOrderId?.trim() || null;
+  return {
+    purchaseOrderId: normalizedPurchaseOrderId,
+    reopensPurchaseOrder: normalizedPurchaseOrderId !== null,
+  };
+}
+
 function optionalTrimmedText(
   value: string | null | undefined,
   maximumLength: number,

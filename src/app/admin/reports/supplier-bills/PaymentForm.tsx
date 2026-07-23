@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordPaymentAction } from "../../supplier-deliveries/actions";
+import { recordPaymentAction } from "./actions";
 
 export default function PaymentForm({
   billId,

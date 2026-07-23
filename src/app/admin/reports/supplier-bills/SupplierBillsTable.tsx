@@ -13,15 +13,13 @@ import PaymentForm from "./PaymentForm";
 type MoneyValue = { toString(): string };
 
 export type SupplierBillReportRow = {
-  source: {
-    kind: "delivery" | "invoice";
+  invoice: {
     id: string;
-    occurredAt: Date;
+    submittedAt: Date;
     invoiceNumber: string | null;
     status: string;
     supplierName: string;
-    auditLabel: string;
-    auditName: string | null;
+    finalizedByName: string | null;
     receiptUrl: string | null;
   };
   bill: {
@@ -58,7 +56,7 @@ export default function SupplierBillsTable({
       <Table>
         <thead>
           <tr>
-            <TableHead>Supplier / source</TableHead>
+            <TableHead>Supplier / invoice</TableHead>
             <TableHead>Due date</TableHead>
             <TableHead>Total / balance</TableHead>
             <TableHead>Status</TableHead>
@@ -69,15 +67,11 @@ export default function SupplierBillsTable({
         </thead>
         <tbody>
           {rows.length ? (
-            rows.map(({ source, bill }) => {
+            rows.map(({ invoice, bill }) => {
               const remaining =
                 Number(bill.totalAmount.toString()) -
                 Number(bill.paidAmount.toString());
               const dueState = getSupplierBillDueState(bill.dueDate, now);
-              const sourceHref =
-                source.kind === "invoice"
-                  ? `/admin/supplier-invoices/${source.id}`
-                  : `/admin/supplier-deliveries/${source.id}`;
 
               return (
                 <tr
@@ -85,19 +79,19 @@ export default function SupplierBillsTable({
                   className="border-t border-slate-100 align-top"
                 >
                   <TableCell>
-                    <Link href={sourceHref} className="font-bold text-blue-600">
-                      {source.supplierName}
+                    <Link
+                      href={`/admin/supplier-invoices/${invoice.id}`}
+                      className="font-bold text-blue-600"
+                    >
+                      {invoice.supplierName}
                     </Link>
                     <div className="text-xs">
-                      {source.kind === "invoice"
-                        ? "Invoice"
-                        : "Legacy delivery"}{" "}
-                      · {source.occurredAt.toLocaleDateString()} ·{" "}
-                      {source.invoiceNumber || "No invoice #"}
+                      {invoice.submittedAt.toLocaleDateString()} ·{" "}
+                      {invoice.invoiceNumber || "No invoice #"}
                     </div>
-                    {source.receiptUrl ? (
+                    {invoice.receiptUrl ? (
                       <a
-                        href={source.receiptUrl}
+                        href={invoice.receiptUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs font-bold text-slate-500 underline"
@@ -150,9 +144,7 @@ export default function SupplierBillsTable({
                     <div className="text-xs">Balance {money(remaining)}</div>
                   </TableCell>
                   <TableCell>
-                    <ToneBadge tone="green">
-                      {source.status.replaceAll("_", " ")}
-                    </ToneBadge>
+                    <ToneBadge tone="green">{invoice.status}</ToneBadge>
                     <div className="mt-1">
                       <ToneBadge
                         tone={bill.status === "PAID" ? "green" : "amber"}
@@ -162,9 +154,7 @@ export default function SupplierBillsTable({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      {source.auditLabel}: {source.auditName || "--"}
-                    </div>
+                    <div>Finalized: {invoice.finalizedByName || "--"}</div>
                     <div>Paid: {bill.settledBy?.fullName || "--"}</div>
                     <div className="text-xs">
                       {bill.settledAt?.toLocaleString() || ""}

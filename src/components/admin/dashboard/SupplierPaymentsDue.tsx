@@ -33,7 +33,7 @@ export default function SupplierPaymentsDue({
               Supplier payments due by tomorrow
             </h2>
             <p className="text-sm text-slate-600">
-              Unpaid finalized-invoice and legacy delivery bills, including all
+              Unpaid and partially paid finalized-invoice bills, including all
               overdue balances.
             </p>
           </div>

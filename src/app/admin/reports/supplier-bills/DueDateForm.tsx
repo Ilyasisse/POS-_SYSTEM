@@ -4,7 +4,7 @@ import { type FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateSupplierBillDueDateAction } from "../../supplier-deliveries/actions";
+import { updateSupplierBillDueDateAction } from "./actions";
 
 export default function DueDateForm({
   billId,

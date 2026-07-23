@@ -134,9 +134,9 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },
   {
-    key: "supplier-deliveries",
-    href: "/admin/supplier-deliveries",
-    label: "Supplier deliveries",
+    key: "supplier-invoices",
+    href: "/admin/supplier-invoices",
+    label: "Supplier invoices",
     icon: ClipboardList,
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },

@@ -56,8 +56,12 @@ function calculatedLineTotal(line: EditorLine) {
   return Math.round((quantity * unitPrice + Number.EPSILON) * 100) / 100;
 }
 
+function preventSubmit(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+}
+
 export default function SupplierInvoiceEditor({
-  invoice,
+  invoice: initialInvoice,
   catalog,
   hasPurchaseOrder,
 }: {
@@ -67,7 +71,8 @@ export default function SupplierInvoiceEditor({
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [lines, setLines] = useState(invoice.items);
+  const invoice = initialInvoice;
+  const [lines, setLines] = useState(initialInvoice.items);
   const [selectedCatalogId, setSelectedCatalogId] = useState("");
   const [message, setMessage] = useState("");
   const [hasError, setHasError] = useState(false);
@@ -149,10 +154,6 @@ export default function SupplierInvoiceEditor({
         );
       }
     });
-  }
-
-  function preventSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
   }
 
   return (

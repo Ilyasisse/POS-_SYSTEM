@@ -96,7 +96,7 @@ export default async function AdminPage() {
     recentMovements,
     // New customer accounts created this week.
     newCustomers,
-    // Unsettled verified-delivery bills due on or before tomorrow.
+    // Unsettled finalized-invoice bills due on or before tomorrow.
     supplierBillsDue,
   ] = await prisma.$transaction([
     prisma.category.count(),
@@ -261,12 +261,12 @@ export default async function AdminPage() {
         staffCount={staffCount}
       />
 
+      <SupplierPaymentsDue summary={supplierDueSummary} />
+      
       <Dashboard
         lowStockSupplies={lowStockSupplies}
         todayOrders={todayOrders}
       />
-
-      <SupplierPaymentsDue summary={supplierDueSummary} />
 
       <Status
         recentOrders={recentOrders}

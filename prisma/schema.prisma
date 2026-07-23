@@ -25,8 +25,6 @@ model User {
   shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
   waiterBalanceInitialization         WaiterBalanceInitialization?  @relation("WaiterBalanceOwner")
   waiterBalanceInitializationsCreated WaiterBalanceInitialization[] @relation("WaiterBalanceCreatedBy")
-  supplierDeliveriesVerified          SupplierDelivery[]            @relation("SupplierDeliveryVerifiedBy")
-  supplierDeliveriesRejected          SupplierDelivery[]            @relation("SupplierDeliveryRejectedBy")
   supplierBillsSettled                SupplierBill[]                @relation("SupplierBillSettledBy")
   supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
   supplyPurchasesCreated              SupplyPurchase[]              @relation("SupplyPurchaseCreatedBy")
@@ -61,22 +59,21 @@ model Product {
   description           String?
   imageUrl              String?
   pronunciationAudioUrl String?
-  isActive              Boolean                @default(true)
-  isPopular             Boolean                @default(false)
+  isActive              Boolean               @default(true)
+  isPopular             Boolean               @default(false)
   price                 Decimal
   cost                  Decimal?
   categoryId            String
-  trackStock            Boolean                @default(false)
-  stockQty              Int                    @default(0)
-  lowStockThreshold     Int                    @default(5)
-  inventoryAlertStatus  InventoryAlertStatus   @default(OK)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  trackStock            Boolean               @default(false)
+  stockQty              Int                   @default(0)
+  lowStockThreshold     Int                   @default(5)
+  inventoryAlertStatus  InventoryAlertStatus  @default(OK)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
   modifiers             Modifier[]
   orderItems            OrderItem[]
-  supplierDeliveryItems SupplierDeliveryItem[]
   supplierCatalogItems  SupplierCatalogItem[]
-  category              Category               @relation(fields: [categoryId], references: [id])
+  category              Category              @relation(fields: [categoryId], references: [id])
 
   @@index([categoryId, isActive])
   @@index([trackStock, inventoryAlertStatus])
@@ -84,18 +81,17 @@ model Product {
 }
 
 model InventorySupply {
-  id                    String                 @id @default(cuid())
-  name                  String
-  unit                  String                 @default("unit")
-  stockQty              Int                    @default(0)
-  lowStockThreshold     Int                    @default(5)
-  inventoryAlertStatus  InventoryAlertStatus   @default(OK)
-  isActive              Boolean                @default(true)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  movements             InventoryMovement[]
-  supplierDeliveryItems SupplierDeliveryItem[]
-  supplierCatalogItems  SupplierCatalogItem[]
+  id                   String                @id @default(cuid())
+  name                 String
+  unit                 String                @default("unit")
+  stockQty             Int                   @default(0)
+  lowStockThreshold    Int                   @default(5)
+  inventoryAlertStatus InventoryAlertStatus  @default(OK)
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  movements            InventoryMovement[]
+  supplierCatalogItems SupplierCatalogItem[]
 
   @@unique([name, unit])
   @@index([isActive, inventoryAlertStatus])
@@ -316,12 +312,10 @@ model Supplier {
   contactName    String?
   phone          String?
   email          String?
-  googleEmail    String?                 @unique
   notes          String?
   isActive       Boolean                 @default(true)
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
-  deliveries     SupplierDelivery[]
   bills          SupplierBill[]
   catalogItems   SupplierCatalogItem[]
   purchaseOrders SupplierPurchaseOrder[]
@@ -330,77 +324,10 @@ model Supplier {
   @@index([isActive, name])
 }
 
-model SupplierDelivery {
-  id                 String                 @id @default(cuid())
-  supplierId         String
-  uploadedByEmail    String
-  receiptObjectPath  String
-  receiptContentType String
-  status             SupplierDeliveryStatus @default(PENDING_EXTRACTION)
-  invoiceNumber      String?
-  receiptDate        DateTime?
-  deliveryDate       DateTime?
-  subtotalAmount     Decimal?
-  taxAmount          Decimal?
-  discountAmount     Decimal?
-  totalAmount        Decimal?
-  extractedText      String?
-  reviewedText       String?
-  ocrConfidence      Float?
-  ocrError           String?
-  aiRawResponse      Json?
-  aiParsedJson       Json?
-  aiError            String?
-  notes              String?
-  submittedAt        DateTime               @default(now())
-  verifiedAt         DateTime?
-  verifiedByUserId   String?
-  inventoryUpdatedAt DateTime?
-  rejectedAt         DateTime?
-  rejectedByUserId   String?
-  rejectionReason    String?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  supplier           Supplier               @relation(fields: [supplierId], references: [id])
-  verifiedBy         User?                  @relation("SupplierDeliveryVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
-  rejectedBy         User?                  @relation("SupplierDeliveryRejectedBy", fields: [rejectedByUserId], references: [id], onDelete: SetNull)
-  items              SupplierDeliveryItem[]
-  bill               SupplierBill?
-
-  @@index([supplierId, submittedAt])
-  @@index([status, submittedAt])
-}
-
-model SupplierDeliveryItem {
-  id                String           @id @default(cuid())
-  deliveryId        String
-  productId         String?
-  inventorySupplyId String?
-  aiItemName        String
-  matchedItemName   String?
-  quantity          Decimal?
-  verifiedQuantity  Int?
-  unitPrice         Decimal?
-  totalPrice        Decimal?
-  confidenceScore   Float?
-  needsManualReview Boolean          @default(false)
-  notes             String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  delivery          SupplierDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  product           Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
-  inventorySupply   InventorySupply? @relation(fields: [inventorySupplyId], references: [id], onDelete: SetNull)
-
-  @@index([deliveryId])
-  @@index([productId])
-  @@index([inventorySupplyId])
-}
-
 model SupplierBill {
   id              String                @id @default(cuid())
   supplierId      String
-  deliveryId      String?               @unique
-  invoiceId       String?               @unique
+  invoiceId       String                @unique
   totalAmount     Decimal
   paidAmount      Decimal               @default(0)
   status          SupplierPaymentStatus @default(UNPAID)
@@ -411,8 +338,7 @@ model SupplierBill {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   supplier        Supplier              @relation(fields: [supplierId], references: [id])
-  delivery        SupplierDelivery?     @relation(fields: [deliveryId], references: [id])
-  invoice         SupplierInvoice?      @relation(fields: [invoiceId], references: [id])
+  invoice         SupplierInvoice       @relation(fields: [invoiceId], references: [id])
   settledBy       User?                 @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
   payments        SupplierPayment[]
 
@@ -515,6 +441,10 @@ model SupplierInvoice {
   receiptContentType       String?
   uploadedByEmail          String?
   submittedAt              DateTime               @default(now())
+  legacyDeliveryDate       DateTime?
+  legacySubtotalAmount     Decimal?               @db.Decimal(14, 2)
+  legacyTaxAmount          Decimal?               @db.Decimal(14, 2)
+  legacyDiscountAmount     Decimal?               @db.Decimal(14, 2)
   legacyInventoryUpdatedAt DateTime?
   createdByUserId          String?
   finalizedAt              DateTime?
@@ -628,13 +558,6 @@ enum KitchenPickupStatus {
   READY
   CLAIMED
   DELIVERED
-}
-
-enum SupplierDeliveryStatus {
-  PENDING_EXTRACTION
-  PENDING_VERIFICATION
-  VERIFIED
-  REJECTED
 }
 
 enum SupplierPaymentStatus {

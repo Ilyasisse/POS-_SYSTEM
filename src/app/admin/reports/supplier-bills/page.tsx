@@ -45,7 +45,7 @@ export default async function SupplierBillsReportPage({
   const from = dateInput(params.from, defaultFrom);
   const to = dateInput(params.to, now, true);
 
-  const [bills, suppliers, legacyPending] = await Promise.all([
+  const [bills, suppliers, nonFinalInvoices] = await Promise.all([
     prisma.supplierBill.findMany({
       where: {
         supplierId: params.supplier || undefined,
@@ -58,9 +58,6 @@ export default async function SupplierBillsReportPage({
       },
       include: {
         supplier: { select: { name: true } },
-        delivery: {
-          include: { verifiedBy: { select: { fullName: true } } },
-        },
         invoice: {
           include: { finalizedBy: { select: { fullName: true } } },
         },
@@ -77,15 +74,13 @@ export default async function SupplierBillsReportPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    prisma.supplierDelivery.findMany({
+    prisma.supplierInvoice.findMany({
       where: {
         supplierId: params.supplier || undefined,
         submittedAt: showingDueThroughTomorrow
           ? undefined
           : { gte: from, lte: to },
-        status: {
-          in: ["PENDING_EXTRACTION", "PENDING_VERIFICATION", "REJECTED"],
-        },
+        status: { in: ["DRAFT", "VOID"] },
       },
       select: { status: true, totalAmount: true },
       take: 500,
@@ -93,39 +88,20 @@ export default async function SupplierBillsReportPage({
   ]);
 
   const rows = await Promise.all(
-    bills.map(async (bill) => {
-      const source = bill.invoice
-        ? {
-            kind: "invoice" as const,
-            id: bill.invoice.id,
-            occurredAt: bill.invoice.submittedAt,
-            invoiceNumber: bill.invoice.invoiceNumber,
-            status: bill.invoice.status,
-            auditLabel: "Finalized",
-            auditName: bill.invoice.finalizedBy?.fullName || null,
-            receiptObjectPath: bill.invoice.receiptObjectPath,
-          }
-        : {
-            kind: "delivery" as const,
-            id: bill.delivery!.id,
-            occurredAt: bill.delivery!.submittedAt,
-            invoiceNumber: bill.delivery!.invoiceNumber,
-            status: bill.delivery!.status,
-            auditLabel: "Verified",
-            auditName: bill.delivery!.verifiedBy?.fullName || null,
-            receiptObjectPath: bill.delivery!.receiptObjectPath,
-          };
-      return {
-        source: {
-          ...source,
-          supplierName: bill.supplier.name,
-          receiptUrl: source.receiptObjectPath
-            ? await createSupplierReceiptUrl(source.receiptObjectPath)
-            : null,
-        },
-        bill,
-      };
-    }),
+    bills.map(async (bill) => ({
+      invoice: {
+        id: bill.invoice.id,
+        submittedAt: bill.invoice.submittedAt,
+        invoiceNumber: bill.invoice.invoiceNumber,
+        status: bill.invoice.status,
+        supplierName: bill.supplier.name,
+        finalizedByName: bill.invoice.finalizedBy?.fullName || null,
+        receiptUrl: bill.invoice.receiptObjectPath
+          ? await createSupplierReceiptUrl(bill.invoice.receiptObjectPath)
+          : null,
+      },
+      bill,
+    })),
   );
 
   const unpaid = bills
@@ -135,11 +111,11 @@ export default async function SupplierBillsReportPage({
       0,
     );
   const paid = bills.reduce((sum, bill) => sum + Number(bill.paidAmount), 0);
-  const pending = legacyPending
-    .filter((row) => row.status !== "REJECTED")
-    .reduce((sum, row) => sum + Number(row.totalAmount || 0), 0);
-  const rejected = legacyPending.filter(
-    (row) => row.status === "REJECTED",
+  const draftValue = nonFinalInvoices
+    .filter((invoice) => invoice.status === "DRAFT")
+    .reduce((sum, invoice) => sum + Number(invoice.totalAmount), 0);
+  const voidCount = nonFinalInvoices.filter(
+    (invoice) => invoice.status === "VOID",
   ).length;
   const dayStart = startOfDay(now);
   const weekStart = startOfDay(
@@ -165,7 +141,7 @@ export default async function SupplierBillsReportPage({
   return (
     <AdminPage
       title="Supplier bills"
-      description="Audit finalized invoices, legacy verified deliveries, balances, and every supplier payment."
+      description="Audit finalized supplier invoices, balances, due dates, and every payment."
     >
       <form
         className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
@@ -205,8 +181,8 @@ export default async function SupplierBillsReportPage({
       {showingDueThroughTomorrow ? (
         <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-amber-900">
-            Showing every unpaid or partially paid bill due through tomorrow,
-            regardless of source date.
+            Showing every unpaid or partially paid invoice bill due through
+            tomorrow, regardless of invoice date.
           </p>
           <Button asChild variant="outline" size="sm">
             <Link href="/admin/reports/supplier-bills">
@@ -219,8 +195,8 @@ export default async function SupplierBillsReportPage({
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Unpaid balance" value={money(unpaid)} />
         <MetricCard label="Payments recorded" value={money(paid)} />
-        <MetricCard label="Legacy pending review" value={money(pending)} />
-        <MetricCard label="Legacy rejected" value={rejected} />
+        <MetricCard label="Draft invoice value" value={money(draftValue)} />
+        <MetricCard label="Void invoices" value={voidCount} />
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Today's bills" value={money(totalSince(dayStart))} />

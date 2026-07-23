@@ -166,6 +166,37 @@ export default async function SupplierInvoiceDetailPage({
               {invoice.voidReason ? ` Reason: ${invoice.voidReason}` : ""}
             </p>
           ) : null}
+          {invoice.source === "LEGACY_UPLOAD" ? (
+            <>
+              <p>
+                Converted from the former supplier delivery workflow with its
+                original record ID and receipt reference.
+              </p>
+              {invoice.legacyDeliveryDate ? (
+                <p>
+                  Original delivery timestamp:{" "}
+                  {invoice.legacyDeliveryDate.toLocaleString()}.
+                </p>
+              ) : null}
+              {invoice.legacyInventoryUpdatedAt ? (
+                <p>
+                  Historical inventory update:{" "}
+                  {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This is
+                  audit history only; invoices no longer update inventory.
+                </p>
+              ) : null}
+              {invoice.legacySubtotalAmount !== null ||
+              invoice.legacyTaxAmount !== null ||
+              invoice.legacyDiscountAmount !== null ? (
+                <p>
+                  Legacy breakdown: subtotal{" "}
+                  {formatMoney(Number(invoice.legacySubtotalAmount || 0))}, tax{" "}
+                  {formatMoney(Number(invoice.legacyTaxAmount || 0))}, discount{" "}
+                  {formatMoney(Number(invoice.legacyDiscountAmount || 0))}.
+                </p>
+              ) : null}
+            </>
+          ) : null}
           {invoice.bill ? (
             <Button asChild variant="outline" className="mt-2 w-fit">
               <Link
@@ -193,6 +224,7 @@ export default async function SupplierInvoiceDetailPage({
       ) : null}
 
       <SupplierInvoiceEditor
+        key={`${invoice.id}:${invoice.updatedAt.toISOString()}`}
         hasPurchaseOrder={Boolean(invoice.purchaseOrder)}
         invoice={{
           id: invoice.id,

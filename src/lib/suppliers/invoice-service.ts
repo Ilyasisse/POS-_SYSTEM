@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
+  getSupplierInvoiceVoidEffect,
   type SupplierInvoiceDraftInput,
   type SupplierInvoiceDraftCreationMetadataInput,
   type ValidatedSupplierInvoiceDraft,
@@ -398,7 +399,6 @@ export async function finalizeSupplierInvoice(
         data: {
           supplierId: invoice.supplierId,
           invoiceId: id,
-          deliveryId: null,
           totalAmount: draft.totalAmount,
           paidAmount: 0,
           status: "UNPAID",
@@ -442,6 +442,7 @@ export async function voidSupplierInvoiceDraft(
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
         throw new Error("Only a draft supplier invoice can be voided.");
       }
+      const voidEffect = getSupplierInvoiceVoidEffect(invoice.purchaseOrderId);
 
       const voidedAt = new Date();
       const claimed = await tx.supplierInvoice.updateMany({
@@ -457,9 +458,9 @@ export async function voidSupplierInvoiceDraft(
         throw new Error("This supplier invoice is no longer a draft.");
       }
 
-      if (invoice.purchaseOrderId) {
+      if (voidEffect.reopensPurchaseOrder && voidEffect.purchaseOrderId) {
         const reopened = await tx.supplierPurchaseOrder.updateMany({
-          where: { id: invoice.purchaseOrderId, status: "COMPLETED" },
+          where: { id: voidEffect.purchaseOrderId, status: "COMPLETED" },
           data: { status: "OPEN", completedAt: null },
         });
         if (reopened.count !== 1) {
@@ -469,7 +470,7 @@ export async function voidSupplierInvoiceDraft(
 
       return {
         invoiceId: id,
-        purchaseOrderId: invoice.purchaseOrderId,
+        purchaseOrderId: voidEffect.purchaseOrderId,
         voidedAt,
       };
     },
