@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { getSupplierInvoiceDisplayStatus, SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS, SUPPLIER_INVOICE_DISPLAY_STATUS_TONES } from "@/lib/suppliers/invoice-status";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import SupplierInvoiceEditor from "./SupplierInvoiceEditor";
 
@@ -15,12 +16,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
-
-function statusTone(status: "DRAFT" | "FINALIZED" | "VOID") {
-  if (status === "FINALIZED") return "green" as const;
-  if (status === "VOID") return "red" as const;
-  return "amber" as const;
-}
 
 export default async function SupplierInvoiceDetailPage({
   params,
@@ -52,6 +47,9 @@ export default async function SupplierInvoiceDetailPage({
     },
   });
   if (!invoice) notFound();
+  const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
+  const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
+  const remainingBalance = invoice.bill ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount) : null;
 
   const [catalogItems, receiptUrl] = await Promise.all([
     prisma.supplierCatalogItem.findMany({
