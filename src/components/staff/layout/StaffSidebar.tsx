@@ -1,8 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown, Coffee, Ellipsis, UserRound } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronsUpDown,
+  Coffee,
+  UserRound,
+} from "lucide-react";
 
 import SignOutButton from "@/components/SignOutButton";
 import { Badge } from "@/components/ui/badge";
@@ -19,21 +25,27 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import type { StaffShellCurrentUser } from "./StaffShell";
 import {
-  getStaffNavigationSectionsFromItems,
+  getActiveStaffNavigationGroupKey,
+  getNextOpenStaffNavigationGroupKey,
+  getStaffNavigationNodesFromItems,
   getVisibleStaffNavigationItems,
   isStaffNavActive,
   type StaffNavCounts,
+  type StaffNavigationGroupKey,
+  type StaffNavigationNode,
   type StaffNavigationScope,
 } from "./staff-navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -43,8 +55,6 @@ type StaffSidebarProps = {
   counts?: StaffNavCounts;
   navigationScope?: StaffNavigationScope;
 };
-
-const MAX_COLLAPSED_ROUTE_ICONS = 13;
 
 function formatRole(role: string) {
   if (role === "ADMIN") return "Administrator";
@@ -59,6 +69,144 @@ function initials(fullName: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+type ExpandedNavigationMenuProps = {
+  counts?: StaffNavCounts;
+  navigationNodes: StaffNavigationNode[];
+  onNavigate: () => void;
+  pathname: string;
+};
+
+function ExpandedNavigationMenu({
+  counts,
+  navigationNodes,
+  onNavigate,
+  pathname,
+}: ExpandedNavigationMenuProps) {
+  const [openGroupKey, setOpenGroupKey] =
+    useState<StaffNavigationGroupKey | null>(
+      () => getActiveStaffNavigationGroupKey(pathname, navigationNodes),
+    );
+
+  return (
+    <SidebarMenu>
+      {navigationNodes.map((node) => {
+        if (node.type === "group") {
+          const Icon = node.icon;
+          const groupActive = node.items.some((item) =>
+            isStaffNavActive(pathname, item),
+          );
+          const groupOpen = openGroupKey === node.key;
+          const submenuId = `sidebar-group-${node.key}`;
+
+          return (
+            <SidebarMenuItem key={node.key}>
+              <SidebarMenuButton
+                type="button"
+                size="lg"
+                tooltip={node.label}
+                isActive={groupActive}
+                className="rounded-xl"
+                aria-expanded={groupOpen}
+                aria-controls={submenuId}
+                onClick={() =>
+                  setOpenGroupKey((current) =>
+                    getNextOpenStaffNavigationGroupKey(current, node.key),
+                  )
+                }
+              >
+                <Icon aria-hidden="true" />
+                <span>{node.label}</span>
+                <ChevronRight
+                  className={cn(
+                    "ml-auto transition-transform duration-200",
+                    groupOpen ? "rotate-90" : null,
+                  )}
+                  aria-hidden="true"
+                />
+              </SidebarMenuButton>
+              <SidebarMenuSub id={submenuId} hidden={!groupOpen}>
+                {node.items.map((item) => {
+                  const active = isStaffNavActive(pathname, item);
+                  const count = item.countKey
+                    ? counts?.[item.countKey]
+                    : undefined;
+                  const ItemIcon = item.icon;
+
+                  return (
+                    <SidebarMenuSubItem key={item.key}>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={active}
+                        className="h-9"
+                      >
+                        <Link
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          onClick={() => {
+                            setOpenGroupKey(node.key);
+                            onNavigate();
+                          }}
+                        >
+                          <ItemIcon aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.label}
+                          </span>
+                          {typeof count === "number" ? (
+                            <Badge variant="secondary" className="ml-auto">
+                              {count}
+                            </Badge>
+                          ) : null}
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  );
+                })}
+              </SidebarMenuSub>
+            </SidebarMenuItem>
+          );
+        }
+
+        const { item } = node;
+        const active = isStaffNavActive(pathname, item);
+        const count = item.countKey ? counts?.[item.countKey] : undefined;
+        const Icon = item.icon;
+
+        return (
+          <SidebarMenuItem key={item.key}>
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              tooltip={item.label}
+              isActive={active}
+              className={cn(
+                "rounded-xl",
+                count
+                  ? "group-has-data-[sidebar=menu-badge]/menu-item:pr-10"
+                  : null,
+              )}
+            >
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => {
+                  setOpenGroupKey(null);
+                  onNavigate();
+                }}
+              >
+                <Icon aria-hidden="true" />
+                <span>{item.label}</span>
+              </Link>
+            </SidebarMenuButton>
+            {typeof count === "number" ? (
+              <SidebarMenuBadge>{count}</SidebarMenuBadge>
+            ) : null}
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
 }
 
 export default function StaffSidebar({
@@ -77,26 +225,13 @@ export default function StaffSidebar({
     currentUser,
     navigationScope,
   );
-  const sections = getStaffNavigationSectionsFromItems(visibleItems);
+  const navigationNodes = getStaffNavigationNodesFromItems(visibleItems);
   const hasAdminAccess = currentUser.permissions.includes(
     PERMISSIONS.ADMIN_ACCESS,
   );
   const compactNavigation = state === "collapsed" && !isMobile;
-  const activeItem = visibleItems.find((item) =>
-    isStaffNavActive(pathname, item),
-  );
-  const firstCompactItems = visibleItems.slice(0, MAX_COLLAPSED_ROUTE_ICONS);
-  const compactItems =
-    activeItem && !firstCompactItems.some((item) => item.key === activeItem.key)
-      ? [
-          ...firstCompactItems.slice(0, MAX_COLLAPSED_ROUTE_ICONS - 1),
-          activeItem,
-        ]
-      : firstCompactItems;
-  const compactItemKeys = new Set(compactItems.map((item) => item.key));
-  const additionalItems = visibleItems.filter(
-    (item) => !compactItemKeys.has(item.key),
-  );
+  const [compactOpenGroupKey, setCompactOpenGroupKey] =
+    useState<StaffNavigationGroupKey | null>(null);
 
   return (
     <>
@@ -121,53 +256,74 @@ export default function StaffSidebar({
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>
-                {compactItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = isStaffNavActive(pathname, item);
-                  const count = item.countKey ? counts?.[item.countKey] : undefined;
-                  const tooltip =
-                    typeof count === "number"
-                      ? `${item.label} (${count})`
-                      : item.label;
+                {navigationNodes.map((node) => {
+                  if (node.type === "link") {
+                    const { item } = node;
+                    const Icon = item.icon;
+                    const active = isStaffNavActive(pathname, item);
+                    const count = item.countKey
+                      ? counts?.[item.countKey]
+                      : undefined;
+                    const tooltip =
+                      typeof count === "number"
+                        ? `${item.label} (${count})`
+                        : item.label;
+
+                    return (
+                      <SidebarMenuItem key={item.key}>
+                        <SidebarMenuButton
+                          asChild
+                          size="lg"
+                          tooltip={tooltip}
+                          isActive={active}
+                          className="rounded-xl"
+                        >
+                          <Link
+                            href={item.href}
+                            aria-current={active ? "page" : undefined}
+                            onClick={() => {
+                              setCompactOpenGroupKey(null);
+                              handleNavigate();
+                            }}
+                          >
+                            <Icon aria-hidden="true" />
+                            <span className="sr-only">{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+
+                  const Icon = node.icon;
+                  const groupActive = node.items.some((item) =>
+                    isStaffNavActive(pathname, item),
+                  );
 
                   return (
-                    <SidebarMenuItem key={item.key}>
-                      <SidebarMenuButton
-                        asChild
-                        size="lg"
-                        tooltip={tooltip}
-                        isActive={active}
-                        className="rounded-xl"
-                      >
-                        <Link
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          onClick={handleNavigate}
-                        >
-                          <Icon aria-hidden="true" />
-                          <span className="sr-only">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-
-                {additionalItems.length > 0 ? (
-                  <SidebarMenuItem>
-                    <DropdownMenu>
+                    <SidebarMenuItem key={node.key}>
+                    <DropdownMenu
+                      modal={false}
+                      open={compactOpenGroupKey === node.key}
+                      onOpenChange={(open) =>
+                        setCompactOpenGroupKey(open ? node.key : null)
+                      }
+                    >
                       <DropdownMenuTrigger asChild>
                         <SidebarMenuButton
                           size="lg"
-                          tooltip="More routes"
+                          tooltip={node.label}
                           className="rounded-xl"
-                          aria-label="More authorized routes"
+                          isActive={groupActive}
+                          aria-label={`Open ${node.label} routes`}
                         >
-                          <Ellipsis aria-hidden="true" />
-                          <span className="sr-only">More routes</span>
+                          <Icon aria-hidden="true" />
+                          <span className="sr-only">{node.label}</span>
                         </SidebarMenuButton>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent side="right" align="start" className="w-64">
-                        {additionalItems.map((item) => {
+                        <DropdownMenuLabel>{node.label}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {node.items.map((item) => {
                           const Icon = item.icon;
                           const count = item.countKey
                             ? counts?.[item.countKey]
@@ -177,8 +333,16 @@ export default function StaffSidebar({
                             <DropdownMenuItem key={item.key} asChild>
                               <Link
                                 href={item.href}
-                                onClick={handleNavigate}
+                                onClick={() => {
+                                  setCompactOpenGroupKey(null);
+                                  handleNavigate();
+                                }}
                                 className="flex w-full items-center gap-2"
+                                aria-current={
+                                  isStaffNavActive(pathname, item)
+                                    ? "page"
+                                    : undefined
+                                }
                               >
                                 <Icon aria-hidden="true" />
                                 <span className="min-w-0 flex-1 truncate">
@@ -194,55 +358,24 @@ export default function StaffSidebar({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </SidebarMenuItem>
-                ) : null}
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         ) : (
-          <div className="space-y-4 py-2">
-            {sections.map((section) => (
-            <SidebarGroup key={section.section}>
-              <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
+          <div className="py-2">
+            <SidebarGroup>
               <SidebarGroupContent>
-                <SidebarMenu>
-                  {section.items.map((item) => {
-                    const active = isStaffNavActive(pathname, item);
-                    const count = item.countKey ? counts?.[item.countKey] : undefined;
-                    const Icon = item.icon;
-
-                    return (
-                      <SidebarMenuItem key={item.key}>
-                        <SidebarMenuButton
-                          asChild
-                          size="lg"
-                          tooltip={item.label}
-                          isActive={active}
-                          className={cn(
-                            "rounded-xl",
-                            count
-                              ? "group-has-data-[sidebar=menu-badge]/menu-item:pr-10"
-                              : null,
-                          )}
-                        >
-                          <Link
-                            href={item.href}
-                            aria-current={active ? "page" : undefined}
-                            onClick={handleNavigate}
-                          >
-                            <Icon aria-hidden="true" />
-                            <span>{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                        {typeof count === "number" ? (
-                          <SidebarMenuBadge>{count}</SidebarMenuBadge>
-                        ) : null}
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
+                <ExpandedNavigationMenu
+                  key={pathname}
+                  counts={counts}
+                  navigationNodes={navigationNodes}
+                  onNavigate={handleNavigate}
+                  pathname={pathname}
+                />
               </SidebarGroupContent>
             </SidebarGroup>
-            ))}
           </div>
         )}
       </SidebarContent>
@@ -305,12 +438,11 @@ export default function StaffSidebar({
                     </Link>
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem asChild>
-                  <SignOutButton
-                    variant="ghost"
-                    className="h-auto w-full justify-start rounded-md px-1.5 py-1 text-sm font-normal text-foreground hover:bg-accent hover:text-accent-foreground"
-                  />
-                </DropdownMenuItem>
+                <SignOutButton
+                  role="menuitem"
+                  variant="ghost"
+                  className="h-auto w-full justify-start rounded-md px-1.5 py-1 text-sm font-normal text-foreground hover:bg-accent hover:text-accent-foreground"
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>

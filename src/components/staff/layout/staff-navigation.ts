@@ -1,10 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ClipboardList,
+  Layers3,
   PackageSearch,
   ReceiptText,
+  Settings,
   Shirt,
   Store,
+  Truck,
   Users,
   UtensilsCrossed,
   ChefHat,
@@ -24,6 +27,13 @@ import { adminNavigationItems } from "@/components/admin/layout/admin-navigation
 
 export type StaffNavigationSection = "admin" | "operations" | "kitchen";
 export type StaffNavigationScope = "all" | "admin";
+export type StaffNavigationGroupKey =
+  | "catalog"
+  | "admin-operations"
+  | "suppliers"
+  | "administration"
+  | "role-workspaces"
+  | "kitchen";
 
 export type StaffNavigationItem = {
   key: string;
@@ -38,6 +48,82 @@ export type StaffNavigationItem = {
 };
 
 export type StaffNavCounts = Partial<AdminNavCounts>;
+
+export type StaffNavigationNode =
+  | {
+      type: "link";
+      item: StaffNavigationItem;
+    }
+  | {
+      type: "group";
+      key: StaffNavigationGroupKey;
+      label: string;
+      icon: LucideIcon;
+      items: StaffNavigationItem[];
+    };
+
+const navigationGroups: readonly {
+  key: StaffNavigationGroupKey;
+  label: string;
+  icon: LucideIcon;
+  itemKeys: readonly string[];
+}[] = [
+  {
+    key: "catalog",
+    label: "Catalog",
+    icon: Layers3,
+    itemKeys: ["categories", "products", "modifiers", "modifier-groups"],
+  },
+  {
+    key: "admin-operations",
+    label: "Operations",
+    icon: ClipboardList,
+    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances"],
+  },
+  {
+    key: "suppliers",
+    label: "Suppliers",
+    icon: Truck,
+    itemKeys: [
+      "suppliers",
+      "supplier-purchase-orders",
+      "supplier-invoices",
+      "supplier-bills",
+    ],
+  },
+  {
+    key: "administration",
+    label: "Administration",
+    icon: Settings,
+    itemKeys: ["staff", "settings"],
+  },
+  {
+    key: "role-workspaces",
+    label: "Role workspaces",
+    icon: Store,
+    itemKeys: [
+      "manager-home",
+      "manager-waiter-orders",
+      "cashier-home",
+      "cashier-order",
+      "cashier-waiter-orders",
+      "waiter-home",
+      "inventory-home",
+    ],
+  },
+  {
+    key: "kitchen",
+    label: "Kitchen",
+    icon: UtensilsCrossed,
+    itemKeys: [
+      "kitchen-home",
+      "kitchen-barista",
+      "kitchen-cabitaan",
+      "kitchen-cunto-soomaali",
+      "kitchen-fast-food",
+    ],
+  },
+] as const;
 
 const staffNavigationItems: readonly StaffNavigationItem[] = [
   ...adminNavigationItems.map((item) => ({
@@ -210,6 +296,75 @@ export function getStaffNavigationSectionsFromItems(
 
     return groups;
   }, []);
+}
+
+export function getStaffNavigationNodesFromItems(
+  items: readonly StaffNavigationItem[],
+): StaffNavigationNode[] {
+  const itemsByKey = new Map(items.map((item) => [item.key, item]));
+  const groupedItemKeys = new Set(
+    navigationGroups.flatMap((group) => group.itemKeys),
+  );
+  const directItems = items.filter((item) => !groupedItemKeys.has(item.key));
+  const nodes: StaffNavigationNode[] = [];
+
+  const dashboard = directItems.find((item) => item.key === "dashboard");
+  if (dashboard) {
+    nodes.push({ type: "link", item: dashboard });
+  }
+
+  for (const group of navigationGroups.slice(0, 3)) {
+    const groupItems = group.itemKeys.flatMap((key) => {
+      const item = itemsByKey.get(key);
+      return item ? [item] : [];
+    });
+    if (groupItems.length > 0) {
+      nodes.push({ type: "group", ...group, items: groupItems });
+    }
+  }
+
+  const reports = directItems.find((item) => item.key === "reports");
+  if (reports) {
+    nodes.push({ type: "link", item: reports });
+  }
+
+  for (const group of navigationGroups.slice(3)) {
+    const groupItems = group.itemKeys.flatMap((key) => {
+      const item = itemsByKey.get(key);
+      return item ? [item] : [];
+    });
+    if (groupItems.length > 0) {
+      nodes.push({ type: "group", ...group, items: groupItems });
+    }
+  }
+
+  for (const item of directItems) {
+    if (item.key !== "dashboard" && item.key !== "reports") {
+      nodes.push({ type: "link", item });
+    }
+  }
+
+  return nodes;
+}
+
+export function getActiveStaffNavigationGroupKey(
+  pathname: string,
+  nodes: readonly StaffNavigationNode[],
+): StaffNavigationGroupKey | null {
+  const activeGroup = nodes.find(
+    (node) =>
+      node.type === "group" &&
+      node.items.some((item) => isStaffNavActive(pathname, item)),
+  );
+
+  return activeGroup?.type === "group" ? activeGroup.key : null;
+}
+
+export function getNextOpenStaffNavigationGroupKey(
+  currentGroupKey: StaffNavigationGroupKey | null,
+  selectedGroupKey: StaffNavigationGroupKey,
+): StaffNavigationGroupKey | null {
+  return currentGroupKey === selectedGroupKey ? null : selectedGroupKey;
 }
 
 export function isStaffNavActive(pathname: string, item: StaffNavigationItem) {
