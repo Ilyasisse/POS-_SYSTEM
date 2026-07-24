@@ -53,17 +53,19 @@ export async function recordSupplierPayment(
 }
 
 export async function updateSupplierBillDueDate(billId: string, dueDate: Date) {
-  const bill = await prisma.supplierBill.findUnique({
-    where: { id: billId },
-    select: { invoiceId: true },
-  });
-  const result = await prisma.supplierBill.updateMany({
-    where: {
-      id: billId,
-      status: { in: ["UNPAID", "PARTIAL"] },
-    },
-    data: { dueDate },
-  });
+  const [bill, result] = await Promise.all([
+    prisma.supplierBill.findUnique({
+      where: { id: billId },
+      select: { invoiceId: true },
+    }),
+    prisma.supplierBill.updateMany({
+      where: {
+        id: billId,
+        status: { in: ["UNPAID", "PARTIAL"] },
+      },
+      data: { dueDate },
+    }),
+  ]);
 
   if (result.count !== 1) {
     throw new Error(
