@@ -7,6 +7,11 @@ import {
   ToneBadge,
 } from "@/components/admin/shared";
 import { getSupplierBillDueState } from "@/lib/suppliers/supplier-bills";
+import {
+  getSupplierInvoiceDisplayStatus,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+} from "@/lib/suppliers/invoice-status";
 import DueDateForm from "./DueDateForm";
 import PaymentForm from "./PaymentForm";
 
@@ -17,7 +22,7 @@ export type SupplierBillReportRow = {
     id: string;
     submittedAt: Date;
     invoiceNumber: string | null;
-    status: string;
+    status: "DRAFT" | "FINALIZED" | "VOID";
     supplierName: string;
     finalizedByName: string | null;
     receiptUrl: string | null;
@@ -72,6 +77,13 @@ export default function SupplierBillsTable({
                 Number(bill.totalAmount.toString()) -
                 Number(bill.paidAmount.toString());
               const dueState = getSupplierBillDueState(bill.dueDate, now);
+              const displayStatus = getSupplierInvoiceDisplayStatus(
+                {
+                  status: invoice.status,
+                  bill: { status: bill.status, dueDate: bill.dueDate },
+                },
+                now,
+              );
 
               return (
                 <tr
@@ -144,14 +156,11 @@ export default function SupplierBillsTable({
                     <div className="text-xs">Balance {money(remaining)}</div>
                   </TableCell>
                   <TableCell>
-                    <ToneBadge tone="green">{invoice.status}</ToneBadge>
-                    <div className="mt-1">
-                      <ToneBadge
-                        tone={bill.status === "PAID" ? "green" : "amber"}
-                      >
-                        {bill.status}
-                      </ToneBadge>
-                    </div>
+                    <ToneBadge
+                      tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}
+                    >
+                      {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
+                    </ToneBadge>
                   </TableCell>
                   <TableCell>
                     <div>Finalized: {invoice.finalizedByName || "--"}</div>

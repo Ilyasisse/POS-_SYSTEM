@@ -141,7 +141,7 @@ export default async function SupplierBillsReportPage({
   return (
     <AdminPage
       title="Supplier bills"
-      description="Audit finalized supplier invoices, balances, due dates, and every payment."
+      description="Audit approved supplier invoices, balances, due dates, and every payment."
     >
       <form
         className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
