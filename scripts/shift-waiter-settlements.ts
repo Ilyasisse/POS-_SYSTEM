@@ -18,7 +18,7 @@ if (unknownArgument || !dateArgument || args.filter((argument) => argument.start
 
 const sourceBusinessDateKey = dateArgument.slice("--date=".length);
 
-try {
+async function main() {`r`n  try {
   const result = await shiftWaiterSettlementsBackOneDay({
     sourceBusinessDateKey,
     apply,
@@ -39,5 +39,4 @@ try {
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Settlement shift failed.");
-  process.exitCode = 1;
-}
+  process.exitCode = 1;`r`n  }`r`n}`r`n`r`nvoid main();`r`n
