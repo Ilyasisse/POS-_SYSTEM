@@ -305,12 +305,11 @@ export default function StaffSidebar({
                     </Link>
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem asChild>
-                  <SignOutButton
-                    variant="ghost"
-                    className="h-auto w-full justify-start rounded-md px-1.5 py-1 text-sm font-normal text-foreground hover:bg-accent hover:text-accent-foreground"
-                  />
-                </DropdownMenuItem>
+                <SignOutButton
+                  role="menuitem"
+                  variant="ghost"
+                  className="h-auto w-full justify-start rounded-md px-1.5 py-1 text-sm font-normal text-foreground hover:bg-accent hover:text-accent-foreground"
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
