@@ -14,6 +14,7 @@ import {
   Users,
   WalletCards,
   ShoppingBasket,
+  ShoppingCart,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -126,9 +127,16 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },
   {
-    key: "supplier-deliveries",
-    href: "/admin/supplier-deliveries",
-    label: "Supplier deliveries",
+    key: "supplier-purchase-orders",
+    href: "/admin/supplier-purchase-orders",
+    label: "Purchase orders",
+    icon: ShoppingCart,
+    permission: PERMISSIONS.SUPPLIER_MANAGE,
+  },
+  {
+    key: "supplier-invoices",
+    href: "/admin/supplier-invoices",
+    label: "Supplier invoices",
     icon: ClipboardList,
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },
