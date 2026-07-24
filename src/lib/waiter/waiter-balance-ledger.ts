@@ -15,6 +15,7 @@ export {
   assertLedgerBusinessDate,
   businessDateKeyToDatabaseDate,
   calculateWaiterBalance,
+  getDefaultWaiterBalanceDateKey,
   getBusinessDayRangeForKey,
   getCurrentBusinessDateKey,
   isLedgerActive,
