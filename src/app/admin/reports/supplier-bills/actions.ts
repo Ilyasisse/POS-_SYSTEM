@@ -19,29 +19,31 @@ function requiredSupplierBillDueDate(value: string) {
   return dueDate;
 }
 
-function refreshSupplierBillPages() {
+function refreshSupplierBillPages(invoiceId: string) {
   revalidatePath("/admin/supplier-invoices");
+  revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
+  revalidatePath(`/print/supplier-invoices/${invoiceId}`);
   revalidatePath("/admin/reports/supplier-bills");
   revalidatePath("/admin/dashboard");
 }
 
 export async function recordPaymentAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  await recordSupplierPayment(
+  const result = await recordSupplierPayment(
     text(formData, "billId"),
     user.id,
     Number(formData.get("amount")),
     text(formData, "paymentMethod"),
     text(formData, "notes"),
   );
-  refreshSupplierBillPages();
+  refreshSupplierBillPages(result.invoiceId);
 }
 
 export async function updateSupplierBillDueDateAction(formData: FormData) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  await updateSupplierBillDueDate(
+  const result = await updateSupplierBillDueDate(
     text(formData, "billId"),
     requiredSupplierBillDueDate(text(formData, "dueDate")),
   );
-  refreshSupplierBillPages();
+  refreshSupplierBillPages(result.invoiceId);
 }

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { SupplierInvoiceStatus } from "@prisma/client";
 import {
   AdminPage,
   Button,
@@ -15,20 +14,21 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import {
+  getSupplierInvoiceDisplayStatus,
+  getSupplierInvoiceDisplayStatusWhere,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+  SUPPLIER_INVOICE_DISPLAY_STATUSES,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+  type SupplierInvoiceDisplayStatus,
+} from "@/lib/suppliers/invoice-status";
 
-const INVOICE_STATUSES = ["DRAFT", "FINALIZED", "VOID"] as const;
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
   month: "short",
   day: "numeric",
   year: "numeric",
 });
-
-function statusTone(status: SupplierInvoiceStatus) {
-  if (status === "FINALIZED") return "green" as const;
-  if (status === "VOID") return "red" as const;
-  return "amber" as const;
-}
 
 export default async function SupplierInvoicesPage({
   searchParams,
@@ -37,18 +37,24 @@ export default async function SupplierInvoicesPage({
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
-  const status = INVOICE_STATUSES.includes(
-    query.status as SupplierInvoiceStatus,
+  const status = SUPPLIER_INVOICE_DISPLAY_STATUSES.includes(
+    query.status as SupplierInvoiceDisplayStatus,
   )
-    ? (query.status as SupplierInvoiceStatus)
+    ? (query.status as SupplierInvoiceDisplayStatus)
     : undefined;
+  const now = new Date();
   const [invoices, suppliers] = await Promise.all([
     prisma.supplierInvoice.findMany({
-      where: { supplierId: query.supplier || undefined, status },
+      where: {
+        supplierId: query.supplier || undefined,
+        ...(status ? getSupplierInvoiceDisplayStatusWhere(status, now) : {}),
+      },
       include: {
         supplier: { select: { name: true } },
         purchaseOrder: { select: { orderNumber: true } },
-        bill: { select: { status: true, totalAmount: true, paidAmount: true } },
+        bill: {
+          select: { status: true, totalAmount: true, paidAmount: true, dueDate: true },
+        },
         _count: { select: { items: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -59,19 +65,31 @@ export default async function SupplierInvoicesPage({
       select: { id: true, name: true },
     }),
   ]);
-  const drafts = invoices.filter((invoice) => invoice.status === "DRAFT");
-  const finalized = invoices.filter(
-    (invoice) => invoice.status === "FINALIZED",
-  );
-  const finalizedTotal = finalized.reduce(
-    (sum, invoice) => sum + Number(invoice.totalAmount),
-    0,
-  );
+  const invoiceRows = invoices.map((invoice) => ({
+    ...invoice,
+    displayStatus: getSupplierInvoiceDisplayStatus(invoice, now),
+  }));
+  const countStatus = (displayStatus: SupplierInvoiceDisplayStatus) =>
+    invoiceRows.filter((invoice) => invoice.displayStatus === displayStatus)
+      .length;
+  const outstandingBalance = invoiceRows.reduce((sum, invoice) => {
+    if (
+      !invoice.bill ||
+      !["PENDING", "PARTIALLY_PAID", "OVERDUE"].includes(
+        invoice.displayStatus,
+      )
+    ) {
+      return sum;
+    }
+    return (
+      sum + Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
+    );
+  }, 0);
 
   return (
     <AdminPage
       title="Supplier invoices"
-      description="Review purchase-order invoice drafts, finalize money owed, and inspect read-only invoice history."
+      description="Review invoice drafts, approve supplier bills, and track payment status."
       action={
         <Button asChild variant="outline">
           <Link href="/admin/supplier-purchase-orders">Purchase orders</Link>
@@ -97,9 +115,9 @@ export default async function SupplierInvoicesPage({
           className="w-full"
         >
           <option value="">All statuses</option>
-          {INVOICE_STATUSES.map((value) => (
+          {SUPPLIER_INVOICE_DISPLAY_STATUSES.map((value) => (
             <option key={value} value={value}>
-              {value}
+              {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[value]}
             </option>
           ))}
         </NativeSelect>
@@ -108,12 +126,18 @@ export default async function SupplierInvoicesPage({
         </Button>
       </form>
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Draft invoices" value={drafts.length} />
-        <MetricCard label="Finalized invoices" value={finalized.length} />
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <MetricCard label="Draft invoices" value={countStatus("DRAFT")} />
+        <MetricCard label="Pending invoices" value={countStatus("PENDING")} />
         <MetricCard
-          label="Finalized value"
-          value={formatMoney(finalizedTotal)}
+          label="Partially paid"
+          value={countStatus("PARTIALLY_PAID")}
+        />
+        <MetricCard label="Overdue invoices" value={countStatus("OVERDUE")} />
+        <MetricCard label="Paid invoices" value={countStatus("PAID")} />
+        <MetricCard
+          label="Outstanding balance"
+          value={formatMoney(outstandingBalance)}
         />
       </section>
 
@@ -131,8 +155,8 @@ export default async function SupplierInvoicesPage({
             </tr>
           </thead>
           <tbody>
-            {invoices.length ? (
-              invoices.map((invoice) => (
+            {invoiceRows.length ? (
+              invoiceRows.map((invoice) => (
                 <tr key={invoice.id} className="border-t">
                   <TableCell>
                     <Link
@@ -156,7 +180,7 @@ export default async function SupplierInvoicesPage({
                   <TableCell>
                     <div>{DATE_FORMATTER.format(invoice.invoiceDate)}</div>
                     <div className="text-xs text-muted-foreground">
-                      Due {DATE_FORMATTER.format(invoice.dueDate)}
+                      Due {DATE_FORMATTER.format(invoice.bill?.dueDate ?? invoice.dueDate)}
                     </div>
                   </TableCell>
                   <TableCell>{invoice._count.items}</TableCell>
@@ -164,18 +188,17 @@ export default async function SupplierInvoicesPage({
                     {formatMoney(Number(invoice.totalAmount))}
                     {invoice.bill ? (
                       <div className="text-xs text-muted-foreground">
-                        {invoice.bill.status} ·{" "}
-                        {formatMoney(
-                          Number(invoice.bill.totalAmount) -
-                            Number(invoice.bill.paidAmount),
-                        )}{" "}
-                        remaining
+                        {invoice.displayStatus === "PAID"
+                          ? "Paid in full"
+                          : `${formatMoney(Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount))} remaining`}
                       </div>
                     ) : null}
                   </TableCell>
                   <TableCell>
-                    <ToneBadge tone={statusTone(invoice.status)}>
-                      {invoice.status}
+                    <ToneBadge
+                      tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[invoice.displayStatus]}
+                    >
+                      {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[invoice.displayStatus]}
                     </ToneBadge>
                   </TableCell>
                 </tr>

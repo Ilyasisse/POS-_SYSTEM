@@ -5,6 +5,7 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { getSupplierInvoiceDisplayStatus, SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS } from "@/lib/suppliers/invoice-status";
 import PrintButton from "./PrintButton";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -28,10 +29,14 @@ export default async function PrintableSupplierInvoicePage({
       purchaseOrder: { select: { orderNumber: true } },
       createdBy: { select: { fullName: true } },
       finalizedBy: { select: { fullName: true } },
+      bill: { select: { status: true, dueDate: true, totalAmount: true, paidAmount: true } },
       items: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!invoice) notFound();
+  const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
+  const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
+  const remainingBalance = invoice.bill ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount) : null;
 
   return (
     <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
@@ -71,9 +76,9 @@ export default async function PrintableSupplierInvoicePage({
               {invoice.invoiceNumber || "No invoice number"}
             </div>
             <div
-              className={`text-sm font-bold ${invoice.status === "DRAFT" ? "text-amber-700" : "text-muted-foreground"}`}
+              className={`text-sm font-bold ${displayStatus === "DRAFT" ? "text-amber-700" : "text-muted-foreground"}`}
             >
-              {invoice.status}
+              {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
             </div>
           </div>
         </header>
@@ -101,7 +106,7 @@ export default async function PrintableSupplierInvoicePage({
             <div>
               <dt className="text-muted-foreground">Due date</dt>
               <dd className="font-medium">
-                {DATE_FORMATTER.format(invoice.dueDate)}
+                {DATE_FORMATTER.format(effectiveDueDate)}
               </dd>
             </div>
             <div>
@@ -161,6 +166,7 @@ export default async function PrintableSupplierInvoicePage({
             <div className="text-3xl font-semibold">
               {formatMoney(Number(invoice.totalAmount))}
             </div>
+            {invoice.bill ? <div className="text-sm text-muted-foreground">{displayStatus === "PAID" ? "Paid in full" : `${formatMoney(remainingBalance || 0)} remaining`}</div> : null}
           </div>
         </div>
 

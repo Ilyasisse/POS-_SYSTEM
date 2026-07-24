@@ -96,12 +96,11 @@ export default async function SupplierInvoiceDetailPage({
         </>
       }
     >
-      {query?.invoiceStatus === "finalized" ? (
+      {query?.invoiceStatus === "approved" ? (
         <Alert>
-          <AlertTitle>Invoice finalized</AlertTitle>
+          <AlertTitle>Invoice approved</AlertTitle>
           <AlertDescription>
-            The invoice is now read-only and its unpaid supplier bill was
-            created.
+            The invoice is now read-only, its supplier bill was created, and payment is pending.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -110,8 +109,8 @@ export default async function SupplierInvoiceDetailPage({
         <Card className="gap-2 p-5">
           <span className="text-sm text-muted-foreground">Status</span>
           <div>
-            <ToneBadge tone={statusTone(invoice.status)}>
-              {invoice.status}
+            <ToneBadge tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}>
+              {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
             </ToneBadge>
           </div>
         </Card>
@@ -128,7 +127,7 @@ export default async function SupplierInvoiceDetailPage({
           <span className="text-sm text-muted-foreground">Invoice date</span>
           <strong>{DATE_FORMATTER.format(invoice.invoiceDate)}</strong>
           <span className="text-xs text-muted-foreground">
-            Due {DATE_FORMATTER.format(invoice.dueDate)}
+            Due {DATE_FORMATTER.format(effectiveDueDate)}
           </span>
         </Card>
         <Card className="gap-1 p-5">
@@ -138,8 +137,8 @@ export default async function SupplierInvoiceDetailPage({
           </strong>
           <span className="text-xs text-muted-foreground">
             {invoice.bill
-              ? `${invoice.bill.status} bill · ${formatMoney(Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount))} remaining`
-              : "No supplier bill until finalized"}
+              ? displayStatus === "PAID" ? "Paid in full" : `${formatMoney(remainingBalance || 0)} remaining`
+              : invoice.status === "VOID" ? "Invoice voided" : "No supplier bill until finalized"}
           </span>
         </Card>
       </section>

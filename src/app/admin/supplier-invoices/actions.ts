@@ -107,8 +107,8 @@ export async function finalizeSupplierInvoiceAction(formData: FormData) {
   );
   refreshInvoicePages(invoiceId, result.purchaseOrderId);
   return {
-    message: "Invoice finalized and supplier bill created.",
-    redirectTo: `/admin/supplier-invoices/${encodeURIComponent(result.invoiceId)}?invoiceStatus=finalized`,
+    message: "Invoice approved and supplier bill created.",
+    redirectTo: `/admin/supplier-invoices/${encodeURIComponent(result.invoiceId)}?invoiceStatus=approved`,
   };
 }
 

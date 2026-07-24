@@ -46,13 +46,17 @@ export async function recordSupplierPayment(
         },
       });
 
-      return payment;
+      return { payment, invoiceId: bill.invoiceId };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 }
 
 export async function updateSupplierBillDueDate(billId: string, dueDate: Date) {
+  const bill = await prisma.supplierBill.findUnique({
+    where: { id: billId },
+    select: { invoiceId: true },
+  });
   const result = await prisma.supplierBill.updateMany({
     where: {
       id: billId,
@@ -66,4 +70,7 @@ export async function updateSupplierBillDueDate(billId: string, dueDate: Date) {
       "Only unpaid supplier bills can have their due date changed.",
     );
   }
+
+  if (!bill) throw new Error("Supplier bill not found.");
+  return { invoiceId: bill.invoiceId };
 }
