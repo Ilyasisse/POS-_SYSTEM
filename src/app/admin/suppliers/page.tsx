@@ -11,7 +11,8 @@ import {
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
-import { createSupplier, updateSupplier } from "./actions";
+import { createSupplier } from "./actions";
+import { SupplierEditDialog } from "./SupplierEditDialog";
 
 const fieldClass =
   "h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500";
@@ -208,18 +209,7 @@ export default async function SuppliersPage() {
                     </Button>
                   </TableCell>
                   <TableCell>
-                    <form
-                      action={updateSupplier}
-                      className="grid min-w-72 gap-2"
-                    >
-                      <Fields supplier={supplier} />
-                      <Button
-                        type="submit"
-                        className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white"
-                      >
-                        Save changes
-                      </Button>
-                    </form>
+                    <SupplierEditDialog supplier={supplier} />
                   </TableCell>
                 </tr>
               ))
