@@ -24,7 +24,7 @@ function refreshSupplierBillPages(invoiceId: string) {
   revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
   revalidatePath(`/print/supplier-invoices/${invoiceId}`);
   revalidatePath("/admin/reports/supplier-bills");
-  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin");
 }
 
 export async function recordPaymentAction(formData: FormData) {
