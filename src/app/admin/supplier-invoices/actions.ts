@@ -79,7 +79,7 @@ function refreshInvoicePages(
   revalidatePath(`/print/supplier-invoices/${invoiceId}`);
   revalidatePath("/admin/supplier-purchase-orders");
   revalidatePath("/admin/reports/supplier-bills");
-  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin");
   if (purchaseOrderId) {
     revalidatePath(`/admin/supplier-purchase-orders/${purchaseOrderId}`);
     revalidatePath(`/print/supplier-purchase-orders/${purchaseOrderId}`);
