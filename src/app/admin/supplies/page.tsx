@@ -40,6 +40,10 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
+const quantityFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 3,
+});
+
 function displayDate(dateKey: string) {
   const date = supplyDateKeyToDatabaseDate(dateKey);
   return date ? dateFormatter.format(date) : dateKey;
@@ -53,25 +57,41 @@ function shiftDate(dateKey: string, amount: number) {
 }
 
 function formatQuantity(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 3,
-  }).format(value);
+  return quantityFormatter.format(value);
 }
 
 function statusNotice(status: string | undefined) {
   switch (status) {
     case "created":
-      return { tone: "success", message: "Supply purchase added." };
+      return {
+        tone: "success",
+        message: "Supply purchase added.",
+      };
     case "updated":
-      return { tone: "success", message: "Supply purchase updated." };
+      return {
+        tone: "success",
+        message: "Supply purchase updated.",
+      };
     case "deleted":
-      return { tone: "success", message: "Supply purchase deleted." };
+      return {
+        tone: "success",
+        message: "Supply purchase deleted.",
+      };
     case "invalid_date":
-      return { tone: "error", message: "Choose a valid date that is not in the future." };
+      return {
+        tone: "error",
+        message: "Choose a valid date that is not in the future.",
+      };
     case "invalid_entry":
-      return { tone: "error", message: "Enter an item, a positive quantity, and a valid unit price." };
+      return {
+        tone: "error",
+        message: "Enter an item, a positive quantity, and a valid unit price.",
+      };
     case "not_found":
-      return { tone: "error", message: "That Supply purchase could not be found." };
+      return {
+        tone: "error",
+        message: "That Supply purchase could not be found.",
+      };
     default:
       return null;
   }
@@ -105,7 +125,13 @@ function SupplyDateControls({
           <Link href="/admin/supplies">Today</Link>
         </Button>
         <div className="flex gap-2 sm:ml-auto">
-          <Button asChild type="button" variant="outline" size="icon" aria-label="Previous day">
+          <Button
+            asChild
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Previous day"
+          >
             <Link href={`/admin/supplies?date=${previousDate}`}>
               <ChevronLeft className="size-4" />
             </Link>
@@ -167,7 +193,10 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
     (total, entry) => total + Number(entry.quantity),
     0,
   );
-  const history = new Map<string, { count: number; total: ReturnType<typeof calculateSupplyLineTotal> }>();
+  const history = new Map<
+    string,
+    { count: number; total: ReturnType<typeof calculateSupplyLineTotal> }
+  >();
   for (const entry of historyEntries) {
     const dateKey = entry.purchaseDate.toISOString().slice(0, 10);
     const existing = history.get(dateKey);
@@ -189,9 +218,11 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
       {notice ? (
         <div
           role={notice.tone === "error" ? "alert" : "status"}
-          className={notice.tone === "error"
-            ? "rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-            : "rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"}
+          className={
+            notice.tone === "error"
+              ? "rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
+              : "rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"
+          }
         >
           {notice.message}
         </div>
@@ -200,9 +231,21 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
       <SupplyDateControls selectedDate={selectedDate} today={today} />
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Daily total" value={formatMoney(Number(dailyTotal))} helper={displayDate(selectedDate)} />
-        <MetricCard label="Purchase entries" value={entries.length} helper="Items recorded for this day" />
-        <MetricCard label="Combined quantity" value={formatQuantity(totalQuantity)} helper="Across all recorded items" />
+        <MetricCard
+          label="Daily total"
+          value={formatMoney(Number(dailyTotal))}
+          helper={displayDate(selectedDate)}
+        />
+        <MetricCard
+          label="Purchase entries"
+          value={entries.length}
+          helper="Items recorded for this day"
+        />
+        <MetricCard
+          label="Combined quantity"
+          value={formatQuantity(totalQuantity)}
+          helper="Across all recorded items"
+        />
       </section>
 
       <Card className="p-5">
@@ -212,11 +255,19 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
             Unit price and the calculated line price are shown separately.
           </p>
         </div>
-        <SupplyEntryForm purchaseDate={selectedDate} action={createSupplyPurchase} />
+        <SupplyEntryForm
+          purchaseDate={selectedDate}
+          action={createSupplyPurchase}
+        />
       </Card>
 
       <DataTableCard
-        footer={<p className="text-sm font-medium text-muted-foreground">{entries.length} item{entries.length === 1 ? "" : "s"} · Total {formatMoney(Number(dailyTotal))}</p>}
+        footer={
+          <p className="text-sm font-medium text-muted-foreground">
+            {entries.length} item{entries.length === 1 ? "" : "s"} · Total{" "}
+            {formatMoney(Number(dailyTotal))}
+          </p>
+        }
       >
         <Table>
           <thead>
@@ -232,19 +283,34 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
           <tbody>
             {entries.length === 0 ? (
               <tr>
-                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
-                  No Supply purchases have been recorded for {displayDate(selectedDate)}.
+                <TableCell
+                  colSpan={6}
+                  className="py-12 text-center text-muted-foreground"
+                >
+                  No Supply purchases have been recorded for{" "}
+                  {displayDate(selectedDate)}.
                 </TableCell>
               </tr>
             ) : (
               entries.map((entry) => {
-                const lineTotal = calculateSupplyLineTotal(entry.quantity, entry.unitPrice);
+                const lineTotal = calculateSupplyLineTotal(
+                  entry.quantity,
+                  entry.unitPrice,
+                );
                 return (
                   <tr key={entry.id} className="border-t align-top">
-                    <TableCell className="font-semibold">{entry.itemName}</TableCell>
-                    <TableCell className="tabular-nums">{formatQuantity(Number(entry.quantity))}</TableCell>
-                    <TableCell className="tabular-nums">{formatMoney(Number(entry.unitPrice))}</TableCell>
-                    <TableCell className="font-semibold tabular-nums">{formatMoney(Number(lineTotal))}</TableCell>
+                    <TableCell className="font-semibold">
+                      {entry.itemName}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatQuantity(Number(entry.quantity))}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatMoney(Number(entry.unitPrice))}
+                    </TableCell>
+                    <TableCell className="font-semibold tabular-nums">
+                      {formatMoney(Number(lineTotal))}
+                    </TableCell>
                     <TableCell>{entry.createdBy.fullName}</TableCell>
                     <TableCell>
                       <SupplyRowActions
@@ -269,12 +335,16 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
           <CalendarDays className="size-5" />
           <div>
             <h2 className="font-black">Recent Supply days</h2>
-            <p className="text-sm text-muted-foreground">Days with purchases in the last 30 calendar days.</p>
+            <p className="text-sm text-muted-foreground">
+              Days with purchases in the last 30 calendar days.
+            </p>
           </div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {history.size === 0 ? (
-            <p className="text-sm text-muted-foreground">No Supply history yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No Supply history yet.
+            </p>
           ) : (
             [...history.entries()].map(([dateKey, value]) => (
               <Link
@@ -283,10 +353,16 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
                 className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-3 py-3 transition-colors hover:bg-muted"
               >
                 <span>
-                  <span className="block text-sm font-semibold">{displayDate(dateKey)}</span>
-                  <span className="text-xs text-muted-foreground">{value.count} item{value.count === 1 ? "" : "s"}</span>
+                  <span className="block text-sm font-semibold">
+                    {displayDate(dateKey)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {value.count} item{value.count === 1 ? "" : "s"}
+                  </span>
                 </span>
-                <strong className="tabular-nums">{formatMoney(Number(value.total))}</strong>
+                <strong className="tabular-nums">
+                  {formatMoney(Number(value.total))}
+                </strong>
               </Link>
             ))
           )}

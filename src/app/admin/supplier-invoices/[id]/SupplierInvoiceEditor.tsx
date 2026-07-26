@@ -60,6 +60,354 @@ function preventSubmit(event: FormEvent<HTMLFormElement>) {
   event.preventDefault();
 }
 
+type InvoiceDetailsSectionProps = {
+  invoice: InvoiceEditorData;
+  editable: boolean;
+  pending: boolean;
+};
+
+function InvoiceDetailsSection({
+  invoice,
+  editable,
+  pending,
+}: InvoiceDetailsSectionProps) {
+  return (
+    <section className="grid gap-4 rounded-2xl border bg-card p-5 md:grid-cols-3">
+      <div className="grid gap-2">
+        <Label htmlFor="invoiceNumber">Invoice number</Label>
+        <Input
+          id="invoiceNumber"
+          name="invoiceNumber"
+          defaultValue={invoice.invoiceNumber}
+          disabled={!editable || pending}
+          placeholder="Supplier invoice number"
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="invoiceDate">Invoice date</Label>
+        <Input
+          required
+          id="invoiceDate"
+          name="invoiceDate"
+          type="date"
+          defaultValue={invoice.invoiceDate}
+          disabled={!editable || pending}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="dueDate">Due date</Label>
+        <Input
+          required
+          id="dueDate"
+          name="dueDate"
+          type="date"
+          defaultValue={invoice.dueDate}
+          disabled={!editable || pending}
+        />
+      </div>
+      <div className="grid gap-2 md:col-span-3">
+        <Label htmlFor="notes">Invoice notes</Label>
+        <Textarea
+          id="notes"
+          name="notes"
+          defaultValue={invoice.notes}
+          disabled={!editable || pending}
+          rows={3}
+          placeholder="Optional notes for this invoice"
+        />
+      </div>
+    </section>
+  );
+}
+
+type CatalogLinePickerProps = {
+  catalog: CatalogOption[];
+  selectedCatalogId: string;
+  selectedCatalogIds: Set<string>;
+  pending: boolean;
+  onAddCatalogLine: () => void;
+  onAddCustomLine: () => void;
+  onSelectedCatalogIdChange: (value: string) => void;
+};
+
+function CatalogLinePicker({
+  catalog,
+  selectedCatalogId,
+  selectedCatalogIds,
+  pending,
+  onAddCatalogLine,
+  onAddCustomLine,
+  onSelectedCatalogIdChange,
+}: CatalogLinePickerProps) {
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-end">
+      <div className="grid min-w-0 flex-1 gap-2">
+        <Label htmlFor="catalogItem">Add an item from this supplier</Label>
+        <NativeSelect
+          id="catalogItem"
+          value={selectedCatalogId}
+          onChange={(event) => onSelectedCatalogIdChange(event.target.value)}
+          className="w-full"
+          disabled={pending}
+        >
+          <option value="">Choose a catalog item</option>
+          {catalog.map((item) => (
+            <option
+              key={item.id}
+              value={item.id}
+              disabled={!item.isActive || selectedCatalogIds.has(item.id)}
+            >
+              {item.itemName} · {item.itemUnit} ·{" "}
+              {MONEY.format(Number(item.unitPrice))}
+              {item.isActive ? "" : " · inactive"}
+            </option>
+          ))}
+        </NativeSelect>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onAddCatalogLine}
+        disabled={!selectedCatalogId || pending}
+      >
+        <Plus data-icon="inline-start" />
+        Add catalog item
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onAddCustomLine}
+        disabled={pending}
+      >
+        <Plus data-icon="inline-start" />
+        Add custom line
+      </Button>
+    </section>
+  );
+}
+
+type InvoiceItemsSectionProps = {
+  lines: EditorLine[];
+  editable: boolean;
+  pending: boolean;
+  total: number;
+  onLineChange: (key: string, patch: Partial<EditorLine>) => void;
+  onRemoveLine: (key: string) => void;
+};
+
+function InvoiceItemsSection({
+  lines,
+  editable,
+  pending,
+  total,
+  onLineChange,
+  onRemoveLine,
+}: InvoiceItemsSectionProps) {
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card">
+      <div className="border-b px-5 py-4">
+        <h2 className="font-semibold">Invoice items</h2>
+        <p className="text-sm text-muted-foreground">
+          Catalog prices are invoice snapshots. Editing them here does not
+          change the supplier catalog.
+        </p>
+      </div>
+      <div className="divide-y">
+        {lines.map((line, index) => (
+          <div
+            key={line.key}
+            className="grid gap-4 p-5 lg:grid-cols-12 lg:items-end"
+          >
+            <Input type="hidden" name="lineKind" value={line.kind} />
+            <Input
+              type="hidden"
+              name="catalogItemId"
+              value={line.catalogItemId}
+            />
+            <div className="grid gap-2 lg:col-span-3">
+              <Label htmlFor={`itemName-${line.key}`}>Description</Label>
+              <Input
+                required
+                id={`itemName-${line.key}`}
+                name="itemName"
+                value={line.itemName}
+                onChange={(event) =>
+                  onLineChange(line.key, { itemName: event.target.value })
+                }
+                readOnly={line.kind === "catalog"}
+                disabled={!editable || pending}
+              />
+            </div>
+            <div className="grid gap-2 lg:col-span-2">
+              <Label htmlFor={`itemUnit-${line.key}`}>Unit</Label>
+              <Input
+                required
+                id={`itemUnit-${line.key}`}
+                name="itemUnit"
+                value={line.itemUnit}
+                onChange={(event) =>
+                  onLineChange(line.key, { itemUnit: event.target.value })
+                }
+                readOnly={line.kind === "catalog"}
+                disabled={!editable || pending}
+              />
+            </div>
+            <div className="grid gap-2 lg:col-span-2">
+              <Label htmlFor={`quantity-${line.key}`}>Quantity</Label>
+              <Input
+                required
+                id={`quantity-${line.key}`}
+                name="quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                value={line.quantity}
+                onChange={(event) =>
+                  onLineChange(line.key, { quantity: event.target.value })
+                }
+                disabled={!editable || pending}
+              />
+            </div>
+            <div className="grid gap-2 lg:col-span-2">
+              <Label htmlFor={`unitPrice-${line.key}`}>Unit price</Label>
+              <Input
+                required
+                id={`unitPrice-${line.key}`}
+                name="unitPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={line.unitPrice}
+                onChange={(event) =>
+                  onLineChange(line.key, { unitPrice: event.target.value })
+                }
+                disabled={!editable || pending}
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <Label>Line total</Label>
+              <p className="mt-2 font-semibold tabular-nums">
+                {MONEY.format(calculatedLineTotal(line))}
+              </p>
+            </div>
+            <div className="flex justify-end lg:col-span-1">
+              {editable ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove invoice item ${index + 1}`}
+                  onClick={() => onRemoveLine(line.key)}
+                  disabled={pending}
+                >
+                  <Trash2 className="text-destructive" />
+                </Button>
+              ) : null}
+            </div>
+            <div className="grid gap-2 lg:col-span-12">
+              <Label htmlFor={`lineNotes-${line.key}`}>Line notes</Label>
+              <Input
+                id={`lineNotes-${line.key}`}
+                name="lineNotes"
+                value={line.notes}
+                onChange={(event) =>
+                  onLineChange(line.key, { notes: event.target.value })
+                }
+                disabled={!editable || pending}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+        ))}
+        {!lines.length ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            Add at least one invoice item before saving.
+          </p>
+        ) : null}
+      </div>
+      <div className="flex justify-end border-t bg-muted/30 p-5">
+        <div className="text-right">
+          <p className="text-sm text-muted-foreground">
+            Calculated invoice total
+          </p>
+          <p className="text-3xl font-semibold tabular-nums">
+            {MONEY.format(total)}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InvoiceStatusMessage({
+  message,
+  hasError,
+}: {
+  message: string;
+  hasError: boolean;
+}) {
+  if (!message) return null;
+
+  return (
+    <Alert variant={hasError ? "destructive" : "default"}>
+      <AlertDescription role="status">{message}</AlertDescription>
+    </Alert>
+  );
+}
+
+type InvoiceActionsSectionProps = {
+  pending: boolean;
+  hasPurchaseOrder: boolean;
+  onSave: () => void;
+  onFinalize: () => void;
+  onVoid: () => void;
+};
+
+function InvoiceActionsSection({
+  pending,
+  hasPurchaseOrder,
+  onSave,
+  onFinalize,
+  onVoid,
+}: InvoiceActionsSectionProps) {
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5 xl:flex-row xl:items-end xl:justify-between">
+      <div className="flex flex-wrap gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={onSave}
+        >
+          {pending ? "Working..." : "Save draft"}
+        </Button>
+        <Button type="button" disabled={pending} onClick={onFinalize}>
+          Finalize invoice
+        </Button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[minmax(16rem,1fr)_auto] sm:items-end">
+        <div className="grid gap-2">
+          <Label htmlFor="voidReason">Void reason</Label>
+          <Input
+            id="voidReason"
+            name="voidReason"
+            placeholder="Optional audit note"
+            disabled={pending}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={pending}
+          onClick={onVoid}
+        >
+          {hasPurchaseOrder ? "Void & reopen PO" : "Void invoice"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export default function SupplierInvoiceEditor({
   invoice: initialInvoice,
   catalog,
@@ -160,292 +508,57 @@ export default function SupplierInvoiceEditor({
     <form ref={formRef} onSubmit={preventSubmit} className="space-y-6">
       <Input type="hidden" name="invoiceId" value={invoice.id} />
 
-      <section className="grid gap-4 rounded-2xl border bg-card p-5 md:grid-cols-3">
-        <div className="grid gap-2">
-          <Label htmlFor="invoiceNumber">Invoice number</Label>
-          <Input
-            id="invoiceNumber"
-            name="invoiceNumber"
-            defaultValue={invoice.invoiceNumber}
-            disabled={!editable || pending}
-            placeholder="Supplier invoice number"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="invoiceDate">Invoice date</Label>
-          <Input
-            required
-            id="invoiceDate"
-            name="invoiceDate"
-            type="date"
-            defaultValue={invoice.invoiceDate}
-            disabled={!editable || pending}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="dueDate">Due date</Label>
-          <Input
-            required
-            id="dueDate"
-            name="dueDate"
-            type="date"
-            defaultValue={invoice.dueDate}
-            disabled={!editable || pending}
-          />
-        </div>
-        <div className="grid gap-2 md:col-span-3">
-          <Label htmlFor="notes">Invoice notes</Label>
-          <Textarea
-            id="notes"
-            name="notes"
-            defaultValue={invoice.notes}
-            disabled={!editable || pending}
-            rows={3}
-            placeholder="Optional notes for this invoice"
-          />
-        </div>
-      </section>
+      <InvoiceDetailsSection
+        invoice={invoice}
+        editable={editable}
+        pending={pending}
+      />
 
       {editable ? (
-        <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-end">
-          <div className="grid min-w-0 flex-1 gap-2">
-            <Label htmlFor="catalogItem">Add an item from this supplier</Label>
-            <NativeSelect
-              id="catalogItem"
-              value={selectedCatalogId}
-              onChange={(event) => setSelectedCatalogId(event.target.value)}
-              className="w-full"
-              disabled={pending}
-            >
-              <option value="">Choose a catalog item</option>
-              {catalog.map((item) => (
-                <option
-                  key={item.id}
-                  value={item.id}
-                  disabled={!item.isActive || selectedCatalogIds.has(item.id)}
-                >
-                  {item.itemName} · {item.itemUnit} ·{" "}
-                  {MONEY.format(Number(item.unitPrice))}
-                  {item.isActive ? "" : " · inactive"}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addCatalogLine}
-            disabled={!selectedCatalogId || pending}
-          >
-            <Plus data-icon="inline-start" />
-            Add catalog item
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={addCustomLine}
-            disabled={pending}
-          >
-            <Plus data-icon="inline-start" />
-            Add custom line
-          </Button>
-        </section>
+        <CatalogLinePicker
+          catalog={catalog}
+          selectedCatalogId={selectedCatalogId}
+          selectedCatalogIds={selectedCatalogIds}
+          pending={pending}
+          onAddCatalogLine={addCatalogLine}
+          onAddCustomLine={addCustomLine}
+          onSelectedCatalogIdChange={setSelectedCatalogId}
+        />
       ) : null}
 
-      <section className="overflow-hidden rounded-2xl border bg-card">
-        <div className="border-b px-5 py-4">
-          <h2 className="font-semibold">Invoice items</h2>
-          <p className="text-sm text-muted-foreground">
-            Catalog prices are invoice snapshots. Editing them here does not
-            change the supplier catalog.
-          </p>
-        </div>
-        <div className="divide-y">
-          {lines.map((line, index) => (
-            <div
-              key={line.key}
-              className="grid gap-4 p-5 lg:grid-cols-12 lg:items-end"
-            >
-              <Input type="hidden" name="lineKind" value={line.kind} />
-              <Input
-                type="hidden"
-                name="catalogItemId"
-                value={line.catalogItemId}
-              />
-              <div className="grid gap-2 lg:col-span-3">
-                <Label htmlFor={`itemName-${line.key}`}>Description</Label>
-                <Input
-                  required
-                  id={`itemName-${line.key}`}
-                  name="itemName"
-                  value={line.itemName}
-                  onChange={(event) =>
-                    updateLine(line.key, { itemName: event.target.value })
-                  }
-                  readOnly={line.kind === "catalog"}
-                  disabled={!editable || pending}
-                />
-              </div>
-              <div className="grid gap-2 lg:col-span-2">
-                <Label htmlFor={`itemUnit-${line.key}`}>Unit</Label>
-                <Input
-                  required
-                  id={`itemUnit-${line.key}`}
-                  name="itemUnit"
-                  value={line.itemUnit}
-                  onChange={(event) =>
-                    updateLine(line.key, { itemUnit: event.target.value })
-                  }
-                  readOnly={line.kind === "catalog"}
-                  disabled={!editable || pending}
-                />
-              </div>
-              <div className="grid gap-2 lg:col-span-2">
-                <Label htmlFor={`quantity-${line.key}`}>Quantity</Label>
-                <Input
-                  required
-                  id={`quantity-${line.key}`}
-                  name="quantity"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value={line.quantity}
-                  onChange={(event) =>
-                    updateLine(line.key, { quantity: event.target.value })
-                  }
-                  disabled={!editable || pending}
-                />
-              </div>
-              <div className="grid gap-2 lg:col-span-2">
-                <Label htmlFor={`unitPrice-${line.key}`}>Unit price</Label>
-                <Input
-                  required
-                  id={`unitPrice-${line.key}`}
-                  name="unitPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.unitPrice}
-                  onChange={(event) =>
-                    updateLine(line.key, { unitPrice: event.target.value })
-                  }
-                  disabled={!editable || pending}
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <Label>Line total</Label>
-                <p className="mt-2 font-semibold tabular-nums">
-                  {MONEY.format(calculatedLineTotal(line))}
-                </p>
-              </div>
-              <div className="flex justify-end lg:col-span-1">
-                {editable ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remove invoice item ${index + 1}`}
-                    onClick={() =>
-                      setLines((current) =>
-                        current.filter((item) => item.key !== line.key),
-                      )
-                    }
-                    disabled={pending}
-                  >
-                    <Trash2 className="text-destructive" />
-                  </Button>
-                ) : null}
-              </div>
-              <div className="grid gap-2 lg:col-span-12">
-                <Label htmlFor={`lineNotes-${line.key}`}>Line notes</Label>
-                <Input
-                  id={`lineNotes-${line.key}`}
-                  name="lineNotes"
-                  value={line.notes}
-                  onChange={(event) =>
-                    updateLine(line.key, { notes: event.target.value })
-                  }
-                  disabled={!editable || pending}
-                  placeholder="Optional"
-                />
-              </div>
-            </div>
-          ))}
-          {!lines.length ? (
-            <p className="p-8 text-center text-sm text-muted-foreground">
-              Add at least one invoice item before saving.
-            </p>
-          ) : null}
-        </div>
-        <div className="flex justify-end border-t bg-muted/30 p-5">
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">
-              Calculated invoice total
-            </p>
-            <p className="text-3xl font-semibold tabular-nums">
-              {MONEY.format(total)}
-            </p>
-          </div>
-        </div>
-      </section>
+      <InvoiceItemsSection
+        lines={lines}
+        editable={editable}
+        pending={pending}
+        total={total}
+        onLineChange={updateLine}
+        onRemoveLine={(key) =>
+          setLines((current) => current.filter((item) => item.key !== key))
+        }
+      />
 
-      {message ? (
-        <Alert variant={hasError ? "destructive" : "default"}>
-          <AlertDescription role="status">{message}</AlertDescription>
-        </Alert>
-      ) : null}
+      <InvoiceStatusMessage message={message} hasError={hasError} />
 
       {editable ? (
-        <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5 xl:flex-row xl:items-end xl:justify-between">
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() => runAction(saveSupplierInvoiceDraftAction)}
-            >
-              {pending ? "Working..." : "Save draft"}
-            </Button>
-            <Button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                runAction(
-                  finalizeSupplierInvoiceAction,
-                  "Finalize this invoice and create the unpaid supplier bill? The invoice will become read-only.",
-                )
-              }
-            >
-              Finalize invoice
-            </Button>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-[minmax(16rem,1fr)_auto] sm:items-end">
-            <div className="grid gap-2">
-              <Label htmlFor="voidReason">Void reason</Label>
-              <Input
-                id="voidReason"
-                name="voidReason"
-                placeholder="Optional audit note"
-                disabled={pending}
-              />
-            </div>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={pending}
-              onClick={() =>
-                runAction(
-                  voidSupplierInvoiceDraftAction,
-                  hasPurchaseOrder
-                    ? "Void this invoice and reopen its linked purchase order?"
-                    : "Void this invoice?",
-                )
-              }
-            >
-              {hasPurchaseOrder ? "Void & reopen PO" : "Void invoice"}
-            </Button>
-          </div>
-        </section>
+        <InvoiceActionsSection
+          pending={pending}
+          hasPurchaseOrder={hasPurchaseOrder}
+          onSave={() => runAction(saveSupplierInvoiceDraftAction)}
+          onFinalize={() =>
+            runAction(
+              finalizeSupplierInvoiceAction,
+              "Finalize this invoice and create the unpaid supplier bill? The invoice will become read-only.",
+            )
+          }
+          onVoid={() =>
+            runAction(
+              voidSupplierInvoiceDraftAction,
+              hasPurchaseOrder
+                ? "Void this invoice and reopen its linked purchase order?"
+                : "Void this invoice?",
+            )
+          }
+        />
       ) : null}
     </form>
   );
