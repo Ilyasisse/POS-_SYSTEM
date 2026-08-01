@@ -44,7 +44,7 @@ export type AdminNavigationItem = {
 export const adminNavigationItems: readonly AdminNavigationItem[] = [
   {
     key: "dashboard",
-    href: "/admin/dashboard",
+    href: "/admin",
     label: "Dashboard",
     icon: LayoutDashboard,
     permission: PERMISSIONS.DASHBOARD_VIEW,

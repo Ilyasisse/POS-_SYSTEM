@@ -71,10 +71,39 @@ function draftUpdateData(draft: ValidatedSupplierInvoiceDraft) {
   return {
     invoiceNumber: draft.invoiceNumber,
     invoiceDate: draft.invoiceDate,
-    dueDate: draft.dueDate,
+    dueDate: effectiveDueDate(draft),
     notes: draft.notes,
     totalAmount: draft.totalAmount,
   } satisfies Prisma.SupplierInvoiceUpdateManyMutationInput;
+}
+
+function effectiveDueDate(draft: ValidatedSupplierInvoiceDraft) {
+  if (!draft.installments?.length) return draft.dueDate;
+  return draft.installments.reduce(
+    (earliest, installment) =>
+      installment.dueDate < earliest ? installment.dueDate : earliest,
+    draft.installments[0].dueDate,
+  );
+}
+
+function initialInstallments(draft: ValidatedSupplierInvoiceDraft) {
+  return draft.installments ?? [
+    { id: null, dueDate: draft.dueDate, amount: draft.totalAmount },
+  ];
+}
+
+function installmentCreateData(
+  invoiceId: string,
+  installments: ReturnType<typeof initialInstallments>,
+  billId?: string,
+) {
+  return installments.map((installment, index) => ({
+    invoiceId,
+    billId,
+    sequence: index + 1,
+    amount: installment.amount,
+    dueDate: installment.dueDate,
+  }));
 }
 
 function duplicateActiveInvoice(error: unknown) {
@@ -131,8 +160,15 @@ async function insertSupplierInvoiceDraft(
           notes: line.notes,
         })),
       },
+      installments: {
+        create: initialInstallments(draft).map((installment, index) => ({
+          sequence: index + 1,
+          amount: installment.amount,
+          dueDate: installment.dueDate,
+        })),
+      },
     },
-    include: { items: true, bill: true },
+    include: { items: true, installments: true, bill: true },
   });
 }
 
@@ -317,6 +353,7 @@ export async function saveSupplierInvoiceDraft(
           purchaseOrderId: true,
           status: true,
           bill: true,
+          installments: { select: { id: true } },
         },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
@@ -337,9 +374,18 @@ export async function saveSupplierInvoiceDraft(
         data: itemCreateData(id, draft),
       });
 
+      if (draft.installments) {
+        await tx.supplierInvoiceInstallment.deleteMany({ where: { invoiceId: id } });
+        await tx.supplierInvoiceInstallment.createMany({
+          data: installmentCreateData(id, initialInstallments(draft)),
+        });
+      } else if (invoice.installments.length) {
+        throw new Error("This invoice already uses installments. Refresh and try again.");
+      }
+
       return tx.supplierInvoice.findUniqueOrThrow({
         where: { id },
-        include: { items: true, bill: true },
+        include: { items: true, installments: true, bill: true },
       });
     },
     { isolationLevel: SERIALIZABLE },
@@ -367,6 +413,7 @@ export async function finalizeSupplierInvoice(
           purchaseOrderId: true,
           status: true,
           bill: true,
+          installments: { select: { id: true } },
         },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
@@ -402,9 +449,21 @@ export async function finalizeSupplierInvoice(
           totalAmount: draft.totalAmount,
           paidAmount: 0,
           status: "UNPAID",
-          dueDate: draft.dueDate,
+          dueDate: effectiveDueDate(draft),
         },
       });
+
+      if (draft.installments) {
+        await tx.supplierInvoiceInstallment.deleteMany({ where: { invoiceId: id } });
+        await tx.supplierInvoiceInstallment.createMany({
+          data: installmentCreateData(id, initialInstallments(draft), bill.id),
+        });
+      } else if (invoice.installments.length) {
+        await tx.supplierInvoiceInstallment.updateMany({
+          where: { invoiceId: id },
+          data: { billId: bill.id },
+        });
+      }
 
       return {
         invoiceId: id,

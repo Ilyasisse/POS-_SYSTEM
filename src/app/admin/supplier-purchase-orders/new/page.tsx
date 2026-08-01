@@ -1,7 +1,4 @@
-import {
-  AdminPage,
-  Button,
-} from "@/components/admin/shared";
+import { AdminPage, Button } from "@/components/admin/shared";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -73,12 +70,21 @@ export default async function NewSupplierPurchaseOrderPage({
           ? item.inventorySupply.name
           : null;
       return name
-        ? [{ id: item.id, name, unit: item.unit, unitPrice: item.unitPrice.toFixed(2) }]
+        ? [
+            {
+              id: item.id,
+              name,
+              unit: item.unit,
+              unitPrice: item.unitPrice.toFixed(2),
+            },
+          ]
         : [];
     })
     .sort((left, right) => left.name.localeCompare(right.name));
   const message = statusMessage(query.orderStatus);
   const now = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
 
   return (
     <AdminPage
@@ -86,7 +92,9 @@ export default async function NewSupplierPurchaseOrderPage({
       description="Select a supplier, add items from its active catalog, and record the order you place by phone."
       action={
         <Button asChild variant="outline">
-          <Link href="/admin/supplier-purchase-orders">Back to purchase orders</Link>
+          <Link href="/admin/supplier-purchase-orders">
+            Back to purchase orders
+          </Link>
         </Button>
       }
     >
@@ -105,7 +113,9 @@ export default async function NewSupplierPurchaseOrderPage({
         }
         catalogItems={catalogItems}
         todayDateKey={getSupplierPurchaseTodayDateKey(now)}
-        defaultDeliveryDateKey={getSupplierPurchaseDefaultDeliveryDateKey(now)}
+        defaultDeliveryDateKey={getSupplierPurchaseDefaultDeliveryDateKey(
+          yesterday,
+        )}
       />
     </AdminPage>
   );

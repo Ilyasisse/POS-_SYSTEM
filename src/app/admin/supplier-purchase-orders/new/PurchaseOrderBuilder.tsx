@@ -24,16 +24,16 @@ type OrderRow = { key: number; catalogItemId: string; quantity: string };
 
 function scaledInteger(value: string, decimals: number) {
   const input = value.trim();
-  const pattern = decimals === 3
-    ? /^(?:0|[1-9]\d*)(?:\.(\d{0,3}))?$/
-    : /^(?:0|[1-9]\d*)(?:\.(\d{0,2}))?$/;
+  const pattern =
+    decimals === 3
+      ? /^(?:0|[1-9]\d*)(?:\.(\d{0,3}))?$/
+      : /^(?:0|[1-9]\d*)(?:\.(\d{0,2}))?$/;
   const match = input.match(pattern);
   if (!match) return null;
   const [whole] = input.split(".");
   const fraction = (match[1] ?? "").padEnd(decimals, "0");
   return (
-    BigInt(whole) * BigInt(10) ** BigInt(decimals) +
-    BigInt(fraction || "0")
+    BigInt(whole) * BigInt(10) ** BigInt(decimals) + BigInt(fraction || "0")
   );
 }
 
@@ -41,9 +41,7 @@ function lineTotalCents(quantity: string, unitPrice: string) {
   const quantityThousandths = scaledInteger(quantity, 3);
   const priceCents = scaledInteger(unitPrice, 2);
   if (quantityThousandths === null || priceCents === null) return BigInt(0);
-  return (
-    (quantityThousandths * priceCents + BigInt(500)) / BigInt(1000)
-  );
+  return (quantityThousandths * priceCents + BigInt(500)) / BigInt(1000);
 }
 
 function formatCents(value: bigint) {
@@ -75,14 +73,13 @@ export default function PurchaseOrderBuilder({
     [catalogItems],
   );
   const selectedIds = new Set(
-    rows.flatMap((row) =>
-      row.catalogItemId ? [row.catalogItemId] : [],
-    ),
+    rows.flatMap((row) => (row.catalogItemId ? [row.catalogItemId] : [])),
   );
   const orderTotal = rows.reduce((total, row) => {
     const item = catalogById.get(row.catalogItemId);
-    return total +
-      (item ? lineTotalCents(row.quantity, item.unitPrice) : BigInt(0));
+    return (
+      total + (item ? lineTotalCents(row.quantity, item.unitPrice) : BigInt(0))
+    );
   }, BigInt(0));
 
   return (
@@ -116,13 +113,20 @@ export default function PurchaseOrderBuilder({
       {selectedSupplier ? (
         catalogItems.length ? (
           <form action={createSupplierPurchaseOrder} className="space-y-6">
-            <Input type="hidden" name="supplierId" value={selectedSupplier.id} />
+            <Input
+              type="hidden"
+              name="supplierId"
+              value={selectedSupplier.id}
+            />
             <Card className="overflow-hidden p-0">
               <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="font-semibold">{selectedSupplier.name} order items</h2>
+                  <h2 className="font-semibold">
+                    {selectedSupplier.name} order items
+                  </h2>
                   <p className="text-sm text-muted-foreground">
-                    Prices are read from the current supplier catalog and verified again when submitted.
+                    Prices are read from the current supplier catalog and
+                    verified again when submitted.
                   </p>
                 </div>
                 <Button
@@ -149,7 +153,9 @@ export default function PurchaseOrderBuilder({
                     <TableHead>Price</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Line total</TableHead>
-                    <TableHead><span className="sr-only">Remove</span></TableHead>
+                    <TableHead>
+                      <span className="sr-only">Remove</span>
+                    </TableHead>
                   </tr>
                 </thead>
                 <tbody>
@@ -201,8 +207,8 @@ export default function PurchaseOrderBuilder({
                           <Input
                             name="quantity"
                             type="number"
-                            min="0.001"
-                            max="999999999.999"
+                            min="0.1"
+                            max="99999"
                             step="0.001"
                             value={row.quantity}
                             onChange={(event) => {
@@ -220,7 +226,11 @@ export default function PurchaseOrderBuilder({
                           />
                         </TableCell>
                         <TableCell className="font-semibold tabular-nums">
-                          {item ? formatCents(lineTotalCents(row.quantity, item.unitPrice)) : "--"}
+                          {item
+                            ? formatCents(
+                                lineTotalCents(row.quantity, item.unitPrice),
+                              )
+                            : "--"}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -230,7 +240,11 @@ export default function PurchaseOrderBuilder({
                             aria-label="Remove order row"
                             disabled={rows.length === 1}
                             onClick={() => {
-                              setRows((current) => current.filter((entry) => entry.key !== row.key));
+                              setRows((current) =>
+                                current.filter(
+                                  (entry) => entry.key !== row.key,
+                                ),
+                              );
                             }}
                           >
                             <Trash2 className="text-destructive" />
@@ -243,7 +257,9 @@ export default function PurchaseOrderBuilder({
               </Table>
               <div className="flex justify-end border-t bg-muted/30 px-5 py-4">
                 <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Order total</div>
+                  <div className="text-sm text-muted-foreground">
+                    Order total
+                  </div>
                   <output className="text-2xl font-semibold tabular-nums">
                     {formatCents(orderTotal)}
                   </output>
@@ -253,7 +269,9 @@ export default function PurchaseOrderBuilder({
 
             <Card className="grid gap-5 p-5 lg:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="expected-delivery-date">Expected delivery date</Label>
+                <Label htmlFor="expected-delivery-date">
+                  Expected delivery date
+                </Label>
                 <Input
                   id="expected-delivery-date"
                   name="expectedDeliveryDate"
@@ -286,10 +304,13 @@ export default function PurchaseOrderBuilder({
           <Card className="p-6 text-center">
             <h2 className="font-semibold">No active catalog items</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add or reactivate items before creating an order for {selectedSupplier.name}.
+              Add or reactivate items before creating an order for{" "}
+              {selectedSupplier.name}.
             </p>
             <Button asChild className="mt-4">
-              <Link href={`/admin/suppliers/${selectedSupplier.id}`}>Manage catalog</Link>
+              <Link href={`/admin/suppliers/${selectedSupplier.id}`}>
+                Manage catalog
+              </Link>
             </Button>
           </Card>
         )

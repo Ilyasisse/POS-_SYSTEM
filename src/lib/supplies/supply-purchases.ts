@@ -16,13 +16,15 @@ export type SupplyPurchaseValidation =
 
 const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
 
+const nairobiDateKeyFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: NAIROBI_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function datePartsInNairobi(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: NAIROBI_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
+  const parts = nairobiDateKeyFormatter.formatToParts(date);
   const values = Object.fromEntries(
     parts
       .filter((part) => part.type !== "literal")
@@ -52,7 +54,10 @@ export function supplyDateKeyToDatabaseDate(value: string) {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
-export function resolveSupplyDateKey(value: string | undefined, now = new Date()) {
+export function resolveSupplyDateKey(
+  value: string | undefined,
+  now = new Date(),
+) {
   const today = getTodaySupplyDateKey(now);
   if (!value || !isValidSupplyDateKey(value) || value > today) return today;
   return value;
@@ -78,10 +83,7 @@ export function parseSupplyPurchaseInput(
   const unitPriceInput = String(formData.get("unitPrice") ?? "").trim();
   const today = getTodaySupplyDateKey(now);
 
-  if (
-    !isValidSupplyDateKey(purchaseDateKey) ||
-    purchaseDateKey > today
-  ) {
+  if (!isValidSupplyDateKey(purchaseDateKey) || purchaseDateKey > today) {
     return { ok: false, status: "invalid_date" };
   }
 

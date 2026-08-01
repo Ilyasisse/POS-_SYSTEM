@@ -29,6 +29,9 @@ function draftFromFormData(formData: FormData): SupplierInvoiceDraftInput {
   const quantities = values(formData, "quantity");
   const unitPrices = values(formData, "unitPrice");
   const lineNotes = values(formData, "lineNotes");
+  const installmentIds = values(formData, "installmentId");
+  const installmentDates = values(formData, "installmentDueDate");
+  const installmentAmounts = values(formData, "installmentAmount");
   const expectedLength = kinds.length;
   if (
     !expectedLength ||
@@ -61,12 +64,24 @@ function draftFromFormData(formData: FormData): SupplierInvoiceDraftInput {
     };
   });
 
+  if (
+    installmentIds.length !== installmentDates.length ||
+    installmentIds.length !== installmentAmounts.length
+  ) {
+    throw new Error("The installment schedule is incomplete. Refresh and try again.");
+  }
+
   return {
     invoiceNumber: text(formData, "invoiceNumber"),
     invoiceDate: text(formData, "invoiceDate"),
     dueDate: text(formData, "dueDate"),
     notes: text(formData, "notes"),
     lines,
+    installments: installmentDates.map((dueDate, index) => ({
+      id: installmentIds[index],
+      dueDate,
+      amount: installmentAmounts[index] ?? "",
+    })),
   };
 }
 
@@ -79,7 +94,7 @@ function refreshInvoicePages(
   revalidatePath(`/print/supplier-invoices/${invoiceId}`);
   revalidatePath("/admin/supplier-purchase-orders");
   revalidatePath("/admin/reports/supplier-bills");
-  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin");
   if (purchaseOrderId) {
     revalidatePath(`/admin/supplier-purchase-orders/${purchaseOrderId}`);
     revalidatePath(`/print/supplier-purchase-orders/${purchaseOrderId}`);

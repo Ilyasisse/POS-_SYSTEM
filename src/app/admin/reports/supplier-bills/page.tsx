@@ -47,29 +47,85 @@ export default async function SupplierBillsReportPage({
 
   const [bills, suppliers, nonFinalInvoices] = await Promise.all([
     prisma.supplierBill.findMany({
-      where: {
-        supplierId: params.supplier || undefined,
-        ...(showingDueThroughTomorrow
-          ? {
-              status: { in: ["UNPAID", "PARTIAL"] },
-              dueDate: { lte: dueCutoff },
-            }
-          : { createdAt: { gte: from, lte: to } }),
+  where: {
+    supplierId: params.supplier || undefined,
+    ...(showingDueThroughTomorrow
+      ? {
+          status: { in: ["UNPAID", "PARTIAL"] },
+          dueDate: { lte: dueCutoff },
+        }
+      : {
+          createdAt: { gte: from, lte: to },
+        }),
+  },
+  select: {
+    id: true,
+    totalAmount: true,
+    paidAmount: true,
+    status: true,
+    dueDate: true,
+    settledAt: true,
+    createdAt: true,
+    supplier: {
+      select: {
+        name: true,
       },
-      include: {
-        supplier: { select: { name: true } },
-        invoice: {
-          include: { finalizedBy: { select: { fullName: true } } },
-        },
-        settledBy: { select: { fullName: true } },
-        payments: {
-          include: { recordedBy: { select: { fullName: true } } },
-          orderBy: { paidAt: "desc" },
+    },
+    invoice: {
+      select: {
+        id: true,
+        submittedAt: true,
+        invoiceNumber: true,
+        status: true,
+        receiptObjectPath: true,
+        finalizedBy: {
+          select: {
+            fullName: true,
+          },
         },
       },
-      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
-      take: 500,
-    }),
+    },
+    settledBy: {
+      select: {
+        fullName: true,
+      },
+    },
+    payments: {
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        paidAt: true,
+        recordedBy: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+      orderBy: {
+        paidAt: "desc",
+      },
+    },
+    installments: {
+      select: {
+        id: true,
+        amount: true,
+        paidAmount: true,
+        dueDate: true,
+        status: true,
+      },
+      orderBy: [
+        { dueDate: "asc" },
+        { sequence: "asc" },
+      ],
+    },
+  },
+  orderBy: [
+    { dueDate: "asc" },
+    { createdAt: "desc" },
+  ],
+  take: 500,
+}),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
