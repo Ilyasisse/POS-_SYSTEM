@@ -20,17 +20,9 @@ export function getCashierBusinessDayRange(now: Date = new Date()) {
     return { start, end };
   }
 
-  if (currentHour < 5) {
-    start.setDate(start.getDate() - 1);
-    start.setHours(7, 0, 0, 0);
-    end.setHours(5, 0, 0, 0);
-    return { start, end };
-  }
-
+  start.setDate(start.getDate() - 1);
   start.setHours(7, 0, 0, 0);
-  end.setDate(end.getDate() + 1);
   end.setHours(5, 0, 0, 0);
-
   return { start, end };
 }
 
