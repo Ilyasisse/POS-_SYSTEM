@@ -4,10 +4,7 @@ import Dashboard from "@/components/admin/dashboard/Dashboard";
 import SupplierPaymentsDue from "@/components/admin/dashboard/SupplierPaymentsDue";
 
 import Status from "@/components/admin/dashboard/Status";
-import {
-  getSupplierBillDueCutoffDate,
-  summarizeSupplierBillsDue,
-} from "@/lib/suppliers/supplier-bills";
+import { summarizeSupplierBillsDue } from "@/lib/suppliers/supplier-bills";
 
 // Convert UTC TimeZone to my local EAST AFRICA time zone
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -70,8 +67,6 @@ export default async function AdminPage() {
 
   // Defines the exclusive end of the current cafe-local reporting week.
   const weekEnd = addDays(weekStart, 7);
-
-  const supplierBillDueCutoff = getSupplierBillDueCutoffDate(now);
 
   const [
     // Total number of menu categories.
@@ -190,7 +185,6 @@ export default async function AdminPage() {
     prisma.supplierBill.findMany({
       where: {
         status: { in: ["UNPAID", "PARTIAL"] },
-        dueDate: { lte: supplierBillDueCutoff },
       },
       select: {
         id: true,
@@ -200,6 +194,14 @@ export default async function AdminPage() {
         paidAmount: true,
         status: true,
         supplier: { select: { name: true } },
+        installments: {
+          select: {
+            dueDate: true,
+            amount: true,
+            paidAmount: true,
+            status: true,
+          },
+        },
       },
       orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
     }),
@@ -214,6 +216,7 @@ export default async function AdminPage() {
       totalAmount: bill.totalAmount,
       paidAmount: bill.paidAmount,
       status: bill.status,
+      installments: bill.installments,
     })),
     now,
   );

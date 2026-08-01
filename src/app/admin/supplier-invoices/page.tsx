@@ -55,6 +55,10 @@ export default async function SupplierInvoicesPage({
         bill: {
           select: { status: true, totalAmount: true, paidAmount: true, dueDate: true },
         },
+        installments: {
+          select: { dueDate: true, status: true, amount: true, paidAmount: true },
+          orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+        },
         _count: { select: { items: true } },
       },
       orderBy: { createdAt: "desc" },
