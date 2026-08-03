@@ -1,8 +1,8 @@
 ﻿import { Button } from "@/components/ui/button";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   AdminPage,
   SearchToolbar,
-  NativeSelect,
   MetricCard,
   Table,
   DataTableCard,
@@ -142,22 +142,17 @@ export default async function AdminOrdersPage({
         }
       >
         <SearchToolbar placeholder="Search orders..." defaultValue={q}>
-          <NativeSelect name="status" defaultValue={status}>
+          <AutoSubmitSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="OPEN">Preparing</option>
             <option value="PAID">Completed</option>
             <option value="CANCELLED">Cancelled</option>
-          </NativeSelect>
-          <NativeSelect name="date" defaultValue={date}>
+          </AutoSubmitSelect>
+          <AutoSubmitSelect name="date" defaultValue={date}>
             <option value="today">Date Today</option>
             <option value="all">All Time</option>
-          </NativeSelect>
-          <Button
-            type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
-          >
-            Filter
-          </Button>
+          </AutoSubmitSelect>
+         
         </SearchToolbar>
         <Table>
           <thead>
