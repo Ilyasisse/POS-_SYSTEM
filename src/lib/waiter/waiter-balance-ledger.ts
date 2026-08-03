@@ -17,6 +17,8 @@ export {
   calculateWaiterBalance,
   getBusinessDayRangeForKey,
   getCurrentBusinessDateKey,
+    shiftBusinessDateKey,
+  getDefaultWaiterBalanceDateKey,
   isLedgerActive,
   parseBusinessDateKey,
   roundCurrency,
