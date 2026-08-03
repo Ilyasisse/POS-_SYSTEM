@@ -34,6 +34,13 @@ type EditorLine = {
   notes: string;
 };
 
+type EditorInstallment = {
+  key: string;
+  id: string;
+  dueDate: string;
+  amount: string;
+};
+
 type InvoiceEditorData = {
   id: string;
   status: "DRAFT" | "FINALIZED" | "VOID";
@@ -42,6 +49,7 @@ type InvoiceEditorData = {
   dueDate: string;
   notes: string;
   items: EditorLine[];
+  installments: Array<Omit<EditorInstallment, "key">>;
 };
 
 const MONEY = new Intl.NumberFormat("en-US", {
@@ -421,6 +429,25 @@ export default function SupplierInvoiceEditor({
   const formRef = useRef<HTMLFormElement>(null);
   const invoice = initialInvoice;
   const [lines, setLines] = useState(initialInvoice.items);
+  const [installments, setInstallments] = useState<EditorInstallment[]>(
+    initialInvoice.installments.length
+      ? initialInvoice.installments.map((installment) => ({
+          ...installment,
+          key:
+            installment.id ||
+            `existing-installment-${installment.dueDate}-${installment.amount}`,
+        }))
+      : [
+          {
+            id: "",
+            key: "default-installment",
+            dueDate: initialInvoice.dueDate,
+            amount: lines
+              .reduce((sum, line) => sum + calculatedLineTotal(line), 0)
+              .toFixed(2),
+          },
+        ],
+  );
   const [selectedCatalogId, setSelectedCatalogId] = useState("");
   const [message, setMessage] = useState("");
   const [hasError, setHasError] = useState(false);
@@ -432,6 +459,18 @@ export default function SupplierInvoiceEditor({
     ),
   );
   const total = lines.reduce((sum, line) => sum + calculatedLineTotal(line), 0);
+  const scheduledTotal = installments.reduce(
+    (sum, installment) => sum + (Number(installment.amount) || 0),
+    0,
+  );
+
+  function updateInstallment(key: number, patch: Partial<EditorInstallment>) {
+    setInstallments((current) =>
+      current.map((installment, index) =>
+        index === key ? { ...installment, ...patch } : installment,
+      ),
+    );
+  }
 
   function updateLine(key: string, patch: Partial<EditorLine>) {
     setLines((current) =>
@@ -513,6 +552,109 @@ export default function SupplierInvoiceEditor({
         editable={editable}
         pending={pending}
       />
+
+      {editable ? (
+        <section className="space-y-3 rounded-2xl border bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Payment installments</h2>
+              <p className="text-sm text-muted-foreground">
+                Schedule the exact amount and due date for each supplier
+                payment.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() =>
+                setInstallments((current) => [
+                  ...current,
+                  {
+                    id: "",
+                    key: `installment-${Date.now()}-${current.length}`,
+                    dueDate: current.at(-1)?.dueDate || invoice.dueDate,
+                    amount: "0.00",
+                  },
+                ])
+              }
+            >
+              <Plus className="size-4" /> Add installment
+            </Button>
+          </div>
+          <div className="grid gap-2 text-sm font-medium sm:grid-cols-[1fr_1fr_auto]">
+            <span>Due date</span>
+            <span>Amount</span>
+            <span className="sr-only">Remove</span>
+          </div>
+          {installments.map((installment, index) => (
+            <div
+              key={installment.key}
+              className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+            >
+              <Input
+                type="hidden"
+                name="installmentId"
+                value={installment.id}
+              />
+              <Input
+                required
+                name="installmentDueDate"
+                type="date"
+                value={installment.dueDate}
+                disabled={pending}
+                onChange={(event) =>
+                  updateInstallment(index, { dueDate: event.target.value })
+                }
+              />
+              <Input
+                required
+                name="installmentAmount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={installment.amount}
+                disabled={pending}
+                onChange={(event) =>
+                  updateInstallment(index, { amount: event.target.value })
+                }
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={pending || installments.length === 1}
+                onClick={() =>
+                  setInstallments((current) =>
+                    current.filter((_, row) => row !== index),
+                  )
+                }
+                aria-label={`Remove installment ${index + 1}`}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            <span>
+              Invoice total <strong>{MONEY.format(total)}</strong>
+            </span>
+            <span>
+              Scheduled <strong>{MONEY.format(scheduledTotal)}</strong>
+            </span>
+            <span
+              className={
+                Math.abs(total - scheduledTotal) < 0.005
+                  ? "text-emerald-700"
+                  : "text-destructive"
+              }
+            >
+              Difference {MONEY.format(total - scheduledTotal)}
+            </span>
+          </div>
+        </section>
+      ) : null}
 
       {editable ? (
         <CatalogLinePicker

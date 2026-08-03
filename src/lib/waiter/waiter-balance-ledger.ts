@@ -17,6 +17,8 @@ export {
   calculateWaiterBalance,
   getBusinessDayRangeForKey,
   getCurrentBusinessDateKey,
+    shiftBusinessDateKey,
+  getDefaultWaiterBalanceDateKey,
   isLedgerActive,
   parseBusinessDateKey,
   roundCurrency,
@@ -160,7 +162,7 @@ export async function initializeWaiterBalance(input: {
   }
 }
 
-async function recalculateFollowingBalances(
+export async function recalculateFollowingBalances(
   tx: Prisma.TransactionClient,
   waiterId: string,
   afterBusinessDateKey: string,

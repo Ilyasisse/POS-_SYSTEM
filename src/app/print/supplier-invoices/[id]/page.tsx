@@ -5,7 +5,10 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
-import { getSupplierInvoiceDisplayStatus, SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS } from "@/lib/suppliers/invoice-status";
+import {
+  getSupplierInvoiceDisplayStatus,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+} from "@/lib/suppliers/invoice-status";
 import PrintButton from "./PrintButton";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -29,14 +32,24 @@ export default async function PrintableSupplierInvoicePage({
       purchaseOrder: { select: { orderNumber: true } },
       createdBy: { select: { fullName: true } },
       finalizedBy: { select: { fullName: true } },
-      bill: { select: { status: true, dueDate: true, totalAmount: true, paidAmount: true } },
+      bill: {
+        select: {
+          status: true,
+          dueDate: true,
+          totalAmount: true,
+          paidAmount: true,
+        },
+      },
       items: { orderBy: { createdAt: "asc" } },
+      installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
     },
   });
   if (!invoice) notFound();
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
-  const remainingBalance = invoice.bill ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount) : null;
+  const remainingBalance = invoice.bill
+    ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
+    : null;
 
   return (
     <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
@@ -160,13 +173,56 @@ export default async function PrintableSupplierInvoicePage({
           </tbody>
         </Table>
 
+        {invoice.installments.length ? (
+          <section className="relative mb-6">
+            <h2 className="mb-2 font-semibold">Payment installments</h2>
+            <Table>
+              <thead>
+                <tr>
+                  <TableHead>Due date</TableHead>
+                  <TableHead>Scheduled</TableHead>
+                  <TableHead>Paid</TableHead>
+                  <TableHead>Remaining</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {invoice.installments.map((installment) => (
+                  <tr key={installment.id} className="border-t">
+                    <TableCell>
+                      {DATE_FORMATTER.format(installment.dueDate)}
+                    </TableCell>
+                    <TableCell>
+                      {formatMoney(Number(installment.amount))}
+                    </TableCell>
+                    <TableCell>
+                      {formatMoney(Number(installment.paidAmount))}
+                    </TableCell>
+                    <TableCell>
+                      {formatMoney(
+                        Number(installment.amount) -
+                          Number(installment.paidAmount),
+                      )}
+                    </TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </section>
+        ) : null}
+
         <div className="relative flex justify-end border-t pt-5">
           <div className="text-right">
             <div className="text-sm text-muted-foreground">Invoice total</div>
             <div className="text-3xl font-semibold">
               {formatMoney(Number(invoice.totalAmount))}
             </div>
-            {invoice.bill ? <div className="text-sm text-muted-foreground">{displayStatus === "PAID" ? "Paid in full" : `${formatMoney(remainingBalance || 0)} remaining`}</div> : null}
+            {invoice.bill ? (
+              <div className="text-sm text-muted-foreground">
+                {displayStatus === "PAID"
+                  ? "Paid in full"
+                  : `${formatMoney(remainingBalance || 0)} remaining`}
+              </div>
+            ) : null}
           </div>
         </div>
 
