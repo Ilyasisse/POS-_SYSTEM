@@ -49,9 +49,9 @@ export default function PaymentForm({
           required
           name="amount"
           type="number"
-          min="-10"
+          min="0.1"
           max={remaining}
-          step="-10"
+          step="0.01"
           defaultValue={remaining.toFixed(2)}
           className="h-9 w-28 rounded-lg border border-slate-200 px-2"
           aria-label="Payment amount"
