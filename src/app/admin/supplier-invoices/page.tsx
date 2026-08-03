@@ -4,12 +4,12 @@ import {
   Button,
   DataTableCard,
   MetricCard,
-  NativeSelect,
   Table,
   TableCell,
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -100,10 +100,11 @@ export default async function SupplierInvoicesPage({
         </Button>
       }
     >
-      <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">
-        <NativeSelect
+      <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+        <AutoSubmitSelect
           name="supplier"
           defaultValue={query.supplier || ""}
+          aria-label="Supplier"
           className="w-full"
         >
           <option value="">All suppliers</option>
@@ -112,10 +113,11 @@ export default async function SupplierInvoicesPage({
               {supplier.name}
             </option>
           ))}
-        </NativeSelect>
-        <NativeSelect
+        </AutoSubmitSelect>
+        <AutoSubmitSelect
           name="status"
           defaultValue={status || ""}
+          aria-label="Invoice status"
           className="w-full"
         >
           <option value="">All statuses</option>
@@ -124,10 +126,7 @@ export default async function SupplierInvoicesPage({
               {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[value]}
             </option>
           ))}
-        </NativeSelect>
-        <Button type="submit" variant="outline">
-          Apply filters
-        </Button>
+        </AutoSubmitSelect>
       </form>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

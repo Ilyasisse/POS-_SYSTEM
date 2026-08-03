@@ -1,28 +1,18 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { NativeSelect } from "@/components/ui/native-select";
 
-type AutoSubmitSelectProps = {
-  name: string;
-  defaultValue: string;
-  className?: string;
-  children: React.ReactNode;
-};
+type AutoSubmitSelectProps = Omit<
+  ComponentProps<typeof NativeSelect>,
+  "onChange"
+>;
 
-export default function AutoSubmitSelect({
-  name,
-  defaultValue,
-  className,
-  children,
-}: AutoSubmitSelectProps) {
+export default function AutoSubmitSelect(props: AutoSubmitSelectProps) {
   return (
     <NativeSelect
-      name={name}
-      defaultValue={defaultValue}
+      {...props}
       onChange={(event) => event.currentTarget.form?.requestSubmit()}
-      className={className}
-    >
-      {children}
-    </NativeSelect>
+    />
   );
 }
