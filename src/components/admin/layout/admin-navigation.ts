@@ -120,6 +120,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.WAITER_BALANCE_ADMIN,
   },
   {
+    key: "daily-cash",
+    href: "/admin/daily-cash",
+    label: "Daily cash",
+    icon: WalletCards,
+    permission: PERMISSIONS.DAILY_CASH_MANAGE,
+  },
+  {
     key: "suppliers",
     href: "/admin/suppliers",
     label: "Suppliers",

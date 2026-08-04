@@ -32,6 +32,12 @@ model User {
   supplierInvoicesCreated             SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
   supplierInvoicesFinalized           SupplierInvoice[]             @relation("SupplierInvoiceFinalizedBy")
   supplierInvoicesVoided              SupplierInvoice[]             @relation("SupplierInvoiceVoidedBy")
+  dailyCashSalaryRatesCreated         DailySalaryRate[]             @relation("DailySalaryRateCreatedBy")
+  dailyCashSalaryOverrides            DailyCashDay[]                @relation("DailyCashSalaryOverriddenBy")
+  dailyCashSalaryPayments             DailyCashDay[]                @relation("DailyCashSalaryPaidBy")
+  dailyCashFinalizations              DailyCashDay[]                @relation("DailyCashFinalizedBy")
+  dailyCashManualExpensesCreated      DailyCashManualExpense[]      @relation("DailyCashManualExpenseCreatedBy")
+  dailyCashSupplierPaymentsRecorded   DailyCashSupplierPayment[]    @relation("DailyCashSupplierPaymentRecordedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -361,10 +367,99 @@ model SupplierPayment {
   bill             SupplierBill                @relation(fields: [billId], references: [id], onDelete: Cascade)
   installment      SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
   recordedBy       User                        @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  dailyCashPayment DailyCashSupplierPayment?
 
   @@index([billId, paidAt])
   @@index([installmentId])
   @@index([recordedByUserId, paidAt])
+}
+
+/// A versioned combined salary amount. DailyCashDay stores the resolved amount so
+/// a later rate change never changes a historical business day.
+model DailySalaryRate {
+  id                    String         @id @default(cuid())
+  effectiveBusinessDate DateTime       @unique @db.Date
+  amount                Decimal        @db.Decimal(14, 2)
+  createdByUserId       String
+  createdAt             DateTime       @default(now())
+  createdBy             User           @relation("DailySalaryRateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  days                  DailyCashDay[]
+
+  @@index([createdByUserId, createdAt])
+}
+
+/// Financial record for one POS business day. Its snapshots are populated only
+/// when the administrator finalizes the day.
+model DailyCashDay {
+  id                              String                     @id @default(cuid())
+  businessDate                    DateTime                   @unique @db.Date
+  salaryAmount                    Decimal                    @db.Decimal(14, 2)
+  salaryRateId                    String?
+  salaryOverridden                Boolean                    @default(false)
+  salaryOverriddenByUserId        String?
+  salaryOverriddenAt              DateTime?
+  salaryPaidAt                    DateTime?
+  salaryPaidByUserId              String?
+  salaryRevenueFunded             Decimal                    @default(0) @db.Decimal(14, 2)
+  salarySavingsFunded             Decimal                    @default(0) @db.Decimal(14, 2)
+  finalizedAt                     DateTime?
+  finalizedByUserId               String?
+  finalizationFingerprint         String?
+  finalizedRevenue                Decimal?                   @db.Decimal(14, 2)
+  finalizedPaidExpenses           Decimal?                   @db.Decimal(14, 2)
+  finalizedUnpaidRequired         Decimal?                   @db.Decimal(14, 2)
+  finalizedRemainingCash          Decimal?                   @db.Decimal(14, 2)
+  finalizedSavingsUsed            Decimal?                   @db.Decimal(14, 2)
+  finalizedAdditionalSavingsRequired Decimal?                @db.Decimal(14, 2)
+  createdAt                       DateTime                   @default(now())
+  updatedAt                       DateTime                   @updatedAt
+  salaryRate                      DailySalaryRate?           @relation(fields: [salaryRateId], references: [id], onDelete: Restrict)
+  salaryOverriddenBy              User?                      @relation("DailyCashSalaryOverriddenBy", fields: [salaryOverriddenByUserId], references: [id], onDelete: Restrict)
+  salaryPaidBy                    User?                      @relation("DailyCashSalaryPaidBy", fields: [salaryPaidByUserId], references: [id], onDelete: Restrict)
+  finalizedBy                     User?                      @relation("DailyCashFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: Restrict)
+  manualExpenses                  DailyCashManualExpense[]
+  supplierPayments                DailyCashSupplierPayment[]
+
+  @@index([salaryRateId])
+  @@index([salaryPaidByUserId])
+  @@index([finalizedByUserId])
+}
+
+/// A one-time expense paid as part of one Daily Cash day.
+model DailyCashManualExpense {
+  id             String       @id @default(cuid())
+  dailyCashDayId String
+  description    String
+  amount         Decimal      @db.Decimal(14, 2)
+  note           String?
+  revenueFunded  Decimal      @db.Decimal(14, 2)
+  savingsFunded  Decimal      @db.Decimal(14, 2)
+  createdByUserId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  dailyCashDay   DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("DailyCashManualExpenseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dailyCashDayId, createdAt])
+  @@index([createdByUserId, createdAt])
+}
+
+/// Links a real supplier payment to the Daily Cash day and records its funding.
+model DailyCashSupplierPayment {
+  id                String          @id @default(cuid())
+  dailyCashDayId    String
+  supplierPaymentId String          @unique
+  amount            Decimal         @db.Decimal(14, 2)
+  revenueFunded     Decimal         @db.Decimal(14, 2)
+  savingsFunded     Decimal         @db.Decimal(14, 2)
+  recordedByUserId  String
+  createdAt         DateTime        @default(now())
+  dailyCashDay      DailyCashDay    @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
+  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id], onDelete: Restrict)
+  recordedBy        User            @relation("DailyCashSupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dailyCashDayId, createdAt])
+  @@index([recordedByUserId, createdAt])
 }
 
 model SupplierCatalogItem {

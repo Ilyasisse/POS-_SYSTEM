@@ -14,6 +14,7 @@ import {
 } from "@/lib/suppliers/invoice-status";
 import DueDateForm from "./DueDateForm";
 import PaymentForm from "./PaymentForm";
+import RevertPaymentButton from "./RevertPaymentButton";
 
 import SplitInstallmentsForm from "./SplitInstallmentsForm";
 
@@ -43,6 +44,8 @@ export type SupplierBillReportRow = {
       paymentMethod: string | null;
       paidAt: Date;
       recordedBy: { fullName: string };
+      dailyCashBusinessDate: string | null;
+      reversalError: string | null;
     }>;
     installments: Array<{
       id: string;
@@ -219,7 +222,10 @@ export default function SupplierBillsTable({
                   <TableCell>
                     {bill.payments.length
                       ? bill.payments.map((payment) => (
-                          <div key={payment.id} className="mb-2 text-xs">
+                          <div
+                            key={payment.id}
+                            className="mb-2 border-b border-slate-100 pb-2 text-xs last:border-0"
+                          >
                             <strong>
                               {money(Number(payment.amount.toString()))}
                             </strong>{" "}
@@ -227,6 +233,16 @@ export default function SupplierBillsTable({
                             <br />
                             {payment.recordedBy.fullName} ·{" "}
                             {payment.paidAt.toLocaleDateString()}
+                            {payment.dailyCashBusinessDate ? (
+                              <div className="text-slate-500">
+                                Daily Cash {payment.dailyCashBusinessDate}
+                              </div>
+                            ) : null}
+                            <RevertPaymentButton
+                              paymentId={payment.id}
+                              amount={money(Number(payment.amount.toString()))}
+                              disabledReason={payment.reversalError}
+                            />
                           </div>
                         ))
                       : "--"}

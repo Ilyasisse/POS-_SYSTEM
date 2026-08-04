@@ -3,9 +3,14 @@ import { AdminPage, Button, Card, MetricCard } from "@/components/admin/shared";
 import AutoSubmitInput from "@/components/AutoSubmitInput";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { Input } from "@/components/ui/input";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
+import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { getSupplierBillDueCutoffDate } from "@/lib/suppliers/supplier-bills";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
+import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
 import SupplierBillsTable from "./SupplierBillsTable";
 
 function startOfDay(date: Date) {
@@ -52,6 +57,7 @@ export default async function SupplierBillsReportPage({
     status?: string;
   }>;
 }) {
+  const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const params = (await searchParams) || {};
   const now = new Date();
   const showingDueThroughTomorrow = params.scope === "due-through-tomorrow";
@@ -114,11 +120,19 @@ export default async function SupplierBillsReportPage({
       select: {
         id: true,
         amount: true,
+        installmentId: true,
         paymentMethod: true,
         paidAt: true,
         recordedBy: {
           select: {
             fullName: true,
+          },
+        },
+        dailyCashPayment: {
+          select: {
+            dailyCashDay: {
+              select: { businessDate: true },
+            },
           },
         },
       },
@@ -176,7 +190,30 @@ export default async function SupplierBillsReportPage({
           ? await createSupplierReceiptUrl(bill.invoice.receiptObjectPath)
           : null,
       },
-      bill,
+      bill: {
+        ...bill,
+        payments: bill.payments.map(({ dailyCashPayment, ...payment }) => {
+          const dailyCashBusinessDate = dailyCashPayment
+            ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
+            : null;
+          return {
+            ...payment,
+            dailyCashBusinessDate,
+            reversalError: getSupplierPaymentReversalError({
+              installmentId: payment.installmentId,
+              hasInstallments: bill.installments.length > 0,
+              dailyCashLinked: Boolean(dailyCashPayment),
+              dailyCashLocked: dailyCashBusinessDate
+                ? isDailyCashLocked(dailyCashBusinessDate, now)
+                : false,
+              canManageDailyCash: hasPermission(
+                currentUser,
+                PERMISSIONS.DAILY_CASH_MANAGE,
+              ),
+            }),
+          };
+        }),
+      },
     })),
   );
 
