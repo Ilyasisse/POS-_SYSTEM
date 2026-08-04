@@ -20,6 +20,7 @@ import {
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
   SUPPLIER_INVOICE_DISPLAY_STATUSES,
   SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+  SUPPLIER_INVOICE_SOURCE_LABELS,
   type SupplierInvoiceDisplayStatus,
 } from "@/lib/suppliers/invoice-status";
 
@@ -95,9 +96,14 @@ export default async function SupplierInvoicesPage({
       title="Supplier invoices"
       description="Review invoice drafts, approve supplier bills, and track payment status."
       action={
-        <Button asChild variant="outline">
-          <Link href="/admin/supplier-purchase-orders">Purchase orders</Link>
-        </Button>
+        <>
+          <Button asChild>
+            <Link href="/admin/supplier-invoices/new">Create invoice</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-purchase-orders">Purchase orders</Link>
+          </Button>
+        </>
       }
     >
       <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
@@ -169,7 +175,7 @@ export default async function SupplierInvoicesPage({
                       {invoice.invoiceNumber || "No invoice number"}
                     </Link>
                     <div className="text-xs text-muted-foreground">
-                      {invoice.source.replaceAll("_", " ")}
+                      {SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
@@ -178,7 +184,9 @@ export default async function SupplierInvoicesPage({
                   <TableCell>
                     {invoice.purchaseOrder
                       ? `PO #${invoice.purchaseOrder.orderNumber}`
-                      : "Legacy"}
+                      : invoice.source === "MANUAL"
+                        ? "Not linked"
+                        : "Legacy"}
                   </TableCell>
                   <TableCell>
                     <div>{DATE_FORMATTER.format(invoice.invoiceDate)}</div>

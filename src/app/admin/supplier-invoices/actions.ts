@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { prisma } from "@/lib/prisma";
 import type {
   SupplierInvoiceDraftInput,
   SupplierInvoiceLineInput,
 } from "@/lib/suppliers/invoice-foundation";
 import {
+  createSupplierInvoiceDraft,
   finalizeSupplierInvoice,
   saveSupplierInvoiceDraft,
   voidSupplierInvoiceDraft,
@@ -85,6 +87,67 @@ function draftFromFormData(formData: FormData): SupplierInvoiceDraftInput {
   };
 }
 
+async function manualDraftFromFormData(
+  formData: FormData,
+  supplierId: string,
+): Promise<SupplierInvoiceDraftInput> {
+  const catalogItemIds = values(formData, "catalogItemId");
+  const quantities = values(formData, "quantity");
+  const unitPrices = values(formData, "unitPrice");
+  const lineNotes = values(formData, "lineNotes");
+  const expectedLength = catalogItemIds.length;
+  if (
+    !expectedLength ||
+    [quantities, unitPrices, lineNotes].some(
+      (rows) => rows.length !== expectedLength,
+    )
+  ) {
+    throw new Error("The invoice item list is incomplete. Refresh and try again.");
+  }
+
+  const catalogItems = await prisma.supplierCatalogItem.findMany({
+    where: {
+      id: { in: catalogItemIds },
+      supplierId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      unit: true,
+      product: { select: { name: true, isActive: true } },
+      inventorySupply: { select: { name: true, isActive: true } },
+    },
+  });
+  const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
+
+  return {
+    invoiceNumber: text(formData, "invoiceNumber"),
+    invoiceDate: text(formData, "invoiceDate"),
+    dueDate: text(formData, "dueDate"),
+    notes: text(formData, "notes"),
+    lines: catalogItemIds.map((catalogItemId, index) => {
+      const item = catalogById.get(catalogItemId);
+      const itemName = item?.product?.isActive
+        ? item.product.name
+        : item?.inventorySupply?.isActive
+          ? item.inventorySupply.name
+          : null;
+      if (!item || !itemName) {
+        throw new Error("An invoice item is no longer available from this supplier.");
+      }
+      return {
+        kind: "catalog" as const,
+        catalogItemId,
+        itemName,
+        itemUnit: item.unit,
+        quantity: quantities[index] ?? "",
+        unitPrice: unitPrices[index] ?? "",
+        notes: lineNotes[index],
+      };
+    }),
+  };
+}
+
 function refreshInvoicePages(
   invoiceId: string,
   purchaseOrderId?: string | null,
@@ -99,6 +162,23 @@ function refreshInvoicePages(
     revalidatePath(`/admin/supplier-purchase-orders/${purchaseOrderId}`);
     revalidatePath(`/print/supplier-purchase-orders/${purchaseOrderId}`);
   }
+}
+
+export async function createManualSupplierInvoiceDraftAction(formData: FormData) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const supplierId = text(formData, "supplierId");
+  if (!supplierId) throw new Error("Choose a valid supplier.");
+  const invoice = await createSupplierInvoiceDraft({
+    supplierId,
+    source: "MANUAL",
+    createdByUserId: user.id,
+    draft: await manualDraftFromFormData(formData, supplierId),
+  });
+  refreshInvoicePages(invoice.id);
+  return {
+    message: "Invoice draft created.",
+    redirectTo: `/admin/supplier-invoices/${encodeURIComponent(invoice.id)}?invoiceStatus=created`,
+  };
 }
 
 export async function saveSupplierInvoiceDraftAction(formData: FormData) {

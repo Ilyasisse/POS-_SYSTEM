@@ -127,7 +127,9 @@ export default async function PrintableSupplierInvoicePage({
               <dd className="font-medium">
                 {invoice.purchaseOrder
                   ? `PO #${invoice.purchaseOrder.orderNumber}`
-                  : "Legacy invoice"}
+                  : invoice.source === "MANUAL"
+                    ? "Manual invoice"
+                    : "Legacy invoice"}
               </dd>
             </div>
             <div>
