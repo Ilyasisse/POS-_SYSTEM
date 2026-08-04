@@ -3,15 +3,19 @@ import { notFound } from "next/navigation";
 import { AdminPage, Button, Card, ToneBadge } from "@/components/admin/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
 import {
   getSupplierInvoiceDisplayStatus,
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
   SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
 } from "@/lib/suppliers/invoice-status";
+import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
+import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
+import RevertPaymentButton from "@/app/admin/reports/supplier-bills/RevertPaymentButton";
 import SupplierInvoiceEditor from "./SupplierInvoiceEditor";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -28,7 +32,7 @@ export default async function SupplierInvoiceDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ invoiceStatus?: string }>;
 }) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const invoice = await prisma.supplierInvoice.findUnique({
     where: { id },
@@ -47,6 +51,22 @@ export default async function SupplierInvoiceDetailPage({
           totalAmount: true,
           paidAmount: true,
           dueDate: true,
+          payments: {
+            select: {
+              id: true,
+              amount: true,
+              installmentId: true,
+              paymentMethod: true,
+              paidAt: true,
+              recordedBy: { select: { fullName: true } },
+              dailyCashPayment: {
+                select: {
+                  dailyCashDay: { select: { businessDate: true } },
+                },
+              },
+            },
+            orderBy: { paidAt: "desc" },
+          },
         },
       },
     },
@@ -57,6 +77,29 @@ export default async function SupplierInvoiceDetailPage({
   const remainingBalance = invoice.bill
     ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
     : null;
+  const billPayments = (invoice.bill?.payments ?? []).map(
+    ({ dailyCashPayment, ...payment }) => {
+      const dailyCashBusinessDate = dailyCashPayment
+        ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
+        : null;
+      return {
+        ...payment,
+        dailyCashBusinessDate,
+        reversalError: getSupplierPaymentReversalError({
+          installmentId: payment.installmentId,
+          hasInstallments: invoice.installments.length > 0,
+          dailyCashLinked: Boolean(dailyCashPayment),
+          dailyCashLocked: dailyCashBusinessDate
+            ? isDailyCashLocked(dailyCashBusinessDate)
+            : false,
+          canManageDailyCash: hasPermission(
+            currentUser,
+            PERMISSIONS.DAILY_CASH_MANAGE,
+          ),
+        }),
+      };
+    },
+  );
 
   const [catalogItems, receiptUrl] = await Promise.all([
     prisma.supplierCatalogItem.findMany({
@@ -164,6 +207,45 @@ export default async function SupplierInvoiceDetailPage({
           </span>
         </Card>
       </section>
+
+      {billPayments.length ? (
+        <Card className="gap-3 p-5">
+          <div>
+            <h2 className="font-semibold">Payments</h2>
+            <p className="text-sm text-muted-foreground">
+              Recorded payments for this supplier invoice.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {billPayments.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="text-sm">
+                  <div className="font-semibold tabular-nums">
+                    {formatMoney(Number(payment.amount))}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {payment.paymentMethod || "Unspecified method"} ·{" "}
+                    {payment.recordedBy.fullName} · {payment.paidAt.toLocaleString()}
+                  </div>
+                  {payment.dailyCashBusinessDate ? (
+                    <div className="text-xs text-muted-foreground">
+                      Daily Cash {payment.dailyCashBusinessDate}
+                    </div>
+                  ) : null}
+                </div>
+                <RevertPaymentButton
+                  paymentId={payment.id}
+                  amount={formatMoney(Number(payment.amount))}
+                  disabledReason={payment.reversalError}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {invoice.installments.length ? (
         <Card className="gap-3 p-5">

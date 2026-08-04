@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import {
   recordSupplierPayment,
+  revertSupplierPayment,
   splitSupplierBillIntoInstallments,
   updateSupplierBillDueDate,
 } from "@/lib/suppliers/bill-service";
@@ -39,6 +40,17 @@ export async function recordPaymentAction(formData: FormData) {
     text(formData, "installmentId") || null,
   );
   refreshSupplierBillPages(result.invoiceId);
+}
+
+export async function revertSupplierPaymentAction(paymentId: string) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const result = await revertSupplierPayment(paymentId, {
+    canManageDailyCash: hasPermission(user, PERMISSIONS.DAILY_CASH_MANAGE),
+  });
+  refreshSupplierBillPages(result.invoiceId);
+  if (result.dailyCashBusinessDate) {
+    revalidatePath("/admin/daily-cash");
+  }
 }
 
 export async function splitSupplierBillIntoInstallmentsAction(formData: FormData) {

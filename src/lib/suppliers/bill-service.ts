@@ -1,22 +1,30 @@
 import "server-only";
 
 import { Prisma } from "@prisma/client";
+import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
+import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
+import {
+  calculateSupplierPaymentState,
+  getSupplierPaymentReversalError,
+} from "./payment-reversal";
 
-export async function recordSupplierPayment(
-  billId: string,
-  recordedByUserId: string,
-  amount: number,
-  paymentMethod?: string,
-  notes?: string,
-  installmentId?: string | null,
+export async function recordSupplierPaymentInTransaction(
+  tx: Prisma.TransactionClient,
+  input: {
+    billId: string;
+    recordedByUserId: string;
+    amount: number;
+    paymentMethod?: string;
+    notes?: string;
+    installmentId?: string | null;
+  },
 ) {
+  const { billId, recordedByUserId, amount, paymentMethod, notes, installmentId } = input;
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error("Payment amount must be positive.");
   }
 
-  return prisma.$transaction(
-    async (tx) => {
       const bill = await tx.supplierBill.findUnique({
         where: { id: billId },
         include: { installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] } },
@@ -96,6 +104,111 @@ export async function recordSupplierPayment(
       });
 
       return { payment, invoiceId: bill.invoiceId };
+}
+
+export async function recordSupplierPayment(
+  billId: string,
+  recordedByUserId: string,
+  amount: number,
+  paymentMethod?: string,
+  notes?: string,
+  installmentId?: string | null,
+) {
+  return prisma.$transaction(
+    (tx) => recordSupplierPaymentInTransaction(tx, {
+      billId, recordedByUserId, amount, paymentMethod, notes, installmentId,
+    }),
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+}
+
+export async function revertSupplierPayment(
+  paymentId: string,
+  options: { canManageDailyCash: boolean; now?: Date },
+) {
+  const id = paymentId.trim();
+  if (!id) throw new Error("Supplier payment not found.");
+  const now = options.now ?? new Date();
+
+  return prisma.$transaction(
+    async (tx) => {
+      const payment = await tx.supplierPayment.findUnique({
+        where: { id },
+        include: {
+          bill: {
+            include: {
+              installments: {
+                orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+              },
+            },
+          },
+          dailyCashPayment: {
+            include: {
+              dailyCashDay: { select: { businessDate: true } },
+            },
+          },
+        },
+      });
+      if (!payment) throw new Error("Supplier payment not found.");
+
+      const dailyCashBusinessDate =
+        payment.dailyCashPayment?.dailyCashDay.businessDate;
+      const reversalError = getSupplierPaymentReversalError({
+        installmentId: payment.installmentId,
+        hasInstallments: payment.bill.installments.length > 0,
+        dailyCashLinked: Boolean(payment.dailyCashPayment),
+        dailyCashLocked: dailyCashBusinessDate
+          ? isDailyCashLocked(formatBusinessDateKey(dailyCashBusinessDate), now)
+          : false,
+        canManageDailyCash: options.canManageDailyCash,
+      });
+      if (reversalError) throw new Error(reversalError);
+
+      if (payment.dailyCashPayment) {
+        await tx.dailyCashSupplierPayment.delete({
+          where: { id: payment.dailyCashPayment.id },
+        });
+      }
+      await tx.supplierPayment.delete({ where: { id } });
+
+      const remainingPayments = await tx.supplierPayment.findMany({
+        where: { billId: payment.billId },
+        select: {
+          amount: true,
+          installmentId: true,
+          paidAt: true,
+          recordedByUserId: true,
+        },
+      });
+      const nextState = calculateSupplierPaymentState({
+        totalAmount: payment.bill.totalAmount,
+        dueDate: payment.bill.dueDate,
+        payments: remainingPayments,
+        installments: payment.bill.installments,
+      });
+
+      await Promise.all([
+        tx.supplierBill.update({
+          where: { id: payment.billId },
+          data: nextState.bill,
+        }),
+        ...nextState.installments.map((installment) =>
+          tx.supplierInvoiceInstallment.update({
+            where: { id: installment.id },
+            data: {
+              paidAmount: installment.paidAmount,
+              status: installment.status,
+            },
+          }),
+        ),
+      ]);
+
+      return {
+        invoiceId: payment.bill.invoiceId,
+        dailyCashBusinessDate: dailyCashBusinessDate
+          ? formatBusinessDateKey(dailyCashBusinessDate)
+          : null,
+      };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
