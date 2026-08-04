@@ -1,5 +1,6 @@
 import type {
   Prisma,
+  SupplierInvoiceSource,
   SupplierInvoiceStatus,
   SupplierPaymentStatus,
 } from "@prisma/client";
@@ -53,6 +54,15 @@ export const SUPPLIER_INVOICE_DISPLAY_STATUS_TONES: Record<
   OVERDUE: "red",
   PAID: "green",
   VOID: "slate",
+};
+
+export const SUPPLIER_INVOICE_SOURCE_LABELS: Record<
+  SupplierInvoiceSource,
+  string
+> = {
+  PURCHASE_ORDER: "Purchase order",
+  MANUAL: "Manual invoice",
+  LEGACY_UPLOAD: "Legacy upload",
 };
 
 export type SupplierInvoiceStatusInput = {

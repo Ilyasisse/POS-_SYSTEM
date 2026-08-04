@@ -72,6 +72,10 @@ export type ValidatedSupplierInvoiceDraft = {
   totalAmount: Prisma.Decimal;
 };
 
+export type SupplierInvoiceDraftValidationOptions = {
+  allowCustomLines?: boolean;
+};
+
 export function getSupplierInvoiceVoidEffect(
   purchaseOrderId: string | null | undefined,
 ) {
@@ -122,16 +126,30 @@ export function validateSupplierInvoiceDraftCreationMetadata(
   if (createdByUserId && createdByUserId.length > 191) {
     throw new Error("Choose a valid invoice creator.");
   }
-  if (input.source === "PURCHASE_ORDER" && !purchaseOrderId) {
-    throw new Error("Purchase-order invoices must reference a purchase order.");
-  }
-  if (input.source === "PURCHASE_ORDER" && !createdByUserId) {
-    throw new Error("Purchase-order invoices require a creator.");
-  }
-  if (input.source === "LEGACY_UPLOAD" && purchaseOrderId) {
-    throw new Error(
-      "Legacy uploaded invoices cannot reference a purchase order.",
-    );
+  switch (input.source) {
+    case "PURCHASE_ORDER":
+      if (!purchaseOrderId) {
+        throw new Error("Purchase-order invoices must reference a purchase order.");
+      }
+      if (!createdByUserId) {
+        throw new Error("Purchase-order invoices require a creator.");
+      }
+      break;
+    case "MANUAL":
+      if (purchaseOrderId) {
+        throw new Error("Manual supplier invoices cannot reference a purchase order.");
+      }
+      if (!createdByUserId) {
+        throw new Error("Manual supplier invoices require a creator.");
+      }
+      break;
+    case "LEGACY_UPLOAD":
+      if (purchaseOrderId) {
+        throw new Error(
+          "Legacy uploaded invoices cannot reference a purchase order.",
+        );
+      }
+      break;
   }
 
   const receiptObjectPath = optionalTrimmedText(
@@ -225,7 +243,9 @@ export function buildSupplierInvoiceDraftFromPurchaseOrder(
 
 export function validateSupplierInvoiceDraftInput(
   input: SupplierInvoiceDraftInput,
+  options: SupplierInvoiceDraftValidationOptions = {},
 ): ValidatedSupplierInvoiceDraft {
+  const allowCustomLines = options.allowCustomLines ?? true;
   const invoiceDate = supplierPurchaseDateKeyToDatabaseDate(input.invoiceDate);
   if (!invoiceDate) throw new Error("Enter a valid invoice date.");
   const dueDate = supplierPurchaseDateKeyToDatabaseDate(input.dueDate);
@@ -264,6 +284,10 @@ export function validateSupplierInvoiceDraftInput(
       catalogItemIds.add(supplierCatalogItemId);
     } else if (line.kind !== "custom") {
       throw new Error(`${label} has an invalid item type.`);
+    } else if (!allowCustomLines) {
+      throw new Error(
+        "Manual supplier invoices can only use supplier catalog items.",
+      );
     } else if (line.catalogItemId?.trim()) {
       throw new Error(`${label} custom lines cannot reference a catalog item.`);
     }

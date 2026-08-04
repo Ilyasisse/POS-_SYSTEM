@@ -37,17 +37,39 @@ async function assertCatalogOwnership(
   tx: Prisma.TransactionClient,
   supplierId: string,
   draft: ValidatedSupplierInvoiceDraft,
+  options: {
+    requireAvailableNewItems?: boolean;
+    existingCatalogItemIds?: ReadonlySet<string>;
+  } = {},
 ) {
   const ids = draft.lines.flatMap((line) =>
     line.supplierCatalogItemId ? [line.supplierCatalogItemId] : [],
   );
   if (!ids.length) return;
 
-  const ownedCount = await tx.supplierCatalogItem.count({
+  const catalogItems = await tx.supplierCatalogItem.findMany({
     where: { id: { in: ids }, supplierId },
+    select: {
+      id: true,
+      isActive: true,
+      product: { select: { isActive: true } },
+      inventorySupply: { select: { isActive: true } },
+    },
   });
-  if (ownedCount !== ids.length) {
+  if (catalogItems.length !== ids.length) {
     throw new Error("Every catalog line must belong to the invoice supplier.");
+  }
+
+  if (!options.requireAvailableNewItems) return;
+  const existingCatalogItemIds = options.existingCatalogItemIds ?? new Set();
+  const unavailableNewItem = catalogItems.find(
+    (item) =>
+      !existingCatalogItemIds.has(item.id) &&
+      (!item.isActive ||
+        (!item.product?.isActive && !item.inventorySupply?.isActive)),
+  );
+  if (unavailableNewItem) {
+    throw new Error("An invoice item is no longer available from this supplier.");
   }
 }
 
@@ -106,7 +128,9 @@ async function insertSupplierInvoiceDraft(
   metadata: ReturnType<typeof validateSupplierInvoiceDraftCreationMetadata>,
   draft: ValidatedSupplierInvoiceDraft,
 ) {
-  await assertCatalogOwnership(tx, metadata.supplierId, draft);
+  await assertCatalogOwnership(tx, metadata.supplierId, draft, {
+    requireAvailableNewItems: input.source === "MANUAL",
+  });
   return tx.supplierInvoice.create({
     data: {
       supplierId: metadata.supplierId,
@@ -140,7 +164,9 @@ export async function createSupplierInvoiceDraft(
   input: CreateSupplierInvoiceDraftInput,
 ) {
   const metadata = validateSupplierInvoiceDraftCreationMetadata(input);
-  const draft = validateSupplierInvoiceDraftInput(input.draft);
+  const draft = validateSupplierInvoiceDraftInput(input.draft, {
+    allowCustomLines: input.source !== "MANUAL",
+  });
 
   try {
     return await prisma.$transaction(
@@ -148,7 +174,7 @@ export async function createSupplierInvoiceDraft(
         const [supplier, purchaseOrder] = await Promise.all([
           tx.supplier.findUnique({
             where: { id: metadata.supplierId },
-            select: { id: true },
+            select: { id: true, isActive: true },
           }),
           metadata.purchaseOrderId
             ? tx.supplierPurchaseOrder.findUnique({
@@ -158,6 +184,9 @@ export async function createSupplierInvoiceDraft(
             : null,
         ]);
         if (!supplier) throw new Error("Supplier not found.");
+        if (input.source === "MANUAL" && !supplier.isActive) {
+          throw new Error("Choose an active supplier.");
+        }
         if (
           metadata.purchaseOrderId &&
           (!purchaseOrder ||
@@ -305,8 +334,6 @@ export async function saveSupplierInvoiceDraft(
 ) {
   const id = invoiceId.trim();
   if (!id) throw new Error("Supplier invoice not found.");
-  const draft = validateSupplierInvoiceDraftInput(input);
-
   return prisma.$transaction(
     async (tx) => {
       const invoice = await tx.supplierInvoice.findUnique({
@@ -315,15 +342,27 @@ export async function saveSupplierInvoiceDraft(
           id: true,
           supplierId: true,
           purchaseOrderId: true,
+          source: true,
           status: true,
           bill: true,
+          items: { select: { supplierCatalogItemId: true } },
         },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
         throw new Error("Only a draft supplier invoice can be edited.");
       }
 
-      await assertCatalogOwnership(tx, invoice.supplierId, draft);
+      const draft = validateSupplierInvoiceDraftInput(input, {
+        allowCustomLines: invoice.source !== "MANUAL",
+      });
+      await assertCatalogOwnership(tx, invoice.supplierId, draft, {
+        requireAvailableNewItems: invoice.source === "MANUAL",
+        existingCatalogItemIds: new Set(
+          invoice.items.flatMap((item) =>
+            item.supplierCatalogItemId ? [item.supplierCatalogItemId] : [],
+          ),
+        ),
+      });
       const claimed = await tx.supplierInvoice.updateMany({
         where: { id, status: "DRAFT" },
         data: draftUpdateData(draft),
@@ -355,8 +394,6 @@ export async function finalizeSupplierInvoice(
   const userId = finalizedByUserId.trim();
   if (!id) throw new Error("Supplier invoice not found.");
   if (!userId) throw new Error("Invoice finalizer is required.");
-  const draft = validateSupplierInvoiceDraftInput(input);
-
   return prisma.$transaction(
     async (tx) => {
       const invoice = await tx.supplierInvoice.findUnique({
@@ -365,15 +402,27 @@ export async function finalizeSupplierInvoice(
           id: true,
           supplierId: true,
           purchaseOrderId: true,
+          source: true,
           status: true,
           bill: true,
+          items: { select: { supplierCatalogItemId: true } },
         },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
         throw new Error("Only a draft supplier invoice can be finalized.");
       }
 
-      await assertCatalogOwnership(tx, invoice.supplierId, draft);
+      const draft = validateSupplierInvoiceDraftInput(input, {
+        allowCustomLines: invoice.source !== "MANUAL",
+      });
+      await assertCatalogOwnership(tx, invoice.supplierId, draft, {
+        requireAvailableNewItems: invoice.source === "MANUAL",
+        existingCatalogItemIds: new Set(
+          invoice.items.flatMap((item) =>
+            item.supplierCatalogItemId ? [item.supplierCatalogItemId] : [],
+          ),
+        ),
+      });
       const finalizedAt = new Date();
       const claimed = await tx.supplierInvoice.updateMany({
         where: { id, status: "DRAFT" },

@@ -55,8 +55,8 @@ export default async function SupplierInvoiceDetailPage({
     prisma.supplierCatalogItem.findMany({
       where: { supplierId: invoice.supplierId },
       include: {
-        product: { select: { name: true } },
-        inventorySupply: { select: { name: true } },
+        product: { select: { name: true, isActive: true } },
+        inventorySupply: { select: { name: true, isActive: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -72,7 +72,7 @@ export default async function SupplierInvoiceDetailPage({
           ? `Supplier invoice ${invoice.invoiceNumber}`
           : "Supplier invoice draft"
       }
-      description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : "manual legacy invoice"}`}
+      description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : invoice.source === "MANUAL" ? "manual invoice" : "legacy invoice"}`}
       action={
         <>
           <Button asChild>
@@ -101,6 +101,14 @@ export default async function SupplierInvoiceDetailPage({
           <AlertTitle>Invoice approved</AlertTitle>
           <AlertDescription>
             The invoice is now read-only, its supplier bill was created, and payment is pending.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {query?.invoiceStatus === "created" ? (
+        <Alert>
+          <AlertTitle>Invoice draft created</AlertTitle>
+          <AlertDescription>
+            Review the invoice details, then save or finalize it when ready.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -223,6 +231,7 @@ export default async function SupplierInvoiceDetailPage({
       <SupplierInvoiceEditor
         key={`${invoice.id}:${invoice.updatedAt.toISOString()}`}
         hasPurchaseOrder={Boolean(invoice.purchaseOrder)}
+        source={invoice.source}
         invoice={{
           id: invoice.id,
           status: invoice.status,
@@ -249,7 +258,9 @@ export default async function SupplierInvoiceDetailPage({
             "Unavailable item",
           itemUnit: item.unit,
           unitPrice: item.unitPrice.toString(),
-          isActive: item.isActive,
+          isActive:
+            item.isActive &&
+            Boolean(item.product?.isActive || item.inventorySupply?.isActive),
         }))}
       />
     </AdminPage>

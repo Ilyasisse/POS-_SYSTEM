@@ -127,6 +127,7 @@ type CatalogLinePickerProps = {
   pending: boolean;
   onAddCatalogLine: () => void;
   onAddCustomLine: () => void;
+  allowCustomLines: boolean;
   onSelectedCatalogIdChange: (value: string) => void;
 };
 
@@ -137,6 +138,7 @@ function CatalogLinePicker({
   pending,
   onAddCatalogLine,
   onAddCustomLine,
+  allowCustomLines,
   onSelectedCatalogIdChange,
 }: CatalogLinePickerProps) {
   return (
@@ -173,15 +175,17 @@ function CatalogLinePicker({
         <Plus data-icon="inline-start" />
         Add catalog item
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onAddCustomLine}
-        disabled={pending}
-      >
-        <Plus data-icon="inline-start" />
-        Add custom line
-      </Button>
+      {allowCustomLines ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onAddCustomLine}
+          disabled={pending}
+        >
+          <Plus data-icon="inline-start" />
+          Add custom line
+        </Button>
+      ) : null}
     </section>
   );
 }
@@ -412,10 +416,12 @@ export default function SupplierInvoiceEditor({
   invoice: initialInvoice,
   catalog,
   hasPurchaseOrder,
+  source,
 }: {
   invoice: InvoiceEditorData;
   catalog: CatalogOption[];
   hasPurchaseOrder: boolean;
+  source: "PURCHASE_ORDER" | "MANUAL" | "LEGACY_UPLOAD";
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -522,6 +528,7 @@ export default function SupplierInvoiceEditor({
           pending={pending}
           onAddCatalogLine={addCatalogLine}
           onAddCustomLine={addCustomLine}
+          allowCustomLines={source !== "MANUAL"}
           onSelectedCatalogIdChange={setSelectedCatalogId}
         />
       ) : null}
