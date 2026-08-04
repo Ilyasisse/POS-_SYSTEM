@@ -6,7 +6,11 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
-import { getSupplierInvoiceDisplayStatus, SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS, SUPPLIER_INVOICE_DISPLAY_STATUS_TONES } from "@/lib/suppliers/invoice-status";
+import {
+  getSupplierInvoiceDisplayStatus,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+} from "@/lib/suppliers/invoice-status";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import SupplierInvoiceEditor from "./SupplierInvoiceEditor";
 
@@ -32,6 +36,7 @@ export default async function SupplierInvoiceDetailPage({
       supplier: { select: { id: true, name: true, phone: true, email: true } },
       purchaseOrder: { select: { id: true, orderNumber: true, status: true } },
       items: { orderBy: { createdAt: "asc" } },
+      installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
       createdBy: { select: { fullName: true } },
       finalizedBy: { select: { fullName: true } },
       voidedBy: { select: { fullName: true } },
@@ -49,7 +54,9 @@ export default async function SupplierInvoiceDetailPage({
   if (!invoice) notFound();
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
-  const remainingBalance = invoice.bill ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount) : null;
+  const remainingBalance = invoice.bill
+    ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
+    : null;
 
   const [catalogItems, receiptUrl] = await Promise.all([
     prisma.supplierCatalogItem.findMany({
@@ -100,7 +107,8 @@ export default async function SupplierInvoiceDetailPage({
         <Alert>
           <AlertTitle>Invoice approved</AlertTitle>
           <AlertDescription>
-            The invoice is now read-only, its supplier bill was created, and payment is pending.
+            The invoice is now read-only, its supplier bill was created, and
+            payment is pending.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -117,7 +125,9 @@ export default async function SupplierInvoiceDetailPage({
         <Card className="gap-2 p-5">
           <span className="text-sm text-muted-foreground">Status</span>
           <div>
-            <ToneBadge tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}>
+            <ToneBadge
+              tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}
+            >
               {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
             </ToneBadge>
           </div>
@@ -145,11 +155,50 @@ export default async function SupplierInvoiceDetailPage({
           </strong>
           <span className="text-xs text-muted-foreground">
             {invoice.bill
-              ? displayStatus === "PAID" ? "Paid in full" : `${formatMoney(remainingBalance || 0)} remaining`
-              : invoice.status === "VOID" ? "Invoice voided" : "No supplier bill until finalized"}
+              ? displayStatus === "PAID"
+                ? "Paid in full"
+                : `${formatMoney(remainingBalance || 0)} remaining`
+              : invoice.status === "VOID"
+                ? "Invoice voided"
+                : "No supplier bill until finalized"}
           </span>
         </Card>
       </section>
+
+      {invoice.installments.length ? (
+        <Card className="gap-3 p-5">
+          <h2 className="font-semibold">Installment schedule</h2>
+          <div className="grid gap-2 md:grid-cols-3">
+            {invoice.installments.map((installment) => {
+              const remaining =
+                Number(installment.amount) - Number(installment.paidAmount);
+              return (
+                <div
+                  key={installment.id}
+                  className="rounded-lg border p-3 text-sm"
+                >
+                  <div className="font-semibold">
+                    {DATE_FORMATTER.format(installment.dueDate)}
+                  </div>
+                  <div>{formatMoney(Number(installment.amount))}</div>
+                  <div className="text-muted-foreground">
+                    {formatMoney(remaining)} remaining · {installment.status}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {invoice.bill ? (
+            <Button asChild variant="outline" className="w-fit">
+              <Link
+                href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
+              >
+                Manage installments and payments
+              </Link>
+            </Button>
+          ) : null}
+        </Card>
+      ) : null}
 
       {invoice.status !== "DRAFT" ? (
         <Card className="gap-2 p-5 text-sm">
@@ -239,6 +288,11 @@ export default async function SupplierInvoiceDetailPage({
           invoiceDate: invoice.invoiceDate.toISOString().slice(0, 10),
           dueDate: invoice.dueDate.toISOString().slice(0, 10),
           notes: invoice.notes || "",
+          installments: invoice.installments.map((installment) => ({
+            id: installment.id,
+            dueDate: installment.dueDate.toISOString().slice(0, 10),
+            amount: installment.amount.toString(),
+          })),
           items: invoice.items.map((item) => ({
             key: item.id,
             kind: item.supplierCatalogItemId ? "catalog" : "custom",

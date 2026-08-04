@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { AdminPage, Button, Card, MetricCard } from "@/components/admin/shared";
+import AutoSubmitInput from "@/components/AutoSubmitInput";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { prisma } from "@/lib/prisma";
 import { getSupplierBillDueCutoffDate } from "@/lib/suppliers/supplier-bills";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
@@ -27,6 +28,19 @@ function dateInput(
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
 
+const SUPPLIER_BILL_PAYMENT_STATUSES = ["UNPAID", "PARTIAL", "PAID"] as const;
+
+type SupplierBillPaymentStatus =
+  (typeof SUPPLIER_BILL_PAYMENT_STATUSES)[number];
+
+function paymentStatus(value: string | undefined) {
+  return SUPPLIER_BILL_PAYMENT_STATUSES.includes(
+    value as SupplierBillPaymentStatus,
+  )
+    ? (value as SupplierBillPaymentStatus)
+    : undefined;
+}
+
 export default async function SupplierBillsReportPage({
   searchParams,
 }: {
@@ -35,6 +49,7 @@ export default async function SupplierBillsReportPage({
     to?: string;
     supplier?: string;
     scope?: string;
+    status?: string;
   }>;
 }) {
   const params = (await searchParams) || {};
@@ -44,32 +59,93 @@ export default async function SupplierBillsReportPage({
   const defaultFrom = new Date(now.getFullYear(), now.getMonth(), 1);
   const from = dateInput(params.from, defaultFrom);
   const to = dateInput(params.to, now, true);
+  const requestedPaymentStatus = paymentStatus(params.status);
+  const selectedPaymentStatus =
+    showingDueThroughTomorrow && requestedPaymentStatus === "PAID"
+      ? undefined
+      : requestedPaymentStatus;
 
   const [bills, suppliers, nonFinalInvoices] = await Promise.all([
     prisma.supplierBill.findMany({
-      where: {
-        supplierId: params.supplier || undefined,
-        ...(showingDueThroughTomorrow
-          ? {
-              status: { in: ["UNPAID", "PARTIAL"] },
-              dueDate: { lte: dueCutoff },
-            }
-          : { createdAt: { gte: from, lte: to } }),
+  where: {
+    supplierId: params.supplier || undefined,
+    ...(showingDueThroughTomorrow
+      ? {
+          status: { in: ["UNPAID", "PARTIAL"] },
+          dueDate: { lte: dueCutoff },
+        }
+      : {
+          createdAt: { gte: from, lte: to },
+        }),
+  },
+  select: {
+    id: true,
+    totalAmount: true,
+    paidAmount: true,
+    status: true,
+    dueDate: true,
+    settledAt: true,
+    createdAt: true,
+    supplier: {
+      select: {
+        name: true,
       },
-      include: {
-        supplier: { select: { name: true } },
-        invoice: {
-          include: { finalizedBy: { select: { fullName: true } } },
-        },
-        settledBy: { select: { fullName: true } },
-        payments: {
-          include: { recordedBy: { select: { fullName: true } } },
-          orderBy: { paidAt: "desc" },
+    },
+    invoice: {
+      select: {
+        id: true,
+        submittedAt: true,
+        invoiceNumber: true,
+        status: true,
+        receiptObjectPath: true,
+        finalizedBy: {
+          select: {
+            fullName: true,
+          },
         },
       },
-      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
-      take: 500,
-    }),
+    },
+    settledBy: {
+      select: {
+        fullName: true,
+      },
+    },
+    payments: {
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        paidAt: true,
+        recordedBy: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+      orderBy: {
+        paidAt: "desc",
+      },
+    },
+    installments: {
+      select: {
+        id: true,
+        amount: true,
+        paidAmount: true,
+        dueDate: true,
+        status: true,
+      },
+      orderBy: [
+        { dueDate: "asc" },
+        { sequence: "asc" },
+      ],
+    },
+  },
+  orderBy: [
+    { dueDate: "asc" },
+    { createdAt: "desc" },
+  ],
+  take: 500,
+}),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -149,9 +225,10 @@ export default async function SupplierBillsReportPage({
         {showingDueThroughTomorrow ? (
           <Input type="hidden" name="scope" value="due-through-tomorrow" />
         ) : null}
-        <NativeSelect
+        <AutoSubmitSelect
           name="supplier"
           defaultValue={params.supplier || ""}
+          aria-label="Supplier"
           className="h-10 w-full rounded-lg border border-slate-200 px-2"
         >
           <option value="">All suppliers</option>
@@ -160,22 +237,40 @@ export default async function SupplierBillsReportPage({
               {row.name}
             </option>
           ))}
-        </NativeSelect>
+        </AutoSubmitSelect>
+        <AutoSubmitSelect
+          name="status"
+          defaultValue={selectedPaymentStatus || ""}
+          aria-label="Payment status"
+          className="h-10 w-full rounded-lg border border-slate-200 px-2"
+        >
+          <option value="">
+            {showingDueThroughTomorrow
+              ? "All outstanding"
+              : "All payment statuses"}
+          </option>
+          <option value="UNPAID">Unpaid</option>
+          <option value="PARTIAL">Partially paid</option>
+          {showingDueThroughTomorrow ? null : (
+            <option value="PAID">Paid</option>
+          )}
+        </AutoSubmitSelect>
         {showingDueThroughTomorrow ? null : (
           <>
-            <Input
+            <AutoSubmitInput
               type="date"
               name="from"
               defaultValue={from.toISOString().slice(0, 10)}
+              aria-label="Start date"
             />
-            <Input
+            <AutoSubmitInput
               type="date"
               name="to"
               defaultValue={to.toISOString().slice(0, 10)}
+              aria-label="End date"
             />
           </>
         )}
-        <Button>View report</Button>
       </form>
 
       {showingDueThroughTomorrow ? (

@@ -6,7 +6,6 @@ import type {
 } from "@prisma/client";
 import {
   getSupplierBillDueState,
-  type SupplierBillDueState,
 } from "@/lib/suppliers/supplier-bills";
 import {
   getSupplierPurchaseTodayDateKey,
@@ -71,6 +70,10 @@ export type SupplierInvoiceStatusInput = {
     status: SupplierPaymentStatus;
     dueDate: Date;
   } | null;
+  installments?: Array<{
+    dueDate: Date;
+    status: SupplierPaymentStatus;
+  }>;
 };
 
 export function getSupplierInvoiceDisplayStatus(
@@ -83,11 +86,16 @@ export function getSupplierInvoiceDisplayStatus(
   if (!invoice.bill) return "PENDING";
   if (invoice.bill.status === "PAID") return "PAID";
 
-  const dueState: SupplierBillDueState = getSupplierBillDueState(
-    invoice.bill.dueDate,
-    now,
-  );
-  if (dueState === "overdue") return "OVERDUE";
+  const hasOverdueInstallment = invoice.installments?.length
+    ? invoice.installments.some(
+        (installment) =>
+          installment.status !== "PAID" &&
+          getSupplierBillDueState(installment.dueDate, now) === "overdue",
+      )
+    : getSupplierBillDueState(invoice.bill.dueDate, now) === "overdue";
+  if (hasOverdueInstallment) {
+    return "OVERDUE";
+  }
   if (invoice.bill.status === "PARTIAL") return "PARTIALLY_PAID";
 
   return "PENDING";

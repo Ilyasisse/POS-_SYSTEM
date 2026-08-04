@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "doctor": "npx react-doctor@latest",
+    "waiter-balances:shift-date": "tsx scripts/shift-waiter-settlements.ts",
     "test:suppliers": "tsx --test tests/unit/suppliers.test.ts"
   },
   "dependencies": {

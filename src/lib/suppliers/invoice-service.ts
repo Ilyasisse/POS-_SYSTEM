@@ -69,7 +69,9 @@ async function assertCatalogOwnership(
         (!item.product?.isActive && !item.inventorySupply?.isActive)),
   );
   if (unavailableNewItem) {
-    throw new Error("An invoice item is no longer available from this supplier.");
+    throw new Error(
+      "An invoice item is no longer available from this supplier.",
+    );
   }
 }
 
@@ -114,7 +116,10 @@ function concurrentTransaction(error: unknown) {
 }
 
 type PurchaseOrderInvoiceFailure =
-  "not_found" | "not_open" | "not_completed" | "concurrent_change";
+  | "not_found"
+  | "not_open"
+  | "not_completed"
+  | "concurrent_change";
 
 export class SupplierPurchaseOrderInvoiceError extends Error {
   constructor(readonly code: PurchaseOrderInvoiceFailure) {
@@ -406,6 +411,7 @@ export async function finalizeSupplierInvoice(
           status: true,
           bill: true,
           items: { select: { supplierCatalogItemId: true } },
+          installments: { select: { id: true } },
         },
       });
       if (!invoice || invoice.status !== "DRAFT" || invoice.bill) {
