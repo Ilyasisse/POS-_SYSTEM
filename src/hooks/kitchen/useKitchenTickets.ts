@@ -11,7 +11,6 @@ import {
   type KitchenTicketStatus,
   type KitchenViewerRole,
 } from "@/lib/kitchen/kitchen-socket";
-import { useKitchenRealtimeSubscription } from "@/hooks/kitchen/useKitchenRealtimeSubscription";
 
 type UseKitchenTicketsOptions = {
   station?: string | null;
@@ -20,11 +19,18 @@ type UseKitchenTicketsOptions = {
   currentUserRole?: KitchenViewerRole | null;
 };
 
-type TicketResponse = { ok: true; tickets: KitchenTicket[] } | { error?: string };
+type TicketResponse =
+  { ok: true; tickets: KitchenTicket[] } | { error?: string };
+
+const KITCHEN_REFRESH_INTERVAL_MS = 5000;
 
 async function readError(response: Response) {
-  const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-  return typeof body?.error === "string" ? body.error : "Unable to synchronize kitchen tickets.";
+  const body = (await response.json().catch(() => null)) as {
+    error?: unknown;
+  } | null;
+  return typeof body?.error === "string"
+    ? body.error
+    : "Unable to synchronize kitchen tickets.";
 }
 
 export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
@@ -50,7 +56,9 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
       `/api/kitchen/tickets${params.size > 0 ? `?${params.toString()}` : ""}`,
       { cache: "no-store" },
     );
-    const payload = (await response.json().catch(() => null)) as TicketResponse | null;
+    const payload = (await response
+      .json()
+      .catch(() => null)) as TicketResponse | null;
 
     if (sequence !== requestSequence.current) return;
 
@@ -74,8 +82,6 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
       void refreshTickets();
     }, 150);
   }, [refreshTickets]);
-
-  useKitchenRealtimeSubscription(scheduleRefresh);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -102,6 +108,16 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
     };
   }, [refreshTickets]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    }, KITCHEN_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [scheduleRefresh]);
+
   const activeTickets = useMemo(
     () =>
       currentUserRole === "WAITER" || (currentUserRole === "ADMIN" && !station)
@@ -111,7 +127,8 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
               ticket.pickupStatus !== "delivered",
           )
         : tickets.filter(
-            (ticket) => getKitchenTicketStatusForItems(ticket, ticket.items) !== "done",
+            (ticket) =>
+              getKitchenTicketStatusForItems(ticket, ticket.items) !== "done",
           ),
     [currentUserRole, station, tickets],
   );
@@ -125,15 +142,20 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
 
       setTickets((current) =>
         current.map((ticket) =>
-          ticket.id === id ? setKitchenTicketStationStatus(ticket, station, status) : ticket,
+          ticket.id === id
+            ? setKitchenTicketStationStatus(ticket, station, status)
+            : ticket,
         ),
       );
 
-      const response = await fetch(`/api/kitchen/tickets/${encodeURIComponent(id)}/station`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ station, status }),
-      });
+      const response = await fetch(
+        `/api/kitchen/tickets/${encodeURIComponent(id)}/station`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ station, status }),
+        },
+      );
 
       if (!response.ok) {
         setStatusMessage(await readError(response));
@@ -151,8 +173,14 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
       }
 
       const currentTicket = tickets.find((ticket) => ticket.id === id);
-      const claimedByWaiterId = pickupStatus === "claimed" ? currentUserId : currentTicket?.claimedByWaiterId;
-      const claimedByWaiterName = pickupStatus === "claimed" ? currentUserName : currentTicket?.claimedByWaiterName;
+      const claimedByWaiterId =
+        pickupStatus === "claimed"
+          ? currentUserId
+          : currentTicket?.claimedByWaiterId;
+      const claimedByWaiterName =
+        pickupStatus === "claimed"
+          ? currentUserName
+          : currentTicket?.claimedByWaiterName;
 
       setTickets((current) =>
         current
@@ -169,11 +197,14 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
           .filter((ticket) => ticket.pickupStatus !== "delivered"),
       );
 
-      const response = await fetch(`/api/kitchen/tickets/${encodeURIComponent(id)}/pickup`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pickupStatus }),
-      });
+      const response = await fetch(
+        `/api/kitchen/tickets/${encodeURIComponent(id)}/pickup`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pickupStatus }),
+        },
+      );
 
       if (!response.ok) {
         setStatusMessage(await readError(response));
