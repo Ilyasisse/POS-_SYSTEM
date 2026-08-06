@@ -226,110 +226,15 @@ function InvoiceItemsSection({
       </div>
       <div className="divide-y">
         {lines.map((line, index) => (
-          <div
+          <InvoiceItemRow
             key={line.key}
-            className="grid gap-4 p-5 lg:grid-cols-12 lg:items-end"
-          >
-            <Input type="hidden" name="lineKind" value={line.kind} />
-            <Input
-              type="hidden"
-              name="catalogItemId"
-              value={line.catalogItemId}
-            />
-            <div className="grid gap-2 lg:col-span-3">
-              <Label htmlFor={`itemName-${line.key}`}>Description</Label>
-              <Input
-                required
-                id={`itemName-${line.key}`}
-                name="itemName"
-                value={line.itemName}
-                onChange={(event) =>
-                  onLineChange(line.key, { itemName: event.target.value })
-                }
-                readOnly={line.kind === "catalog"}
-                disabled={!editable || pending}
-              />
-            </div>
-            <div className="grid gap-2 lg:col-span-2">
-              <Label htmlFor={`itemUnit-${line.key}`}>Unit</Label>
-              <Input
-                required
-                id={`itemUnit-${line.key}`}
-                name="itemUnit"
-                value={line.itemUnit}
-                onChange={(event) =>
-                  onLineChange(line.key, { itemUnit: event.target.value })
-                }
-                readOnly={line.kind === "catalog"}
-                disabled={!editable || pending}
-              />
-            </div>
-            <div className="grid gap-2 lg:col-span-2">
-              <Label htmlFor={`quantity-${line.key}`}>Quantity</Label>
-              <Input
-                required
-                id={`quantity-${line.key}`}
-                name="quantity"
-                type="number"
-                min="0.001"
-                step="0.001"
-                value={line.quantity}
-                onChange={(event) =>
-                  onLineChange(line.key, { quantity: event.target.value })
-                }
-                disabled={!editable || pending}
-              />
-            </div>
-            <div className="grid gap-2 lg:col-span-2">
-              <Label htmlFor={`unitPrice-${line.key}`}>Unit price</Label>
-              <Input
-                required
-                id={`unitPrice-${line.key}`}
-                name="unitPrice"
-                type="number"
-                min="0"
-                step="0.01"
-                value={line.unitPrice}
-                onChange={(event) =>
-                  onLineChange(line.key, { unitPrice: event.target.value })
-                }
-                disabled={!editable || pending}
-              />
-            </div>
-            <div className="lg:col-span-2">
-              <Label>Line total</Label>
-              <p className="mt-2 font-semibold tabular-nums">
-                {MONEY.format(calculatedLineTotal(line))}
-              </p>
-            </div>
-            <div className="flex justify-end lg:col-span-1">
-              {editable ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove invoice item ${index + 1}`}
-                  onClick={() => onRemoveLine(line.key)}
-                  disabled={pending}
-                >
-                  <Trash2 className="text-destructive" />
-                </Button>
-              ) : null}
-            </div>
-            <div className="grid gap-2 lg:col-span-12">
-              <Label htmlFor={`lineNotes-${line.key}`}>Line notes</Label>
-              <Input
-                id={`lineNotes-${line.key}`}
-                name="lineNotes"
-                value={line.notes}
-                onChange={(event) =>
-                  onLineChange(line.key, { notes: event.target.value })
-                }
-                disabled={!editable || pending}
-                placeholder="Optional"
-              />
-            </div>
-          </div>
+            line={line}
+            index={index}
+            editable={editable}
+            pending={pending}
+            onLineChange={onLineChange}
+            onRemoveLine={onRemoveLine}
+          />
         ))}
         {!lines.length ? (
           <p className="p-8 text-center text-sm text-muted-foreground">
@@ -348,6 +253,124 @@ function InvoiceItemsSection({
         </div>
       </div>
     </section>
+  );
+}
+
+type InvoiceItemRowProps = {
+  line: EditorLine;
+  index: number;
+  editable: boolean;
+  pending: boolean;
+  onLineChange: (key: string, patch: Partial<EditorLine>) => void;
+  onRemoveLine: (key: string) => void;
+};
+
+function InvoiceItemRow({
+  line,
+  index,
+  editable,
+  pending,
+  onLineChange,
+  onRemoveLine,
+}: InvoiceItemRowProps) {
+  return (
+    <div className="grid gap-4 p-5 lg:grid-cols-12 lg:items-end">
+      <Input type="hidden" name="lineKind" value={line.kind} />
+      <Input type="hidden" name="catalogItemId" value={line.catalogItemId} />
+      <div className="grid gap-2 lg:col-span-3">
+        <Label htmlFor={`itemName-${line.key}`}>Description</Label>
+        <Input
+          required
+          id={`itemName-${line.key}`}
+          name="itemName"
+          value={line.itemName}
+          onChange={(event) =>
+            onLineChange(line.key, { itemName: event.target.value })
+          }
+          readOnly={line.kind === "catalog"}
+          disabled={!editable || pending}
+        />
+      </div>
+      <div className="grid gap-2 lg:col-span-2">
+        <Label htmlFor={`itemUnit-${line.key}`}>Unit</Label>
+        <Input
+          required
+          id={`itemUnit-${line.key}`}
+          name="itemUnit"
+          value={line.itemUnit}
+          onChange={(event) =>
+            onLineChange(line.key, { itemUnit: event.target.value })
+          }
+          readOnly={line.kind === "catalog"}
+          disabled={!editable || pending}
+        />
+      </div>
+      <div className="grid gap-2 lg:col-span-2">
+        <Label htmlFor={`quantity-${line.key}`}>Quantity</Label>
+        <Input
+          required
+          id={`quantity-${line.key}`}
+          name="quantity"
+          type="number"
+          min="0.001"
+          step="0.001"
+          value={line.quantity}
+          onChange={(event) =>
+            onLineChange(line.key, { quantity: event.target.value })
+          }
+          disabled={!editable || pending}
+        />
+      </div>
+      <div className="grid gap-2 lg:col-span-2">
+        <Label htmlFor={`unitPrice-${line.key}`}>Unit price</Label>
+        <Input
+          required
+          id={`unitPrice-${line.key}`}
+          name="unitPrice"
+          type="number"
+          min="0"
+          step="0.01"
+          value={line.unitPrice}
+          onChange={(event) =>
+            onLineChange(line.key, { unitPrice: event.target.value })
+          }
+          disabled={!editable || pending}
+        />
+      </div>
+      <div className="lg:col-span-2">
+        <Label>Line total</Label>
+        <p className="mt-2 font-semibold tabular-nums">
+          {MONEY.format(calculatedLineTotal(line))}
+        </p>
+      </div>
+      <div className="flex justify-end lg:col-span-1">
+        {editable ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Remove invoice item ${index + 1}`}
+            onClick={() => onRemoveLine(line.key)}
+            disabled={pending}
+          >
+            <Trash2 className="text-destructive" />
+          </Button>
+        ) : null}
+      </div>
+      <div className="grid gap-2 lg:col-span-12">
+        <Label htmlFor={`lineNotes-${line.key}`}>Line notes</Label>
+        <Input
+          id={`lineNotes-${line.key}`}
+          name="lineNotes"
+          value={line.notes}
+          onChange={(event) =>
+            onLineChange(line.key, { notes: event.target.value })
+          }
+          disabled={!editable || pending}
+          placeholder="Optional"
+        />
+      </div>
+    </div>
   );
 }
 

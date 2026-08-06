@@ -152,7 +152,7 @@ export default async function AdminOrdersPage({
             <option value="today">Date Today</option>
             <option value="all">All Time</option>
           </AutoSubmitSelect>
-         
+
         </SearchToolbar>
         <Table>
           <thead>
