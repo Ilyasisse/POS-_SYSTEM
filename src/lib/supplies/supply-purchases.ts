@@ -16,7 +16,7 @@ export type SupplyPurchaseValidation =
 
 const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
 
-const nairobiDateKeyFormatter = new Intl.DateTimeFormat("en-US", {
+const nairobiDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: NAIROBI_TIME_ZONE,
   year: "numeric",
   month: "2-digit",
@@ -24,7 +24,7 @@ const nairobiDateKeyFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 function datePartsInNairobi(date: Date) {
-  const parts = nairobiDateKeyFormatter.formatToParts(date);
+  const parts = nairobiDatePartsFormatter.formatToParts(date);
   const values = Object.fromEntries(
     parts
       .filter((part) => part.type !== "literal")
