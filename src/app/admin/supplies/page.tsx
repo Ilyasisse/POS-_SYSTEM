@@ -10,7 +10,7 @@ import {
   TableCell,
   TableHead,
 } from "@/components/admin/shared";
-import { Input } from "@/components/ui/input";
+import AutoSubmitInput from "@/components/AutoSubmitInput";
 import { Label } from "@/components/ui/label";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -63,11 +63,20 @@ function formatQuantity(value: number) {
 function statusNotice(status: string | undefined) {
   switch (status) {
     case "created":
-      return { tone: "success", message: "Supply purchase added." };
+      return {
+        tone: "success",
+        message: "Supply purchase added.",
+      };
     case "updated":
-      return { tone: "success", message: "Supply purchase updated." };
+      return {
+        tone: "success",
+        message: "Supply purchase updated.",
+      };
     case "deleted":
-      return { tone: "success", message: "Supply purchase deleted." };
+      return {
+        tone: "success",
+        message: "Supply purchase deleted.",
+      };
     case "invalid_date":
       return {
         tone: "error",
@@ -103,7 +112,7 @@ function SupplyDateControls({
       <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="grid gap-2">
           <Label htmlFor="supply-date">Purchase date</Label>
-          <Input
+          <AutoSubmitInput
             id="supply-date"
             name="date"
             type="date"
@@ -111,7 +120,6 @@ function SupplyDateControls({
             max={today}
           />
         </div>
-        <Button type="submit">View day</Button>
         <Button asChild type="button" variant="outline">
           <Link href="/admin/supplies">Today</Link>
         </Button>

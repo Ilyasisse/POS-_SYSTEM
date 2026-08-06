@@ -19,6 +19,7 @@ export const PERMISSIONS = {
   SUPPLIER_MANAGE: "supplier.manage",
   SUPPLY_MANAGE: "supply.manage",
   WAITER_BALANCE_ADMIN: "waiter.balance.admin",
+  DAILY_CASH_MANAGE: "daily.cash.manage",
   KITCHEN_TICKET_VIEW: "kitchen.ticket.view",
   KITCHEN_TICKET_UPDATE: "kitchen.ticket.update",
   CUSTOMER_ORDER: "customer.order",

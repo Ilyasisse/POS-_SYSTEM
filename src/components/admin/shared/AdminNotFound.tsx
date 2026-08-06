@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export function AdminNotFound({
   title = "Admin resource not found",
   description = "The requested resource does not exist or is no longer available.",
-  href = "/admin/dashboard",
+  href = "/admin",
   linkLabel = "Back to dashboard",
 }: {
   title?: string;

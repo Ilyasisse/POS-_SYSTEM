@@ -26,6 +26,6 @@ export async function updateAdminProfile(formData: FormData) {
   });
 
   revalidatePath("/admin/profile");
-  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin");
   redirect("/admin/profile?profileStatus=updated");
 }

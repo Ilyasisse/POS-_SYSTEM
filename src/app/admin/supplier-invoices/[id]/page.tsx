@@ -3,11 +3,19 @@ import { notFound } from "next/navigation";
 import { AdminPage, Button, Card, ToneBadge } from "@/components/admin/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
-import { getSupplierInvoiceDisplayStatus, SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS, SUPPLIER_INVOICE_DISPLAY_STATUS_TONES } from "@/lib/suppliers/invoice-status";
+import {
+  getSupplierInvoiceDisplayStatus,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+  SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+} from "@/lib/suppliers/invoice-status";
+import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
+import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
+import RevertPaymentButton from "@/app/admin/reports/supplier-bills/RevertPaymentButton";
 import SupplierInvoiceEditor from "./SupplierInvoiceEditor";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -24,7 +32,7 @@ export default async function SupplierInvoiceDetailPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ invoiceStatus?: string }>;
 }) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const invoice = await prisma.supplierInvoice.findUnique({
     where: { id },
@@ -32,6 +40,7 @@ export default async function SupplierInvoiceDetailPage({
       supplier: { select: { id: true, name: true, phone: true, email: true } },
       purchaseOrder: { select: { id: true, orderNumber: true, status: true } },
       items: { orderBy: { createdAt: "asc" } },
+      installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
       createdBy: { select: { fullName: true } },
       finalizedBy: { select: { fullName: true } },
       voidedBy: { select: { fullName: true } },
@@ -42,6 +51,22 @@ export default async function SupplierInvoiceDetailPage({
           totalAmount: true,
           paidAmount: true,
           dueDate: true,
+          payments: {
+            select: {
+              id: true,
+              amount: true,
+              installmentId: true,
+              paymentMethod: true,
+              paidAt: true,
+              recordedBy: { select: { fullName: true } },
+              dailyCashPayment: {
+                select: {
+                  dailyCashDay: { select: { businessDate: true } },
+                },
+              },
+            },
+            orderBy: { paidAt: "desc" },
+          },
         },
       },
     },
@@ -49,14 +74,39 @@ export default async function SupplierInvoiceDetailPage({
   if (!invoice) notFound();
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
-  const remainingBalance = invoice.bill ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount) : null;
+  const remainingBalance = invoice.bill
+    ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
+    : null;
+  const billPayments = (invoice.bill?.payments ?? []).map(
+    ({ dailyCashPayment, ...payment }) => {
+      const dailyCashBusinessDate = dailyCashPayment
+        ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
+        : null;
+      return {
+        ...payment,
+        dailyCashBusinessDate,
+        reversalError: getSupplierPaymentReversalError({
+          installmentId: payment.installmentId,
+          hasInstallments: invoice.installments.length > 0,
+          dailyCashLinked: Boolean(dailyCashPayment),
+          dailyCashLocked: dailyCashBusinessDate
+            ? isDailyCashLocked(dailyCashBusinessDate)
+            : false,
+          canManageDailyCash: hasPermission(
+            currentUser,
+            PERMISSIONS.DAILY_CASH_MANAGE,
+          ),
+        }),
+      };
+    },
+  );
 
   const [catalogItems, receiptUrl] = await Promise.all([
     prisma.supplierCatalogItem.findMany({
       where: { supplierId: invoice.supplierId },
       include: {
-        product: { select: { name: true } },
-        inventorySupply: { select: { name: true } },
+        product: { select: { name: true, isActive: true } },
+        inventorySupply: { select: { name: true, isActive: true } },
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -72,7 +122,7 @@ export default async function SupplierInvoiceDetailPage({
           ? `Supplier invoice ${invoice.invoiceNumber}`
           : "Supplier invoice draft"
       }
-      description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : "manual legacy invoice"}`}
+      description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : invoice.source === "MANUAL" ? "manual invoice" : "legacy invoice"}`}
       action={
         <>
           <Button asChild>
@@ -100,7 +150,16 @@ export default async function SupplierInvoiceDetailPage({
         <Alert>
           <AlertTitle>Invoice approved</AlertTitle>
           <AlertDescription>
-            The invoice is now read-only, its supplier bill was created, and payment is pending.
+            The invoice is now read-only, its supplier bill was created, and
+            payment is pending.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {query?.invoiceStatus === "created" ? (
+        <Alert>
+          <AlertTitle>Invoice draft created</AlertTitle>
+          <AlertDescription>
+            Review the invoice details, then save or finalize it when ready.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -109,7 +168,9 @@ export default async function SupplierInvoiceDetailPage({
         <Card className="gap-2 p-5">
           <span className="text-sm text-muted-foreground">Status</span>
           <div>
-            <ToneBadge tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}>
+            <ToneBadge
+              tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}
+            >
               {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
             </ToneBadge>
           </div>
@@ -137,11 +198,89 @@ export default async function SupplierInvoiceDetailPage({
           </strong>
           <span className="text-xs text-muted-foreground">
             {invoice.bill
-              ? displayStatus === "PAID" ? "Paid in full" : `${formatMoney(remainingBalance || 0)} remaining`
-              : invoice.status === "VOID" ? "Invoice voided" : "No supplier bill until finalized"}
+              ? displayStatus === "PAID"
+                ? "Paid in full"
+                : `${formatMoney(remainingBalance || 0)} remaining`
+              : invoice.status === "VOID"
+                ? "Invoice voided"
+                : "No supplier bill until finalized"}
           </span>
         </Card>
       </section>
+
+      {billPayments.length ? (
+        <Card className="gap-3 p-5">
+          <div>
+            <h2 className="font-semibold">Payments</h2>
+            <p className="text-sm text-muted-foreground">
+              Recorded payments for this supplier invoice.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            {billPayments.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="text-sm">
+                  <div className="font-semibold tabular-nums">
+                    {formatMoney(Number(payment.amount))}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {payment.paymentMethod || "Unspecified method"} ·{" "}
+                    {payment.recordedBy.fullName} · {payment.paidAt.toLocaleString()}
+                  </div>
+                  {payment.dailyCashBusinessDate ? (
+                    <div className="text-xs text-muted-foreground">
+                      Daily Cash {payment.dailyCashBusinessDate}
+                    </div>
+                  ) : null}
+                </div>
+                <RevertPaymentButton
+                  paymentId={payment.id}
+                  amount={formatMoney(Number(payment.amount))}
+                  disabledReason={payment.reversalError}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      {invoice.installments.length ? (
+        <Card className="gap-3 p-5">
+          <h2 className="font-semibold">Installment schedule</h2>
+          <div className="grid gap-2 md:grid-cols-3">
+            {invoice.installments.map((installment) => {
+              const remaining =
+                Number(installment.amount) - Number(installment.paidAmount);
+              return (
+                <div
+                  key={installment.id}
+                  className="rounded-lg border p-3 text-sm"
+                >
+                  <div className="font-semibold">
+                    {DATE_FORMATTER.format(installment.dueDate)}
+                  </div>
+                  <div>{formatMoney(Number(installment.amount))}</div>
+                  <div className="text-muted-foreground">
+                    {formatMoney(remaining)} remaining · {installment.status}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {invoice.bill ? (
+            <Button asChild variant="outline" className="w-fit">
+              <Link
+                href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
+              >
+                Manage installments and payments
+              </Link>
+            </Button>
+          ) : null}
+        </Card>
+      ) : null}
 
       {invoice.status !== "DRAFT" ? (
         <Card className="gap-2 p-5 text-sm">
@@ -223,6 +362,7 @@ export default async function SupplierInvoiceDetailPage({
       <SupplierInvoiceEditor
         key={`${invoice.id}:${invoice.updatedAt.toISOString()}`}
         hasPurchaseOrder={Boolean(invoice.purchaseOrder)}
+        source={invoice.source}
         invoice={{
           id: invoice.id,
           status: invoice.status,
@@ -230,6 +370,11 @@ export default async function SupplierInvoiceDetailPage({
           invoiceDate: invoice.invoiceDate.toISOString().slice(0, 10),
           dueDate: invoice.dueDate.toISOString().slice(0, 10),
           notes: invoice.notes || "",
+          installments: invoice.installments.map((installment) => ({
+            id: installment.id,
+            dueDate: installment.dueDate.toISOString().slice(0, 10),
+            amount: installment.amount.toString(),
+          })),
           items: invoice.items.map((item) => ({
             key: item.id,
             kind: item.supplierCatalogItemId ? "catalog" : "custom",
@@ -249,7 +394,9 @@ export default async function SupplierInvoiceDetailPage({
             "Unavailable item",
           itemUnit: item.unit,
           unitPrice: item.unitPrice.toString(),
-          isActive: item.isActive,
+          isActive:
+            item.isActive &&
+            Boolean(item.product?.isActive || item.inventorySupply?.isActive),
         }))}
       />
     </AdminPage>

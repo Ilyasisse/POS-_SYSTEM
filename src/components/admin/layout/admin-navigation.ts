@@ -44,7 +44,7 @@ export type AdminNavigationItem = {
 export const adminNavigationItems: readonly AdminNavigationItem[] = [
   {
     key: "dashboard",
-    href: "/admin/dashboard",
+    href: "/admin",
     label: "Dashboard",
     icon: LayoutDashboard,
     permission: PERMISSIONS.DASHBOARD_VIEW,
@@ -118,6 +118,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Waiter balances",
     icon: WalletCards,
     permission: PERMISSIONS.WAITER_BALANCE_ADMIN,
+  },
+  {
+    key: "daily-cash",
+    href: "/admin/daily-cash",
+    label: "Daily cash",
+    icon: WalletCards,
+    permission: PERMISSIONS.DAILY_CASH_MANAGE,
   },
   {
     key: "suppliers",

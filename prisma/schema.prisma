@@ -32,6 +32,12 @@ model User {
   supplierInvoicesCreated             SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
   supplierInvoicesFinalized           SupplierInvoice[]             @relation("SupplierInvoiceFinalizedBy")
   supplierInvoicesVoided              SupplierInvoice[]             @relation("SupplierInvoiceVoidedBy")
+  dailyCashSalaryRatesCreated         DailySalaryRate[]             @relation("DailySalaryRateCreatedBy")
+  dailyCashSalaryOverrides            DailyCashDay[]                @relation("DailyCashSalaryOverriddenBy")
+  dailyCashSalaryPayments             DailyCashDay[]                @relation("DailyCashSalaryPaidBy")
+  dailyCashFinalizations              DailyCashDay[]                @relation("DailyCashFinalizedBy")
+  dailyCashManualExpensesCreated      DailyCashManualExpense[]      @relation("DailyCashManualExpenseCreatedBy")
+  dailyCashSupplierPaymentsRecorded   DailyCashSupplierPayment[]    @relation("DailyCashSupplierPaymentRecordedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -325,22 +331,23 @@ model Supplier {
 }
 
 model SupplierBill {
-  id              String                @id @default(cuid())
+  id              String                       @id @default(cuid())
   supplierId      String
-  invoiceId       String                @unique
+  invoiceId       String                       @unique
   totalAmount     Decimal
-  paidAmount      Decimal               @default(0)
-  status          SupplierPaymentStatus @default(UNPAID)
-  dueDate         DateTime              @default(dbgenerated("(CURRENT_DATE + 1)")) @db.Date
+  paidAmount      Decimal                      @default(0)
+  status          SupplierPaymentStatus        @default(UNPAID)
+  dueDate         DateTime                     @default(dbgenerated("(CURRENT_DATE + 1)")) @db.Date
   settledAt       DateTime?
   settledByUserId String?
   notes           String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  supplier        Supplier              @relation(fields: [supplierId], references: [id])
-  invoice         SupplierInvoice       @relation(fields: [invoiceId], references: [id])
-  settledBy       User?                 @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  supplier        Supplier                     @relation(fields: [supplierId], references: [id])
+  invoice         SupplierInvoice              @relation(fields: [invoiceId], references: [id])
+  settledBy       User?                        @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
   payments        SupplierPayment[]
+  installments    SupplierInvoiceInstallment[]
 
   @@index([supplierId, createdAt])
   @@index([status, createdAt])
@@ -348,19 +355,111 @@ model SupplierBill {
 }
 
 model SupplierPayment {
-  id               String       @id @default(cuid())
+  id               String                      @id @default(cuid())
   billId           String
+  installmentId    String?
   amount           Decimal
   paymentMethod    String?
   notes            String?
   recordedByUserId String
-  paidAt           DateTime     @default(now())
-  createdAt        DateTime     @default(now())
-  bill             SupplierBill @relation(fields: [billId], references: [id], onDelete: Cascade)
-  recordedBy       User         @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  paidAt           DateTime                    @default(now())
+  createdAt        DateTime                    @default(now())
+  bill             SupplierBill                @relation(fields: [billId], references: [id], onDelete: Cascade)
+  installment      SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  recordedBy       User                        @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  dailyCashPayment DailyCashSupplierPayment?
 
   @@index([billId, paidAt])
+  @@index([installmentId])
   @@index([recordedByUserId, paidAt])
+}
+
+/// A versioned combined salary amount. DailyCashDay stores the resolved amount so
+/// a later rate change never changes a historical business day.
+model DailySalaryRate {
+  id                    String         @id @default(cuid())
+  effectiveBusinessDate DateTime       @unique @db.Date
+  amount                Decimal        @db.Decimal(14, 2)
+  createdByUserId       String
+  createdAt             DateTime       @default(now())
+  createdBy             User           @relation("DailySalaryRateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  days                  DailyCashDay[]
+
+  @@index([createdByUserId, createdAt])
+}
+
+/// Financial record for one POS business day. Its snapshots are populated only
+/// when the administrator finalizes the day.
+model DailyCashDay {
+  id                              String                     @id @default(cuid())
+  businessDate                    DateTime                   @unique @db.Date
+  salaryAmount                    Decimal                    @db.Decimal(14, 2)
+  salaryRateId                    String?
+  salaryOverridden                Boolean                    @default(false)
+  salaryOverriddenByUserId        String?
+  salaryOverriddenAt              DateTime?
+  salaryPaidAt                    DateTime?
+  salaryPaidByUserId              String?
+  salaryRevenueFunded             Decimal                    @default(0) @db.Decimal(14, 2)
+  salarySavingsFunded             Decimal                    @default(0) @db.Decimal(14, 2)
+  finalizedAt                     DateTime?
+  finalizedByUserId               String?
+  finalizationFingerprint         String?
+  finalizedRevenue                Decimal?                   @db.Decimal(14, 2)
+  finalizedPaidExpenses           Decimal?                   @db.Decimal(14, 2)
+  finalizedUnpaidRequired         Decimal?                   @db.Decimal(14, 2)
+  finalizedRemainingCash          Decimal?                   @db.Decimal(14, 2)
+  finalizedSavingsUsed            Decimal?                   @db.Decimal(14, 2)
+  finalizedAdditionalSavingsRequired Decimal?                @db.Decimal(14, 2)
+  createdAt                       DateTime                   @default(now())
+  updatedAt                       DateTime                   @updatedAt
+  salaryRate                      DailySalaryRate?           @relation(fields: [salaryRateId], references: [id], onDelete: Restrict)
+  salaryOverriddenBy              User?                      @relation("DailyCashSalaryOverriddenBy", fields: [salaryOverriddenByUserId], references: [id], onDelete: Restrict)
+  salaryPaidBy                    User?                      @relation("DailyCashSalaryPaidBy", fields: [salaryPaidByUserId], references: [id], onDelete: Restrict)
+  finalizedBy                     User?                      @relation("DailyCashFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: Restrict)
+  manualExpenses                  DailyCashManualExpense[]
+  supplierPayments                DailyCashSupplierPayment[]
+
+  @@index([salaryRateId])
+  @@index([salaryPaidByUserId])
+  @@index([finalizedByUserId])
+}
+
+/// A one-time expense paid as part of one Daily Cash day.
+model DailyCashManualExpense {
+  id             String       @id @default(cuid())
+  dailyCashDayId String
+  description    String
+  amount         Decimal      @db.Decimal(14, 2)
+  note           String?
+  revenueFunded  Decimal      @db.Decimal(14, 2)
+  savingsFunded  Decimal      @db.Decimal(14, 2)
+  createdByUserId String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  dailyCashDay   DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("DailyCashManualExpenseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dailyCashDayId, createdAt])
+  @@index([createdByUserId, createdAt])
+}
+
+/// Links a real supplier payment to the Daily Cash day and records its funding.
+model DailyCashSupplierPayment {
+  id                String          @id @default(cuid())
+  dailyCashDayId    String
+  supplierPaymentId String          @unique
+  amount            Decimal         @db.Decimal(14, 2)
+  revenueFunded     Decimal         @db.Decimal(14, 2)
+  savingsFunded     Decimal         @db.Decimal(14, 2)
+  recordedByUserId  String
+  createdAt         DateTime        @default(now())
+  dailyCashDay      DailyCashDay    @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
+  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id], onDelete: Restrict)
+  recordedBy        User            @relation("DailyCashSupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dailyCashDayId, createdAt])
+  @@index([recordedByUserId, createdAt])
 }
 
 model SupplierCatalogItem {
@@ -427,24 +526,24 @@ model SupplierPurchaseOrderItem {
 }
 
 model SupplierInvoice {
-  id                       String                 @id @default(cuid())
+  id                       String                       @id @default(cuid())
   supplierId               String
   purchaseOrderId          String?
   source                   SupplierInvoiceSource
-  status                   SupplierInvoiceStatus  @default(DRAFT)
+  status                   SupplierInvoiceStatus        @default(DRAFT)
   invoiceNumber            String?
-  invoiceDate              DateTime               @db.Date
-  dueDate                  DateTime               @db.Date
+  invoiceDate              DateTime                     @db.Date
+  dueDate                  DateTime                     @db.Date
   notes                    String?
-  totalAmount              Decimal                @default(0) @db.Decimal(14, 2)
+  totalAmount              Decimal                      @default(0) @db.Decimal(14, 2)
   receiptObjectPath        String?
   receiptContentType       String?
   uploadedByEmail          String?
-  submittedAt              DateTime               @default(now())
+  submittedAt              DateTime                     @default(now())
   legacyDeliveryDate       DateTime?
-  legacySubtotalAmount     Decimal?               @db.Decimal(14, 2)
-  legacyTaxAmount          Decimal?               @db.Decimal(14, 2)
-  legacyDiscountAmount     Decimal?               @db.Decimal(14, 2)
+  legacySubtotalAmount     Decimal?                     @db.Decimal(14, 2)
+  legacyTaxAmount          Decimal?                     @db.Decimal(14, 2)
+  legacyDiscountAmount     Decimal?                     @db.Decimal(14, 2)
   legacyInventoryUpdatedAt DateTime?
   createdByUserId          String?
   finalizedAt              DateTime?
@@ -452,20 +551,43 @@ model SupplierInvoice {
   voidedAt                 DateTime?
   voidedByUserId           String?
   voidReason               String?
-  createdAt                DateTime               @default(now())
-  updatedAt                DateTime               @updatedAt
-  supplier                 Supplier               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  purchaseOrder            SupplierPurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
-  createdBy                User?                  @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  finalizedBy              User?                  @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
-  voidedBy                 User?                  @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+  supplier                 Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder            SupplierPurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  createdBy                User?                        @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  finalizedBy              User?                        @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  voidedBy                 User?                        @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
   items                    SupplierInvoiceItem[]
+  installments             SupplierInvoiceInstallment[]
   bill                     SupplierBill?
 
   @@index([supplierId, status, dueDate])
   @@index([purchaseOrderId, status])
   @@index([source, status, createdAt])
   @@index([createdByUserId, createdAt])
+}
+
+/// A dated portion of a supplier invoice. Existing invoices without rows here
+/// keep their legacy single-due-date behaviour until explicitly split.
+model SupplierInvoiceInstallment {
+  id         String                @id @default(cuid())
+  invoiceId  String
+  billId     String?
+  sequence   Int
+  amount     Decimal               @db.Decimal(14, 2)
+  paidAmount Decimal               @default(0) @db.Decimal(14, 2)
+  status     SupplierPaymentStatus @default(UNPAID)
+  dueDate    DateTime              @db.Date
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  invoice    SupplierInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  bill       SupplierBill?         @relation(fields: [billId], references: [id], onDelete: Cascade)
+  payments   SupplierPayment[]
+
+  @@unique([invoiceId, sequence])
+  @@index([invoiceId, dueDate])
+  @@index([billId, status, dueDate])
 }
 
 model SupplierInvoiceItem {
@@ -580,5 +702,6 @@ enum SupplierInvoiceStatus {
 
 enum SupplierInvoiceSource {
   PURCHASE_ORDER
+  MANUAL
   LEGACY_UPLOAD
 }

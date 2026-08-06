@@ -4,12 +4,12 @@ import {
   Button,
   DataTableCard,
   MetricCard,
-  NativeSelect,
   Table,
   TableCell,
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -20,6 +20,7 @@ import {
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
   SUPPLIER_INVOICE_DISPLAY_STATUSES,
   SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+  SUPPLIER_INVOICE_SOURCE_LABELS,
   type SupplierInvoiceDisplayStatus,
 } from "@/lib/suppliers/invoice-status";
 
@@ -54,6 +55,10 @@ export default async function SupplierInvoicesPage({
         purchaseOrder: { select: { orderNumber: true } },
         bill: {
           select: { status: true, totalAmount: true, paidAmount: true, dueDate: true },
+        },
+        installments: {
+          select: { dueDate: true, status: true, amount: true, paidAmount: true },
+          orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
         },
         _count: { select: { items: true } },
       },
@@ -91,15 +96,21 @@ export default async function SupplierInvoicesPage({
       title="Supplier invoices"
       description="Review invoice drafts, approve supplier bills, and track payment status."
       action={
-        <Button asChild variant="outline">
-          <Link href="/admin/supplier-purchase-orders">Purchase orders</Link>
-        </Button>
+        <>
+          <Button asChild>
+            <Link href="/admin/supplier-invoices/new">Create invoice</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-purchase-orders">Purchase orders</Link>
+          </Button>
+        </>
       }
     >
-      <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[1fr_1fr_auto]">
-        <NativeSelect
+      <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+        <AutoSubmitSelect
           name="supplier"
           defaultValue={query.supplier || ""}
+          aria-label="Supplier"
           className="w-full"
         >
           <option value="">All suppliers</option>
@@ -108,10 +119,11 @@ export default async function SupplierInvoicesPage({
               {supplier.name}
             </option>
           ))}
-        </NativeSelect>
-        <NativeSelect
+        </AutoSubmitSelect>
+        <AutoSubmitSelect
           name="status"
           defaultValue={status || ""}
+          aria-label="Invoice status"
           className="w-full"
         >
           <option value="">All statuses</option>
@@ -120,10 +132,7 @@ export default async function SupplierInvoicesPage({
               {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[value]}
             </option>
           ))}
-        </NativeSelect>
-        <Button type="submit" variant="outline">
-          Apply filters
-        </Button>
+        </AutoSubmitSelect>
       </form>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -166,7 +175,7 @@ export default async function SupplierInvoicesPage({
                       {invoice.invoiceNumber || "No invoice number"}
                     </Link>
                     <div className="text-xs text-muted-foreground">
-                      {invoice.source.replaceAll("_", " ")}
+                      {SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
@@ -175,7 +184,9 @@ export default async function SupplierInvoicesPage({
                   <TableCell>
                     {invoice.purchaseOrder
                       ? `PO #${invoice.purchaseOrder.orderNumber}`
-                      : "Legacy"}
+                      : invoice.source === "MANUAL"
+                        ? "Not linked"
+                        : "Legacy"}
                   </TableCell>
                   <TableCell>
                     <div>{DATE_FORMATTER.format(invoice.invoiceDate)}</div>

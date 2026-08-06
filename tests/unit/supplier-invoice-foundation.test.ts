@@ -129,7 +129,7 @@ test("rejects duplicate catalog items and catalog references on custom lines", (
   );
 });
 
-test("requires descriptions and units for all manual invoice lines", () => {
+test("requires descriptions and units for all invoice lines", () => {
   assert.throws(
     () =>
       validateSupplierInvoiceDraftInput(
@@ -295,6 +295,32 @@ test("validates purchase-order and legacy draft creation metadata", () => {
       }),
     /must be provided together/,
   );
+  assert.throws(
+    () =>
+      validateSupplierInvoiceDraftCreationMetadata({
+        supplierId: "supplier-1",
+        source: "MANUAL",
+      }),
+    /require a creator/,
+  );
+  assert.throws(
+    () =>
+      validateSupplierInvoiceDraftCreationMetadata({
+        supplierId: "supplier-1",
+        purchaseOrderId: "po-1",
+        source: "MANUAL",
+        createdByUserId: "user-1",
+      }),
+    /cannot reference a purchase order/,
+  );
+
+  const manualMetadata = validateSupplierInvoiceDraftCreationMetadata({
+    supplierId: " supplier-1 ",
+    source: "MANUAL",
+    createdByUserId: " user-1 ",
+  });
+  assert.equal(manualMetadata.supplierId, "supplier-1");
+  assert.equal(manualMetadata.createdByUserId, "user-1");
 
   const metadata = validateSupplierInvoiceDraftCreationMetadata({
     supplierId: " supplier-1 ",
@@ -307,6 +333,20 @@ test("validates purchase-order and legacy draft creation metadata", () => {
   assert.equal(metadata.receiptObjectPath, "supplier/receipt.png");
   assert.equal(metadata.receiptContentType, "image/png");
   assert.equal(metadata.uploadedByEmail, "supplier@example.com");
+});
+
+test("manual invoice validation allows catalog lines only", () => {
+  const catalogOnlyDraft = validDraft({ lines: [validDraft().lines[0]] });
+  assert.equal(
+    validateSupplierInvoiceDraftInput(catalogOnlyDraft, {
+      allowCustomLines: false,
+    }).totalAmount.toString(),
+    "31",
+  );
+  assert.throws(
+    () => validateSupplierInvoiceDraftInput(validDraft(), { allowCustomLines: false }),
+    /only use supplier catalog items/,
+  );
 });
 
 test("prefills a purchase-order invoice from snapshots using Nairobi dates", () => {

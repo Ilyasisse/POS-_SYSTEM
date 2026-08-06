@@ -14,6 +14,9 @@ import {
 } from "@/lib/suppliers/invoice-status";
 import DueDateForm from "./DueDateForm";
 import PaymentForm from "./PaymentForm";
+import RevertPaymentButton from "./RevertPaymentButton";
+
+import SplitInstallmentsForm from "./SplitInstallmentsForm";
 
 type MoneyValue = { toString(): string };
 
@@ -41,6 +44,15 @@ export type SupplierBillReportRow = {
       paymentMethod: string | null;
       paidAt: Date;
       recordedBy: { fullName: string };
+      dailyCashBusinessDate: string | null;
+      reversalError: string | null;
+    }>;
+    installments: Array<{
+      id: string;
+      amount: MoneyValue;
+      paidAmount: MoneyValue;
+      dueDate: Date;
+      status: "UNPAID" | "PARTIAL" | "PAID";
     }>;
   };
 };
@@ -81,9 +93,11 @@ export default function SupplierBillsTable({
                 {
                   status: invoice.status,
                   bill: { status: bill.status, dueDate: bill.dueDate },
+                  installments: bill.installments,
                 },
                 now,
               );
+              const hasInstallments = bill.installments.length > 0;
 
               return (
                 <tr
@@ -137,7 +151,39 @@ export default function SupplierBillsTable({
                                 ? "DUE TOMORROW"
                                 : "UPCOMING"}
                       </ToneBadge>
-                      {bill.status === "PAID" ? (
+                      {hasInstallments ? (
+                        <div className="space-y-2 text-xs">
+                          {bill.installments.map((installment) => {
+                            const installmentRemaining =
+                              Number(installment.amount.toString()) -
+                              Number(installment.paidAmount.toString());
+                            return (
+                              <div
+                                key={installment.id}
+                                className="rounded border bg-slate-50 p-2"
+                              >
+                                <div className="flex justify-between gap-2">
+                                  <span>
+                                    {installment.dueDate.toLocaleDateString(
+                                      "en-US",
+                                      { timeZone: "UTC" },
+                                    )}
+                                  </span>
+                                  <strong>
+                                    {money(
+                                      Number(installment.amount.toString()),
+                                    )}
+                                  </strong>
+                                </div>
+                                <div>
+                                  Remaining {money(installmentRemaining)} ·{" "}
+                                  {installment.status}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : bill.status === "PAID" ? (
                         <p className="text-xs font-bold text-slate-600">
                           {bill.dueDate.toLocaleDateString("en-US", {
                             timeZone: "UTC",
@@ -153,11 +199,15 @@ export default function SupplierBillsTable({
                   </TableCell>
                   <TableCell>
                     {money(Number(bill.totalAmount.toString()))}
-                    <div className="text-xs">Balance {money(remaining)}</div>
+                    <div className="text-sm text-red-500">
+                      Balance {money(remaining)}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <ToneBadge
-                      tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}
+                      tone={
+                        SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]
+                      }
                     >
                       {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
                     </ToneBadge>
@@ -172,7 +222,10 @@ export default function SupplierBillsTable({
                   <TableCell>
                     {bill.payments.length
                       ? bill.payments.map((payment) => (
-                          <div key={payment.id} className="mb-2 text-xs">
+                          <div
+                            key={payment.id}
+                            className="mb-2 border-b border-slate-100 pb-2 text-xs last:border-0"
+                          >
                             <strong>
                               {money(Number(payment.amount.toString()))}
                             </strong>{" "}
@@ -180,13 +233,43 @@ export default function SupplierBillsTable({
                             <br />
                             {payment.recordedBy.fullName} ·{" "}
                             {payment.paidAt.toLocaleDateString()}
+                            {payment.dailyCashBusinessDate ? (
+                              <div className="text-slate-500">
+                                Daily Cash {payment.dailyCashBusinessDate}
+                              </div>
+                            ) : null}
+                            <RevertPaymentButton
+                              paymentId={payment.id}
+                              amount={money(Number(payment.amount.toString()))}
+                              disabledReason={payment.reversalError}
+                            />
                           </div>
                         ))
                       : "--"}
                   </TableCell>
                   <TableCell>
-                    {remaining > 0 ? (
-                      <PaymentForm billId={bill.id} remaining={remaining} />
+                    {hasInstallments ? (
+                      <div className="grid gap-2">
+                        {bill.installments.map((installment) =>
+                          installment.status !== "PAID" ? (
+                            <PaymentForm
+                              key={installment.id}
+                              billId={bill.id}
+                              installmentId={installment.id}
+                              remaining={
+                                Number(installment.amount.toString()) -
+                                Number(installment.paidAmount.toString())
+                              }
+                            />
+                          ) : null,
+                        )}
+                      </div>
+                    ) : remaining > 0 ? (
+                      <SplitInstallmentsForm
+                        billId={bill.id}
+                        dueDate={bill.dueDate.toISOString().slice(0, 10)}
+                        remaining={remaining}
+                      />
                     ) : (
                       "Paid in full"
                     )}

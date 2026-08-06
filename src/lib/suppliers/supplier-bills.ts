@@ -18,6 +18,12 @@ export type SupplierBillDueInput = {
   totalAmount: { toString(): string } | number | string;
   paidAmount: { toString(): string } | number | string;
   status: "UNPAID" | "PARTIAL" | "PAID";
+  installments?: Array<{
+    dueDate: Date;
+    amount: { toString(): string } | number | string;
+    paidAmount: { toString(): string } | number | string;
+    status: "UNPAID" | "PARTIAL" | "PAID";
+  }>;
 };
 
 export type SupplierDueSummaryRow = {
@@ -103,42 +109,31 @@ export function summarizeSupplierBillsDue(
   let dueTomorrowRemainingCents = 0;
 
   for (const bill of bills) {
-    if (bill.status === "PAID") continue;
-    const dueState = getSupplierBillDueState(bill.dueDate, now);
-    if (dueState === "future") continue;
-
-    const remainingCents = Math.max(
-      0,
-      currencyCents(bill.totalAmount) - currencyCents(bill.paidAmount),
-    );
-    if (remainingCents === 0) continue;
-
-    const dueDateKey = dateKey(bill.dueDate);
-    const row = supplierRows.get(bill.supplierId) ?? {
-      supplierId: bill.supplierId,
-      supplierName: bill.supplierName,
-      billCount: 0,
-      oldestDueDateKey: dueDateKey,
-      totalRemainingCents: 0,
-      overdueRemainingCents: 0,
-      dueTodayRemainingCents: 0,
-      dueTomorrowRemainingCents: 0,
-    };
-
-    row.billCount += 1;
-    row.totalRemainingCents += remainingCents;
-    row.oldestDueDateKey =
-      dueDateKey < row.oldestDueDateKey ? dueDateKey : row.oldestDueDateKey;
-    if (dueState === "overdue") row.overdueRemainingCents += remainingCents;
-    if (dueState === "today") row.dueTodayRemainingCents += remainingCents;
-    if (dueState === "tomorrow") row.dueTomorrowRemainingCents += remainingCents;
-    supplierRows.set(bill.supplierId, row);
-
-    billCount += 1;
-    totalRemainingCents += remainingCents;
-    if (dueState === "overdue") overdueRemainingCents += remainingCents;
-    if (dueState === "today") dueTodayRemainingCents += remainingCents;
-    if (dueState === "tomorrow") dueTomorrowRemainingCents += remainingCents;
+    const obligations = bill.installments?.length
+      ? bill.installments
+      : [{ dueDate: bill.dueDate, amount: bill.totalAmount, paidAmount: bill.paidAmount, status: bill.status }];
+    let countedBill = false;
+    for (const obligation of obligations) {
+      if (obligation.status === "PAID") continue;
+      const dueState = getSupplierBillDueState(obligation.dueDate, now);
+      if (dueState === "future") continue;
+      const remainingCents = Math.max(0, currencyCents(obligation.amount) - currencyCents(obligation.paidAmount));
+      if (!remainingCents) continue;
+      const dueDateKey = dateKey(obligation.dueDate);
+      const row = supplierRows.get(bill.supplierId) ?? {
+        supplierId: bill.supplierId, supplierName: bill.supplierName, billCount: 0,
+        oldestDueDateKey: dueDateKey, totalRemainingCents: 0, overdueRemainingCents: 0,
+        dueTodayRemainingCents: 0, dueTomorrowRemainingCents: 0,
+      };
+      if (!countedBill) { row.billCount += 1; billCount += 1; countedBill = true; }
+      row.totalRemainingCents += remainingCents;
+      row.oldestDueDateKey = dueDateKey < row.oldestDueDateKey ? dueDateKey : row.oldestDueDateKey;
+      if (dueState === "overdue") { row.overdueRemainingCents += remainingCents; overdueRemainingCents += remainingCents; }
+      if (dueState === "today") { row.dueTodayRemainingCents += remainingCents; dueTodayRemainingCents += remainingCents; }
+      if (dueState === "tomorrow") { row.dueTomorrowRemainingCents += remainingCents; dueTomorrowRemainingCents += remainingCents; }
+      supplierRows.set(bill.supplierId, row);
+      totalRemainingCents += remainingCents;
+    }
   }
 
   const suppliers = Array.from(supplierRows.values(), (row) => ({

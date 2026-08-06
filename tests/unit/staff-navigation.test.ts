@@ -17,6 +17,9 @@ function user(role: UserRole, station: Station | null = null) {
 test("admin navigation is grouped in the intended order", () => {
   const items = getVisibleStaffNavigationItems(user("ADMIN"), "admin");
   const nodes = getStaffNavigationNodesFromItems(items);
+  const dashboard = items.find((item) => item.key === "dashboard");
+
+  assert.equal(dashboard?.href, "/admin");
 
   assert.deepEqual(
     nodes.map((node) => (node.type === "link" ? node.item.key : node.key)),
@@ -79,8 +82,12 @@ test("station filtering keeps only the authorized kitchen destination", () => {
 test("nested pages activate their parent navigation item", () => {
   const items = getVisibleStaffNavigationItems(user("ADMIN"), "admin");
   const nodes = getStaffNavigationNodesFromItems(items);
+  const dashboard = items.find((item) => item.key === "dashboard");
   const invoices = items.find((item) => item.key === "supplier-invoices");
 
+  assert.ok(dashboard);
+  assert.equal(isStaffNavActive("/admin", dashboard), true);
+  assert.equal(isStaffNavActive("/admin/categories", dashboard), false);
   assert.ok(invoices);
   assert.equal(
     isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices),
@@ -94,7 +101,11 @@ test("nested pages activate their parent navigation item", () => {
     "suppliers",
   );
   assert.equal(
-    getActiveStaffNavigationGroupKey("/admin/dashboard", nodes),
+    getActiveStaffNavigationGroupKey("/admin/categories", nodes),
+    "catalog",
+  );
+  assert.equal(
+    getActiveStaffNavigationGroupKey("/admin", nodes),
     null,
   );
 });

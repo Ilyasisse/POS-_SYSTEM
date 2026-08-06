@@ -78,7 +78,7 @@ const navigationGroups: readonly {
     key: "admin-operations",
     label: "Operations",
     icon: ClipboardList,
-    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances"],
+    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash"],
   },
   {
     key: "suppliers",
@@ -369,9 +369,7 @@ export function getNextOpenStaffNavigationGroupKey(
 
 export function isStaffNavActive(pathname: string, item: StaffNavigationItem) {
   if (item.aliases?.includes(pathname)) return true;
-  if (item.href === "/admin/dashboard") {
-    return pathname === "/admin" || pathname === item.href;
-  }
+  if (item.href === "/admin") return pathname === item.href;
 
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
