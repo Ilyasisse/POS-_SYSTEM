@@ -52,6 +52,11 @@ type InvoiceEditorData = {
   installments: Array<Omit<EditorInstallment, "key">>;
 };
 
+type InvoiceAction = (data: FormData) => Promise<{
+  message: string;
+  redirectTo?: string;
+}>;
+
 const MONEY = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -123,6 +128,113 @@ function InvoiceDetailsSection({
           rows={3}
           placeholder="Optional notes for this invoice"
         />
+      </div>
+    </section>
+  );
+}
+
+type InvoiceInstallmentsSectionProps = {
+  installments: EditorInstallment[];
+  invoiceTotal: number;
+  scheduledTotal: number;
+  pending: boolean;
+  onAddInstallment: () => void;
+  onChangeInstallment: (
+    index: number,
+    patch: Partial<EditorInstallment>,
+  ) => void;
+  onRemoveInstallment: (index: number) => void;
+};
+
+function InvoiceInstallmentsSection({
+  installments,
+  invoiceTotal,
+  scheduledTotal,
+  pending,
+  onAddInstallment,
+  onChangeInstallment,
+  onRemoveInstallment,
+}: InvoiceInstallmentsSectionProps) {
+  return (
+    <section className="space-y-3 rounded-2xl border bg-card p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Payment installments</h2>
+          <p className="text-sm text-muted-foreground">
+            Schedule the exact amount and due date for each supplier payment.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={onAddInstallment}
+        >
+          <Plus className="size-4" /> Add installment
+        </Button>
+      </div>
+      <div className="grid gap-2 text-sm font-medium sm:grid-cols-[1fr_1fr_auto]">
+        <span>Due date</span>
+        <span>Amount</span>
+        <span className="sr-only">Remove</span>
+      </div>
+      {installments.map((installment, index) => (
+        <div
+          key={installment.key}
+          className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+        >
+          <Input type="hidden" name="installmentId" value={installment.id} />
+          <Input
+            required
+            name="installmentDueDate"
+            type="date"
+            value={installment.dueDate}
+            disabled={pending}
+            onChange={(event) =>
+              onChangeInstallment(index, { dueDate: event.target.value })
+            }
+          />
+          <Input
+            required
+            name="installmentAmount"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={installment.amount}
+            disabled={pending}
+            onChange={(event) =>
+              onChangeInstallment(index, { amount: event.target.value })
+            }
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={pending || installments.length === 1}
+            onClick={() => onRemoveInstallment(index)}
+            aria-label={`Remove installment ${index + 1}`}
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <span>
+          Invoice total <strong>{MONEY.format(invoiceTotal)}</strong>
+        </span>
+        <span>
+          Scheduled <strong>{MONEY.format(scheduledTotal)}</strong>
+        </span>
+        <span
+          className={
+            Math.abs(invoiceTotal - scheduledTotal) < 0.005
+              ? "text-emerald-700"
+              : "text-destructive"
+          }
+        >
+          Difference {MONEY.format(invoiceTotal - scheduledTotal)}
+        </span>
       </div>
     </section>
   );
@@ -393,17 +505,13 @@ function InvoiceStatusMessage({
 type InvoiceActionsSectionProps = {
   pending: boolean;
   hasPurchaseOrder: boolean;
-  onSave: () => void;
-  onFinalize: () => void;
-  onVoid: () => void;
+  onRunAction: (action: InvoiceAction, confirmation?: string) => void;
 };
 
 function InvoiceActionsSection({
   pending,
   hasPurchaseOrder,
-  onSave,
-  onFinalize,
-  onVoid,
+  onRunAction,
 }: InvoiceActionsSectionProps) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5 xl:flex-row xl:items-end xl:justify-between">
@@ -412,11 +520,20 @@ function InvoiceActionsSection({
           type="button"
           variant="outline"
           disabled={pending}
-          onClick={onSave}
+          onClick={() => onRunAction(saveSupplierInvoiceDraftAction)}
         >
           {pending ? "Working..." : "Save draft"}
         </Button>
-        <Button type="button" disabled={pending} onClick={onFinalize}>
+        <Button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            onRunAction(
+              finalizeSupplierInvoiceAction,
+              "Finalize this invoice and create the unpaid supplier bill? The invoice will become read-only.",
+            )
+          }
+        >
           Finalize invoice
         </Button>
       </div>
@@ -434,7 +551,14 @@ function InvoiceActionsSection({
           type="button"
           variant="destructive"
           disabled={pending}
-          onClick={onVoid}
+          onClick={() =>
+            onRunAction(
+              voidSupplierInvoiceDraftAction,
+              hasPurchaseOrder
+                ? "Void this invoice and reopen its linked purchase order?"
+                : "Void this invoice?",
+            )
+          }
         >
           {hasPurchaseOrder ? "Void & reopen PO" : "Void invoice"}
         </Button>
@@ -493,11 +617,32 @@ export default function SupplierInvoiceEditor({
     0,
   );
 
-  function updateInstallment(key: number, patch: Partial<EditorInstallment>) {
+  function updateInstallment(
+    index: number,
+    patch: Partial<EditorInstallment>,
+  ) {
     setInstallments((current) =>
-      current.map((installment, index) =>
-        index === key ? { ...installment, ...patch } : installment,
+      current.map((installment, row) =>
+        row === index ? { ...installment, ...patch } : installment,
       ),
+    );
+  }
+
+  function addInstallment() {
+    setInstallments((current) => [
+      ...current,
+      {
+        id: "",
+        key: `installment-${Date.now()}-${current.length}`,
+        dueDate: current.at(-1)?.dueDate || invoice.dueDate,
+        amount: "0.00",
+      },
+    ]);
+  }
+
+  function removeInstallment(index: number) {
+    setInstallments((current) =>
+      current.filter((_, row) => row !== index),
     );
   }
 
@@ -505,6 +650,10 @@ export default function SupplierInvoiceEditor({
     setLines((current) =>
       current.map((line) => (line.key === key ? { ...line, ...patch } : line)),
     );
+  }
+
+  function removeLine(key: string) {
+    setLines((current) => current.filter((line) => line.key !== key));
   }
 
   function addCatalogLine() {
@@ -542,13 +691,7 @@ export default function SupplierInvoiceEditor({
     ]);
   }
 
-  function runAction(
-    action: (data: FormData) => Promise<{
-      message: string;
-      redirectTo?: string;
-    }>,
-    confirmation?: string,
-  ) {
+  function runAction(action: InvoiceAction, confirmation?: string) {
     const form = formRef.current;
     if (!form || (confirmation && !window.confirm(confirmation))) return;
     const data = new FormData(form);
@@ -583,106 +726,15 @@ export default function SupplierInvoiceEditor({
       />
 
       {editable ? (
-        <section className="space-y-3 rounded-2xl border bg-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-semibold">Payment installments</h2>
-              <p className="text-sm text-muted-foreground">
-                Schedule the exact amount and due date for each supplier
-                payment.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pending}
-              onClick={() =>
-                setInstallments((current) => [
-                  ...current,
-                  {
-                    id: "",
-                    key: `installment-${Date.now()}-${current.length}`,
-                    dueDate: current.at(-1)?.dueDate || invoice.dueDate,
-                    amount: "0.00",
-                  },
-                ])
-              }
-            >
-              <Plus className="size-4" /> Add installment
-            </Button>
-          </div>
-          <div className="grid gap-2 text-sm font-medium sm:grid-cols-[1fr_1fr_auto]">
-            <span>Due date</span>
-            <span>Amount</span>
-            <span className="sr-only">Remove</span>
-          </div>
-          {installments.map((installment, index) => (
-            <div
-              key={installment.key}
-              className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
-            >
-              <Input
-                type="hidden"
-                name="installmentId"
-                value={installment.id}
-              />
-              <Input
-                required
-                name="installmentDueDate"
-                type="date"
-                value={installment.dueDate}
-                disabled={pending}
-                onChange={(event) =>
-                  updateInstallment(index, { dueDate: event.target.value })
-                }
-              />
-              <Input
-                required
-                name="installmentAmount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={installment.amount}
-                disabled={pending}
-                onChange={(event) =>
-                  updateInstallment(index, { amount: event.target.value })
-                }
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                disabled={pending || installments.length === 1}
-                onClick={() =>
-                  setInstallments((current) =>
-                    current.filter((_, row) => row !== index),
-                  )
-                }
-                aria-label={`Remove installment ${index + 1}`}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          ))}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-            <span>
-              Invoice total <strong>{MONEY.format(total)}</strong>
-            </span>
-            <span>
-              Scheduled <strong>{MONEY.format(scheduledTotal)}</strong>
-            </span>
-            <span
-              className={
-                Math.abs(total - scheduledTotal) < 0.005
-                  ? "text-emerald-700"
-                  : "text-destructive"
-              }
-            >
-              Difference {MONEY.format(total - scheduledTotal)}
-            </span>
-          </div>
-        </section>
+        <InvoiceInstallmentsSection
+          installments={installments}
+          invoiceTotal={total}
+          scheduledTotal={scheduledTotal}
+          pending={pending}
+          onAddInstallment={addInstallment}
+          onChangeInstallment={updateInstallment}
+          onRemoveInstallment={removeInstallment}
+        />
       ) : null}
 
       {editable ? (
@@ -704,9 +756,7 @@ export default function SupplierInvoiceEditor({
         pending={pending}
         total={total}
         onLineChange={updateLine}
-        onRemoveLine={(key) =>
-          setLines((current) => current.filter((item) => item.key !== key))
-        }
+        onRemoveLine={removeLine}
       />
 
       <InvoiceStatusMessage message={message} hasError={hasError} />
@@ -715,21 +765,7 @@ export default function SupplierInvoiceEditor({
         <InvoiceActionsSection
           pending={pending}
           hasPurchaseOrder={hasPurchaseOrder}
-          onSave={() => runAction(saveSupplierInvoiceDraftAction)}
-          onFinalize={() =>
-            runAction(
-              finalizeSupplierInvoiceAction,
-              "Finalize this invoice and create the unpaid supplier bill? The invoice will become read-only.",
-            )
-          }
-          onVoid={() =>
-            runAction(
-              voidSupplierInvoiceDraftAction,
-              hasPurchaseOrder
-                ? "Void this invoice and reopen its linked purchase order?"
-                : "Void this invoice?",
-            )
-          }
+          onRunAction={runAction}
         />
       ) : null}
     </form>
