@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useKitchenRealtimeSubscription } from "@/hooks/kitchen/useKitchenRealtimeSubscription";
 
 type CashierLiveSyncProps = {
   intervalMs?: number;
@@ -11,7 +10,7 @@ type CashierLiveSyncProps = {
 const REFRESH_DEBOUNCE_MS = 500;
 
 export default function CashierLiveSync({
-  intervalMs = 30000,
+  intervalMs = 10000,
 }: CashierLiveSyncProps) {
   const router = useRouter();
   const refreshTimerRef = useRef<number | null>(null);
@@ -26,8 +25,6 @@ export default function CashierLiveSync({
       if (document.visibilityState === "visible") router.refresh();
     }, REFRESH_DEBOUNCE_MS);
   }, [router]);
-
-  useKitchenRealtimeSubscription(scheduleRefresh);
 
   useEffect(() => {
     const timer = window.setInterval(scheduleRefresh, intervalMs);

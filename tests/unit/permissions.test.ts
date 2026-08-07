@@ -39,8 +39,8 @@ test("operational roles receive only their required capabilities", () => {
     false,
   );
   assert.equal(
-    hasPermission(user("SUPPLIER"), PERMISSIONS.SUPPLIER_PORTAL_ACCESS),
-    true,
+    hasPermission(user("SUPPLIER"), PERMISSIONS.SUPPLIER_MANAGE),
+    false,
   );
   assert.equal(
     hasPermission(user("MANAGER"), PERMISSIONS.SUPPLIER_MANAGE),
@@ -65,7 +65,10 @@ test("operational roles receive only their required capabilities", () => {
 });
 
 test("kitchen users are restricted to their effective station", () => {
-  assert.equal(canAccessStation(user("COOK", "FAST_FOOD"), ["FAST_FOOD"]), true);
+  assert.equal(
+    canAccessStation(user("COOK", "FAST_FOOD"), ["FAST_FOOD"]),
+    true,
+  );
   assert.equal(
     canAccessStation(user("COOK", "FAST_FOOD"), ["CUNTO_SOOMAALI"]),
     false,

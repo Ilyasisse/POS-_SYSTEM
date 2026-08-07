@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
+import type { Permission } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
 import { getSalesReport } from "@/lib/reports/services/sales-report-service";
@@ -143,9 +143,3 @@ export async function SalesReportPage({
     </AdminPage>
   );
 }
-
-export const reportPermissions = {
-  daily: PERMISSIONS.REPORT_DAILY_VIEW,
-  weekly: PERMISSIONS.REPORT_WEEKLY_VIEW,
-  monthly: PERMISSIONS.REPORT_MONTHLY_VIEW,
-} as const;

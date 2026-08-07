@@ -7,7 +7,6 @@ import {
   grossProfit,
   netSales,
   ratioPercent,
-  sumMoney,
 } from "@/lib/reports/financial-formulas";
 import type { ReportRange } from "@/lib/reports/reporting-calendar";
 import type { ReportQuery } from "@/lib/reports/validation";
@@ -15,6 +14,11 @@ import type { ReportQuery } from "@/lib/reports/validation";
 type SalesRow = { name: string; quantity: number; grossSales: Prisma.Decimal; cogs: Prisma.Decimal; missingCostLines: number };
 const zero = () => new Prisma.Decimal(0);
 const serialize = (value: Prisma.Decimal | null) => value?.toFixed(2) ?? null;
+const hourFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  hour12: false,
+  timeZone: "Africa/Nairobi",
+});
 
 function orderFilters(query: ReportQuery): Prisma.OrderWhereInput {
   return {
@@ -67,14 +71,11 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
     prisma.order.count({ where: { ...filters, status: "CANCELLED", closedAt: { gte: range.start, lt: range.end } } }),
   ]);
 
-  const gross = sumMoney(orders.flatMap((order) => order.orderItems.map((item) => item.lineTotal)));
-  const adjustments = orders.flatMap((order) => order.salesAdjustments);
-  const discounts = sumMoney(adjustments.filter((item) => item.type === "DISCOUNT").map((item) => item.amount));
-  const refunds = sumMoney(adjustments.filter((item) => item.type === "REFUND").map((item) => item.amount));
-  const complimentary = sumMoney(adjustments.filter((item) => item.type === "COMPLIMENTARY").map((item) => item.amount));
-  const staffMeals = sumMoney(adjustments.filter((item) => item.type === "STAFF_MEAL").map((item) => item.amount));
-  const net = netSales(gross, discounts.plus(complimentary).plus(staffMeals), refunds);
-
+  let gross = zero();
+  let discounts = zero();
+  let refunds = zero();
+  let complimentary = zero();
+  let staffMeals = zero();
   let cogs = zero();
   let costCoveredLines = 0;
   let totalLines = 0;
@@ -82,27 +83,32 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   const productRows = new Map<string, SalesRow>();
   const categoryRows = new Map<string, SalesRow>();
   const hourly = new Map<string, Prisma.Decimal>();
-  const hourFormatter = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "Africa/Nairobi" });
 
   for (const order of orders) {
     for (const payment of order.payments) paymentTotals.set(payment.method, (paymentTotals.get(payment.method) ?? zero()).plus(payment.amountPaid));
-    const orderGross = sumMoney(order.orderItems.map((item) => item.lineTotal));
-    const orderDiscounts = sumMoney(
-      order.salesAdjustments
-        .filter((item) => item.type === "DISCOUNT" || item.type === "COMPLIMENTARY" || item.type === "STAFF_MEAL")
-        .map((item) => item.amount),
-    );
-    const orderRefunds = sumMoney(
-      order.salesAdjustments.filter((item) => item.type === "REFUND").map((item) => item.amount),
-    );
-    const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
-    hourly.set(
-      hour,
-      (hourly.get(hour) ?? zero()).plus(
-        netSales(orderGross, orderDiscounts, orderRefunds),
-      ),
-    );
+    let orderGross = zero();
+    let orderDiscounts = zero();
+    let orderRefunds = zero();
+
+    for (const adjustment of order.salesAdjustments) {
+      if (adjustment.type === "DISCOUNT") {
+        discounts = discounts.plus(adjustment.amount);
+        orderDiscounts = orderDiscounts.plus(adjustment.amount);
+      } else if (adjustment.type === "REFUND") {
+        refunds = refunds.plus(adjustment.amount);
+        orderRefunds = orderRefunds.plus(adjustment.amount);
+      } else if (adjustment.type === "COMPLIMENTARY") {
+        complimentary = complimentary.plus(adjustment.amount);
+        orderDiscounts = orderDiscounts.plus(adjustment.amount);
+      } else if (adjustment.type === "STAFF_MEAL") {
+        staffMeals = staffMeals.plus(adjustment.amount);
+        orderDiscounts = orderDiscounts.plus(adjustment.amount);
+      }
+    }
+
     for (const item of order.orderItems) {
+      gross = gross.plus(item.lineTotal);
+      orderGross = orderGross.plus(item.lineTotal);
       totalLines += 1;
       if (item.unitCostSnapshot != null) {
         costCoveredLines += 1;
@@ -111,8 +117,17 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       addRow(productRows, item.productId, item.productName, { qty: item.qty, gross: item.lineTotal, cost: item.unitCostSnapshot });
       addRow(categoryRows, item.product.category.id, item.product.category.name, { qty: item.qty, gross: item.lineTotal, cost: item.unitCostSnapshot });
     }
+
+    const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
+    hourly.set(
+      hour,
+      (hourly.get(hour) ?? zero()).plus(
+        netSales(orderGross, orderDiscounts, orderRefunds),
+      ),
+    );
   }
 
+  const net = netSales(gross, discounts.plus(complimentary).plus(staffMeals), refunds);
   const profit = totalLines > 0 && costCoveredLines === totalLines ? grossProfit(net, cogs) : null;
   const mapRows = (rows: Map<string, SalesRow>) => [...rows.entries()].map(([id, row]) => ({
     id,
