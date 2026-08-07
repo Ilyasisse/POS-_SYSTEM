@@ -1,7 +1,6 @@
-﻿import { NativeSelect } from "@/components/ui/native-select";
-import { Input } from "@/components/ui/input";
+import AutoSubmitInput from "@/components/AutoSubmitInput";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
-  Button,
   Card,
   AdminPage,
   MetricCard,
@@ -13,7 +12,6 @@ import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
-import { Search } from "lucide-react";
 
 type AdminReportsPageProps = {
   searchParams?: Promise<{
@@ -209,7 +207,7 @@ export default async function AdminReportsPage({
           <span className="mb-1 block text-sm font-bold text-slate-700">
             Staff
           </span>
-          <NativeSelect
+          <AutoSubmitSelect
             name="waiterId"
             defaultValue={selectedWaiterId}
             className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
@@ -223,13 +221,13 @@ export default async function AdminReportsPage({
                 </option>
               ))
             )}
-          </NativeSelect>
+          </AutoSubmitSelect>
         </label>
         <label htmlFor="report-business-date">
           <span className="mb-1 block text-sm font-bold text-slate-700">
             Business Day
           </span>
-          <Input
+          <AutoSubmitInput
             id="report-business-date"
             type="date"
             name="date"
@@ -237,10 +235,6 @@ export default async function AdminReportsPage({
             className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           />
         </label>
-        <Button type="submit">
-          <Search data-icon="inline-start" />
-          View Report
-        </Button>
       </form>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

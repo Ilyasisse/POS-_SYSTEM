@@ -1,20 +1,18 @@
-﻿import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { headers } from "next/headers";
-import Image from "next/image";
 import Link from "next/link";
-import QRCode from "qrcode";
 import {
-  Card,
   AdminPage,
-  Table,
+  Button,
+  Card,
   DataTableCard,
+  StatusBadge,
+  Table,
   TableCell,
   TableHead,
-  StatusBadge,
 } from "@/components/admin/shared";
+import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
-import { createSupplier, updateSupplier } from "./actions";
+import { createSupplier } from "./actions";
+import { SupplierEditDialog } from "./SupplierEditDialog";
 
 const fieldClass =
   "h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500";
@@ -29,7 +27,6 @@ function Fields({
     contactName: string | null;
     phone: string | null;
     email: string | null;
-    googleEmail: string | null;
     notes: string | null;
     isActive: boolean;
   };
@@ -51,7 +48,7 @@ function Fields({
       <Input
         name="slug"
         defaultValue={supplier?.slug}
-        placeholder="portal-slug"
+        placeholder="supplier-slug"
         className={fieldClass}
       />
       <Input
@@ -71,13 +68,6 @@ function Fields({
         type="email"
         defaultValue={supplier?.email ?? ""}
         placeholder="Business email"
-        className={fieldClass}
-      />
-      <Input
-        name="googleEmail"
-        type="email"
-        defaultValue={supplier?.googleEmail ?? ""}
-        placeholder="Assigned Google email"
         className={fieldClass}
       />
       <Input
@@ -106,35 +96,24 @@ function Fields({
 }
 
 export default async function SuppliersPage() {
-  const [suppliers, requestHeaders] = await Promise.all([
-    prisma.supplier.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { deliveries: true } } },
-    }),
-    headers(),
-  ]);
-  const host =
-    requestHeaders.get("x-forwarded-host") ||
-    requestHeaders.get("host") ||
-    "localhost:3000";
-  const protocol =
-    requestHeaders.get("x-forwarded-proto") ||
-    (host.startsWith("localhost") ? "http" : "https");
-  const rows = await Promise.all(
-    suppliers.map(async (supplier) => {
-      const portalUrl = `${protocol}://${host}/supplier/${supplier.slug}`;
-      return {
-        supplier,
-        portalUrl,
-        qrUrl: await QRCode.toDataURL(portalUrl, { width: 180, margin: 1 }),
-      };
-    }),
-  );
+  const suppliers = await prisma.supplier.findMany({
+    orderBy: { name: "asc" },
+    include: {
+      _count: {
+        select: { catalogItems: true, invoices: true, purchaseOrders: true },
+      },
+    },
+  });
 
   return (
     <AdminPage
       title="Suppliers"
-      description="Manage supplier contacts, assigned Google accounts, and delivery portal links."
+      description="Manage supplier contacts, catalogs, purchase orders, and invoice history."
+      action={
+        <Button asChild variant="outline">
+          <Link href="/admin/supplier-invoices">View supplier invoices</Link>
+        </Button>
+      }
     >
       <Card className="p-5">
         <h2 className="font-black">Add supplier</h2>
@@ -154,15 +133,16 @@ export default async function SuppliersPage() {
           <thead>
             <tr>
               <TableHead>Supplier</TableHead>
-              <TableHead>Portal</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead>Deliveries</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Invoices</TableHead>
+              <TableHead>Purchase orders</TableHead>
+              <TableHead>Catalog</TableHead>
               <TableHead>Edit</TableHead>
             </tr>
           </thead>
           <tbody>
-            {rows.length ? (
-              rows.map(({ supplier, portalUrl, qrUrl }) => (
+            {suppliers.length ? (
+              suppliers.map((supplier) => (
                 <tr
                   key={supplier.id}
                   className="border-t border-slate-100 align-top"
@@ -174,44 +154,68 @@ export default async function SuppliersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Image
-                      src={qrUrl}
-                      alt={`${supplier.name} QR code`}
-                      width={90}
-                      height={90}
-                      unoptimized
-                    />
-                    <Link
-                      href={portalUrl}
-                      target="_blank"
-                      className="mt-1 block max-w-48 break-all text-xs font-bold text-blue-600"
-                    >
-                      {portalUrl}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <div>{supplier.googleEmail || "Not assigned"}</div>
+                    <div>{supplier.contactName || "No contact name"}</div>
                     <div className="text-xs text-slate-500">
-                      {supplier.phone || supplier.email || "No contact"}
+                      {supplier.phone || supplier.email || "No contact details"}
                     </div>
                   </TableCell>
-                  <TableCell>{supplier._count.deliveries}</TableCell>
                   <TableCell>
-                    <form
-                      action={updateSupplier}
-                      className="grid min-w-72 gap-2"
+                    <div className="font-semibold">
+                      {supplier._count.invoices} invoices
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
                     >
-                      <Fields supplier={supplier} />
-                      <Button type="submit" className="h-9 rounded-lg bg-slate-900 px-3 text-xs font-bold text-white">
-                        Save changes
-                      </Button>
-                    </form>
+                      <Link
+                        href={`/admin/supplier-invoices?supplier=${supplier.id}`}
+                      >
+                        View invoices
+                      </Link>
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold">
+                      {supplier._count.purchaseOrders} orders
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                    >
+                      <Link
+                        href={`/admin/supplier-purchase-orders?supplier=${supplier.id}`}
+                      >
+                        View orders
+                      </Link>
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold">
+                      {supplier._count.catalogItems} items
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                    >
+                      <Link href={`/admin/suppliers/${supplier.id}`}>
+                        Manage catalog
+                      </Link>
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <SupplierEditDialog supplier={supplier} />
                   </TableCell>
                 </tr>
               ))
             ) : (
               <tr>
-                <TableCell colSpan={5}>No suppliers have been added.</TableCell>
+                <TableCell colSpan={6}>No suppliers have been added.</TableCell>
               </tr>
             )}
           </tbody>
