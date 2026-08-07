@@ -14,6 +14,7 @@ import {
   Users,
   WalletCards,
   ShoppingBasket,
+  ShoppingCart,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -43,7 +44,7 @@ export type AdminNavigationItem = {
 export const adminNavigationItems: readonly AdminNavigationItem[] = [
   {
     key: "dashboard",
-    href: "/admin/dashboard",
+    href: "/admin",
     label: "Dashboard",
     icon: LayoutDashboard,
     permission: PERMISSIONS.DASHBOARD_VIEW,
@@ -119,6 +120,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.WAITER_BALANCE_ADMIN,
   },
   {
+    key: "daily-cash",
+    href: "/admin/daily-cash",
+    label: "Daily cash",
+    icon: WalletCards,
+    permission: PERMISSIONS.DAILY_CASH_MANAGE,
+  },
+  {
     key: "suppliers",
     href: "/admin/suppliers",
     label: "Suppliers",
@@ -126,9 +134,16 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },
   {
-    key: "supplier-deliveries",
-    href: "/admin/supplier-deliveries",
-    label: "Supplier deliveries",
+    key: "supplier-purchase-orders",
+    href: "/admin/supplier-purchase-orders",
+    label: "Purchase orders",
+    icon: ShoppingCart,
+    permission: PERMISSIONS.SUPPLIER_MANAGE,
+  },
+  {
+    key: "supplier-invoices",
+    href: "/admin/supplier-invoices",
+    label: "Supplier invoices",
     icon: ClipboardList,
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },

@@ -30,6 +30,7 @@ import {
 import {
   getBusinessDayRangeForKey,
   getCurrentBusinessDateKey,
+  getDefaultWaiterBalanceDateKey,
   isLedgerActive,
   parseBusinessDateKey,
   WAITER_BALANCE_LEDGER_START_DATE,
@@ -281,6 +282,7 @@ export default async function WaiterBalancesPage({
   const params = await searchParams;
   const now = new Date();
   const currentBusinessDate = getCurrentBusinessDateKey(now);
+  const defaultBusinessDate = getDefaultWaiterBalanceDateKey(now);
   const ledgerActive = isLedgerActive(now);
   const requestedDate = parseBusinessDateKey(params?.date ?? "");
   const showInactive = params?.showInactive === "1";
@@ -290,7 +292,7 @@ export default async function WaiterBalancesPage({
     requestedDate <= currentBusinessDate;
   const selectedBusinessDate = selectedDateIsValid
     ? requestedDate
-    : currentBusinessDate;
+    : defaultBusinessDate;
   const notice = getStatusNotice(params?.status);
 
   if (!ledgerActive) {
@@ -360,7 +362,7 @@ export default async function WaiterBalancesPage({
           <AlertCircle aria-hidden="true" />
           <AlertTitle>Date unavailable</AlertTitle>
           <AlertDescription>
-            Showing the current business day instead. Select July 1, 2026 through today.
+            Showing the most recently completed business day instead. Select July 1, 2026 through the current POS business day.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -368,7 +370,9 @@ export default async function WaiterBalancesPage({
       <Card>
         <CardHeader>
           <CardTitle>Business day</CardTitle>
-          <CardDescription>{formatBusinessDay(selectedBusinessDate)}</CardDescription>
+          <CardDescription>
+            {formatBusinessDay(selectedBusinessDate)} This page defaults to the most recently completed POS business day.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-3 sm:flex-row sm:items-end">

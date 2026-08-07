@@ -11,10 +11,15 @@ import {
 import {
   assertLedgerBusinessDate,
   calculateWaiterBalance,
+  getCurrentBusinessDateKey,
+  getDefaultWaiterBalanceDateKey,
   getBusinessDayRangeForKey,
+  getLatestCompletedBusinessDateKey,
   isLedgerActive,
   parseBusinessDateKey,
+  shiftBusinessDateKey,
 } from "../../src/lib/waiter/waiter-balance-calculations";
+import { getCashierBusinessDayRange } from "../../src/lib/cashier/cashier-business-day";
 import { buildActiveWaiterShiftWhere } from "../../src/lib/waiter/waiter-shift-gate";
 
 test("records a new shortage from sales and the end-day amount", () => {
@@ -78,6 +83,61 @@ test("uses the established 7 AM to 5 AM POS business-day window", () => {
   assert.equal(start.getHours(), 7);
   assert.equal(end.getDate(), 2);
   assert.equal(end.getHours(), 5);
+});
+
+test("keeps the most recently completed POS window during the 5 AM to 7 AM gap", () => {
+  const { start, end } = getCashierBusinessDayRange(
+    new Date(2026, 6, 23, 6, 59, 59),
+  );
+
+  assert.equal(start.getDate(), 22);
+  assert.equal(start.getHours(), 7);
+  assert.equal(end.getDate(), 23);
+  assert.equal(end.getHours(), 5);
+});
+
+test("derives the latest completed waiter-balance date across POS boundaries", () => {
+  const cases = [
+    {
+      now: new Date(2026, 6, 23, 4, 59, 59),
+      current: "2026-07-22",
+      latestCompleted: "2026-07-21",
+    },
+    {
+      now: new Date(2026, 6, 23, 5, 0, 0),
+      current: "2026-07-22",
+      latestCompleted: "2026-07-22",
+    },
+    {
+      now: new Date(2026, 6, 23, 6, 59, 59),
+      current: "2026-07-22",
+      latestCompleted: "2026-07-22",
+    },
+    {
+      now: new Date(2026, 6, 23, 7, 0, 0),
+      current: "2026-07-23",
+      latestCompleted: "2026-07-22",
+    },
+  ];
+
+  for (const { now, current, latestCompleted } of cases) {
+    assert.equal(getCurrentBusinessDateKey(now), current);
+    assert.equal(getLatestCompletedBusinessDateKey(now), latestCompleted);
+  }
+});
+
+test("shifts ISO business dates with calendar-safe UTC arithmetic", () => {
+  assert.equal(shiftBusinessDateKey("2026-03-01", -1), "2026-02-28");
+  assert.equal(shiftBusinessDateKey("2027-01-01", -1), "2026-12-31");
+  assert.throws(() => shiftBusinessDateKey("2026-02-30", -1), /Invalid/);
+  assert.throws(() => shiftBusinessDateKey("2026-07-01", 0.5), /whole number/);
+});
+
+test("clamps the default waiter-balance date to ledger activation", () => {
+  assert.equal(
+    getDefaultWaiterBalanceDateKey(new Date(2026, 6, 1, 7, 0, 0)),
+    "2026-07-01",
+  );
 });
 
 test("activates at the start of the July 1 POS business day", () => {

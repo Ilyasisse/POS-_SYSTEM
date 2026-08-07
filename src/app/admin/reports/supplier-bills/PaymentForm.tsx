@@ -8,14 +8,16 @@ import { Input } from "@/components/ui/input";
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordPaymentAction } from "../../supplier-deliveries/actions";
+import { recordPaymentAction } from "./actions";
 
 export default function PaymentForm({
   billId,
   remaining,
+  installmentId,
 }: {
   billId: string;
   remaining: number;
+  installmentId?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -39,12 +41,15 @@ export default function PaymentForm({
   return (
     <form onSubmit={submit} className="grid min-w-64 gap-2">
       <Input type="hidden" name="billId" value={billId} />
+      {installmentId ? (
+        <Input type="hidden" name="installmentId" value={installmentId} />
+      ) : null}
       <div className="flex gap-2">
         <Input
           required
           name="amount"
           type="number"
-          min="0.01"
+          min="0.1"
           max={remaining}
           step="0.01"
           defaultValue={remaining.toFixed(2)}
@@ -77,7 +82,7 @@ export default function PaymentForm({
         {pending ? "Recordingâ€¦" : remaining > 0 ? "Record payment" : "Paid"}
       </Button>
       {message ? (
-        <span className="text-xs font-semibold text-slate-600">{message}</span>
+        <span className="text-md font-semibold text-red-600">{message}</span>
       ) : null}
     </form>
   );

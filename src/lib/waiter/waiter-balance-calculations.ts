@@ -44,6 +44,19 @@ export function parseBusinessDateKey(value: string) {
   return value;
 }
 
+export function shiftBusinessDateKey(businessDateKey: string, dayOffset: number) {
+  const parsed = parseBusinessDateKey(businessDateKey);
+
+  if (!parsed) throw new Error("Invalid business date.");
+  if (!Number.isInteger(dayOffset)) {
+    throw new Error("Business date offset must be a whole number of days.");
+  }
+
+  const [year, month, day] = parsed.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + dayOffset));
+  return shifted.toISOString().slice(0, 10);
+}
+
 export function businessDateKeyToDatabaseDate(businessDateKey: string) {
   const parsed = parseBusinessDateKey(businessDateKey);
 
@@ -60,6 +73,23 @@ export function formatBusinessDateKey(date: Date) {
 
 export function getCurrentBusinessDateKey(now: Date = new Date()) {
   return formatBusinessDateKey(getCashierBusinessDayRange(now).start);
+}
+
+export function getLatestCompletedBusinessDateKey(now: Date = new Date()) {
+  const { start, end } = getCashierBusinessDayRange(now);
+  const businessDateKey = formatBusinessDateKey(start);
+
+  return now >= end
+    ? businessDateKey
+    : shiftBusinessDateKey(businessDateKey, -1);
+}
+
+export function getDefaultWaiterBalanceDateKey(now: Date = new Date()) {
+  const latestCompletedBusinessDate = getLatestCompletedBusinessDateKey(now);
+
+  return latestCompletedBusinessDate < WAITER_BALANCE_LEDGER_START_DATE
+    ? WAITER_BALANCE_LEDGER_START_DATE
+    : latestCompletedBusinessDate;
 }
 
 export function getBusinessDayRangeForKey(businessDateKey: string) {
