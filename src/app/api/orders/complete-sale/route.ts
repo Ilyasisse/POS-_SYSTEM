@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
-import { snapshotProductCost } from "@/lib/sales/adjustments";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import { getActiveWaiterOrderingShift } from "@/lib/waiter/waiter-shifts";
 import {
   deductProductInventoryForSale,
@@ -41,7 +41,7 @@ type PreparedLine = {
   assignedBaristaName: string | null;
   unitPrice: number;
   lineTotal: number;
-  unitCost: Prisma.Decimal | null;
+  costSnapshot: ReturnType<typeof snapshotInventoryCost>;
   modifiers: PreparedModifier[];
 };
 
@@ -169,6 +169,10 @@ export async function POST(request: Request) {
           name: true,
           price: true,
           cost: true,
+          recipeVersions: {
+            where: { isActive: true },
+            select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
+          },
           category: {
             select: {
               station: true,
@@ -311,7 +315,10 @@ export async function POST(request: Request) {
         assignedBaristaName,
         unitPrice,
         lineTotal,
-        unitCost: product.cost,
+        costSnapshot: snapshotInventoryCost(
+          selectEffectiveRecipe(product.recipeVersions, new Date()),
+          product.cost,
+        ),
         modifiers: selectedModifiers,
       });
 
@@ -356,7 +363,7 @@ export async function POST(request: Request) {
           qty: line.qty,
           unitPrice: toDecimal(line.unitPrice),
           lineTotal: toDecimal(line.lineTotal),
-          ...snapshotProductCost(line.unitCost),
+          ...line.costSnapshot,
           station: line.station,
           assignedUserId: line.assignedBaristaId,
         })),
@@ -399,8 +406,8 @@ export async function POST(request: Request) {
           productId: line.productId,
           qty: line.qty,
         })),
-        // Product sale notes are intentionally not recorded in InventoryMovement;
-        // that table is now supply-only, while product deductions still update Product stock.
+        order.id,
+        currentUser.id,
       );
 
       return { order, savedOrderItems, inventoryAlerts };

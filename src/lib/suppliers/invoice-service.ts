@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { recordSupplierInvoiceReceipts } from "@/lib/inventory/stock-ledger";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
   getSupplierInvoiceVoidEffect,
@@ -450,6 +451,11 @@ export async function finalizeSupplierInvoice(
       await tx.supplierInvoiceItem.createMany({
         data: itemCreateData(id, draft),
       });
+      const inventoryReceipts = await recordSupplierInvoiceReceipts(
+        tx,
+        id,
+        userId,
+      );
       const bill = await tx.supplierBill.create({
         data: {
           supplierId: invoice.supplierId,
@@ -466,6 +472,7 @@ export async function finalizeSupplierInvoice(
         purchaseOrderId: invoice.purchaseOrderId,
         billId: bill.id,
         finalizedAt,
+        inventoryReceipts,
       };
     },
     { isolationLevel: SERIALIZABLE },

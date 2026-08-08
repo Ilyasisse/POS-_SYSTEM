@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { classifyLegacyUnit, decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
@@ -17,14 +18,14 @@ function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
-// Reads a quantity field from an inventory form as a non-negative whole number.
+// Reads a quantity field as a Decimal; fractional canonical quantities are valid.
 function getQuantity(formData: FormData, key: string) {
-  return Math.max(0, Math.floor(Number(formData.get(key)) || 0));
+  return decimalQuantity(String(formData.get(key) ?? "0"), key);
 }
 
 // Ensures only admins and managers can change inventory.
 async function requireInventoryAccess() {
-  await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
+  return requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
 // Redirects back to inventory with a query param that drives the email status popup.
 function redirectWithInventoryEmailStatus(
@@ -57,6 +58,9 @@ export async function createSupply(formData: FormData) {
   const unit = getString(formData, "unit") || "unit";
   const stockQty = getQuantity(formData, "stockQty");
   const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
+  const mapping = classifyLegacyUnit(unit);
+  const canonicalStockQty = stockQty.mul(mapping.factor);
+  const canonicalLowStockThreshold = lowStockThreshold.mul(mapping.factor);
 
   if (!name) {
     throw new Error("Supply name is required.");
@@ -66,11 +70,13 @@ export async function createSupply(formData: FormData) {
     data: {
       name,
       unit,
-      stockQty,
-      lowStockThreshold,
+      stockQty: canonicalStockQty,
+      lowStockThreshold: canonicalLowStockThreshold,
+      canonicalUnit: mapping.canonicalUnit,
+      quantityCoverage: mapping.coverage,
       inventoryAlertStatus: getInventoryAlertStatus(
-        stockQty,
-        lowStockThreshold,
+        Number(canonicalStockQty),
+        Number(canonicalLowStockThreshold),
       ),
     },
   });
@@ -81,7 +87,7 @@ export async function createSupply(formData: FormData) {
 
 // Sets a menu product's stock quantity and low-stock threshold.
 export async function updateProductInventory(formData: FormData) {
-  await requireInventoryAccess();
+  const user = await requireInventoryAccess();
 
   // Pulls the submitted product inventory fields from the update form.
   const productId = getString(formData, "productId");
@@ -96,7 +102,7 @@ export async function updateProductInventory(formData: FormData) {
   // Product movement reasons are no longer passed because product changes do
   // not create InventoryMovement rows after productId was removed from that table.
   const alerts = await prisma.$transaction((tx) =>
-    setProductInventoryLevel(tx, productId, stockQty, lowStockThreshold),
+    setProductInventoryLevel(tx, productId, stockQty, lowStockThreshold, user.id),
   );
 
   await sendInventoryAlerts(alerts);
@@ -105,7 +111,7 @@ export async function updateProductInventory(formData: FormData) {
 
 // Adds to or removes from a menu product's stock level.
 export async function adjustProductInventory(formData: FormData) {
-  await requireInventoryAccess();
+  const user = await requireInventoryAccess();
 
   // Pulls the submitted product adjustment fields from the form.
   const productId = getString(formData, "productId");
@@ -116,7 +122,7 @@ export async function adjustProductInventory(formData: FormData) {
     throw new Error("Product is required.");
   }
 
-  if (quantity <= 0) {
+  if (quantity.lte(0)) {
     throw new Error("Adjustment quantity must be greater than zero.");
   }
 
@@ -136,15 +142,17 @@ export async function adjustProductInventory(formData: FormData) {
     }
 
     // Converts the selected direction into a positive or negative stock change.
-    const delta = direction === "remove" ? -quantity : quantity;
+    const delta = direction === "remove" ? quantity.negated() : quantity;
 
     // Only the next product stock values are needed now; supply movement history
     // remains separate and continues to store TAKEN/RESTOCK reasons.
     return setProductInventoryLevel(
       tx,
       productId,
-      product.stockQty + delta,
+      product.stockQty.add(delta),
       product.lowStockThreshold,
+      user.id,
+      "Administrator product stock adjustment",
     );
   });
 
@@ -154,7 +162,7 @@ export async function adjustProductInventory(formData: FormData) {
 
 // Sets an internal supply's stock quantity and low-stock threshold.
 export async function updateSupplyInventory(formData: FormData) {
-  await requireInventoryAccess();
+  const user = await requireInventoryAccess();
 
   // Pulls the submitted supply inventory fields from the update form.
   const supplyId = getString(formData, "supplyId");
@@ -174,6 +182,7 @@ export async function updateSupplyInventory(formData: FormData) {
       lowStockThreshold,
       "SET",
       "Inventory page update",
+      user.id,
     ),
   );
 
@@ -184,7 +193,7 @@ export async function updateSupplyInventory(formData: FormData) {
 
 // Restocks an internal supply's stock level from the admin inventory page.
 export async function adjustSupplyInventory(formData: FormData) {
-  await requireInventoryAccess();
+  const user = await requireInventoryAccess();
 
   // Pulls the submitted supply adjustment fields from the form.
   const supplyId = getString(formData, "supplyId");
@@ -195,7 +204,7 @@ export async function adjustSupplyInventory(formData: FormData) {
     throw new Error("Supply is required.");
   }
 
-  if (quantity <= 0) {
+  if (quantity.lte(0)) {
     throw new Error("Adjustment quantity must be greater than zero.");
   }
 
@@ -215,15 +224,14 @@ export async function adjustSupplyInventory(formData: FormData) {
     }
 
     // Admin supply adjustments are restocks only; taking supplies is handled on /inventory.
-    const delta = quantity;
-
     return setSupplyInventoryLevel(
       tx,
       supplyId,
-      supply.stockQty + delta,
+      supply.stockQty.add(quantity),
       supply.lowStockThreshold,
       "RESTOCK",
       note || "Internal supply restock",
+      user.id,
     );
   });
 
