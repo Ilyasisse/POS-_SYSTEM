@@ -531,7 +531,8 @@ model SupplierInvoice {
   purchaseOrderId          String?
   source                   SupplierInvoiceSource
   status                   SupplierInvoiceStatus        @default(DRAFT)
-  invoiceNumber            String?
+  invoiceNumber            Int                          @unique @default(autoincrement())
+  supplierReference        String?
   invoiceDate              DateTime                     @db.Date
   dueDate                  DateTime                     @db.Date
   notes                    String?

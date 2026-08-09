@@ -38,6 +38,44 @@ function lineTotal(quantity: string, unitPrice: string) {
   return Math.round((parsedQuantity * parsedUnitPrice + Number.EPSILON) * 100) / 100;
 }
 
+function InvoiceDetailsFields({
+  todayDateKey,
+  defaultDueDateKey,
+  pending,
+}: {
+  todayDateKey: string;
+  defaultDueDateKey: string;
+  pending: boolean;
+}) {
+  return (
+    <Card className="grid gap-4 p-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2">
+        <Label htmlFor="invoiceNumber">Invoice number</Label>
+        <Input id="invoiceNumber" value="Generated automatically" disabled />
+        <p className="text-xs text-muted-foreground">
+          Assigned when the invoice draft is created.
+        </p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="supplierReference">Supplier reference</Label>
+        <Input id="supplierReference" name="supplierReference" maxLength={200} placeholder="Optional supplier invoice number" disabled={pending} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="invoiceDate">Invoice date</Label>
+        <Input id="invoiceDate" name="invoiceDate" type="date" defaultValue={todayDateKey} required disabled={pending} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="dueDate">Due date</Label>
+        <Input id="dueDate" name="dueDate" type="date" defaultValue={defaultDueDateKey} required disabled={pending} />
+      </div>
+      <div className="grid gap-2 md:col-span-2 lg:col-span-4">
+        <Label htmlFor="notes">Invoice notes</Label>
+        <Textarea id="notes" name="notes" maxLength={2000} rows={3} placeholder="Optional notes for this invoice" disabled={pending} />
+      </div>
+    </Card>
+  );
+}
+
 export default function ManualSupplierInvoiceBuilder({
   suppliers,
   selectedSupplier,
@@ -206,24 +244,11 @@ export default function ManualSupplierInvoiceBuilder({
       >
         <Input type="hidden" name="supplierId" value={selectedSupplier.id} />
 
-        <Card className="grid gap-4 p-5 md:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="invoiceNumber">Invoice number</Label>
-            <Input id="invoiceNumber" name="invoiceNumber" maxLength={200} placeholder="Supplier invoice number" disabled={pending} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="invoiceDate">Invoice date</Label>
-            <Input id="invoiceDate" name="invoiceDate" type="date" defaultValue={todayDateKey} required disabled={pending} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="dueDate">Due date</Label>
-            <Input id="dueDate" name="dueDate" type="date" defaultValue={defaultDueDateKey} required disabled={pending} />
-          </div>
-          <div className="grid gap-2 md:col-span-3">
-            <Label htmlFor="notes">Invoice notes</Label>
-            <Textarea id="notes" name="notes" maxLength={2000} rows={3} placeholder="Optional notes for this invoice" disabled={pending} />
-          </div>
-        </Card>
+        <InvoiceDetailsFields
+          todayDateKey={todayDateKey}
+          defaultDueDateKey={defaultDueDateKey}
+          pending={pending}
+        />
 
         <Card className="overflow-hidden p-0">
           <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
