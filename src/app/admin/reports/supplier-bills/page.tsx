@@ -7,6 +7,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { getSupplierBillDueCutoffDate } from "@/lib/suppliers/supplier-bills";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
@@ -103,6 +104,7 @@ export default async function SupplierBillsReportPage({
         id: true,
         submittedAt: true,
         invoiceNumber: true,
+        supplierReference: true,
         status: true,
         receiptObjectPath: true,
         finalizedBy: {
@@ -194,7 +196,8 @@ export default async function SupplierBillsReportPage({
       invoice: {
         id: bill.invoice.id,
         submittedAt: bill.invoice.submittedAt,
-        invoiceNumber: bill.invoice.invoiceNumber,
+        invoiceNumber: formatSupplierInvoiceNumber(bill.invoice.invoiceNumber),
+        supplierReference: bill.invoice.supplierReference,
         status: bill.invoice.status,
         supplierId: bill.supplier.id,
         supplierName: bill.supplier.name,

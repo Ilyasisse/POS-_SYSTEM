@@ -74,7 +74,7 @@ function draftFromFormData(formData: FormData): SupplierInvoiceDraftInput {
   }
 
   return {
-    invoiceNumber: text(formData, "invoiceNumber"),
+    supplierReference: text(formData, "supplierReference"),
     invoiceDate: text(formData, "invoiceDate"),
     dueDate: text(formData, "dueDate"),
     notes: text(formData, "notes"),
@@ -121,7 +121,7 @@ async function manualDraftFromFormData(
   const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
 
   return {
-    invoiceNumber: text(formData, "invoiceNumber"),
+    supplierReference: text(formData, "supplierReference"),
     invoiceDate: text(formData, "invoiceDate"),
     dueDate: text(formData, "dueDate"),
     notes: text(formData, "notes"),

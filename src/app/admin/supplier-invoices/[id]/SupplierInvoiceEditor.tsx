@@ -45,6 +45,7 @@ type InvoiceEditorData = {
   id: string;
   status: "DRAFT" | "FINALIZED" | "VOID";
   invoiceNumber: string;
+  supplierReference: string;
   invoiceDate: string;
   dueDate: string;
   notes: string;
@@ -85,15 +86,24 @@ function InvoiceDetailsSection({
   pending,
 }: InvoiceDetailsSectionProps) {
   return (
-    <section className="grid gap-4 rounded-2xl border bg-card p-5 md:grid-cols-3">
+    <section className="grid gap-4 rounded-2xl border bg-card p-5 md:grid-cols-2 lg:grid-cols-4">
       <div className="grid gap-2">
         <Label htmlFor="invoiceNumber">Invoice number</Label>
         <Input
           id="invoiceNumber"
-          name="invoiceNumber"
-          defaultValue={invoice.invoiceNumber}
+          value={invoice.invoiceNumber}
+          disabled
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="supplierReference">Supplier reference</Label>
+        <Input
+          id="supplierReference"
+          name="supplierReference"
+          defaultValue={invoice.supplierReference}
+          maxLength={200}
           disabled={!editable || pending}
-          placeholder="Supplier invoice number"
+          placeholder="Optional supplier invoice number"
         />
       </div>
       <div className="grid gap-2">
@@ -118,7 +128,7 @@ function InvoiceDetailsSection({
           disabled={!editable || pending}
         />
       </div>
-      <div className="grid gap-2 md:col-span-3">
+      <div className="grid gap-2 md:col-span-2 lg:col-span-4">
         <Label htmlFor="notes">Invoice notes</Label>
         <Textarea
           id="notes"

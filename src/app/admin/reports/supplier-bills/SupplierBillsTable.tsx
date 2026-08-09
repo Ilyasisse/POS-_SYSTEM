@@ -24,7 +24,8 @@ export type SupplierBillReportRow = {
   invoice: {
     id: string;
     submittedAt: Date;
-    invoiceNumber: string | null;
+    invoiceNumber: string;
+    supplierReference: string | null;
     status: "DRAFT" | "FINALIZED" | "VOID";
     supplierId: string;
     supplierName: string;
@@ -115,8 +116,13 @@ export default function SupplierBillsTable({
                     </Link>
                     <div className="text-xs">
                       {invoice.submittedAt.toLocaleDateString()} ·{" "}
-                      {invoice.invoiceNumber || "No invoice #"}
+                      {invoice.invoiceNumber}
                     </div>
+                    {invoice.supplierReference ? (
+                      <div className="text-xs text-muted-foreground">
+                        Supplier ref: {invoice.supplierReference}
+                      </div>
+                    ) : null}
                     {invoice.receiptUrl ? (
                       <a
                         href={invoice.receiptUrl}

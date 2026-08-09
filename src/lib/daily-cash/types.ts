@@ -11,7 +11,7 @@ export type SupplierObligation = {
   supplierId: string;
   installmentId: string | null;
   supplierName: string;
-  invoiceNumber: string | null;
+  invoiceNumber: string;
   dueDate: Date;
   amount: number;
 };

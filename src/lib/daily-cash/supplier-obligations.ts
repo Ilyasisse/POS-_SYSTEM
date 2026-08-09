@@ -1,5 +1,6 @@
 import type { SupplierObligation } from "./types";
 import { roundMoney } from "./money";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 
 type Bill = {
   id: string;
@@ -9,7 +10,7 @@ type Bill = {
   paidAmount: { toString(): string };
   status: "UNPAID" | "PARTIAL" | "PAID";
   supplier: { name: string };
-  invoice: { invoiceNumber: string | null };
+  invoice: { invoiceNumber: number };
   installments: Array<{ id: string; dueDate: Date; sequence?: number; amount: { toString(): string }; paidAmount: { toString(): string }; status: "UNPAID" | "PARTIAL" | "PAID" }>;
 };
 
@@ -25,11 +26,11 @@ export function selectDailyCashObligations(bills: readonly Bill[]): SupplierObli
       ? Number(scheduled.amount) - Number(scheduled.paidAmount)
       : Number(bill.totalAmount) - Number(bill.paidAmount);
     if (amount <= 0) return [];
-    return [{ billId: bill.id, supplierId: bill.supplierId, installmentId: scheduled?.id ?? null, supplierName: bill.supplier.name, invoiceNumber: bill.invoice.invoiceNumber, dueDate, amount }];
+    return [{ billId: bill.id, supplierId: bill.supplierId, installmentId: scheduled?.id ?? null, supplierName: bill.supplier.name, invoiceNumber: formatSupplierInvoiceNumber(bill.invoice.invoiceNumber), dueDate, amount }];
   }).sort((first, second) =>
     first.dueDate.getTime() - second.dueDate.getTime() ||
     first.supplierName.localeCompare(second.supplierName) ||
-    (first.invoiceNumber ?? "").localeCompare(second.invoiceNumber ?? "") ||
+    first.invoiceNumber.localeCompare(second.invoiceNumber) ||
     first.billId.localeCompare(second.billId),
   );
 }

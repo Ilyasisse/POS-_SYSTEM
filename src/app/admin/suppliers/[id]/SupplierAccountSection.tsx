@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
 import RevertPaymentButton from "@/app/admin/reports/supplier-bills/RevertPaymentButton";
@@ -42,7 +43,7 @@ type SupplierAccountSectionProps = {
       amount: MoneyValue;
       installmentId: string | null;
       bill: {
-        invoice: { id: string; invoiceNumber: string | null };
+        invoice: { id: string; invoiceNumber: number };
         _count: { installments: number };
       };
     }>;
@@ -198,7 +199,9 @@ export default function SupplierAccountSection({
                             className="underline"
                             href={`/admin/supplier-invoices/${allocation.bill.invoice.id}`}
                           >
-                            {allocation.bill.invoice.invoiceNumber || "Invoice"}
+                            {formatSupplierInvoiceNumber(
+                              allocation.bill.invoice.invoiceNumber,
+                            )}
                           </Link>
                         </div>
                       ))}

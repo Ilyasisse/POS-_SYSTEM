@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { businessDateKeyToDatabaseDate } from "@/lib/waiter/waiter-balance-calculations";
 import { recordSupplierPaymentInTransaction, revertSupplierPayment } from "@/lib/suppliers/bill-service";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { assertDailyCashBusinessDate, isDailyCashLocked } from "./business-date";
 import { dailyCashFingerprint } from "./fingerprint";
 import { calculateDailyCashSummary, fundingFor, roundMoney } from "./money";
@@ -129,7 +130,10 @@ async function currentState(tx: Tx, dateKey: string) {
         const invoiceNumbers = [
           ...new Set(
             row.supplierPayment.allocations.map(
-              (allocation) => allocation.bill.invoice.invoiceNumber,
+              (allocation) =>
+                formatSupplierInvoiceNumber(
+                  allocation.bill.invoice.invoiceNumber,
+                ),
             ),
           ),
         ];
