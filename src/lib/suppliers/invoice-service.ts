@@ -93,7 +93,7 @@ function itemCreateData(
 
 function draftUpdateData(draft: ValidatedSupplierInvoiceDraft) {
   return {
-    invoiceNumber: draft.invoiceNumber,
+    supplierReference: draft.supplierReference,
     invoiceDate: draft.invoiceDate,
     dueDate: draft.dueDate,
     notes: draft.notes,

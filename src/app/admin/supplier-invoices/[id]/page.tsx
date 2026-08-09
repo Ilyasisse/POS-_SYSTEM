@@ -7,6 +7,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import {
   getSupplierInvoiceDisplayStatus,
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
@@ -72,6 +73,7 @@ export default async function SupplierInvoiceDetailPage({
     },
   });
   if (!invoice) notFound();
+  const formattedInvoiceNumber = formatSupplierInvoiceNumber(invoice.invoiceNumber);
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
   const remainingBalance = invoice.bill
@@ -117,11 +119,7 @@ export default async function SupplierInvoiceDetailPage({
 
   return (
     <AdminPage
-      title={
-        invoice.invoiceNumber
-          ? `Supplier invoice ${invoice.invoiceNumber}`
-          : "Supplier invoice draft"
-      }
+      title={`Supplier invoice ${formattedInvoiceNumber}`}
       description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : invoice.source === "MANUAL" ? "manual invoice" : "legacy invoice"}`}
       action={
         <>
@@ -366,7 +364,8 @@ export default async function SupplierInvoiceDetailPage({
         invoice={{
           id: invoice.id,
           status: invoice.status,
-          invoiceNumber: invoice.invoiceNumber || "",
+          invoiceNumber: formattedInvoiceNumber,
+          supplierReference: invoice.supplierReference || "",
           invoiceDate: invoice.invoiceDate.toISOString().slice(0, 10),
           dueDate: invoice.dueDate.toISOString().slice(0, 10),
           notes: invoice.notes || "",

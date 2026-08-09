@@ -72,7 +72,7 @@ test("Daily Cash resolves the newest salary rate effective on the business date"
 test("Daily Cash includes overdue and upcoming obligations", () => {
   const rows = selectDailyCashObligations([{
     id: "bill-1", dueDate: new Date("2026-08-01T00:00:00.000Z"), totalAmount: 900, paidAmount: 0, status: "UNPAID",
-    supplier: { name: "Milk supplier" }, invoice: { invoiceNumber: "INV-1" },
+    supplier: { name: "Milk supplier" }, invoice: { invoiceNumber: 1 },
     installments: [
       { id: "past", dueDate: new Date("2026-07-28T00:00:00.000Z"), amount: 300, paidAmount: 0, status: "UNPAID" },
       { id: "future", dueDate: new Date("2026-08-10T00:00:00.000Z"), amount: 300, paidAmount: 0, status: "UNPAID" },
@@ -85,11 +85,11 @@ test("Daily Cash includes overdue and upcoming obligations", () => {
 
 test("Daily Cash includes future-due bills and sorts oldest first", () => {
   const rows = selectDailyCashObligations([
-    { id: "future", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: "PO-47" }, installments: [] },
-    { id: "due", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: "PO-43" }, installments: [] },
-    { id: "paid", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: "PAID" }, installments: [] },
+    { id: "future", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: 47 }, installments: [] },
+    { id: "due", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: 43 }, installments: [] },
+    { id: "paid", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: 99 }, installments: [] },
   ]);
-  assert.deepEqual(rows.map((row) => row.invoiceNumber), ["PO-43", "PO-47"]);
+  assert.deepEqual(rows.map((row) => row.invoiceNumber), ["INV-000043", "INV-000047"]);
   assert.equal(rows.reduce((sum, row) => sum + row.amount, 0), 121.5);
 });
 
@@ -145,7 +145,7 @@ test("manual and supplier breakdown rows include descriptions, funding splits, a
     supplierPayments: [{
       id: "supplier-1",
       supplierName: "Haysimo",
-      invoiceNumber: "PO-43",
+      invoiceNumber: "INV-000043",
       amount: 67.5,
       revenueFunded: 60,
       savingsFunded: 7.5,
@@ -155,7 +155,7 @@ test("manual and supplier breakdown rows include descriptions, funding splits, a
   });
 
   assert.deepEqual(rows.map((row) => row.type), ["SUPPLIER", "MANUAL"]);
-  assert.equal(rows[0].description, "Haysimo · PO-43");
+  assert.equal(rows[0].description, "Haysimo · INV-000043");
   assert.deepEqual([rows[0].revenueFunded, rows[0].savingsFunded], [60, 7.5]);
   assert.equal(rows[1].description, "Taxi · Market run");
   assert.deepEqual([rows[1].revenueFunded, rows[1].savingsFunded], [15, 5]);
@@ -187,7 +187,7 @@ test("paid breakdown totals reconcile revenue and savings to current remaining c
     dayId: "day-1",
     salary: { amount: 125.5, paidAt: new Date("2026-08-04T07:00:00.000Z"), revenueFunded: 125.5, savingsFunded: 0 },
     manualExpenses: [{ id: "manual-1", description: "Taxi", note: null, amount: 30, revenueFunded: 24.5, savingsFunded: 5.5, createdAt: new Date("2026-08-04T08:00:00.000Z") }],
-    supplierPayments: [{ id: "supplier-1", supplierName: "Haysimo", invoiceNumber: "PO-43", amount: 300, revenueFunded: 300, savingsFunded: 0, paidAt: new Date("2026-08-04T09:00:00.000Z") }],
+    supplierPayments: [{ id: "supplier-1", supplierName: "Haysimo", invoiceNumber: "INV-000043", amount: 300, revenueFunded: 300, savingsFunded: 0, paidAt: new Date("2026-08-04T09:00:00.000Z") }],
     supplyPayments: [],
   });
 
