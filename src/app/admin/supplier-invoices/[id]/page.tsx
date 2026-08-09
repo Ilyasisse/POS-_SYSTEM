@@ -7,15 +7,22 @@ import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import {
   getSupplierInvoiceDisplayStatus,
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
   SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+  SUPPLIER_INVOICE_SOURCE_LABELS,
 } from "@/lib/suppliers/invoice-status";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
+import {
+  getSupplierBillDefaultDueDateKey,
+  getSupplierPurchaseTodayDateKey,
+} from "@/lib/suppliers/purchase-orders";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
 import RevertPaymentButton from "@/app/admin/reports/supplier-bills/RevertPaymentButton";
+import RecurringInvoiceCard from "./RecurringInvoiceCard";
 import SupplierInvoiceEditor from "./SupplierInvoiceEditor";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -39,6 +46,14 @@ export default async function SupplierInvoiceDetailPage({
     include: {
       supplier: { select: { id: true, name: true, phone: true, email: true } },
       purchaseOrder: { select: { id: true, orderNumber: true, status: true } },
+      templateRecurrence: {
+        include: { _count: { select: { generatedInvoices: true } } },
+      },
+      generatedByRecurrence: {
+        select: {
+          sourceInvoice: { select: { id: true, invoiceNumber: true } },
+        },
+      },
       items: { orderBy: { createdAt: "asc" } },
       installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
       createdBy: { select: { fullName: true } },
@@ -72,6 +87,9 @@ export default async function SupplierInvoiceDetailPage({
     },
   });
   if (!invoice) notFound();
+  const formattedInvoiceNumber = formatSupplierInvoiceNumber(
+    invoice.invoiceNumber,
+  );
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
   const remainingBalance = invoice.bill
@@ -117,12 +135,8 @@ export default async function SupplierInvoiceDetailPage({
 
   return (
     <AdminPage
-      title={
-        invoice.invoiceNumber
-          ? `Supplier invoice ${invoice.invoiceNumber}`
-          : "Supplier invoice draft"
-      }
-      description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : invoice.source === "MANUAL" ? "manual invoice" : "legacy invoice"}`}
+      title={`Supplier invoice ${formattedInvoiceNumber}`}
+      description={`${invoice.supplier.name} · ${SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}`}
       action={
         <>
           <Button asChild>
@@ -359,6 +373,59 @@ export default async function SupplierInvoiceDetailPage({
         </Card>
       ) : null}
 
+      {invoice.generatedByRecurrence ? (
+        <Card className="gap-2 p-5">
+          <h2 className="font-semibold">Recurring draft</h2>
+          <p className="text-sm text-muted-foreground">
+            This draft was generated from a recurring supplier invoice
+            template.
+          </p>
+          <Button asChild variant="outline" className="w-fit">
+            <Link
+              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
+            >
+              Open source invoice
+              {` ${formatSupplierInvoiceNumber(invoice.generatedByRecurrence.sourceInvoice.invoiceNumber)}`}
+            </Link>
+          </Button>
+        </Card>
+      ) : null}
+
+      <RecurringInvoiceCard
+        invoiceId={invoice.id}
+        eligible={
+          invoice.source === "MANUAL" &&
+          invoice.status !== "VOID" &&
+          invoice.items.length > 0 &&
+          invoice.items.every((item) => Boolean(item.supplierCatalogItemId))
+        }
+        todayDateKey={getSupplierPurchaseTodayDateKey()}
+        defaultNextRunDate={getSupplierBillDefaultDueDateKey()}
+        recurrence={
+          invoice.templateRecurrence
+            ? {
+                id: invoice.templateRecurrence.id,
+                interval: invoice.templateRecurrence.interval,
+                unit: invoice.templateRecurrence.unit,
+                nextRunDate: invoice.templateRecurrence.nextRunDate
+                  .toISOString()
+                  .slice(0, 10),
+                isActive: invoice.templateRecurrence.isActive,
+                lastGeneratedAt:
+                  invoice.templateRecurrence.lastGeneratedAt?.toISOString() ??
+                  null,
+                lastError: invoice.templateRecurrence.lastError,
+                lastErrorAt:
+                  invoice.templateRecurrence.lastErrorAt?.toISOString() ?? null,
+                pausedAt:
+                  invoice.templateRecurrence.pausedAt?.toISOString() ?? null,
+                generatedCount:
+                  invoice.templateRecurrence._count.generatedInvoices,
+              }
+            : null
+        }
+      />
+
       <SupplierInvoiceEditor
         key={`${invoice.id}:${invoice.updatedAt.toISOString()}`}
         hasPurchaseOrder={Boolean(invoice.purchaseOrder)}
@@ -366,7 +433,8 @@ export default async function SupplierInvoiceDetailPage({
         invoice={{
           id: invoice.id,
           status: invoice.status,
-          invoiceNumber: invoice.invoiceNumber || "",
+          invoiceNumber: formattedInvoiceNumber,
+          supplierReference: invoice.supplierReference || "",
           invoiceDate: invoice.invoiceDate.toISOString().slice(0, 10),
           dueDate: invoice.dueDate.toISOString().slice(0, 10),
           notes: invoice.notes || "",

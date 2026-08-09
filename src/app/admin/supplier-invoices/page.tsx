@@ -14,6 +14,7 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import {
   getSupplierInvoiceDisplayStatus,
   getSupplierInvoiceDisplayStatusWhere,
@@ -53,6 +54,9 @@ export default async function SupplierInvoicesPage({
       include: {
         supplier: { select: { name: true } },
         purchaseOrder: { select: { orderNumber: true } },
+        generatedByRecurrence: {
+          select: { sourceInvoice: { select: { id: true } } },
+        },
         bill: {
           select: { status: true, totalAmount: true, paidAmount: true, dueDate: true },
         },
@@ -172,8 +176,13 @@ export default async function SupplierInvoicesPage({
                       href={`/admin/supplier-invoices/${invoice.id}`}
                       className="font-semibold text-primary hover:underline"
                     >
-                      {invoice.invoiceNumber || "No invoice number"}
+                      {formatSupplierInvoiceNumber(invoice.invoiceNumber)}
                     </Link>
+                    {invoice.supplierReference ? (
+                      <div className="text-xs text-muted-foreground">
+                        Supplier ref: {invoice.supplierReference}
+                      </div>
+                    ) : null}
                     <div className="text-xs text-muted-foreground">
                       {SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
                     </div>
@@ -184,6 +193,15 @@ export default async function SupplierInvoicesPage({
                   <TableCell>
                     {invoice.purchaseOrder
                       ? `PO #${invoice.purchaseOrder.orderNumber}`
+                      : invoice.generatedByRecurrence
+                        ? (
+                            <Link
+                              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
+                              className="text-primary hover:underline"
+                            >
+                              Recurring template
+                            </Link>
+                          )
                       : invoice.source === "MANUAL"
                         ? "Not linked"
                         : "Legacy"}

@@ -32,6 +32,8 @@ model User {
   supplierInvoicesCreated             SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
   supplierInvoicesFinalized           SupplierInvoice[]             @relation("SupplierInvoiceFinalizedBy")
   supplierInvoicesVoided              SupplierInvoice[]             @relation("SupplierInvoiceVoidedBy")
+  supplierInvoiceRecurrencesCreated   SupplierInvoiceRecurrence[]   @relation("SupplierInvoiceRecurrenceCreatedBy")
+  supplierInvoiceRecurrencesPaused    SupplierInvoiceRecurrence[]   @relation("SupplierInvoiceRecurrencePausedBy")
   dailyCashSalaryRatesCreated         DailySalaryRate[]             @relation("DailySalaryRateCreatedBy")
   dailyCashSalaryOverrides            DailyCashDay[]                @relation("DailyCashSalaryOverriddenBy")
   dailyCashSalaryPayments             DailyCashDay[]                @relation("DailyCashSalaryPaidBy")
@@ -326,6 +328,7 @@ model Supplier {
   catalogItems   SupplierCatalogItem[]
   purchaseOrders SupplierPurchaseOrder[]
   invoices       SupplierInvoice[]
+  recurrences    SupplierInvoiceRecurrence[]
 
   @@index([isActive, name])
 }
@@ -477,6 +480,7 @@ model SupplierCatalogItem {
   inventorySupply    InventorySupply?            @relation(fields: [inventorySupplyId], references: [id], onDelete: Restrict)
   purchaseOrderItems SupplierPurchaseOrderItem[]
   invoiceItems       SupplierInvoiceItem[]
+  recurrenceItems    SupplierInvoiceRecurrenceItem[]
 
   @@unique([supplierId, productId])
   @@unique([supplierId, inventorySupplyId])
@@ -529,9 +533,12 @@ model SupplierInvoice {
   id                       String                       @id @default(cuid())
   supplierId               String
   purchaseOrderId          String?
+  recurrenceScheduleId     String?
+  recurrenceScheduledFor   DateTime?                    @db.Date
   source                   SupplierInvoiceSource
   status                   SupplierInvoiceStatus        @default(DRAFT)
-  invoiceNumber            String?
+  invoiceNumber            Int                          @unique @default(autoincrement())
+  supplierReference        String?
   invoiceDate              DateTime                     @db.Date
   dueDate                  DateTime                     @db.Date
   notes                    String?
@@ -555,6 +562,8 @@ model SupplierInvoice {
   updatedAt                DateTime                     @updatedAt
   supplier                 Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchaseOrder            SupplierPurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  templateRecurrence       SupplierInvoiceRecurrence?   @relation("SupplierInvoiceRecurrenceTemplate")
+  generatedByRecurrence    SupplierInvoiceRecurrence?   @relation("SupplierInvoiceRecurrenceGenerated", fields: [recurrenceScheduleId], references: [id], onDelete: SetNull)
   createdBy                User?                        @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   finalizedBy              User?                        @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
   voidedBy                 User?                        @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
@@ -564,8 +573,57 @@ model SupplierInvoice {
 
   @@index([supplierId, status, dueDate])
   @@index([purchaseOrderId, status])
+  @@unique([recurrenceScheduleId, recurrenceScheduledFor])
+  @@index([recurrenceScheduleId, status])
   @@index([source, status, createdAt])
   @@index([createdByUserId, createdAt])
+}
+
+model SupplierInvoiceRecurrence {
+  id                String                         @id @default(cuid())
+  supplierId        String
+  sourceInvoiceId   String                         @unique
+  unit              SupplierInvoiceRecurrenceUnit
+  interval          Int
+  nextRunDate       DateTime                       @db.Date
+  anchorDay         Int?
+  dueOffsetDays     Int
+  invoiceNotes      String?
+  isActive          Boolean                        @default(true)
+  lastGeneratedAt   DateTime?
+  lastError         String?
+  lastErrorAt       DateTime?
+  pausedAt          DateTime?
+  createdByUserId   String
+  pausedByUserId    String?
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
+  supplier          Supplier                       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  sourceInvoice     SupplierInvoice                @relation("SupplierInvoiceRecurrenceTemplate", fields: [sourceInvoiceId], references: [id], onDelete: Restrict)
+  createdBy         User                           @relation("SupplierInvoiceRecurrenceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  pausedBy          User?                          @relation("SupplierInvoiceRecurrencePausedBy", fields: [pausedByUserId], references: [id], onDelete: SetNull)
+  items             SupplierInvoiceRecurrenceItem[]
+  generatedInvoices SupplierInvoice[]              @relation("SupplierInvoiceRecurrenceGenerated")
+
+  @@index([isActive, nextRunDate])
+  @@index([supplierId, isActive])
+  @@index([createdByUserId, createdAt])
+}
+
+model SupplierInvoiceRecurrenceItem {
+  id                    String                    @id @default(cuid())
+  recurrenceId          String
+  supplierCatalogItemId String
+  sequence              Int
+  quantity              Decimal                   @db.Decimal(12, 3)
+  notes                 String?
+  createdAt             DateTime                  @default(now())
+  recurrence            SupplierInvoiceRecurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade)
+  supplierCatalogItem   SupplierCatalogItem       @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict, map: "SupplierInvoiceRecurrenceItem_catalogItemId_fkey")
+
+  @@unique([recurrenceId, supplierCatalogItemId], map: "SupplierInvoiceRecurrenceItem_recurrence_catalog_key")
+  @@unique([recurrenceId, sequence], map: "SupplierInvoiceRecurrenceItem_recurrence_sequence_key")
+  @@index([supplierCatalogItemId])
 }
 
 /// A dated portion of a supplier invoice. Existing invoices without rows here
@@ -703,5 +761,12 @@ enum SupplierInvoiceStatus {
 enum SupplierInvoiceSource {
   PURCHASE_ORDER
   MANUAL
+  RECURRING
   LEGACY_UPLOAD
+}
+
+enum SupplierInvoiceRecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
 }

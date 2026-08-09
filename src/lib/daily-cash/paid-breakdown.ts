@@ -21,7 +21,7 @@ type PaidBreakdownInput = {
   supplierPayments: Array<{
     id: string;
     supplierName: string;
-    invoiceNumber: string | null;
+    invoiceNumber: string;
     amount: number;
     revenueFunded: number;
     savingsFunded: number;
@@ -60,7 +60,7 @@ export function buildDailyCashPaidBreakdown(input: PaidBreakdownInput): DailyCas
     rows.push({
       id: `supplier:${payment.id}`,
       type: "SUPPLIER",
-      description: `${payment.supplierName} · ${payment.invoiceNumber ?? "No invoice #"}`,
+      description: `${payment.supplierName} · ${payment.invoiceNumber}`,
       paidAt: payment.paidAt,
       amount: roundMoney(payment.amount),
       revenueFunded: roundMoney(payment.revenueFunded),

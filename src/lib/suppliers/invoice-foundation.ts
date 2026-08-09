@@ -26,7 +26,7 @@ export type SupplierInvoiceLineInput = {
 };
 
 export type SupplierInvoiceDraftInput = {
-  invoiceNumber?: string | null;
+  supplierReference?: string | null;
   invoiceDate: string;
   dueDate: string;
   notes?: string | null;
@@ -73,7 +73,7 @@ export type ValidatedSupplierInvoiceLine = {
 };
 
 export type ValidatedSupplierInvoiceDraft = {
-  invoiceNumber: string | null;
+  supplierReference: string | null;
   invoiceDate: Date;
   dueDate: Date;
   notes: string | null;
@@ -159,6 +159,14 @@ export function validateSupplierInvoiceDraftCreationMetadata(
         throw new Error("Manual supplier invoices require a creator.");
       }
       break;
+    case "RECURRING":
+      if (purchaseOrderId) {
+        throw new Error("Recurring supplier invoices cannot reference a purchase order.");
+      }
+      if (!createdByUserId) {
+        throw new Error("Recurring supplier invoices require a creator.");
+      }
+      break;
     case "LEGACY_UPLOAD":
       if (purchaseOrderId) {
         throw new Error(
@@ -242,7 +250,7 @@ export function buildSupplierInvoiceDraftFromPurchaseOrder(
   now = new Date(),
 ): SupplierInvoiceDraftInput {
   return {
-    invoiceNumber: `PO-${order.orderNumber}`,
+    supplierReference: null,
     invoiceDate: getSupplierPurchaseTodayDateKey(now),
     dueDate: getSupplierBillDefaultDueDateKey(now),
     notes: null,
@@ -370,10 +378,10 @@ export function validateSupplierInvoiceDraftInput(
 
   const roundedTotal = totalAmount.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   return {
-    invoiceNumber: optionalTrimmedText(
-      input.invoiceNumber,
+    supplierReference: optionalTrimmedText(
+      input.supplierReference,
       200,
-      "Invoice number",
+      "Supplier reference",
     ),
     invoiceDate,
     dueDate,

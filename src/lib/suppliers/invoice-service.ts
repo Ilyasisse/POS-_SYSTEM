@@ -11,6 +11,8 @@ import {
   validateSupplierInvoiceDraftCreationMetadata,
   validateSupplierInvoiceDraftInput,
 } from "@/lib/suppliers/invoice-foundation";
+import type { SupplierInvoiceRecurrenceInput } from "@/lib/suppliers/invoice-recurrence";
+import { createSupplierInvoiceRecurrenceInTransaction } from "@/lib/suppliers/invoice-recurrence-service";
 
 const SERIALIZABLE = Prisma.TransactionIsolationLevel.Serializable;
 
@@ -18,6 +20,7 @@ export type CreateSupplierInvoiceDraftInput =
   SupplierInvoiceDraftCreationMetadataInput & {
     submittedAt?: Date;
     legacyInventoryUpdatedAt?: Date | null;
+    recurrence?: SupplierInvoiceRecurrenceInput | null;
     draft: SupplierInvoiceDraftInput;
   };
 
@@ -93,7 +96,7 @@ function itemCreateData(
 
 function draftUpdateData(draft: ValidatedSupplierInvoiceDraft) {
   return {
-    invoiceNumber: draft.invoiceNumber,
+    supplierReference: draft.supplierReference,
     invoiceDate: draft.invoiceDate,
     dueDate: draft.dueDate,
     notes: draft.notes,
@@ -134,7 +137,8 @@ async function insertSupplierInvoiceDraft(
   draft: ValidatedSupplierInvoiceDraft,
 ) {
   await assertCatalogOwnership(tx, metadata.supplierId, draft, {
-    requireAvailableNewItems: input.source === "MANUAL",
+    requireAvailableNewItems:
+      input.source === "MANUAL" || input.source === "RECURRING",
   });
   return tx.supplierInvoice.create({
     data: {
@@ -170,7 +174,8 @@ export async function createSupplierInvoiceDraft(
 ) {
   const metadata = validateSupplierInvoiceDraftCreationMetadata(input);
   const draft = validateSupplierInvoiceDraftInput(input.draft, {
-    allowCustomLines: input.source !== "MANUAL",
+    allowCustomLines:
+      input.source !== "MANUAL" && input.source !== "RECURRING",
   });
 
   try {
@@ -189,7 +194,10 @@ export async function createSupplierInvoiceDraft(
             : null,
         ]);
         if (!supplier) throw new Error("Supplier not found.");
-        if (input.source === "MANUAL" && !supplier.isActive) {
+        if (
+          (input.source === "MANUAL" || input.source === "RECURRING") &&
+          !supplier.isActive
+        ) {
           throw new Error("Choose an active supplier.");
         }
         if (
@@ -203,7 +211,21 @@ export async function createSupplierInvoiceDraft(
           );
         }
 
-        return insertSupplierInvoiceDraft(tx, input, metadata, draft);
+        const invoice = await insertSupplierInvoiceDraft(
+          tx,
+          input,
+          metadata,
+          draft,
+        );
+        if (input.recurrence) {
+          await createSupplierInvoiceRecurrenceInTransaction(tx, {
+            invoiceId: invoice.id,
+            createdByUserId: metadata.createdByUserId as string,
+            recurrence: input.recurrence,
+            now: input.submittedAt,
+          });
+        }
+        return invoice;
       },
       { isolationLevel: SERIALIZABLE },
     );
@@ -358,10 +380,12 @@ export async function saveSupplierInvoiceDraft(
       }
 
       const draft = validateSupplierInvoiceDraftInput(input, {
-        allowCustomLines: invoice.source !== "MANUAL",
+        allowCustomLines:
+          invoice.source !== "MANUAL" && invoice.source !== "RECURRING",
       });
       await assertCatalogOwnership(tx, invoice.supplierId, draft, {
-        requireAvailableNewItems: invoice.source === "MANUAL",
+        requireAvailableNewItems:
+          invoice.source === "MANUAL" || invoice.source === "RECURRING",
         existingCatalogItemIds: new Set(
           invoice.items.flatMap((item) =>
             item.supplierCatalogItemId ? [item.supplierCatalogItemId] : [],
@@ -419,10 +443,12 @@ export async function finalizeSupplierInvoice(
       }
 
       const draft = validateSupplierInvoiceDraftInput(input, {
-        allowCustomLines: invoice.source !== "MANUAL",
+        allowCustomLines:
+          invoice.source !== "MANUAL" && invoice.source !== "RECURRING",
       });
       await assertCatalogOwnership(tx, invoice.supplierId, draft, {
-        requireAvailableNewItems: invoice.source === "MANUAL",
+        requireAvailableNewItems:
+          invoice.source === "MANUAL" || invoice.source === "RECURRING",
         existingCatalogItemIds: new Set(
           invoice.items.flatMap((item) =>
             item.supplierCatalogItemId ? [item.supplierCatalogItemId] : [],
@@ -522,6 +548,15 @@ export async function voidSupplierInvoiceDraft(
           throw new Error("The linked purchase order could not be reopened.");
         }
       }
+
+      await tx.supplierInvoiceRecurrence.updateMany({
+        where: { sourceInvoiceId: id, isActive: true },
+        data: {
+          isActive: false,
+          pausedAt: voidedAt,
+          pausedByUserId: userId,
+        },
+      });
 
       return {
         invoiceId: id,
