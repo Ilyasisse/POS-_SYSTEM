@@ -51,21 +51,27 @@ export default async function SupplierInvoiceDetailPage({
           totalAmount: true,
           paidAmount: true,
           dueDate: true,
-          payments: {
+          allocations: {
             select: {
               id: true,
               amount: true,
               installmentId: true,
-              paymentMethod: true,
-              paidAt: true,
-              recordedBy: { select: { fullName: true } },
-              dailyCashPayment: {
+              supplierPayment: {
                 select: {
-                  dailyCashDay: { select: { businessDate: true } },
+                  id: true,
+                  amount: true,
+                  paymentMethod: true,
+                  paidAt: true,
+                  recordedBy: { select: { fullName: true } },
+                  dailyCashPayment: {
+                    select: {
+                      dailyCashDay: { select: { businessDate: true } },
+                    },
+                  },
                 },
               },
             },
-            orderBy: { paidAt: "desc" },
+            orderBy: { allocatedAt: "desc" },
           },
         },
       },
@@ -77,29 +83,55 @@ export default async function SupplierInvoiceDetailPage({
   const remainingBalance = invoice.bill
     ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
     : null;
-  const billPayments = (invoice.bill?.payments ?? []).map(
-    ({ dailyCashPayment, ...payment }) => {
-      const dailyCashBusinessDate = dailyCashPayment
-        ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
-        : null;
-      return {
-        ...payment,
-        dailyCashBusinessDate,
-        reversalError: getSupplierPaymentReversalError({
-          installmentId: payment.installmentId,
-          hasInstallments: invoice.installments.length > 0,
-          dailyCashLinked: Boolean(dailyCashPayment),
-          dailyCashLocked: dailyCashBusinessDate
-            ? isDailyCashLocked(dailyCashBusinessDate)
-            : false,
-          canManageDailyCash: hasPermission(
-            currentUser,
-            PERMISSIONS.DAILY_CASH_MANAGE,
-          ),
-        }),
-      };
-    },
-  );
+  const billPayments = [
+    ...(invoice.bill?.allocations ?? [])
+      .reduce((grouped, allocation) => {
+        const payment = allocation.supplierPayment;
+        const existing = grouped.get(payment.id);
+        if (existing) {
+          existing.allocatedAmount += Number(allocation.amount);
+          existing.legacyAllocationAfterSchedule ||=
+            !allocation.installmentId && invoice.installments.length > 0;
+          return grouped;
+        }
+        const dailyCashBusinessDate = payment.dailyCashPayment
+          ? formatBusinessDateKey(
+              payment.dailyCashPayment.dailyCashDay.businessDate,
+            )
+          : null;
+        grouped.set(payment.id, {
+          ...payment,
+          allocatedAmount: Number(allocation.amount),
+          legacyAllocationAfterSchedule:
+            !allocation.installmentId && invoice.installments.length > 0,
+          dailyCashBusinessDate,
+          reversalError: getSupplierPaymentReversalError({
+            legacyAllocationAfterSchedule:
+              !allocation.installmentId && invoice.installments.length > 0,
+            dailyCashLinked: Boolean(payment.dailyCashPayment),
+            dailyCashLocked: dailyCashBusinessDate
+              ? isDailyCashLocked(dailyCashBusinessDate)
+              : false,
+            canManageDailyCash: hasPermission(
+              currentUser,
+              PERMISSIONS.DAILY_CASH_MANAGE,
+            ),
+          }),
+        });
+        return grouped;
+      }, new Map<string, {
+        id: string;
+        amount: { toString(): string };
+        allocatedAmount: number;
+        legacyAllocationAfterSchedule: boolean;
+        paymentMethod: string | null;
+        paidAt: Date;
+        recordedBy: { fullName: string };
+        dailyCashBusinessDate: string | null;
+        reversalError: string | null;
+      }>())
+      .values(),
+  ];
 
   const [catalogItems, receiptUrl] = await Promise.all([
     prisma.supplierCatalogItem.findMany({
@@ -224,7 +256,7 @@ export default async function SupplierInvoiceDetailPage({
               >
                 <div className="text-sm">
                   <div className="font-semibold tabular-nums">
-                    {formatMoney(Number(payment.amount))}
+                    {formatMoney(payment.allocatedAmount)} applied
                   </div>
                   <div className="text-muted-foreground">
                     {payment.paymentMethod || "Unspecified method"} ·{" "}

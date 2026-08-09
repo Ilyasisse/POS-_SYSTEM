@@ -26,6 +26,7 @@ export type SupplierBillReportRow = {
     submittedAt: Date;
     invoiceNumber: string | null;
     status: "DRAFT" | "FINALIZED" | "VOID";
+    supplierId: string;
     supplierName: string;
     finalizedByName: string | null;
     receiptUrl: string | null;
@@ -40,7 +41,8 @@ export type SupplierBillReportRow = {
     settledAt: Date | null;
     payments: Array<{
       id: string;
-      amount: MoneyValue;
+      allocatedAmount: number;
+      totalPaymentAmount: number;
       paymentMethod: string | null;
       paidAt: Date;
       recordedBy: { fullName: string };
@@ -226,10 +228,13 @@ export default function SupplierBillsTable({
                             key={payment.id}
                             className="mb-2 border-b border-slate-100 pb-2 text-xs last:border-0"
                           >
-                            <strong>
-                              {money(Number(payment.amount.toString()))}
-                            </strong>{" "}
+                            <strong>{money(payment.allocatedAmount)} applied</strong>{" "}
                             · {payment.paymentMethod || "Unspecified"}
+                            {payment.totalPaymentAmount !== payment.allocatedAmount ? (
+                              <div className="text-slate-500">
+                                From {money(payment.totalPaymentAmount)} supplier payment
+                              </div>
+                            ) : null}
                             <br />
                             {payment.recordedBy.fullName} ·{" "}
                             {payment.paidAt.toLocaleDateString()}
@@ -240,7 +245,7 @@ export default function SupplierBillsTable({
                             ) : null}
                             <RevertPaymentButton
                               paymentId={payment.id}
-                              amount={money(Number(payment.amount.toString()))}
+                              amount={money(payment.totalPaymentAmount)}
                               disabledReason={payment.reversalError}
                             />
                           </div>
@@ -254,6 +259,7 @@ export default function SupplierBillsTable({
                           installment.status !== "PAID" ? (
                             <PaymentForm
                               key={installment.id}
+                              supplierId={invoice.supplierId}
                               billId={bill.id}
                               installmentId={installment.id}
                               remaining={
@@ -265,11 +271,18 @@ export default function SupplierBillsTable({
                         )}
                       </div>
                     ) : remaining > 0 ? (
-                      <SplitInstallmentsForm
-                        billId={bill.id}
-                        dueDate={bill.dueDate.toISOString().slice(0, 10)}
-                        remaining={remaining}
-                      />
+                      <div className="grid gap-3">
+                        <PaymentForm
+                          supplierId={invoice.supplierId}
+                          billId={bill.id}
+                          remaining={remaining}
+                        />
+                        <SplitInstallmentsForm
+                          billId={bill.id}
+                          dueDate={bill.dueDate.toISOString().slice(0, 10)}
+                          remaining={remaining}
+                        />
+                      </div>
                     ) : (
                       "Paid in full"
                     )}

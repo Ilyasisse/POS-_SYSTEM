@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { applyAvailableSupplierCreditToBillInTransaction } from "@/lib/suppliers/bill-service";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
   getSupplierInvoiceVoidEffect,
@@ -160,8 +161,17 @@ async function insertSupplierInvoiceDraft(
           notes: line.notes,
         })),
       },
+      installments: draft.installments
+        ? {
+            create: draft.installments.map((installment, index) => ({
+              sequence: index + 1,
+              amount: installment.amount,
+              dueDate: installment.dueDate,
+            })),
+          }
+        : undefined,
     },
-    include: { items: true, bill: true },
+    include: { items: true, installments: true, bill: true },
   });
 }
 
@@ -380,10 +390,23 @@ export async function saveSupplierInvoiceDraft(
       await tx.supplierInvoiceItem.createMany({
         data: itemCreateData(id, draft),
       });
+      await tx.supplierInvoiceInstallment.deleteMany({
+        where: { invoiceId: id },
+      });
+      if (draft.installments?.length) {
+        await tx.supplierInvoiceInstallment.createMany({
+          data: draft.installments.map((installment, index) => ({
+            invoiceId: id,
+            sequence: index + 1,
+            amount: installment.amount,
+            dueDate: installment.dueDate,
+          })),
+        });
+      }
 
       return tx.supplierInvoice.findUniqueOrThrow({
         where: { id },
-        include: { items: true, bill: true },
+        include: { items: true, installments: true, bill: true },
       });
     },
     { isolationLevel: SERIALIZABLE },
@@ -450,6 +473,16 @@ export async function finalizeSupplierInvoice(
       await tx.supplierInvoiceItem.createMany({
         data: itemCreateData(id, draft),
       });
+      await tx.supplierInvoiceInstallment.deleteMany({
+        where: { invoiceId: id },
+      });
+      const billDueDate = draft.installments?.length
+        ? draft.installments.reduce((earliest, installment) =>
+            installment.dueDate < earliest
+              ? installment.dueDate
+              : earliest,
+          draft.installments[0].dueDate)
+        : draft.dueDate;
       const bill = await tx.supplierBill.create({
         data: {
           supplierId: invoice.supplierId,
@@ -457,15 +490,34 @@ export async function finalizeSupplierInvoice(
           totalAmount: draft.totalAmount,
           paidAmount: 0,
           status: "UNPAID",
-          dueDate: draft.dueDate,
+          dueDate: billDueDate,
         },
       });
+      if (draft.installments?.length) {
+        await tx.supplierInvoiceInstallment.createMany({
+          data: draft.installments.map((installment, index) => ({
+            invoiceId: id,
+            billId: bill.id,
+            sequence: index + 1,
+            amount: installment.amount,
+            dueDate: installment.dueDate,
+          })),
+        });
+      }
+      const creditApplied =
+        await applyAvailableSupplierCreditToBillInTransaction(tx, {
+          supplierId: invoice.supplierId,
+          billId: bill.id,
+          appliedByUserId: userId,
+        });
 
       return {
         invoiceId: id,
+        supplierId: invoice.supplierId,
         purchaseOrderId: invoice.purchaseOrderId,
         billId: bill.id,
         finalizedAt,
+        creditApplied,
       };
     },
     { isolationLevel: SERIALIZABLE },
