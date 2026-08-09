@@ -13,7 +13,7 @@ function validDraft(
   overrides: Partial<SupplierInvoiceDraftInput> = {},
 ): SupplierInvoiceDraftInput {
   return {
-    invoiceNumber: " PO-1042 ",
+    supplierReference: " SUP-1042 ",
     invoiceDate: "2026-07-23",
     dueDate: "2026-07-24",
     notes: " Review complete ",
@@ -42,7 +42,7 @@ function validDraft(
 test("validates catalog and custom lines and calculates totals on the server", () => {
   const draft = validateSupplierInvoiceDraftInput(validDraft());
 
-  assert.equal(draft.invoiceNumber, "PO-1042");
+  assert.equal(draft.supplierReference, "SUP-1042");
   assert.equal(draft.invoiceDate.toISOString(), "2026-07-23T00:00:00.000Z");
   assert.equal(draft.dueDate.toISOString(), "2026-07-24T00:00:00.000Z");
   assert.equal(draft.notes, "Review complete");
@@ -218,9 +218,9 @@ test("limits invoice item count and text lengths", () => {
   assert.throws(
     () =>
       validateSupplierInvoiceDraftInput(
-        validDraft({ invoiceNumber: "x".repeat(201) }),
+        validDraft({ supplierReference: "x".repeat(201) }),
       ),
-    /Invoice number is too long/,
+    /Supplier reference is too long/,
   );
   assert.throws(
     () =>
@@ -366,7 +366,7 @@ test("prefills a purchase-order invoice from snapshots using Nairobi dates", () 
     new Date("2026-07-22T22:30:00.000Z"),
   );
 
-  assert.equal(input.invoiceNumber, "PO-1042");
+  assert.equal(input.supplierReference, null);
   assert.equal(input.invoiceDate, "2026-07-23");
   assert.equal(input.dueDate, "2026-07-24");
   assert.deepEqual(input.lines, [
