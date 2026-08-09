@@ -59,6 +59,7 @@ test("paid salary produces one breakdown row while unpaid salary is excluded", (
     dayId: "day-1",
     manualExpenses: [],
     supplierPayments: [],
+    supplyPayments: [],
   };
   const paidAt = new Date("2026-08-04T07:00:00.000Z");
   const paid = buildDailyCashPaidBreakdown({
@@ -104,6 +105,7 @@ test("manual and supplier breakdown rows include descriptions, funding splits, a
       savingsFunded: 7.5,
       paidAt: new Date("2026-08-04T08:00:00.000Z"),
     }],
+    supplyPayments: [],
   });
 
   assert.deepEqual(rows.map((row) => row.type), ["SUPPLIER", "MANUAL"]);
@@ -113,12 +115,34 @@ test("manual and supplier breakdown rows include descriptions, funding splits, a
   assert.deepEqual([rows[1].revenueFunded, rows[1].savingsFunded], [15, 5]);
 });
 
+test("supply payments appear in the paid breakdown with their receipt date", () => {
+  const rows = buildDailyCashPaidBreakdown({
+    dayId: "day-1",
+    salary: { amount: 0, paidAt: null, revenueFunded: 0, savingsFunded: 0 },
+    manualExpenses: [],
+    supplierPayments: [],
+    supplyPayments: [{
+      id: "supply-payment-1",
+      purchaseDate: new Date("2026-08-03T00:00:00.000Z"),
+      amount: 40,
+      revenueFunded: 30,
+      savingsFunded: 10,
+      paidAt: new Date("2026-08-04T08:00:00.000Z"),
+    }],
+  });
+
+  assert.equal(rows[0].type, "SUPPLY");
+  assert.equal(rows[0].description, "Supplies received 2026-08-03");
+  assert.deepEqual([rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded], [40, 30, 10]);
+});
+
 test("paid breakdown totals reconcile revenue and savings to current remaining cash", () => {
   const rows = buildDailyCashPaidBreakdown({
     dayId: "day-1",
     salary: { amount: 125.5, paidAt: new Date("2026-08-04T07:00:00.000Z"), revenueFunded: 125.5, savingsFunded: 0 },
     manualExpenses: [{ id: "manual-1", description: "Taxi", note: null, amount: 30, revenueFunded: 24.5, savingsFunded: 5.5, createdAt: new Date("2026-08-04T08:00:00.000Z") }],
     supplierPayments: [{ id: "supplier-1", supplierName: "Haysimo", invoiceNumber: "PO-43", amount: 300, revenueFunded: 300, savingsFunded: 0, paidAt: new Date("2026-08-04T09:00:00.000Z") }],
+    supplyPayments: [],
   });
 
   const totals = calculatePaidBreakdownTotals(500, rows);

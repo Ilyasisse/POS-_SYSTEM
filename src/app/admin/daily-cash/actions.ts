@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { createManualExpense, deleteManualExpense, finalizeDailyCash, overrideDailySalary, payDailyCashObligation, payDailySalary, undoDailyCashSupplierPayment, undoDailySalary } from "@/lib/daily-cash/service";
+import { createManualExpense, deleteManualExpense, finalizeDailyCash, overrideDailySalary, payDailyCashObligation, payDailyCashSupply, payDailySalary, undoDailyCashSupplierPayment, undoDailyCashSupplyPayment, undoDailySalary } from "@/lib/daily-cash/service";
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
 const money = (formData: FormData, name: string) => Number(formData.get(name));
-function refresh() { revalidatePath("/admin/daily-cash"); revalidatePath("/admin/reports/supplier-bills"); revalidatePath("/admin"); }
+function refresh() { revalidatePath("/admin/daily-cash"); revalidatePath("/admin/reports/supplier-bills"); revalidatePath("/admin/supplies"); revalidatePath("/admin"); }
 
 export async function overrideSalaryAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
@@ -31,7 +31,7 @@ export async function deleteManualExpenseAction(formData: FormData) {
   await deleteManualExpense({ dateKey: text(formData, "date"), id: text(formData, "id") });
   refresh();
 }
-export async function undoPaidActivityAction(input: { date: string; type: "SALARY" | "SUPPLIER" | "MANUAL"; rowId: string }) {
+export async function undoPaidActivityAction(input: { date: string; type: "SALARY" | "SUPPLIER" | "SUPPLY" | "MANUAL"; rowId: string }) {
   await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
   const prefix = `${input.type.toLowerCase()}:`;
   if (!input.rowId.startsWith(prefix)) throw new Error("Invalid paid activity.");
@@ -44,9 +44,17 @@ export async function undoPaidActivityAction(input: { date: string; type: "SALAR
     await deleteManualExpense({ dateKey: input.date, id: sourceId });
   } else if (input.type === "SUPPLIER") {
     await undoDailyCashSupplierPayment({ dateKey: input.date, id: sourceId });
+  } else if (input.type === "SUPPLY") {
+    await undoDailyCashSupplyPayment({ dateKey: input.date, id: sourceId });
   } else {
     throw new Error("Invalid paid activity type.");
   }
+  refresh();
+}
+export async function paySupplyBalanceAction(formData: FormData) {
+  const user = await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
+  const result = await payDailyCashSupply({ dateKey: text(formData, "date"), supplyDayId: text(formData, "supplyDayId"), amount: money(formData, "amount"), userId: user.id, confirmSavings: formData.get("confirmSavings") === "on" });
+  if (!result.ok) throw new Error(result.code === "SAVINGS_CONFIRMATION_REQUIRED" ? `This payment needs $${result.savingsAmount} from savings. Tick the confirmation box and submit again.` : result.message);
   refresh();
 }
 export async function paySupplierObligationAction(formData: FormData) {
