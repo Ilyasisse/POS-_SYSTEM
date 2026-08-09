@@ -21,6 +21,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 import { getSupplierCatalogPriceTrend } from "@/lib/suppliers/purchase-orders";
 import CatalogItemCreateForm from "./CatalogItemCreateForm";
+import SupplierAccountSection from "./SupplierAccountSection";
 import { updateSupplierCatalogItem } from "./actions";
 
 type SupplierCatalogPageProps = {
@@ -69,7 +70,7 @@ export default async function SupplierCatalogPage({
   params,
   searchParams,
 }: SupplierCatalogPageProps) {
-  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const [supplier, products, supplies] = await Promise.all([
     prisma.supplier.findUnique({
@@ -88,6 +89,32 @@ export default async function SupplierCatalogPage({
               },
             },
           },
+        },
+        bills: {
+          where: { status: { in: ["UNPAID", "PARTIAL"] } },
+          select: { totalAmount: true, paidAmount: true },
+        },
+        payments: {
+          include: {
+            allocations: {
+              include: {
+                bill: {
+                  select: {
+                    invoice: { select: { id: true, invoiceNumber: true } },
+                    _count: { select: { installments: true } },
+                  },
+                },
+              },
+              orderBy: { allocatedAt: "asc" },
+            },
+            recordedBy: { select: { fullName: true } },
+            dailyCashPayment: {
+              include: {
+                dailyCashDay: { select: { businessDate: true } },
+              },
+            },
+          },
+          orderBy: [{ paidAt: "desc" }, { id: "desc" }],
         },
       },
     }),
@@ -141,6 +168,25 @@ export default async function SupplierCatalogPage({
     const trend = getSupplierCatalogPriceTrend(item.unitPrice, lastPrice);
     return trend === "increased" || trend === "decreased";
   }).length;
+  const outstanding = supplier.bills.reduce(
+    (sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount),
+    0,
+  );
+  const totalCashPaid = supplier.payments.reduce(
+    (sum, payment) => sum + Number(payment.amount),
+    0,
+  );
+  const credit = supplier.payments.reduce(
+    (sum, payment) =>
+      sum +
+      Number(payment.amount) -
+      payment.allocations.reduce(
+        (allocationSum, allocation) =>
+          allocationSum + Number(allocation.amount),
+        0,
+      ),
+    0,
+  );
   const notice = statusNotice(query?.catalogStatus);
 
   return (
@@ -181,6 +227,15 @@ export default async function SupplierCatalogPage({
           value={changedCount}
         />
       </section>
+
+      <SupplierAccountSection
+        supplierId={supplier.id}
+        outstanding={outstanding}
+        credit={credit}
+        totalCashPaid={totalCashPaid}
+        currentUser={currentUser}
+        payments={supplier.payments}
+      />
 
       <Card className="p-5">
         <div className="mb-4">

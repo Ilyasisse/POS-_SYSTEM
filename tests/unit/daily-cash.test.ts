@@ -35,15 +35,15 @@ test("a zero End-Day Amount is complete and contributes zero cash", () => {
 test("Daily Cash review input changes only when an End-Day Amount changes", () => {
   const waiters = [{ id: "waiter-1", fullName: "Amina" }];
   const original = summarizeDailyCashShiftCash(
-    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100, reportedSales: 200 }],
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100 }],
     waiters,
   );
   const manualSalesChanged = summarizeDailyCashShiftCash(
-    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100, reportedSales: 999 }],
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100 }],
     waiters,
   );
   const endDayAmountChanged = summarizeDailyCashShiftCash(
-    [{ id: "shift-1", userId: "waiter-1", closingAmount: 125, reportedSales: 999 }],
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 125 }],
     waiters,
   );
 
@@ -71,7 +71,7 @@ test("Daily Cash resolves the newest salary rate effective on the business date"
 
 test("Daily Cash includes overdue and upcoming obligations", () => {
   const rows = selectDailyCashObligations([{
-    id: "bill-1", dueDate: new Date("2026-08-01T00:00:00.000Z"), totalAmount: 900, paidAmount: 0, status: "UNPAID",
+    id: "bill-1", supplierId: "supplier-1", dueDate: new Date("2026-08-01T00:00:00.000Z"), totalAmount: 900, paidAmount: 0, status: "UNPAID",
     supplier: { name: "Milk supplier" }, invoice: { invoiceNumber: 1 },
     installments: [
       { id: "past", dueDate: new Date("2026-07-28T00:00:00.000Z"), amount: 300, paidAmount: 0, status: "UNPAID" },
@@ -85,9 +85,9 @@ test("Daily Cash includes overdue and upcoming obligations", () => {
 
 test("Daily Cash includes future-due bills and sorts oldest first", () => {
   const rows = selectDailyCashObligations([
-    { id: "future", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: 47 }, installments: [] },
-    { id: "due", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: 43 }, installments: [] },
-    { id: "paid", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: 99 }, installments: [] },
+    { id: "future", supplierId: "supplier-1", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: 47 }, installments: [] },
+    { id: "due", supplierId: "supplier-2", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: 43 }, installments: [] },
+    { id: "paid", supplierId: "supplier-3", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: 99 }, installments: [] },
   ]);
   assert.deepEqual(rows.map((row) => row.invoiceNumber), ["INV-000043", "INV-000047"]);
   assert.equal(rows.reduce((sum, row) => sum + row.amount, 0), 121.5);
@@ -96,6 +96,7 @@ test("Daily Cash includes future-due bills and sorts oldest first", () => {
 test("Daily Cash accepts partial supplier payments up to the remaining balance", () => {
   assert.equal(validateSupplierObligationPaymentAmount(20, 67.5), 20);
   assert.equal(validateSupplierObligationPaymentAmount(67.5, 67.5), 67.5);
+  assert.equal(validateSupplierObligationPaymentAmount(100, 67.5, true), 100);
   assert.throws(() => validateSupplierObligationPaymentAmount(0, 67.5), /greater than zero/);
   assert.throws(() => validateSupplierObligationPaymentAmount(68, 67.5), /cannot exceed/);
 });
