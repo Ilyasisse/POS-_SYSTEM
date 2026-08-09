@@ -63,6 +63,29 @@ model User {
   cleaningRunsCompleted               CleaningChecklistRun[]        @relation("CleaningRunCompletedBy")
   cleaningTasksCompleted              CleaningChecklistRunTask[]    @relation("CleaningTaskCompletedBy")
   dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]      @relation("DailyCashSupplyPaymentRecordedBy")
+  employmentProfile                   EmploymentProfile?
+  scheduledShifts                     ScheduledShift[]             @relation("ScheduledShiftWorker")
+  scheduledShiftsCreated              ScheduledShift[]             @relation("ScheduledShiftCreator")
+  clockEvents                         ClockEvent[]                 @relation("ClockEventWorker")
+  attendanceApprovals                 AttendanceRecord[]           @relation("AttendanceApprover")
+  attendanceRecords                   AttendanceRecord[]           @relation("AttendanceWorker")
+  payrollAdjustmentsCreated           PayrollAdjustment[]          @relation("PayrollAdjustmentActor")
+  payrollAdjustmentsApproved          PayrollAdjustment[]          @relation("PayrollAdjustmentApprover")
+  payrollRunsCreated                  PayrollRun[]                 @relation("PayrollRunCreator")
+  payrollRunsApproved                 PayrollRun[]                 @relation("PayrollRunApprover")
+  payrollRunsFinalized                PayrollRun[]                 @relation("PayrollRunFinalizer")
+  payrollAdjustments                  PayrollAdjustment[]          @relation("PayrollAdjustmentWorker")
+  payrollLines                        PayrollLine[]                @relation("PayrollLineWorker")
+  expenseCategoriesCreated            ExpenseCategory[]            @relation("ExpenseCategoryCreator")
+  expensesRecorded                    ExpenseTransaction[]         @relation("ExpenseActor")
+  expensesApproved                    ExpenseTransaction[]         @relation("ExpenseApprover")
+  ownerWithdrawalsRecorded            OwnerWithdrawal[]            @relation("OwnerWithdrawalActor")
+  supplierReceivingsRecorded          SupplierReceiving[]          @relation("SupplierReceivingActor")
+  customerFeedbackRecorded            CustomerFeedback[]           @relation("CustomerFeedbackActor")
+  complaintsAssigned                  ComplaintCase[]              @relation("ComplaintAssignee")
+  complaintsResolved                  ComplaintCase[]              @relation("ComplaintResolver")
+  complaintsRecorded                  ComplaintCase[]              @relation("ComplaintActor")
+  reportExports                       ReportExportAudit[]          @relation("ReportExportActor")
 
   @@index([role, isActive])
   @@index([station])
@@ -84,6 +107,150 @@ model CafeSetting {
   @@index([updatedByUserId])
 }
 
+/// Versioned compensation is deliberately separated from operational staff data.
+model EmploymentProfile {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  compensationType CompensationType
+  dailyRate        Decimal?           @db.Decimal(14, 2)
+  monthlySalary    Decimal?           @db.Decimal(14, 2)
+  effectiveFrom    DateTime           @db.Date
+  effectiveTo      DateTime?          @db.Date
+  status           EmploymentStatus   @default(ACTIVE)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, effectiveFrom])
+}
+
+model AttendancePolicy {
+  id                    String   @id @default("default")
+  shiftMinutes          Int      @default(480)
+  graceMinutes          Int      @default(10)
+  overtimeThresholdMinutes Int   @default(480)
+  timezone              String   @default("Africa/Nairobi")
+  updatedAt             DateTime @updatedAt
+}
+
+model ScheduledShift {
+  id              String           @id @default(cuid())
+  workerId        String
+  startsAt        DateTime
+  endsAt          DateTime
+  station         Station?
+  status          ScheduledShiftStatus @default(SCHEDULED)
+  createdByUserId String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  worker          User             @relation("ScheduledShiftWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy       User             @relation("ScheduledShiftCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  attendance      AttendanceRecord?
+
+  @@index([workerId, startsAt])
+  @@index([status, startsAt])
+}
+
+/// Raw clock records are append-only. Attendance approval stores the reviewed result.
+model ClockEvent {
+  id        String         @id @default(cuid())
+  workerId  String
+  type      ClockEventType
+  occurredAt DateTime      @default(now())
+  note      String?
+  createdAt DateTime       @default(now())
+  worker    User           @relation("ClockEventWorker", fields: [workerId], references: [id], onDelete: Restrict)
+
+  @@index([workerId, occurredAt])
+}
+
+model AttendanceRecord {
+  id                     String           @id @default(cuid())
+  workerId               String
+  scheduledShiftId       String?          @unique
+  businessDate           DateTime         @db.Date
+  status                 AttendanceStatus @default(PENDING)
+  clockInAt              DateTime?
+  clockOutAt             DateTime?
+  workedMinutes          Int              @default(0)
+  lateMinutes            Int              @default(0)
+  approvedOvertimeMinutes Int             @default(0)
+  absenceReason          String?
+  approvedByUserId       String?
+  approvedAt             DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  worker                 User             @relation("AttendanceWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  scheduledShift         ScheduledShift?  @relation(fields: [scheduledShiftId], references: [id], onDelete: SetNull)
+  approvedBy             User?            @relation("AttendanceApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workerId, businessDate])
+  @@index([businessDate, status])
+}
+
+model PayrollAdjustment {
+  id               String                @id @default(cuid())
+  workerId         String
+  periodStart      DateTime              @db.Date
+  periodEnd        DateTime              @db.Date
+  type             PayrollAdjustmentType
+  amount           Decimal               @db.Decimal(14, 2)
+  reason           String
+  createdByUserId  String
+  approvedByUserId String?
+  approvedAt       DateTime?
+  createdAt        DateTime              @default(now())
+  worker           User                  @relation("PayrollAdjustmentWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy        User                  @relation("PayrollAdjustmentActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       User?                 @relation("PayrollAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workerId, periodStart, periodEnd])
+  @@index([approvedAt])
+}
+
+model PayrollRun {
+  id               String            @id @default(cuid())
+  periodStart      DateTime          @db.Date
+  periodEnd        DateTime          @db.Date
+  status           PayrollRunStatus  @default(DRAFT)
+  createdByUserId  String
+  approvedByUserId String?
+  approvedAt       DateTime?
+  finalizedByUserId String?
+  finalizedAt      DateTime?
+  voidedAt         DateTime?
+  voidReason       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdBy        User              @relation("PayrollRunCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       User?             @relation("PayrollRunApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  finalizedBy      User?             @relation("PayrollRunFinalizer", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  lines            PayrollLine[]
+
+  @@index([status, periodStart, periodEnd])
+}
+
+model PayrollLine {
+  id                    String     @id @default(cuid())
+  payrollRunId          String
+  workerId              String
+  compensationType      CompensationType
+  basePay               Decimal    @db.Decimal(14, 2)
+  overtimePay           Decimal    @default(0) @db.Decimal(14, 2)
+  additions             Decimal    @default(0) @db.Decimal(14, 2)
+  deductions            Decimal    @default(0) @db.Decimal(14, 2)
+  netPay                Decimal    @db.Decimal(14, 2)
+  attendanceDays        Int        @default(0)
+  overtimeMinutes       Int        @default(0)
+  snapshot              Json
+  createdAt             DateTime   @default(now())
+  payrollRun            PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  worker                User       @relation("PayrollLineWorker", fields: [workerId], references: [id], onDelete: Restrict)
+
+  @@unique([payrollRunId, workerId])
+  @@index([workerId, createdAt])
+}
+
 model AuditLog {
   id                String   @id @default(cuid())
   actorUserId       String?
@@ -102,6 +269,132 @@ model AuditLog {
   @@index([actorUserId, createdAt])
   @@index([action, createdAt])
   @@index([relatedEntityType, relatedEntityId])
+}
+
+model ExpenseCategory {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       User     @relation("ExpenseCategoryCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  expenses        ExpenseTransaction[]
+}
+
+model ExpenseTransaction {
+  id               String            @id @default(cuid())
+  categoryId       String
+  vendor           String?
+  amount           Decimal           @db.Decimal(14, 2)
+  paymentMethod    String?
+  paidAt           DateTime          @db.Date
+  receiptReference String?
+  isFixed          Boolean           @default(false)
+  isRecurring      Boolean           @default(false)
+  status           ExpenseStatus     @default(PENDING)
+  note             String?
+  createdByUserId  String
+  approvedByUserId String?
+  approvedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  category         ExpenseCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy        User              @relation("ExpenseActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       User?             @relation("ExpenseApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([paidAt, status])
+  @@index([categoryId, paidAt])
+}
+
+model OwnerWithdrawal {
+  id               String   @id @default(cuid())
+  amount           Decimal  @db.Decimal(14, 2)
+  withdrawnAt      DateTime @db.Date
+  reason           String
+  receiptReference String?
+  createdByUserId  String
+  createdAt        DateTime @default(now())
+  createdBy        User     @relation("OwnerWithdrawalActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([withdrawnAt])
+}
+
+model SupplierReceiving {
+  id                    String                @id @default(cuid())
+  purchaseOrderId       String                @unique
+  receivedAt            DateTime              @default(now())
+  receivedByUserId      String
+  qualityRating         Int?
+  rejectionQuantity     Decimal?              @db.Decimal(12, 3)
+  rejectionReason       String?
+  completionNote        String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedBy            User                  @relation("SupplierReceivingActor", fields: [receivedByUserId], references: [id], onDelete: Restrict)
+  items                 SupplierReceivingItem[]
+}
+
+model SupplierReceivingItem {
+  id                    String             @id @default(cuid())
+  receivingId           String
+  purchaseOrderItemId   String
+  expectedQuantity      Decimal            @db.Decimal(12, 3)
+  receivedQuantity      Decimal            @db.Decimal(12, 3)
+  createdAt             DateTime           @default(now())
+  receiving             SupplierReceiving  @relation(fields: [receivingId], references: [id], onDelete: Cascade)
+  purchaseOrderItem     SupplierPurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([receivingId, purchaseOrderItemId])
+}
+
+model CustomerFeedback {
+  id               String   @id @default(cuid())
+  orderId          String?
+  rating           Int?
+  comment          String?
+  createdByUserId  String?
+  createdAt        DateTime @default(now())
+  order            Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdBy        User?    @relation("CustomerFeedbackActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+}
+
+model ComplaintCase {
+  id               String          @id @default(cuid())
+  orderId          String?
+  category         ComplaintCategory
+  priority         ComplaintPriority @default(MEDIUM)
+  status           ComplaintStatus @default(OPEN)
+  description      String
+  assignedToUserId String?
+  resolvedByUserId String?
+  resolutionNotes  String?
+  resolvedAt       DateTime?
+  createdByUserId  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  order            Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  assignedTo       User?           @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  resolvedBy       User?           @relation("ComplaintResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  createdBy        User?           @relation("ComplaintActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([assignedToUserId, status])
+}
+
+model ReportExportAudit {
+  id               String   @id @default(cuid())
+  actorUserId      String
+  report           String
+  format           String
+  filters          Json
+  createdAt        DateTime @default(now())
+  actor            User     @relation("ReportExportActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([actorUserId, createdAt])
 }
 
 model Category {
@@ -272,6 +565,8 @@ model Order {
   payments           Payment[]
   kitchenTicketState KitchenTicketState?
   salesAdjustments   SalesAdjustment[]
+  feedback           CustomerFeedback[]
+  complaints         ComplaintCase[]
 
   @@index([status])
   @@index([createdAt])
@@ -910,10 +1205,12 @@ model SupplierPurchaseOrder {
   cancelledAt          DateTime?
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
+  emergencyPurchase    Boolean                     @default(false)
   supplier             Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   createdBy            User                        @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   items                SupplierPurchaseOrderItem[]
   invoices             SupplierInvoice[]
+  receiving            SupplierReceiving?
 
   @@index([supplierId, status, expectedDeliveryDate])
   @@index([status, expectedDeliveryDate])
@@ -932,6 +1229,7 @@ model SupplierPurchaseOrderItem {
   createdAt             DateTime              @default(now())
   purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   supplierCatalogItem   SupplierCatalogItem   @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict)
+  receivingItems        SupplierReceivingItem[]
 
   @@unique([purchaseOrderId, supplierCatalogItemId])
   @@index([supplierCatalogItemId])
@@ -1248,4 +1546,65 @@ enum SupplierInvoiceSource {
   PURCHASE_ORDER
   MANUAL
   LEGACY_UPLOAD
+}
+
+enum CompensationType {
+  DAILY
+  MONTHLY
+}
+enum EmploymentStatus {
+  ACTIVE
+  SUSPENDED
+  ENDED
+}
+enum ScheduledShiftStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+enum ClockEventType {
+  IN
+  OUT
+}
+enum AttendanceStatus {
+  PENDING
+  PRESENT
+  ABSENT
+  REJECTED
+}
+enum PayrollAdjustmentType {
+  BONUS
+  ADVANCE
+  ABSENCE_DEDUCTION
+  CORRECTION
+  OVERTIME
+}
+enum PayrollRunStatus {
+  DRAFT
+  APPROVED
+  FINALIZED
+  VOIDED
+}
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  VOIDED
+}
+enum ComplaintCategory {
+  SERVICE
+  FOOD
+  PAYMENT
+  OTHER
+}
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
