@@ -3,7 +3,53 @@ import test from "node:test";
 import { calculateDailyCashSummary, fundingFor } from "../../src/lib/daily-cash/money";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "../../src/lib/daily-cash/paid-breakdown";
 import { resolveDailySalaryRate } from "../../src/lib/daily-cash/salary-rates";
+import { summarizeDailyCashShiftCash } from "../../src/lib/daily-cash/shift-cash";
 import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } from "../../src/lib/daily-cash/supplier-obligations";
+
+test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
+  const shifts = [
+    { id: "shift-1", userId: "waiter-1", closingAmount: 125.5, reportedSales: 900 },
+    { id: "shift-2", userId: "waiter-2", closingAmount: null, reportedSales: 400 },
+  ];
+  const result = summarizeDailyCashShiftCash(shifts, [
+    { id: "waiter-1", fullName: "Amina" },
+    { id: "waiter-2", fullName: "Bilan" },
+  ]);
+
+  assert.equal(result.endDayCash, 125.5);
+  assert.deepEqual(result.missingWaiters, [{ id: "waiter-2", fullName: "Bilan" }]);
+  assert.deepEqual(result.fingerprintRows, [["shift-1", "waiter-1", 125.5]]);
+});
+
+test("a zero End-Day Amount is complete and contributes zero cash", () => {
+  const result = summarizeDailyCashShiftCash(
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 0 }],
+    [{ id: "waiter-1", fullName: "Amina" }],
+  );
+
+  assert.equal(result.endDayCash, 0);
+  assert.deepEqual(result.missingWaiters, []);
+  assert.deepEqual(result.fingerprintRows, [["shift-1", "waiter-1", 0]]);
+});
+
+test("Daily Cash review input changes only when an End-Day Amount changes", () => {
+  const waiters = [{ id: "waiter-1", fullName: "Amina" }];
+  const original = summarizeDailyCashShiftCash(
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100, reportedSales: 200 }],
+    waiters,
+  );
+  const manualSalesChanged = summarizeDailyCashShiftCash(
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100, reportedSales: 999 }],
+    waiters,
+  );
+  const endDayAmountChanged = summarizeDailyCashShiftCash(
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 125, reportedSales: 999 }],
+    waiters,
+  );
+
+  assert.deepEqual(manualSalesChanged.fingerprintRows, original.fingerprintRows);
+  assert.notDeepEqual(endDayAmountChanged.fingerprintRows, original.fingerprintRows);
+});
 
 test("Daily Cash uses revenue before savings and never projects a negative balance", () => {
   assert.deepEqual(fundingFor(400, 324.5), { revenueFunded: 324.5, savingsFunded: 75.5 });
