@@ -20,6 +20,7 @@ import {
   getEffectiveStation,
   type PermissionUser,
 } from "@/lib/auth/permissions";
+import { calculateKitchenPreparationMetric } from "@/lib/kitchen/kitchen-metrics";
 
 type KitchenStateTransaction = Prisma.TransactionClient;
 
@@ -67,11 +68,19 @@ export async function createKitchenTicketState(
     orderId: string;
     lines: readonly KitchenStateLine[];
     customerName?: string | null;
+    actorUserId?: string | null;
   },
 ) {
   const stations = getStationSet(input.lines);
 
   if (stations.length === 0) return null;
+
+  const targets = await tx.kitchenPreparationTarget.findMany({
+    where: { station: { in: stations } },
+  });
+  const targetByStation = new Map(
+    targets.map((target) => [target.station, target.targetMinutes]),
+  );
 
   return tx.kitchenTicketState.create({
     data: {
@@ -80,6 +89,15 @@ export async function createKitchenTicketState(
       stationStates: {
         create: stations.map((station) => ({ station })),
       },
+      transitions: {
+        create: stations.map((station) => ({
+          station,
+          type: "STATION_CREATED",
+          toStationStatus: "NEW",
+          targetMinutesSnapshot: targetByStation.get(station) ?? null,
+          actorUserId: input.actorUserId ?? null,
+        })),
+      },
     },
   });
 }
@@ -87,6 +105,7 @@ export async function createKitchenTicketState(
 type KitchenStateRecord = Prisma.KitchenTicketStateGetPayload<{
   include: {
     stationStates: true;
+    transitions: true;
     order: {
       include: {
         table: true;
@@ -126,6 +145,24 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
       toTicketStatus(stationState.status),
     ]),
   );
+  const transitionsByStation = state.transitions.reduce<
+    Partial<Record<KitchenStation, Array<{
+      type: "STATION_CREATED" | "STATION_STARTED" | "STATION_COMPLETED" | "STATION_REOPENED";
+      occurredAt: Date;
+      targetMinutesSnapshot: number | null;
+    }>>>
+  >((grouped, event) => {
+    if (!event.station) return grouped;
+    const station = event.station as KitchenStation;
+    const events = grouped[station] ?? [];
+    events.push({
+      type: event.type as "STATION_CREATED" | "STATION_STARTED" | "STATION_COMPLETED" | "STATION_REOPENED",
+      occurredAt: event.occurredAt,
+      targetMinutesSnapshot: event.targetMinutesSnapshot,
+    });
+    grouped[station] = events;
+    return grouped;
+  }, {});
   const ticket = {
     id: state.orderId,
     orderId: state.orderId,
@@ -133,6 +170,21 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
     createdAt: state.order.createdAt.toISOString(),
     status: "new" as KitchenTicketStatus,
     stationStatuses,
+    stationMetrics: Object.fromEntries(
+      state.stationStates.map((stationState) => [
+        stationState.station as KitchenStation,
+        (() => {
+          const metric = calculateKitchenPreparationMetric(
+            transitionsByStation[stationState.station as KitchenStation] ?? [],
+          );
+          return {
+            ...metric,
+            startedAt: metric.startedAt?.toISOString() ?? null,
+            completedAt: metric.completedAt?.toISOString() ?? null,
+          };
+        })(),
+      ]),
+    ),
     pickupStatus: toPickupStatus(state.pickupStatus),
     tableId: state.order.tableId,
     tableName: state.order.table?.name ?? null,
@@ -187,6 +239,7 @@ export async function getKitchenTicketSnapshot(
     orderBy: { updatedAt: "desc" },
     include: {
       stationStates: true,
+      transitions: true,
       order: {
         include: {
           table: true,
@@ -229,6 +282,7 @@ export async function updateKitchenTicketStation(
     orderId: string;
     station: KitchenStation;
     status: KitchenTicketStatus;
+    actorUserId: string;
   },
 ) {
   return prisma.$transaction(async (tx) => {
@@ -239,13 +293,37 @@ export async function updateKitchenTicketStation(
       throw new KitchenTicketMutationError("Kitchen station ticket not found.", 404);
     }
 
+    const previous = state.stationStates.find((item) => item.station === station)!;
+    const nextStatus = toDatabaseStatus(input.status);
+    if (previous.status === nextStatus) return;
+    const target = await tx.kitchenPreparationTarget.findUnique({
+      where: { station },
+    });
+
     await tx.kitchenTicketStationState.update({
       where: { orderId_station: { orderId: input.orderId, station } },
-      data: { status: toDatabaseStatus(input.status) },
+      data: { status: nextStatus },
+    });
+
+    await tx.kitchenTransitionEvent.create({
+      data: {
+        orderId: input.orderId,
+        station,
+        type:
+          nextStatus === "IN_PROGRESS"
+            ? "STATION_STARTED"
+            : nextStatus === "DONE"
+              ? "STATION_COMPLETED"
+              : "STATION_REOPENED",
+        fromStationStatus: previous.status,
+        toStationStatus: nextStatus,
+        targetMinutesSnapshot: target?.targetMinutes ?? null,
+        actorUserId: input.actorUserId,
+      },
     });
 
     const stationStates = state.stationStates.map((item) =>
-      item.station === station ? { ...item, status: toDatabaseStatus(input.status) } : item,
+      item.station === station ? { ...item, status: nextStatus } : item,
     );
     const allDone = stationStates.every((item) => item.status === "DONE");
     const nextPickupStatus = allDone
@@ -260,6 +338,27 @@ export async function updateKitchenTicketStation(
       where: { orderId: input.orderId },
       data: { pickupStatus: nextPickupStatus },
     });
+    if (nextPickupStatus === "READY" && state.pickupStatus !== "READY") {
+      await tx.kitchenTransitionEvent.create({
+        data: {
+          orderId: input.orderId,
+          type: "PICKUP_READY",
+          fromPickupStatus: state.pickupStatus,
+          toPickupStatus: "READY",
+          actorUserId: input.actorUserId,
+        },
+      });
+    } else if (nextPickupStatus === "PREPARING" && state.pickupStatus === "READY") {
+      await tx.kitchenTransitionEvent.create({
+        data: {
+          orderId: input.orderId,
+          type: "PICKUP_REOPENED",
+          fromPickupStatus: "READY",
+          toPickupStatus: "PREPARING",
+          actorUserId: input.actorUserId,
+        },
+      });
+    }
   });
 }
 
@@ -292,6 +391,15 @@ export async function updateKitchenTicketPickup(
           claimedByWaiterName: input.viewer.fullName,
         },
       });
+      await tx.kitchenTransitionEvent.create({
+        data: {
+          orderId: input.orderId,
+          type: "PICKUP_CLAIMED",
+          fromPickupStatus: state.pickupStatus,
+          toPickupStatus: "CLAIMED",
+          actorUserId: input.viewer.id,
+        },
+      });
       return;
     }
 
@@ -307,6 +415,15 @@ export async function updateKitchenTicketPickup(
     await tx.kitchenTicketState.update({
       where: { orderId: input.orderId },
       data: { pickupStatus: "DELIVERED" },
+    });
+    await tx.kitchenTransitionEvent.create({
+      data: {
+        orderId: input.orderId,
+        type: "PICKUP_DELIVERED",
+        fromPickupStatus: state.pickupStatus,
+        toPickupStatus: "DELIVERED",
+        actorUserId: input.viewer.id,
+      },
     });
   });
 }

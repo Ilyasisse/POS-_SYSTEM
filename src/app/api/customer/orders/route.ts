@@ -371,6 +371,7 @@ export async function POST(request: Request) {
           orderId: createdOrder.id,
           lines: preparedLines,
           customerName,
+          actorUserId: authorization.user.id,
         });
 
         const inventoryAlerts = await deductProductInventoryForSale(

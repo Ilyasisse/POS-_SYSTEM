@@ -42,6 +42,7 @@ export async function PATCH(
       orderId,
       station,
       status: status as "new" | "in_progress" | "done",
+      actorUserId: authorization.user.id,
     });
 
     return NextResponse.json({ ok: true });

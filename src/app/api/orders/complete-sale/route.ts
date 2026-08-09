@@ -388,6 +388,7 @@ export async function POST(request: Request) {
       await createKitchenTicketState(tx, {
         orderId: order.id,
         lines: preparedLines,
+        actorUserId: currentUser.id,
       });
 
       await tx.payment.create({

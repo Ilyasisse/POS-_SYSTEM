@@ -23,7 +23,7 @@ export default function KitchenClient({
   currentUserName,
   currentUserRole,
 }: KitchenClientProps) {
-  const { activeTickets, statusMessage, updateTicketStatus } = useKitchenTickets({
+  const { activeTickets, statusMessage, updateTicketStatus, recordQualityEvent } = useKitchenTickets({
     station,
     currentUserId,
     currentUserName,
@@ -55,6 +55,7 @@ export default function KitchenClient({
             tickets={visibleTickets}
             onUpdateStatus={updateTicketStatus}
             canUpdateStatus={canUpdateStatus}
+            onRecordQuality={recordQualityEvent}
           />
         )}
       </div>
