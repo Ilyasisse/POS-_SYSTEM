@@ -290,6 +290,14 @@ test("validates purchase-order and legacy draft creation metadata", () => {
     () =>
       validateSupplierInvoiceDraftCreationMetadata({
         supplierId: "supplier-1",
+        source: "RECURRING",
+      }),
+    /require a creator/,
+  );
+  assert.throws(
+    () =>
+      validateSupplierInvoiceDraftCreationMetadata({
+        supplierId: "supplier-1",
         source: "LEGACY_UPLOAD",
         receiptObjectPath: "supplier/receipt.png",
       }),

@@ -9,6 +9,7 @@ import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import {
   getSupplierInvoiceDisplayStatus,
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+  SUPPLIER_INVOICE_SOURCE_LABELS,
 } from "@/lib/suppliers/invoice-status";
 import PrintButton from "./PrintButton";
 
@@ -46,7 +47,9 @@ export default async function PrintableSupplierInvoicePage({
     },
   });
   if (!invoice) notFound();
-  const formattedInvoiceNumber = formatSupplierInvoiceNumber(invoice.invoiceNumber);
+  const formattedInvoiceNumber = formatSupplierInvoiceNumber(
+    invoice.invoiceNumber,
+  );
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
   const remainingBalance = invoice.bill
@@ -125,13 +128,11 @@ export default async function PrintableSupplierInvoicePage({
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Purchase order</dt>
+              <dt className="text-muted-foreground">Source</dt>
               <dd className="font-medium">
                 {invoice.purchaseOrder
                   ? `PO #${invoice.purchaseOrder.orderNumber}`
-                  : invoice.source === "MANUAL"
-                    ? "Manual invoice"
-                    : "Legacy invoice"}
+                  : SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
               </dd>
             </div>
             <div>
