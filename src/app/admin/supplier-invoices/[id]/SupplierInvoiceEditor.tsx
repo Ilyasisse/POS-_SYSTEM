@@ -586,7 +586,7 @@ export default function SupplierInvoiceEditor({
   invoice: InvoiceEditorData;
   catalog: CatalogOption[];
   hasPurchaseOrder: boolean;
-  source: "PURCHASE_ORDER" | "MANUAL" | "LEGACY_UPLOAD";
+  source: "PURCHASE_ORDER" | "MANUAL" | "RECURRING" | "LEGACY_UPLOAD";
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -755,7 +755,7 @@ export default function SupplierInvoiceEditor({
           pending={pending}
           onAddCatalogLine={addCatalogLine}
           onAddCustomLine={addCustomLine}
-          allowCustomLines={source !== "MANUAL"}
+          allowCustomLines={source === "PURCHASE_ORDER" || source === "LEGACY_UPLOAD"}
           onSelectedCatalogIdChange={setSelectedCatalogId}
         />
       ) : null}

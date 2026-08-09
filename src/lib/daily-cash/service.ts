@@ -113,7 +113,9 @@ async function currentState(tx: Tx, dateKey: string) {
     supplierPayments: day.supplierPayments.map((row) => ({
       id: row.id,
       supplierName: row.supplierPayment.bill.supplier.name,
-      invoiceNumber: formatSupplierInvoiceNumber(row.supplierPayment.bill.invoice.invoiceNumber),
+      invoiceNumber: formatSupplierInvoiceNumber(
+        row.supplierPayment.bill.invoice.invoiceNumber,
+      ),
       amount: number(row.amount),
       revenueFunded: number(row.revenueFunded),
       savingsFunded: number(row.savingsFunded),

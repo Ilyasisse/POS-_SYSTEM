@@ -12,11 +12,17 @@ import {
   getSupplierInvoiceDisplayStatus,
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
   SUPPLIER_INVOICE_DISPLAY_STATUS_TONES,
+  SUPPLIER_INVOICE_SOURCE_LABELS,
 } from "@/lib/suppliers/invoice-status";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
+import {
+  getSupplierBillDefaultDueDateKey,
+  getSupplierPurchaseTodayDateKey,
+} from "@/lib/suppliers/purchase-orders";
 import { createSupplierReceiptUrl } from "@/lib/suppliers/storage";
 import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
 import RevertPaymentButton from "@/app/admin/reports/supplier-bills/RevertPaymentButton";
+import RecurringInvoiceCard from "./RecurringInvoiceCard";
 import SupplierInvoiceEditor from "./SupplierInvoiceEditor";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -24,6 +30,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
   year: "numeric",
+});
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Africa/Nairobi",
+  dateStyle: "medium",
+  timeStyle: "short",
 });
 
 export default async function SupplierInvoiceDetailPage({
@@ -40,6 +51,14 @@ export default async function SupplierInvoiceDetailPage({
     include: {
       supplier: { select: { id: true, name: true, phone: true, email: true } },
       purchaseOrder: { select: { id: true, orderNumber: true, status: true } },
+      templateRecurrence: {
+        include: { _count: { select: { generatedInvoices: true } } },
+      },
+      generatedByRecurrence: {
+        select: {
+          sourceInvoice: { select: { id: true, invoiceNumber: true } },
+        },
+      },
       items: { orderBy: { createdAt: "asc" } },
       installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
       createdBy: { select: { fullName: true } },
@@ -73,7 +92,9 @@ export default async function SupplierInvoiceDetailPage({
     },
   });
   if (!invoice) notFound();
-  const formattedInvoiceNumber = formatSupplierInvoiceNumber(invoice.invoiceNumber);
+  const formattedInvoiceNumber = formatSupplierInvoiceNumber(
+    invoice.invoiceNumber,
+  );
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
   const remainingBalance = invoice.bill
@@ -120,7 +141,7 @@ export default async function SupplierInvoiceDetailPage({
   return (
     <AdminPage
       title={`Supplier invoice ${formattedInvoiceNumber}`}
-      description={`${invoice.supplier.name} · ${invoice.purchaseOrder ? `PO #${invoice.purchaseOrder.orderNumber}` : invoice.source === "MANUAL" ? "manual invoice" : "legacy invoice"}`}
+      description={`${invoice.supplier.name} · ${SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}`}
       action={
         <>
           <Button asChild>
@@ -356,6 +377,64 @@ export default async function SupplierInvoiceDetailPage({
           </a>
         </Card>
       ) : null}
+
+      {invoice.generatedByRecurrence ? (
+        <Card className="gap-2 p-5">
+          <h2 className="font-semibold">Recurring draft</h2>
+          <p className="text-sm text-muted-foreground">
+            This draft was generated from a recurring supplier invoice
+            template.
+          </p>
+          <Button asChild variant="outline" className="w-fit">
+            <Link
+              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
+            >
+              Open source invoice
+              {` ${formatSupplierInvoiceNumber(invoice.generatedByRecurrence.sourceInvoice.invoiceNumber)}`}
+            </Link>
+          </Button>
+        </Card>
+      ) : null}
+
+      <RecurringInvoiceCard
+        invoiceId={invoice.id}
+        eligible={
+          invoice.source === "MANUAL" &&
+          invoice.status !== "VOID" &&
+          invoice.items.length > 0 &&
+          invoice.items.every((item) => Boolean(item.supplierCatalogItemId))
+        }
+        todayDateKey={getSupplierPurchaseTodayDateKey()}
+        defaultNextRunDate={getSupplierBillDefaultDueDateKey()}
+        recurrence={
+          invoice.templateRecurrence
+            ? {
+                id: invoice.templateRecurrence.id,
+                interval: invoice.templateRecurrence.interval,
+                unit: invoice.templateRecurrence.unit,
+                nextRunDate: invoice.templateRecurrence.nextRunDate
+                  .toISOString()
+                  .slice(0, 10),
+                isActive: invoice.templateRecurrence.isActive,
+                lastGeneratedAtLabel: invoice.templateRecurrence.lastGeneratedAt
+                  ? DATE_TIME_FORMATTER.format(
+                      invoice.templateRecurrence.lastGeneratedAt,
+                    )
+                  : null,
+                lastError: invoice.templateRecurrence.lastError,
+                lastErrorAtLabel: invoice.templateRecurrence.lastErrorAt
+                  ? DATE_TIME_FORMATTER.format(
+                      invoice.templateRecurrence.lastErrorAt,
+                    )
+                  : null,
+                pausedAt:
+                  invoice.templateRecurrence.pausedAt?.toISOString() ?? null,
+                generatedCount:
+                  invoice.templateRecurrence._count.generatedInvoices,
+              }
+            : null
+        }
+      />
 
       <SupplierInvoiceEditor
         key={`${invoice.id}:${invoice.updatedAt.toISOString()}`}
