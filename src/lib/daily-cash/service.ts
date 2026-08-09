@@ -15,6 +15,21 @@ import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } f
 import type { DailyCashActionResult, DailyCashStatus } from "./types";
 
 type Tx = Prisma.TransactionClient;
+type TransactionQuery = () => PromiseLike<unknown>;
+type TransactionQueryResults<Queries extends readonly TransactionQuery[]> = {
+  [Index in keyof Queries]: Awaited<ReturnType<Queries[Index]>>;
+};
+
+async function runTransactionQueriesSequentially<
+  Queries extends readonly TransactionQuery[],
+>(queries: Queries): Promise<TransactionQueryResults<Queries>> {
+  const results: unknown[] = [];
+  for (const query of queries) {
+    results.push(await query());
+  }
+  return results as TransactionQueryResults<Queries>;
+}
+
 const number = (value: { toString(): string } | number | null | undefined) => Number(value?.toString() ?? 0);
 
 async function materializeDay(tx: Tx, dateKey: string) {
@@ -51,28 +66,50 @@ async function currentState(tx: Tx, dateKey: string) {
   const day = await materializeDay(tx, dateKey);
   if (!day) return null;
   const businessDate = businessDateKeyToDatabaseDate(dateKey);
-  const [shifts, activeWaiters, bills, suppliers] = await Promise.all([
-    tx.shift.findMany({ where: { businessDate }, select: { id: true, userId: true, closingAmount: true } }),
-    tx.user.findMany({ where: { role: "WAITER", isActive: true }, select: { id: true, fullName: true } }),
-    tx.supplierBill.findMany({
-      where: { status: { in: ["UNPAID", "PARTIAL"] }, invoice: { status: "FINALIZED" } },
-      include: { supplier: { select: { name: true } }, invoice: { select: { invoiceNumber: true } }, installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] } },
-    }),
-    tx.supplier.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        payments: {
-          select: {
-            amount: true,
-            allocations: { select: { amount: true } },
+  // Interactive transactions use one pg client, so these independent reads
+  // must be issued sequentially even though they would normally be parallel.
+  const [shifts, activeWaiters, bills, suppliers] =
+    await runTransactionQueriesSequentially([
+      () =>
+        tx.shift.findMany({
+          where: { businessDate },
+          select: { id: true, userId: true, closingAmount: true },
+        }),
+      () =>
+        tx.user.findMany({
+          where: { role: "WAITER", isActive: true },
+          select: { id: true, fullName: true },
+        }),
+      () =>
+        tx.supplierBill.findMany({
+          where: {
+            status: { in: ["UNPAID", "PARTIAL"] },
+            invoice: { status: "FINALIZED" },
           },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+          include: {
+            supplier: { select: { name: true } },
+            invoice: { select: { invoiceNumber: true } },
+            installments: {
+              orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+            },
+          },
+        }),
+      () =>
+        tx.supplier.findMany({
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            payments: {
+              select: {
+                amount: true,
+                allocations: { select: { amount: true } },
+              },
+            },
+          },
+          orderBy: { name: "asc" },
+        }),
+    ] as const);
   const shiftCash = summarizeDailyCashShiftCash(
     shifts.map((shift) => ({
       id: shift.id,
