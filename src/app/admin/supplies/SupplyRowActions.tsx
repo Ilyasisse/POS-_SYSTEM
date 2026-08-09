@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SupplyEntryFields } from "./SupplyEntryForm";
+import type { SupplyCatalogOption } from "./SupplyEntryForm";
 import { deleteSupplyPurchase, updateSupplyPurchase } from "./actions";
 
 type SupplyRowActionsProps = {
@@ -34,6 +35,8 @@ type SupplyRowActionsProps = {
   unitPrice: string;
   purchaseDate: string;
   maxDate: string;
+  catalogItemId: string | null;
+  catalogItems: SupplyCatalogOption[];
 };
 
 export default function SupplyRowActions({
@@ -43,10 +46,12 @@ export default function SupplyRowActions({
   unitPrice,
   purchaseDate,
   maxDate,
+  catalogItemId,
+  catalogItems,
 }: SupplyRowActionsProps) {
   return (
     <div className="flex items-center gap-1">
-      <Dialog>
+      {catalogItemId ? <Dialog>
         <DialogTrigger asChild>
           <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${itemName}`}>
             <Pencil className="size-4" />
@@ -76,7 +81,8 @@ export default function SupplyRowActions({
             </div>
             <SupplyEntryFields
               prefix={`edit-${id}`}
-              itemName={itemName}
+              catalogItems={catalogItems}
+              catalogItemId={catalogItemId}
               quantity={quantity}
               unitPrice={unitPrice}
             />
@@ -88,7 +94,7 @@ export default function SupplyRowActions({
             </DialogFooter>
           </form>
         </DialogContent>
-      </Dialog>
+      </Dialog> : null}
 
       <AlertDialog>
         <AlertDialogTrigger asChild>
