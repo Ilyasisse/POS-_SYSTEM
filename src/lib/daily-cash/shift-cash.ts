@@ -4,6 +4,7 @@ type DailyCashShift = {
   id: string;
   userId: string;
   closingAmount: number | null;
+  reportedSales?: number | null;
 };
 
 type ActiveWaiter = {

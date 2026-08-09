@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ListPlus } from "lucide-react";
 import {
   AdminPage,
   Button,
@@ -26,7 +26,7 @@ import {
 } from "@/lib/supplies/supply-purchases";
 import SupplyEntryForm from "./SupplyEntryForm";
 import SupplyRowActions from "./SupplyRowActions";
-import { createSupplyPurchase } from "./actions";
+import { closeSupplyDay, createSupplyPurchase, reopenSupplyDay } from "./actions";
 
 type SupplyPageProps = {
   searchParams?: Promise<{ date?: string; supplyStatus?: string }>;
@@ -169,7 +169,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
 
   if (!selectedDatabaseDate || !historyStart) return null;
 
-  const [entries, historyEntries] = await Promise.all([
+  const [entries, historyEntries, day, catalogRows] = await Promise.all([
     prisma.supplyPurchase.findMany({
       where: { purchaseDate: selectedDatabaseDate },
       include: { createdBy: { select: { fullName: true } } },
@@ -185,7 +185,12 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
       select: { purchaseDate: true, quantity: true, unitPrice: true },
       orderBy: { purchaseDate: "desc" },
     }),
+    prisma.supplyDay.findUnique({ where: { purchaseDate: selectedDatabaseDate }, include: { _count: { select: { payments: true } } } }),
+    prisma.supplyCatalogItem.findMany({ orderBy: [{ name: "asc" }, { unit: "asc" }] }),
   ]);
+  const catalogItems = catalogRows.map((item) => ({ id: item.id, name: item.name, unit: item.unit, defaultUnitPrice: item.defaultUnitPrice.toString() }));
+  const activeCatalogItems = catalogItems.filter((_, index) => catalogRows[index].isActive);
+  const closed = Boolean(day?.closedAt);
 
   const dailyTotal = calculateSupplyDayTotal(entries);
   const totalQuantity = entries.reduce(
@@ -229,6 +234,17 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
 
       <SupplyDateControls selectedDate={selectedDate} today={today} />
 
+      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-black">{closed ? "Supply day closed" : "Supply day open"}</p>
+          <p className="text-sm text-muted-foreground">{closed ? `Payable from ${displayDate(shiftDate(selectedDate, 1))}.` : "Add every supply received, then close the day."}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline"><Link href="/admin/supplies/items"><ListPlus className="size-4" />Manage supply items</Link></Button>
+          {closed ? <form action={reopenSupplyDay}><input type="hidden" name="date" value={selectedDate} /><Button variant="outline" disabled={(day?._count.payments ?? 0) > 0}>Reopen day</Button></form> : <form action={closeSupplyDay}><input type="hidden" name="date" value={selectedDate} /><Button disabled={entries.length === 0}>Close supply day</Button></form>}
+        </div>
+      </Card>
+
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard
           label="Daily total"
@@ -247,7 +263,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
         />
       </section>
 
-      <Card className="p-5">
+      {!closed ? <Card className="p-5">
         <div className="mb-4">
           <h2 className="font-black">Add a Supply purchase</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -257,8 +273,10 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
         <SupplyEntryForm
           purchaseDate={selectedDate}
           action={createSupplyPurchase}
+          catalogItems={activeCatalogItems}
         />
-      </Card>
+        {activeCatalogItems.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Create an active supply item before adding today&apos;s purchases.</p> : null}
+      </Card> : null}
 
       <DataTableCard
         footer={
@@ -273,6 +291,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
             <tr>
               <TableHead>Item</TableHead>
               <TableHead>Quantity</TableHead>
+              <TableHead>Unit</TableHead>
               <TableHead>Unit price</TableHead>
               <TableHead>Line price</TableHead>
               <TableHead>Recorded by</TableHead>
@@ -283,7 +302,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
             {entries.length === 0 ? (
               <tr>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="py-12 text-center text-muted-foreground"
                 >
                   No Supply purchases have been recorded for{" "}
@@ -304,6 +323,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
                     <TableCell className="tabular-nums">
                       {formatQuantity(Number(entry.quantity))}
                     </TableCell>
+                    <TableCell>{entry.unit}</TableCell>
                     <TableCell className="tabular-nums">
                       {formatMoney(Number(entry.unitPrice))}
                     </TableCell>
@@ -312,6 +332,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
                     </TableCell>
                     <TableCell>{entry.createdBy.fullName}</TableCell>
                     <TableCell>
+                      {!closed ?
                       <SupplyRowActions
                         id={entry.id}
                         itemName={entry.itemName}
@@ -319,7 +340,10 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
                         unitPrice={entry.unitPrice.toString()}
                         purchaseDate={selectedDate}
                         maxDate={today}
+                        catalogItemId={entry.catalogItemId}
+                        catalogItems={catalogItems}
                       />
+                      : <span className="text-xs text-muted-foreground">Locked</span>}
                     </TableCell>
                   </tr>
                 );
