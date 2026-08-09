@@ -9,6 +9,7 @@ import { dailyCashFingerprint } from "./fingerprint";
 import { calculateDailyCashSummary, fundingFor, roundMoney } from "./money";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "./paid-breakdown";
 import { resolveDailySalaryRate } from "./salary-rates";
+import { summarizeDailyCashShiftCash } from "./shift-cash";
 import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } from "./supplier-obligations";
 import type { DailyCashActionResult, DailyCashStatus } from "./types";
 
@@ -54,7 +55,7 @@ async function currentState(tx: Tx, dateKey: string) {
   if (!day) return null;
   const businessDate = businessDateKeyToDatabaseDate(dateKey);
   const [shifts, activeWaiters, bills, supplyDays] = await Promise.all([
-    tx.shift.findMany({ where: { businessDate }, select: { id: true, userId: true, reportedSales: true } }),
+    tx.shift.findMany({ where: { businessDate }, select: { id: true, userId: true, closingAmount: true } }),
     tx.user.findMany({ where: { role: "WAITER", isActive: true }, select: { id: true, fullName: true } }),
     tx.supplierBill.findMany({
       where: { status: { in: ["UNPAID", "PARTIAL"] }, invoice: { status: "FINALIZED" } },
@@ -66,9 +67,16 @@ async function currentState(tx: Tx, dateKey: string) {
       orderBy: { purchaseDate: "asc" },
     }),
   ]);
-  const revenue = roundMoney(shifts.reduce((sum, shift) => sum + number(shift.reportedSales), 0));
-  const settled = new Set(shifts.filter((shift) => shift.reportedSales !== null).map((shift) => shift.userId));
-  const missingWaiters = activeWaiters.filter((waiter) => !settled.has(waiter.id));
+  const shiftCash = summarizeDailyCashShiftCash(
+    shifts.map((shift) => ({
+      id: shift.id,
+      userId: shift.userId,
+      closingAmount:
+        shift.closingAmount === null ? null : number(shift.closingAmount),
+    })),
+    activeWaiters,
+  );
+  const { endDayCash, missingWaiters } = shiftCash;
   const obligations = selectDailyCashObligations(bills);
   const supplyObligations = [];
   for (const row of supplyDays) {
@@ -83,7 +91,7 @@ async function currentState(tx: Tx, dateKey: string) {
   const paidRevenueFunded = number(day.salaryRevenueFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplyPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0);
   const paidSavingsFunded = number(day.salarySavingsFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplyPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0);
   const unpaidRequired = (salaryPaid ? 0 : number(day.salaryAmount)) + obligations.reduce((sum, row) => sum + row.amount, 0) + supplyObligations.reduce((sum, row) => sum + row.amount, 0);
-  const summary = calculateDailyCashSummary({ revenue, paidRevenueFunded, paidSavingsFunded, unpaidRequired });
+  const summary = calculateDailyCashSummary({ revenue: endDayCash, paidRevenueFunded, paidSavingsFunded, unpaidRequired });
   const paidBreakdownRows = buildDailyCashPaidBreakdown({
     dayId: day.id,
     salary: {
@@ -119,10 +127,10 @@ async function currentState(tx: Tx, dateKey: string) {
       paidAt: row.createdAt,
     })),
   });
-  const paidBreakdownTotals = calculatePaidBreakdownTotals(revenue, paidBreakdownRows);
+  const paidBreakdownTotals = calculatePaidBreakdownTotals(endDayCash, paidBreakdownRows);
   const fingerprint = dailyCashFingerprint({
     dateKey,
-    shifts: shifts.filter((shift) => shift.reportedSales !== null).map((shift) => [shift.id, shift.userId, number(shift.reportedSales)]).sort(),
+    shifts: shiftCash.fingerprintRows,
     missing: missingWaiters.map((waiter) => waiter.id).sort(),
     salary: [number(day.salaryAmount), day.salaryOverridden, day.salaryPaidAt?.toISOString() ?? null, number(day.salaryRevenueFunded), number(day.salarySavingsFunded)],
     manual: day.manualExpenses.map((row) => [row.id, row.description, row.note, number(row.amount), number(row.revenueFunded), number(row.savingsFunded)]),
@@ -133,7 +141,7 @@ async function currentState(tx: Tx, dateKey: string) {
   });
   const locked = isDailyCashLocked(dateKey);
   const status: DailyCashStatus = locked ? "LOCKED" : !day.finalizedAt ? "OPEN" : day.finalizationFingerprint === fingerprint ? "FINALIZED" : "NEEDS_REVIEW";
-  return { day, revenue, missingWaiters, obligations, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
+  return { day, endDayCash, missingWaiters, obligations, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
 }
 
 export async function getDailyCash(dateKey: string, now = new Date()) {
@@ -260,6 +268,6 @@ export async function undoDailyCashSupplyPayment(input: { dateKey: string; id: s
 
 export async function finalizeDailyCash(input: { dateKey: string; userId: string }) {
   return mutate(input.dateKey, new Date(), async (tx, state) => {
-    await tx.dailyCashDay.update({ where: { id: state.day.id }, data: { finalizedAt: new Date(), finalizedByUserId: input.userId, finalizationFingerprint: state.fingerprint, finalizedRevenue: state.revenue, finalizedPaidExpenses: state.paidRevenueFunded + state.paidSavingsFunded, finalizedUnpaidRequired: state.unpaidRequired, finalizedRemainingCash: state.summary.projectedRemaining, finalizedSavingsUsed: state.summary.savingsUsed, finalizedAdditionalSavingsRequired: state.summary.additionalSavingsRequired } });
+    await tx.dailyCashDay.update({ where: { id: state.day.id }, data: { finalizedAt: new Date(), finalizedByUserId: input.userId, finalizationFingerprint: state.fingerprint, finalizedRevenue: state.endDayCash, finalizedPaidExpenses: state.paidRevenueFunded + state.paidSavingsFunded, finalizedUnpaidRequired: state.unpaidRequired, finalizedRemainingCash: state.summary.projectedRemaining, finalizedSavingsUsed: state.summary.savingsUsed, finalizedAdditionalSavingsRequired: state.summary.additionalSavingsRequired } });
   });
 }

@@ -25,11 +25,10 @@ const nairobiDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
 
 function datePartsInNairobi(date: Date) {
   const parts = nairobiDatePartsFormatter.formatToParts(date);
-  const values = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
+  const values: Record<string, string> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") values[part.type] = part.value;
+  }
 
   return `${values.year}-${values.month}-${values.day}`;
 }
