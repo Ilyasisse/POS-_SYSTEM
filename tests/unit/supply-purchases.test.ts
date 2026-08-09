@@ -43,7 +43,7 @@ test("validates decimal quantities and unit prices", () => {
   const now = new Date("2026-07-13T10:00:00.000Z");
   const valid = parseSupplyPurchaseInput(
     purchaseFormData({
-      itemName: "  Milk  ",
+      catalogItemId: "milk-id",
       purchaseDate: "2026-07-13",
       quantity: "2.5",
       unitPrice: "1.20",
@@ -51,12 +51,12 @@ test("validates decimal quantities and unit prices", () => {
     now,
   );
   assert.equal(valid.ok, true);
-  if (valid.ok) assert.equal(valid.value.itemName, "Milk");
+  if (valid.ok) assert.equal(valid.value.catalogItemId, "milk-id");
 
   assert.deepEqual(
     parseSupplyPurchaseInput(
       purchaseFormData({
-        itemName: "Milk",
+        catalogItemId: "milk-id",
         purchaseDate: "2026-07-13",
         quantity: "1.2345",
         unitPrice: "1.20",

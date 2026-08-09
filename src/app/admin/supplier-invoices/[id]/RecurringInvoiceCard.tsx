@@ -21,9 +21,9 @@ type Recurrence = {
   unit: "DAY" | "WEEK" | "MONTH";
   nextRunDate: string;
   isActive: boolean;
-  lastGeneratedAt: string | null;
+  lastGeneratedAtLabel: string | null;
   lastError: string | null;
-  lastErrorAt: string | null;
+  lastErrorAtLabel: string | null;
   pausedAt: string | null;
   generatedCount: number;
 };
@@ -51,13 +51,14 @@ export default function RecurringInvoiceCard({
 
   if (!recurrence && !eligible) return null;
 
-  function runAction(action: RecurrenceAction) {
-    const form = formRef.current;
-    if (!form) return;
+  function runAction(action: RecurrenceAction, submittedFormData?: FormData) {
+    const formData = submittedFormData ??
+      (formRef.current ? new FormData(formRef.current) : null);
+    if (!formData) return;
     setMessage("");
     startTransition(async () => {
       try {
-        const result = await action(new FormData(form));
+        const result = await action(formData);
         setHasError(false);
         setMessage(result.message);
         router.refresh();
@@ -94,8 +95,8 @@ export default function RecurringInvoiceCard({
           <AlertTitle>Generation needs attention</AlertTitle>
           <AlertDescription>
             {recurrence.lastError}
-            {recurrence.lastErrorAt
-              ? ` Last attempted ${new Date(recurrence.lastErrorAt).toLocaleString()}.`
+            {recurrence.lastErrorAtLabel
+              ? ` Last attempted ${recurrence.lastErrorAtLabel}.`
               : ""}
           </AlertDescription>
         </Alert>
@@ -104,14 +105,14 @@ export default function RecurringInvoiceCard({
       <form
         ref={formRef}
         className="grid gap-4"
-        onSubmit={(event) => {
-          event.preventDefault();
+        action={(formData) => {
           runAction(
             recurrence
               ? recurrence.isActive
                 ? updateSupplierInvoiceRecurrenceAction
                 : resumeSupplierInvoiceRecurrenceAction
               : createSupplierInvoiceRecurrenceAction,
+            formData,
           );
         }}
       >
@@ -168,8 +169,8 @@ export default function RecurringInvoiceCard({
           <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
             <p>{recurrence.generatedCount} generated draft(s)</p>
             <p>
-              Last generated: {recurrence.lastGeneratedAt
-                ? new Date(recurrence.lastGeneratedAt).toLocaleString()
+              Last generated: {recurrence.lastGeneratedAtLabel
+                ? recurrence.lastGeneratedAtLabel
                 : "Not yet"}
             </p>
           </div>

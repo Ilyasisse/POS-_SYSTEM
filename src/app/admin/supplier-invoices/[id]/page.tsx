@@ -31,6 +31,11 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Africa/Nairobi",
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export default async function SupplierInvoiceDetailPage({
   params,
@@ -411,12 +416,17 @@ export default async function SupplierInvoiceDetailPage({
                   .toISOString()
                   .slice(0, 10),
                 isActive: invoice.templateRecurrence.isActive,
-                lastGeneratedAt:
-                  invoice.templateRecurrence.lastGeneratedAt?.toISOString() ??
-                  null,
+                lastGeneratedAtLabel: invoice.templateRecurrence.lastGeneratedAt
+                  ? DATE_TIME_FORMATTER.format(
+                      invoice.templateRecurrence.lastGeneratedAt,
+                    )
+                  : null,
                 lastError: invoice.templateRecurrence.lastError,
-                lastErrorAt:
-                  invoice.templateRecurrence.lastErrorAt?.toISOString() ?? null,
+                lastErrorAtLabel: invoice.templateRecurrence.lastErrorAt
+                  ? DATE_TIME_FORMATTER.format(
+                      invoice.templateRecurrence.lastErrorAt,
+                    )
+                  : null,
                 pausedAt:
                   invoice.templateRecurrence.pausedAt?.toISOString() ?? null,
                 generatedCount:

@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 
 type SupplyFormAction = (formData: FormData) => void | Promise<void>;
 
@@ -24,19 +25,31 @@ function previewLineTotal(quantity: string, unitPrice: string) {
 }
 
 export function SupplyEntryFields({
-  itemName = "",
+  catalogItems,
+  catalogItemId = "",
   quantity = "",
   unitPrice = "",
   prefix,
 }: {
-  itemName?: string;
+  catalogItems: SupplyCatalogOption[];
+  catalogItemId?: string;
   quantity?: string;
   unitPrice?: string;
   prefix: string;
 }) {
   const generatedId = useId();
-  const [currentQuantity, setCurrentQuantity] = useState(quantity);
-  const [currentUnitPrice, setCurrentUnitPrice] = useState(unitPrice);
+  const initialItem = catalogItems.find((item) => item.id === catalogItemId);
+  const [currentCatalogItemId, setCurrentCatalogItemId] = useState(
+    catalogItemId || catalogItems[0]?.id || "",
+  );
+  const [currentQuantity, setCurrentQuantity] = useState(quantity || "1");
+  const [currentUnitPrice, setCurrentUnitPrice] = useState(
+    unitPrice || initialItem?.defaultUnitPrice || catalogItems[0]?.defaultUnitPrice || "",
+  );
+  const [priceOverride, setPriceOverride] = useState(
+    Boolean(unitPrice && initialItem && unitPrice !== initialItem.defaultUnitPrice),
+  );
+  const selectedItem = catalogItems.find((item) => item.id === currentCatalogItemId);
   const itemNameId = `${prefix}-${generatedId}-name`;
   const quantityId = `${prefix}-${generatedId}-quantity`;
   const unitPriceId = `${prefix}-${generatedId}-price`;
@@ -44,15 +57,26 @@ export function SupplyEntryFields({
   return (
     <>
       <div className="grid gap-2">
-        <Label htmlFor={itemNameId}>Item name</Label>
-        <Input
+        <Label htmlFor={itemNameId}>Supply item</Label>
+        <NativeSelect
           id={itemNameId}
-          name="itemName"
+          name="catalogItemId"
           required
-          defaultValue={itemName}
-          placeholder="e.g. Milk"
-          maxLength={160}
-        />
+          value={currentCatalogItemId}
+          className="w-full"
+          onChange={(event) => {
+            const nextId = event.target.value;
+            const nextItem = catalogItems.find((item) => item.id === nextId);
+            setCurrentCatalogItemId(nextId);
+            setCurrentUnitPrice(nextItem?.defaultUnitPrice ?? "");
+            setPriceOverride(false);
+          }}
+        >
+          <option value="" disabled>Select an item</option>
+          {catalogItems.map((item) => (
+            <option key={item.id} value={item.id}>{item.name} · {item.unit}</option>
+          ))}
+        </NativeSelect>
       </div>
       <div className="grid gap-2">
         <Label htmlFor={quantityId}>Quantity</Label>
@@ -69,7 +93,22 @@ export function SupplyEntryFields({
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor={unitPriceId}>Unit price</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor={unitPriceId}>Unit price</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (priceOverride) {
+                setCurrentUnitPrice(selectedItem?.defaultUnitPrice ?? "");
+              }
+              setPriceOverride((current) => !current);
+            }}
+          >
+            {priceOverride ? "Use catalog price" : "Change price once"}
+          </Button>
+        </div>
         <Input
           id={unitPriceId}
           name="unitPrice"
@@ -77,10 +116,16 @@ export function SupplyEntryFields({
           min="0"
           step="0.01"
           required
+          readOnly={!priceOverride}
           value={currentUnitPrice}
           onChange={(event) => setCurrentUnitPrice(event.target.value)}
           placeholder="0.00"
         />
+        <p className="text-xs text-muted-foreground">
+          {priceOverride
+            ? "This price applies only to this purchase."
+            : `Catalog price per ${selectedItem?.unit ?? "unit"}.`}
+        </p>
       </div>
       <div className="grid gap-2">
         <Label>Line price</Label>
@@ -98,15 +143,24 @@ export function SupplyEntryFields({
 export default function SupplyEntryForm({
   purchaseDate,
   action,
+  catalogItems,
 }: {
   purchaseDate: string;
   action: SupplyFormAction;
+  catalogItems: SupplyCatalogOption[];
 }) {
   return (
     <form action={action} className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_0.7fr_0.8fr_0.8fr_auto] xl:items-end">
       <Input type="hidden" name="purchaseDate" value={purchaseDate} />
-      <SupplyEntryFields prefix="new-supply" />
-      <Button type="submit">Add item</Button>
+      <SupplyEntryFields prefix="new-supply" catalogItems={catalogItems} />
+      <Button type="submit" disabled={catalogItems.length === 0}>Add item</Button>
     </form>
   );
 }
+
+export type SupplyCatalogOption = {
+  id: string;
+  name: string;
+  unit: string;
+  defaultUnitPrice: string;
+};
