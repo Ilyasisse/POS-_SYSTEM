@@ -174,6 +174,7 @@ function refreshInvoicePages(
   revalidatePath(`/print/supplier-invoices/${invoiceId}`);
   revalidatePath("/admin/supplier-purchase-orders");
   revalidatePath("/admin/reports/supplier-bills");
+  revalidatePath("/admin/suppliers");
   revalidatePath("/admin");
   if (purchaseOrderId) {
     revalidatePath(`/admin/supplier-purchase-orders/${purchaseOrderId}`);
@@ -276,8 +277,11 @@ export async function finalizeSupplierInvoiceAction(formData: FormData) {
     draftFromFormData(formData),
   );
   refreshInvoicePages(invoiceId, result.purchaseOrderId);
+  revalidatePath(`/admin/suppliers/${result.supplierId}`);
   return {
-    message: "Invoice approved and supplier bill created.",
+    message: result.creditApplied.gt(0)
+      ? `Invoice approved and ${result.creditApplied.toFixed(2)} of supplier credit applied.`
+      : "Invoice approved and supplier bill created.",
     redirectTo: `/admin/supplier-invoices/${encodeURIComponent(result.invoiceId)}?invoiceStatus=approved`,
   };
 }

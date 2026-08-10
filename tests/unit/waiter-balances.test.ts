@@ -60,17 +60,42 @@ test("accepts only real ISO calendar dates", () => {
   assert.equal(parseBusinessDateKey("07/01/2026"), null);
 });
 
-test("blocks dates before activation and after the current business day", () => {
+test("blocks dates before activation and before the POS day has closed", () => {
   const now = new Date(2026, 6, 3, 12, 0, 0);
 
   assert.throws(
     () => assertLedgerBusinessDate("2026-06-30", now),
     /July 1/,
   );
-  assert.equal(assertLedgerBusinessDate("2026-07-03", now), "2026-07-03");
+  assert.equal(assertLedgerBusinessDate("2026-07-02", now), "2026-07-02");
   assert.throws(
-    () => assertLedgerBusinessDate("2026-07-04", now),
-    /Future/,
+    () => assertLedgerBusinessDate("2026-07-03", now),
+    /after the POS business day closes/,
+  );
+});
+
+test("opens a waiter balance at the 5 AM POS close boundary", () => {
+  assert.throws(
+    () =>
+      assertLedgerBusinessDate(
+        "2026-08-09",
+        new Date(2026, 7, 10, 4, 59, 59),
+      ),
+    /after the POS business day closes/,
+  );
+  assert.equal(
+    assertLedgerBusinessDate(
+      "2026-08-09",
+      new Date(2026, 7, 10, 5, 0, 0),
+    ),
+    "2026-08-09",
+  );
+  assert.equal(
+    assertLedgerBusinessDate(
+      "2026-08-09",
+      new Date(2026, 7, 10, 7, 0, 0),
+    ),
+    "2026-08-09",
   );
 });
 

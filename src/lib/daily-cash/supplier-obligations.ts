@@ -4,6 +4,7 @@ import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 
 type Bill = {
   id: string;
+  supplierId: string;
   dueDate: Date;
   totalAmount: { toString(): string };
   paidAmount: { toString(): string };
@@ -25,7 +26,7 @@ export function selectDailyCashObligations(bills: readonly Bill[]): SupplierObli
       ? Number(scheduled.amount) - Number(scheduled.paidAmount)
       : Number(bill.totalAmount) - Number(bill.paidAmount);
     if (amount <= 0) return [];
-    return [{ billId: bill.id, installmentId: scheduled?.id ?? null, supplierName: bill.supplier.name, invoiceNumber: formatSupplierInvoiceNumber(bill.invoice.invoiceNumber), dueDate, amount }];
+    return [{ billId: bill.id, supplierId: bill.supplierId, installmentId: scheduled?.id ?? null, supplierName: bill.supplier.name, invoiceNumber: formatSupplierInvoiceNumber(bill.invoice.invoiceNumber), dueDate, amount }];
   }).sort((first, second) =>
     first.dueDate.getTime() - second.dueDate.getTime() ||
     first.supplierName.localeCompare(second.supplierName) ||
@@ -34,13 +35,17 @@ export function selectDailyCashObligations(bills: readonly Bill[]): SupplierObli
   );
 }
 
-export function validateSupplierObligationPaymentAmount(requestedAmount: number, remainingBalance: number) {
+export function validateSupplierObligationPaymentAmount(
+  requestedAmount: number,
+  remainingBalance: number,
+  allowOverpayment = false,
+) {
   if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
     throw new Error("Enter a payment amount greater than zero.");
   }
   const amount = roundMoney(requestedAmount);
   const remaining = roundMoney(remainingBalance);
-  if (amount > remaining) {
+  if (amount > remaining && !allowOverpayment) {
     throw new Error(`Payment cannot exceed the remaining balance of $${remaining.toFixed(2)}.`);
   }
   return amount;
