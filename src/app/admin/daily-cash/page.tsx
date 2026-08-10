@@ -92,10 +92,10 @@ function DailyCashContent({ data, date }: { data: DailyCashData; date: string })
   const paidExpenses = data.paidRevenueFunded + data.paidSavingsFunded;
   return <>
     <div className="flex items-center justify-between gap-3"><Badge variant={statusTone}>{data.status.replace("_", " ")}</Badge><span className="text-sm text-muted-foreground">{date} · POS business day</span></div>
-    {data.missingWaiters.length ? <Alert><AlertCircle /><AlertTitle>End-day cash is incomplete</AlertTitle><AlertDescription>Missing waiter end-day amounts: {data.missingWaiters.map((row) => row.fullName).join(", ")}. You may still record payments.</AlertDescription></Alert> : null}
+    {data.missingWaiters.length ? <Alert><AlertCircle /><AlertTitle>Waiter revenue for {data.waiterBalanceDateKey} is incomplete</AlertTitle><AlertDescription>Missing waiter end-day amounts for {data.waiterBalanceDateKey}: {data.missingWaiters.map((row) => row.fullName).join(", ")}. You may still record payments.</AlertDescription></Alert> : null}
     {locked ? <Alert variant="destructive"><AlertCircle /><AlertTitle>Day locked</AlertTitle><AlertDescription>This business day is more than seven days old and cannot be changed.</AlertDescription></Alert> : null}
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <Metric label="End-day cash" value={money(data.endDayCash)} help="Combined from Waiter Balances" />
+      <Metric label="Waiter revenue" value={money(data.endDayCash)} help={`Combined from Waiter Balances for ${data.waiterBalanceDateKey}`} />
       <Metric label="Paid expenses" value={money(paidExpenses)} help="Salary, supplies, manual, and supplier payments" />
       <Metric label="Unpaid required" value={money(data.unpaidRequired)} help="Salary, supplies, and eligible invoices" />
       <Metric label="Projected remaining" value={money(data.summary.projectedRemaining)} help="After all shown required expenses" />

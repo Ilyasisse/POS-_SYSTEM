@@ -1,10 +1,29 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateDailyCashSummary, fundingFor } from "../../src/lib/daily-cash/money";
+import {
+  getDailyCashDefaultDateKey,
+  getDailyCashWaiterBalanceDateKey,
+} from "../../src/lib/daily-cash/business-date";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "../../src/lib/daily-cash/paid-breakdown";
 import { resolveDailySalaryRate } from "../../src/lib/daily-cash/salary-rates";
 import { summarizeDailyCashShiftCash } from "../../src/lib/daily-cash/shift-cash";
 import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } from "../../src/lib/daily-cash/supplier-obligations";
+
+test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
+  assert.equal(
+    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 6, 59, 59)),
+    "2026-08-09",
+  );
+  assert.equal(
+    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 7, 0, 0)),
+    "2026-08-10",
+  );
+  assert.equal(
+    getDailyCashWaiterBalanceDateKey("2026-08-10"),
+    "2026-08-09",
+  );
+});
 
 test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
   const shifts = [

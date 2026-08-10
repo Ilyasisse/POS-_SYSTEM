@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { parseCurrencyAmount } from "@/lib/currency/amount-input";
 
 export const NAIROBI_TIME_ZONE = "Africa/Nairobi";
 
@@ -15,6 +14,21 @@ export type SupplyPurchaseValidation =
   | { ok: false; status: "invalid_date" | "invalid_entry" };
 
 const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
+const UNIT_PRICE_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,4})?$/;
+
+export function parseSupplyUnitPrice(
+  value: FormDataEntryValue | string | number | null | undefined,
+) {
+  const input = String(value ?? "").trim();
+  if (!UNIT_PRICE_PATTERN.test(input)) return null;
+
+  try {
+    const price = new Prisma.Decimal(input);
+    return price.isNegative() ? null : price;
+  } catch {
+    return null;
+  }
+}
 
 const nairobiDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: NAIROBI_TIME_ZONE,
@@ -86,7 +100,7 @@ export function parseSupplyPurchaseInput(
     return { ok: false, status: "invalid_date" };
   }
 
-  const unitPrice = parseCurrencyAmount(unitPriceInput);
+  const unitPrice = parseSupplyUnitPrice(unitPriceInput);
   if (
     !catalogItemId ||
     !QUANTITY_PATTERN.test(quantityInput) ||
@@ -105,7 +119,7 @@ export function parseSupplyPurchaseInput(
       catalogItemId,
       purchaseDateKey,
       quantity,
-      unitPrice: new Prisma.Decimal(unitPriceInput),
+      unitPrice,
     },
   };
 }

@@ -718,7 +718,7 @@ model SupplyCatalogItem {
   id               String           @id @default(cuid())
   name             String
   unit             String
-  defaultUnitPrice Decimal          @db.Decimal(12, 2)
+  defaultUnitPrice Decimal          @db.Decimal(14, 4)
   isActive         Boolean          @default(true)
   createdByUserId  String
   createdAt        DateTime         @default(now())
@@ -758,7 +758,7 @@ model SupplyPurchase {
   itemName        String
   unit            String             @default("unit")
   quantity        Decimal            @db.Decimal(12, 3)
-  unitPrice       Decimal            @db.Decimal(12, 2)
+  unitPrice       Decimal            @db.Decimal(14, 4)
   createdByUserId String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
