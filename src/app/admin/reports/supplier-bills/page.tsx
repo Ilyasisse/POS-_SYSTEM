@@ -39,6 +39,14 @@ const SUPPLIER_BILL_PAYMENT_STATUSES = ["UNPAID", "PARTIAL", "PAID"] as const;
 type SupplierBillPaymentStatus =
   (typeof SUPPLIER_BILL_PAYMENT_STATUSES)[number];
 
+type SupplierBillsSearchParams = {
+  from?: string;
+  to?: string;
+  supplier?: string;
+  scope?: string;
+  status?: string;
+};
+
 function paymentStatus(value: string | undefined) {
   return SUPPLIER_BILL_PAYMENT_STATUSES.includes(
     value as SupplierBillPaymentStatus,
@@ -47,18 +55,18 @@ function paymentStatus(value: string | undefined) {
     : undefined;
 }
 
-function SupplierBillReportFilters({
+function SupplierBillsFilters({
+  params,
   suppliers,
-  selectedSupplier,
-  selectedPaymentStatus,
   showingDueThroughTomorrow,
+  selectedPaymentStatus,
   from,
   to,
 }: {
+  params: SupplierBillsSearchParams;
   suppliers: readonly { id: string; name: string }[];
-  selectedSupplier?: string;
-  selectedPaymentStatus?: SupplierBillPaymentStatus;
   showingDueThroughTomorrow: boolean;
+  selectedPaymentStatus: SupplierBillPaymentStatus | undefined;
   from: Date;
   to: Date;
 }) {
@@ -71,14 +79,14 @@ function SupplierBillReportFilters({
       ) : null}
       <AutoSubmitSelect
         name="supplier"
-        defaultValue={selectedSupplier || ""}
+        defaultValue={params.supplier || ""}
         aria-label="Supplier"
         className="h-10 w-full rounded-lg border border-slate-200 px-2"
       >
         <option value="">All suppliers</option>
-        {suppliers.map((supplier) => (
-          <option key={supplier.id} value={supplier.id}>
-            {supplier.name}
+        {suppliers.map((row) => (
+          <option key={row.id} value={row.id}>
+            {row.name}
           </option>
         ))}
       </AutoSubmitSelect>
@@ -95,9 +103,7 @@ function SupplierBillReportFilters({
         </option>
         <option value="UNPAID">Unpaid</option>
         <option value="PARTIAL">Partially paid</option>
-        {showingDueThroughTomorrow ? null : (
-          <option value="PAID">Paid</option>
-        )}
+        {showingDueThroughTomorrow ? null : <option value="PAID">Paid</option>}
       </AutoSubmitSelect>
       {showingDueThroughTomorrow ? null : (
         <>
@@ -119,38 +125,24 @@ function SupplierBillReportFilters({
   );
 }
 
-function DueThroughTomorrowNotice() {
-  return (
-    <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-      <p className="font-semibold text-amber-900">
-        Showing every unpaid or partially paid invoice bill due through
-        tomorrow, regardless of invoice date.
-      </p>
-      <Button asChild variant="outline" size="sm">
-        <Link href="/admin/reports/supplier-bills">View date-range report</Link>
-      </Button>
-    </Card>
-  );
-}
-
-function SupplierBillReportSummary({
+function SupplierBillsSummary({
   unpaid,
   paid,
   draftValue,
   voidCount,
-  todayTotal,
-  weekTotal,
-  monthTotal,
+  today,
+  thisWeek,
+  thisMonth,
   supplierTotals,
 }: {
   unpaid: number;
   paid: number;
   draftValue: number;
   voidCount: number;
-  todayTotal: number;
-  weekTotal: number;
-  monthTotal: number;
-  supplierTotals: readonly (readonly [string, number])[];
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  supplierTotals: ReadonlyMap<string, number>;
 }) {
   return (
     <>
@@ -161,14 +153,14 @@ function SupplierBillReportSummary({
         <MetricCard label="Void invoices" value={voidCount} />
       </section>
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Today's bills" value={money(todayTotal)} />
-        <MetricCard label="This week" value={money(weekTotal)} />
-        <MetricCard label="This month" value={money(monthTotal)} />
+        <MetricCard label="Today's bills" value={money(today)} />
+        <MetricCard label="This week" value={money(thisWeek)} />
+        <MetricCard label="This month" value={money(thisMonth)} />
       </section>
       <Card className="p-4">
         <h2 className="font-black">Supplier totals</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {supplierTotals.map(([name, total]) => (
+          {[...supplierTotals].map(([name, total]) => (
             <div
               key={name}
               className="flex justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
@@ -186,13 +178,7 @@ function SupplierBillReportSummary({
 export default async function SupplierBillsReportPage({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    from?: string;
-    to?: string;
-    supplier?: string;
-    scope?: string;
-    status?: string;
-  }>;
+  searchParams?: Promise<SupplierBillsSearchParams>;
 }) {
   const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const params = (await searchParams) || {};
@@ -395,24 +381,38 @@ export default async function SupplierBillsReportPage({
       title="Supplier bills"
       description="Audit approved supplier invoices, balances, due dates, and every payment."
     >
-      <SupplierBillReportFilters
+      <SupplierBillsFilters
+        params={params}
         suppliers={suppliers}
-        selectedSupplier={params.supplier}
-        selectedPaymentStatus={selectedPaymentStatus}
         showingDueThroughTomorrow={showingDueThroughTomorrow}
+        selectedPaymentStatus={selectedPaymentStatus}
         from={from}
         to={to}
       />
-      {showingDueThroughTomorrow ? <DueThroughTomorrowNotice /> : null}
-      <SupplierBillReportSummary
+
+      {showingDueThroughTomorrow ? (
+        <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-amber-900">
+            Showing every unpaid or partially paid invoice bill due through
+            tomorrow, regardless of invoice date.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/reports/supplier-bills">
+              View date-range report
+            </Link>
+          </Button>
+        </Card>
+      ) : null}
+
+      <SupplierBillsSummary
         unpaid={unpaid}
         paid={paid}
         draftValue={draftValue}
         voidCount={voidCount}
-        todayTotal={totalSince(dayStart)}
-        weekTotal={totalSince(weekStart)}
-        monthTotal={totalSince(monthStart)}
-        supplierTotals={[...supplierTotals]}
+        today={totalSince(dayStart)}
+        thisWeek={totalSince(weekStart)}
+        thisMonth={totalSince(monthStart)}
+        supplierTotals={supplierTotals}
       />
       <SupplierBillsTable rows={rows} now={now} />
     </AdminPage>

@@ -37,7 +37,7 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-function findSupplierInvoice(id: string) {
+async function findSupplierInvoice(id: string) {
   return prisma.supplierInvoice.findUnique({
     where: { id },
     include: {
@@ -88,67 +88,15 @@ function findSupplierInvoice(id: string) {
 type SupplierInvoiceDetail = NonNullable<
   Awaited<ReturnType<typeof findSupplierInvoice>>
 >;
-
-type BillPaymentRow = {
-  id: string;
-  amount: number;
-  paymentMethod: string | null;
-  recordedByName: string;
-  paidAtLabel: string;
+type InvoicePaymentRecord = NonNullable<
+  SupplierInvoiceDetail["bill"]
+>["payments"][number];
+type InvoicePaymentRow = Omit<InvoicePaymentRecord, "dailyCashPayment"> & {
   dailyCashBusinessDate: string | null;
   reversalError: string | null;
 };
 
-function InvoicePageActions({ invoice }: { invoice: SupplierInvoiceDetail }) {
-  return (
-    <>
-      <Button asChild>
-        <Link
-          href={`/print/supplier-invoices/${invoice.id}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Printable view
-        </Link>
-      </Button>
-      {invoice.purchaseOrder ? (
-        <Button asChild variant="outline">
-          <Link
-            href={`/admin/supplier-purchase-orders/${invoice.purchaseOrder.id}`}
-          >
-            Open purchase order
-          </Link>
-        </Button>
-      ) : null}
-    </>
-  );
-}
-
-function InvoiceStatusAlerts({ invoiceStatus }: { invoiceStatus?: string }) {
-  return (
-    <>
-      {invoiceStatus === "approved" ? (
-        <Alert>
-          <AlertTitle>Invoice approved</AlertTitle>
-          <AlertDescription>
-            The invoice is now read-only, its supplier bill was created, and
-            payment is pending.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {invoiceStatus === "created" ? (
-        <Alert>
-          <AlertTitle>Invoice draft created</AlertTitle>
-          <AlertDescription>
-            Review the invoice details, then save or finalize it when ready.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-    </>
-  );
-}
-
-function InvoiceOverview({
+function InvoiceSummaryCards({
   invoice,
   displayStatus,
   effectiveDueDate,
@@ -206,7 +154,7 @@ function InvoiceOverview({
   );
 }
 
-function InvoicePaymentHistory({ payments }: { payments: BillPaymentRow[] }) {
+function InvoicePaymentsCard({ payments }: { payments: InvoicePaymentRow[] }) {
   if (!payments.length) return null;
 
   return (
@@ -225,11 +173,11 @@ function InvoicePaymentHistory({ payments }: { payments: BillPaymentRow[] }) {
           >
             <div className="text-sm">
               <div className="font-semibold tabular-nums">
-                {formatMoney(payment.amount)}
+                {formatMoney(Number(payment.amount))}
               </div>
               <div className="text-muted-foreground">
                 {payment.paymentMethod || "Unspecified method"} ·{" "}
-                {payment.recordedByName} · {payment.paidAtLabel}
+                {payment.recordedBy.fullName} · {payment.paidAt.toLocaleString()}
               </div>
               {payment.dailyCashBusinessDate ? (
                 <div className="text-xs text-muted-foreground">
@@ -239,7 +187,7 @@ function InvoicePaymentHistory({ payments }: { payments: BillPaymentRow[] }) {
             </div>
             <RevertPaymentButton
               paymentId={payment.id}
-              amount={formatMoney(payment.amount)}
+              amount={formatMoney(Number(payment.amount))}
               disabledReason={payment.reversalError}
             />
           </div>
@@ -289,7 +237,7 @@ function InvoiceInstallmentSchedule({
   );
 }
 
-function InvoiceAudit({ invoice }: { invoice: SupplierInvoiceDetail }) {
+function InvoiceAuditCard({ invoice }: { invoice: SupplierInvoiceDetail }) {
   if (invoice.status === "DRAFT") return null;
 
   return (
@@ -327,8 +275,8 @@ function InvoiceAudit({ invoice }: { invoice: SupplierInvoiceDetail }) {
           {invoice.legacyInventoryUpdatedAt ? (
             <p>
               Historical inventory update:{" "}
-              {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This is audit
-              history only; invoices no longer update inventory.
+              {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This is
+              audit history only; invoices no longer update inventory.
             </p>
           ) : null}
           {invoice.legacySubtotalAmount !== null ||
@@ -356,46 +304,45 @@ function InvoiceAudit({ invoice }: { invoice: SupplierInvoiceDetail }) {
   );
 }
 
-function InvoiceReferences({
+function ReceiptReferenceCard({ receiptUrl }: { receiptUrl: string | null }) {
+  if (!receiptUrl) return null;
+
+  return (
+    <Card className="p-5">
+      <h2 className="font-semibold">Receipt reference</h2>
+      <a
+        href={receiptUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="text-sm font-semibold text-primary hover:underline"
+      >
+        Open receipt image
+      </a>
+    </Card>
+  );
+}
+
+function RecurringDraftSourceCard({
   invoice,
-  receiptUrl,
 }: {
   invoice: SupplierInvoiceDetail;
-  receiptUrl: string | null;
 }) {
+  if (!invoice.generatedByRecurrence) return null;
+
+  const sourceInvoice = invoice.generatedByRecurrence.sourceInvoice;
   return (
-    <>
-      {receiptUrl ? (
-        <Card className="p-5">
-          <h2 className="font-semibold">Receipt reference</h2>
-          <a
-            href={receiptUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-semibold text-primary hover:underline"
-          >
-            Open receipt image
-          </a>
-        </Card>
-      ) : null}
-      {invoice.generatedByRecurrence ? (
-        <Card className="gap-2 p-5">
-          <h2 className="font-semibold">Recurring draft</h2>
-          <p className="text-sm text-muted-foreground">
-            This draft was generated from a recurring supplier invoice
-            template.
-          </p>
-          <Button asChild variant="outline" className="w-fit">
-            <Link
-              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
-            >
-              Open source invoice
-              {` ${formatSupplierInvoiceNumber(invoice.generatedByRecurrence.sourceInvoice.invoiceNumber)}`}
-            </Link>
-          </Button>
-        </Card>
-      ) : null}
-    </>
+    <Card className="gap-2 p-5">
+      <h2 className="font-semibold">Recurring draft</h2>
+      <p className="text-sm text-muted-foreground">
+        This draft was generated from a recurring supplier invoice template.
+      </p>
+      <Button asChild variant="outline" className="w-fit">
+        <Link href={`/admin/supplier-invoices/${sourceInvoice.id}`}>
+          Open source invoice
+          {` ${formatSupplierInvoiceNumber(sourceInvoice.invoiceNumber)}`}
+        </Link>
+      </Button>
+    </Card>
   );
 }
 
@@ -424,11 +371,7 @@ export default async function SupplierInvoiceDetailPage({
         ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
         : null;
       return {
-        id: payment.id,
-        amount: Number(payment.amount),
-        paymentMethod: payment.paymentMethod,
-        recordedByName: payment.recordedBy.fullName,
-        paidAtLabel: payment.paidAt.toLocaleString(),
+        ...payment,
         dailyCashBusinessDate,
         reversalError: getSupplierPaymentReversalError({
           installmentId: payment.installmentId,
@@ -464,24 +407,58 @@ export default async function SupplierInvoiceDetailPage({
     <AdminPage
       title={`Supplier invoice ${formattedInvoiceNumber}`}
       description={`${invoice.supplier.name} · ${SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}`}
-      action={<InvoicePageActions invoice={invoice} />}
+      action={
+        <>
+          <Button asChild>
+            <Link
+              href={`/print/supplier-invoices/${invoice.id}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Printable view
+            </Link>
+          </Button>
+          {invoice.purchaseOrder ? (
+            <Button asChild variant="outline">
+              <Link
+                href={`/admin/supplier-purchase-orders/${invoice.purchaseOrder.id}`}
+              >
+                Open purchase order
+              </Link>
+            </Button>
+          ) : null}
+        </>
+      }
     >
-      <InvoiceStatusAlerts invoiceStatus={query?.invoiceStatus} />
+      {query?.invoiceStatus === "approved" ? (
+        <Alert>
+          <AlertTitle>Invoice approved</AlertTitle>
+          <AlertDescription>
+            The invoice is now read-only, its supplier bill was created, and
+            payment is pending.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {query?.invoiceStatus === "created" ? (
+        <Alert>
+          <AlertTitle>Invoice draft created</AlertTitle>
+          <AlertDescription>
+            Review the invoice details, then save or finalize it when ready.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-      <InvoiceOverview
+      <InvoiceSummaryCards
         invoice={invoice}
         displayStatus={displayStatus}
         effectiveDueDate={effectiveDueDate}
         remainingBalance={remainingBalance}
       />
-
-      <InvoicePaymentHistory payments={billPayments} />
-
+      <InvoicePaymentsCard payments={billPayments} />
       <InvoiceInstallmentSchedule invoice={invoice} />
-
-      <InvoiceAudit invoice={invoice} />
-
-      <InvoiceReferences invoice={invoice} receiptUrl={receiptUrl} />
+      <InvoiceAuditCard invoice={invoice} />
+      <ReceiptReferenceCard receiptUrl={receiptUrl} />
+      <RecurringDraftSourceCard invoice={invoice} />
 
       <RecurringInvoiceCard
         invoiceId={invoice.id}
