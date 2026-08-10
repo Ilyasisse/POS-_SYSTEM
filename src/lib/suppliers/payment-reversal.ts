@@ -5,11 +5,11 @@ type MoneyValue = { toString(): string };
 export type SupplierPaymentStateInput = {
   totalAmount: MoneyValue;
   dueDate: Date;
-  payments: readonly {
+  allocations: readonly {
     amount: MoneyValue;
     installmentId: string | null;
-    paidAt: Date;
-    recordedByUserId: string;
+    allocatedAt: Date;
+    appliedByUserId: string;
   }[];
   installments: readonly {
     id: string;
@@ -19,8 +19,7 @@ export type SupplierPaymentStateInput = {
 };
 
 export type SupplierPaymentReversalGuardInput = {
-  installmentId: string | null;
-  hasInstallments: boolean;
+  legacyAllocationAfterSchedule?: boolean;
   dailyCashLinked: boolean;
   dailyCashLocked: boolean;
   canManageDailyCash: boolean;
@@ -37,8 +36,8 @@ function paymentStatus(
 export function getSupplierPaymentReversalError(
   input: SupplierPaymentReversalGuardInput,
 ) {
-  if (!input.installmentId && input.hasInstallments) {
-    return "This legacy payment cannot be reverted after an installment schedule has been created.";
+  if (input.legacyAllocationAfterSchedule) {
+    return "This payment cannot be reverted after an installment schedule was created for one of its invoice allocations.";
   }
   if (input.dailyCashLinked && !input.canManageDailyCash) {
     return "Daily Cash permission is required to revert this payment.";
@@ -53,8 +52,8 @@ export function calculateSupplierPaymentState(
   input: SupplierPaymentStateInput,
 ) {
   const totalAmount = new Prisma.Decimal(input.totalAmount.toString());
-  const paidAmount = input.payments.reduce(
-    (sum, payment) => sum.add(payment.amount.toString()),
+  const paidAmount = input.allocations.reduce(
+    (sum, allocation) => sum.add(allocation.amount.toString()),
     new Prisma.Decimal(0),
   );
   if (paidAmount.greaterThan(totalAmount)) {
@@ -62,15 +61,16 @@ export function calculateSupplierPaymentState(
   }
 
   const status = paymentStatus(paidAmount, totalAmount);
-  const latestPayment = [...input.payments].sort(
-    (first, second) => second.paidAt.getTime() - first.paidAt.getTime(),
+  const latestAllocation = [...input.allocations].sort(
+    (first, second) =>
+      second.allocatedAt.getTime() - first.allocatedAt.getTime(),
   )[0];
   const installments = input.installments.map((installment) => {
     const installmentAmount = new Prisma.Decimal(installment.amount.toString());
-    const installmentPaidAmount = input.payments.reduce(
-      (sum, payment) =>
-        payment.installmentId === installment.id
-          ? sum.add(payment.amount.toString())
+    const installmentPaidAmount = input.allocations.reduce(
+      (sum, allocation) =>
+        allocation.installmentId === installment.id
+          ? sum.add(allocation.amount.toString())
           : sum,
       new Prisma.Decimal(0),
     );
@@ -94,9 +94,12 @@ export function calculateSupplierPaymentState(
       paidAmount,
       status,
       dueDate: nextDueDate ?? input.dueDate,
-      settledAt: status === "PAID" ? latestPayment?.paidAt ?? null : null,
+      settledAt:
+        status === "PAID" ? latestAllocation?.allocatedAt ?? null : null,
       settledByUserId:
-        status === "PAID" ? latestPayment?.recordedByUserId ?? null : null,
+        status === "PAID"
+          ? latestAllocation?.appliedByUserId ?? null
+          : null,
     },
     installments,
   };

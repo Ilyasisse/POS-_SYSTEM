@@ -15,6 +15,21 @@ import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } f
 import type { DailyCashActionResult, DailyCashStatus } from "./types";
 
 type Tx = Prisma.TransactionClient;
+type TransactionQuery = () => PromiseLike<unknown>;
+type TransactionQueryResults<Queries extends readonly TransactionQuery[]> = {
+  [Index in keyof Queries]: Awaited<ReturnType<Queries[Index]>>;
+};
+
+async function runTransactionQueriesSequentially<
+  Queries extends readonly TransactionQuery[],
+>(queries: Queries): Promise<TransactionQueryResults<Queries>> {
+  const results: unknown[] = [];
+  for (const query of queries) {
+    results.push(await query());
+  }
+  return results as TransactionQueryResults<Queries>;
+}
+
 const number = (value: { toString(): string } | number | null | undefined) => Number(value?.toString() ?? 0);
 
 async function materializeDay(tx: Tx, dateKey: string) {
@@ -32,10 +47,10 @@ async function materializeDay(tx: Tx, dateKey: string) {
         include: {
           supplierPayment: {
             include: {
-              bill: {
-                include: {
-                  supplier: { select: { name: true } },
-                  invoice: { select: { invoiceNumber: true } },
+              supplier: { select: { name: true } },
+              allocations: {
+                select: {
+                  bill: { select: { invoice: { select: { invoiceNumber: true } } } },
                 },
               },
             },
@@ -55,19 +70,66 @@ async function currentState(tx: Tx, dateKey: string) {
   const day = await materializeDay(tx, dateKey);
   if (!day) return null;
   const businessDate = businessDateKeyToDatabaseDate(dateKey);
-  const [shifts, activeWaiters, bills, supplyDays] = await Promise.all([
-    tx.shift.findMany({ where: { businessDate }, select: { id: true, userId: true, closingAmount: true } }),
-    tx.user.findMany({ where: { role: "WAITER", isActive: true }, select: { id: true, fullName: true } }),
-    tx.supplierBill.findMany({
-      where: { status: { in: ["UNPAID", "PARTIAL"] }, invoice: { status: "FINALIZED" } },
-      include: { supplier: { select: { name: true } }, invoice: { select: { invoiceNumber: true } }, installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] } },
-    }),
-    tx.supplyDay.findMany({
-      where: { closedAt: { not: null }, purchaseDate: { lt: businessDate } },
-      include: { payments: { where: { dailyCashDay: { businessDate: { lte: businessDate } } }, select: { amount: true } } },
-      orderBy: { purchaseDate: "asc" },
-    }),
-  ]);
+  // Interactive transactions use one pg client, so these independent reads
+  // must be issued sequentially even though they would normally be parallel.
+  const [shifts, activeWaiters, bills, suppliers, supplyDays] =
+    await runTransactionQueriesSequentially([
+      () =>
+        tx.shift.findMany({
+          where: { businessDate },
+          select: { id: true, userId: true, closingAmount: true },
+        }),
+      () =>
+        tx.user.findMany({
+          where: { role: "WAITER", isActive: true },
+          select: { id: true, fullName: true },
+        }),
+      () =>
+        tx.supplierBill.findMany({
+          where: {
+            status: { in: ["UNPAID", "PARTIAL"] },
+            invoice: { status: "FINALIZED" },
+          },
+          include: {
+            supplier: { select: { name: true } },
+            invoice: { select: { invoiceNumber: true } },
+            installments: {
+              orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+            },
+          },
+        }),
+      () =>
+        tx.supplier.findMany({
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            payments: {
+              select: {
+                amount: true,
+                allocations: { select: { amount: true } },
+              },
+            },
+          },
+          orderBy: { name: "asc" },
+        }),
+      () =>
+        tx.supplyDay.findMany({
+          where: {
+            closedAt: { not: null },
+            purchaseDate: { lt: businessDate },
+          },
+          include: {
+            payments: {
+              where: {
+                dailyCashDay: { businessDate: { lte: businessDate } },
+              },
+              select: { amount: true },
+            },
+          },
+          orderBy: { purchaseDate: "asc" },
+        }),
+    ] as const);
   const shiftCash = summarizeDailyCashShiftCash(
     shifts.map((shift) => ({
       id: shift.id,
@@ -79,6 +141,23 @@ async function currentState(tx: Tx, dateKey: string) {
   );
   const { endDayCash, missingWaiters } = shiftCash;
   const obligations = selectDailyCashObligations(bills);
+  const supplierAccounts = suppliers.map((supplier) => ({
+    id: supplier.id,
+    name: supplier.name,
+    credit: roundMoney(
+      supplier.payments.reduce(
+        (sum, payment) =>
+          sum +
+          number(payment.amount) -
+          payment.allocations.reduce(
+            (allocationSum, allocation) =>
+              allocationSum + number(allocation.amount),
+            0,
+          ),
+        0,
+      ),
+    ),
+  }));
   const supplyObligations = [];
   for (const row of supplyDays) {
     const originalTotal = number(row.closedTotal);
@@ -112,10 +191,22 @@ async function currentState(tx: Tx, dateKey: string) {
     })),
     supplierPayments: day.supplierPayments.map((row) => ({
       id: row.id,
-      supplierName: row.supplierPayment.bill.supplier.name,
-      invoiceNumber: formatSupplierInvoiceNumber(
-        row.supplierPayment.bill.invoice.invoiceNumber,
-      ),
+      supplierName: row.supplierPayment.supplier.name,
+      invoiceNumber: (() => {
+        const invoiceNumbers = [
+          ...new Set(
+            row.supplierPayment.allocations.map(
+              (allocation) =>
+                formatSupplierInvoiceNumber(
+                  allocation.bill.invoice.invoiceNumber,
+                ),
+            ),
+          ),
+        ];
+        if (!invoiceNumbers.length) return "Advance / future credit";
+        if (invoiceNumbers.length === 1) return invoiceNumbers[0];
+        return `${invoiceNumbers.length} invoices`;
+      })(),
       amount: number(row.amount),
       revenueFunded: number(row.revenueFunded),
       savingsFunded: number(row.savingsFunded),
@@ -144,7 +235,7 @@ async function currentState(tx: Tx, dateKey: string) {
   });
   const locked = isDailyCashLocked(dateKey);
   const status: DailyCashStatus = locked ? "LOCKED" : !day.finalizedAt ? "OPEN" : day.finalizationFingerprint === fingerprint ? "FINALIZED" : "NEEDS_REVIEW";
-  return { day, endDayCash, missingWaiters, obligations, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
+  return { day, endDayCash, missingWaiters, obligations, supplierAccounts, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
 }
 
 export async function getDailyCash(dateKey: string, now = new Date()) {
@@ -237,14 +328,30 @@ export async function undoDailyCashSupplierPayment(input: { dateKey: string; id:
   });
 }
 
-export async function payDailyCashObligation(input: { dateKey: string; billId: string; installmentId?: string | null; amount: number; userId: string; confirmSavings: boolean }): Promise<DailyCashActionResult> {
+export async function payDailyCashObligation(input: { dateKey: string; billId: string; installmentId?: string | null; amount: number; userId: string; confirmSavings: boolean; allowOverpayment: boolean }): Promise<DailyCashActionResult> {
   return mutate(input.dateKey, new Date(), async (tx, state) => {
     const obligation = state.obligations.find((row) => row.billId === input.billId && row.installmentId === (input.installmentId || null));
     if (!obligation) return { ok: false, code: "STALE_OBLIGATION", message: "This supplier obligation is no longer available." };
-    const amount = validateSupplierObligationPaymentAmount(input.amount, obligation.amount);
+    const amount = validateSupplierObligationPaymentAmount(input.amount, obligation.amount, input.allowOverpayment);
     const funding = fundingFor(amount, state.summary.cashAvailableNow);
     if (funding.savingsFunded > 0 && !input.confirmSavings) return { ok: false, code: "SAVINGS_CONFIRMATION_REQUIRED", savingsAmount: funding.savingsFunded.toFixed(2) };
-    const result = await recordSupplierPaymentInTransaction(tx, { billId: obligation.billId, installmentId: obligation.installmentId, recordedByUserId: input.userId, amount, paymentMethod: "DAILY_CASH" });
+    const result = await recordSupplierPaymentInTransaction(tx, { supplierId: obligation.supplierId, preferredBillId: obligation.billId, preferredInstallmentId: obligation.installmentId, recordedByUserId: input.userId, amount, paymentMethod: "DAILY_CASH", allowOverpayment: input.allowOverpayment });
+    await tx.dailyCashSupplierPayment.create({ data: { dailyCashDayId: state.day.id, supplierPaymentId: result.payment.id, amount, revenueFunded: funding.revenueFunded, savingsFunded: funding.savingsFunded, recordedByUserId: input.userId } });
+    return { ok: true };
+  });
+}
+
+export async function payDailyCashSupplierAdvance(input: { dateKey: string; supplierId: string; amount: number; userId: string; confirmSavings: boolean }): Promise<DailyCashActionResult> {
+  return mutate(input.dateKey, new Date(), async (tx, state) => {
+    const amount = roundMoney(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, code: "VALIDATION_ERROR", message: "Enter a payment amount greater than zero." };
+    }
+    const funding = fundingFor(amount, state.summary.cashAvailableNow);
+    if (funding.savingsFunded > 0 && !input.confirmSavings) {
+      return { ok: false, code: "SAVINGS_CONFIRMATION_REQUIRED", savingsAmount: funding.savingsFunded.toFixed(2) };
+    }
+    const result = await recordSupplierPaymentInTransaction(tx, { supplierId: input.supplierId, recordedByUserId: input.userId, amount, paymentMethod: "DAILY_CASH", allowOverpayment: true });
     await tx.dailyCashSupplierPayment.create({ data: { dailyCashDayId: state.day.id, supplierPaymentId: result.payment.id, amount, revenueFunded: funding.revenueFunded, savingsFunded: funding.savingsFunded, recordedByUserId: input.userId } });
     return { ok: true };
   });

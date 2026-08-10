@@ -128,27 +128,38 @@ function SupplierBillsFilters({
 function SupplierBillsSummary({
   unpaid,
   paid,
+  supplierCredit,
+  supplierCashPaid,
   draftValue,
   voidCount,
   today,
   thisWeek,
   thisMonth,
-  supplierTotals,
+  supplierAccounts,
 }: {
   unpaid: number;
   paid: number;
+  supplierCredit: number;
+  supplierCashPaid: number;
   draftValue: number;
   voidCount: number;
   today: number;
   thisWeek: number;
   thisMonth: number;
-  supplierTotals: ReadonlyMap<string, number>;
+  supplierAccounts: readonly {
+    id: string;
+    name: string;
+    outstanding: number;
+    credit: number;
+  }[];
 }) {
   return (
     <>
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <MetricCard label="Unpaid balance" value={money(unpaid)} />
-        <MetricCard label="Payments recorded" value={money(paid)} />
+        <MetricCard label="Applied to invoices" value={money(paid)} />
+        <MetricCard label="Supplier credit" value={money(supplierCredit)} />
+        <MetricCard label="All-time cash paid" value={money(supplierCashPaid)} />
         <MetricCard label="Draft invoice value" value={money(draftValue)} />
         <MetricCard label="Void invoices" value={voidCount} />
       </section>
@@ -160,13 +171,22 @@ function SupplierBillsSummary({
       <Card className="p-4">
         <h2 className="font-black">Supplier totals</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {[...supplierTotals].map(([name, total]) => (
+          {supplierAccounts.map((supplier) => (
             <div
-              key={name}
-              className="flex justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
+              key={supplier.id}
+              className="rounded-xl bg-slate-50 px-3 py-2 text-sm"
             >
-              <span>{name}</span>
-              <strong>{money(total)}</strong>
+              <div className="flex justify-between gap-3 font-semibold">
+                <span>{supplier.name}</span>
+                <span>
+                  {money(Math.max(0, supplier.outstanding - supplier.credit))}{" "}
+                  net owed
+                </span>
+              </div>
+              <div className="mt-1 flex justify-between gap-3 text-xs text-muted-foreground">
+                <span>Outstanding {money(supplier.outstanding)}</span>
+                <span>Credit {money(supplier.credit)}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -217,6 +237,7 @@ export default async function SupplierBillsReportPage({
     createdAt: true,
     supplier: {
       select: {
+        id: true,
         name: true,
       },
     },
@@ -240,29 +261,27 @@ export default async function SupplierBillsReportPage({
         fullName: true,
       },
     },
-    payments: {
+    allocations: {
       select: {
         id: true,
         amount: true,
         installmentId: true,
-        paymentMethod: true,
-        paidAt: true,
-        recordedBy: {
+        supplierPayment: {
           select: {
-            fullName: true,
-          },
-        },
-        dailyCashPayment: {
-          select: {
-            dailyCashDay: {
-              select: { businessDate: true },
+            id: true,
+            amount: true,
+            paymentMethod: true,
+            paidAt: true,
+            recordedBy: { select: { fullName: true } },
+            dailyCashPayment: {
+              select: {
+                dailyCashDay: { select: { businessDate: true } },
+              },
             },
           },
         },
       },
-      orderBy: {
-        paidAt: "desc",
-      },
+      orderBy: { allocatedAt: "desc" },
     },
     installments: {
       select: {
@@ -286,7 +305,20 @@ export default async function SupplierBillsReportPage({
 }),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        bills: {
+          where: { status: { in: ["UNPAID", "PARTIAL"] } },
+          select: { totalAmount: true, paidAmount: true },
+        },
+        payments: {
+          select: {
+            amount: true,
+            allocations: { select: { amount: true } },
+          },
+        },
+      },
     }),
     prisma.supplierInvoice.findMany({
       where: {
@@ -309,6 +341,7 @@ export default async function SupplierBillsReportPage({
         invoiceNumber: formatSupplierInvoiceNumber(bill.invoice.invoiceNumber),
         supplierReference: bill.invoice.supplierReference,
         status: bill.invoice.status,
+        supplierId: bill.supplier.id,
         supplierName: bill.supplier.name,
         finalizedByName: bill.invoice.finalizedBy?.fullName || null,
         receiptUrl: bill.invoice.receiptObjectPath
@@ -317,27 +350,59 @@ export default async function SupplierBillsReportPage({
       },
       bill: {
         ...bill,
-        payments: bill.payments.map(({ dailyCashPayment, ...payment }) => {
-          const dailyCashBusinessDate = dailyCashPayment
-            ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
-            : null;
-          return {
-            ...payment,
-            dailyCashBusinessDate,
-            reversalError: getSupplierPaymentReversalError({
-              installmentId: payment.installmentId,
-              hasInstallments: bill.installments.length > 0,
-              dailyCashLinked: Boolean(dailyCashPayment),
-              dailyCashLocked: dailyCashBusinessDate
-                ? isDailyCashLocked(dailyCashBusinessDate, now)
-                : false,
-              canManageDailyCash: hasPermission(
-                currentUser,
-                PERMISSIONS.DAILY_CASH_MANAGE,
-              ),
-            }),
-          };
-        }),
+        payments: [
+          ...bill.allocations
+            .reduce((grouped, allocation) => {
+              const payment = allocation.supplierPayment;
+              const existing = grouped.get(payment.id);
+              if (existing) {
+                existing.allocatedAmount += Number(allocation.amount);
+                existing.legacyAllocationAfterSchedule ||=
+                  !allocation.installmentId && bill.installments.length > 0;
+                return grouped;
+              }
+              const dailyCashBusinessDate = payment.dailyCashPayment
+                ? formatBusinessDateKey(
+                    payment.dailyCashPayment.dailyCashDay.businessDate,
+                  )
+                : null;
+              grouped.set(payment.id, {
+                id: payment.id,
+                allocatedAmount: Number(allocation.amount),
+                totalPaymentAmount: Number(payment.amount),
+                paymentMethod: payment.paymentMethod,
+                paidAt: payment.paidAt,
+                recordedBy: payment.recordedBy,
+                legacyAllocationAfterSchedule:
+                  !allocation.installmentId && bill.installments.length > 0,
+                dailyCashBusinessDate,
+                reversalError: getSupplierPaymentReversalError({
+                  legacyAllocationAfterSchedule:
+                    !allocation.installmentId && bill.installments.length > 0,
+                  dailyCashLinked: Boolean(payment.dailyCashPayment),
+                  dailyCashLocked: dailyCashBusinessDate
+                    ? isDailyCashLocked(dailyCashBusinessDate, now)
+                    : false,
+                  canManageDailyCash: hasPermission(
+                    currentUser,
+                    PERMISSIONS.DAILY_CASH_MANAGE,
+                  ),
+                }),
+              });
+              return grouped;
+            }, new Map<string, {
+              id: string;
+              allocatedAmount: number;
+              totalPaymentAmount: number;
+              paymentMethod: string | null;
+              paidAt: Date;
+              recordedBy: { fullName: string };
+              legacyAllocationAfterSchedule: boolean;
+              dailyCashBusinessDate: string | null;
+              reversalError: string | null;
+            }>())
+            .values(),
+        ],
       },
     })),
   );
@@ -349,6 +414,31 @@ export default async function SupplierBillsReportPage({
       0,
     );
   const paid = bills.reduce((sum, bill) => sum + Number(bill.paidAmount), 0);
+  const supplierCredit = suppliers.reduce(
+    (sum, supplier) =>
+      sum +
+      supplier.payments.reduce(
+        (paymentSum, payment) =>
+          paymentSum +
+          Number(payment.amount) -
+          payment.allocations.reduce(
+            (allocationSum, allocation) =>
+              allocationSum + Number(allocation.amount),
+            0,
+          ),
+        0,
+      ),
+    0,
+  );
+  const supplierCashPaid = suppliers.reduce(
+    (sum, supplier) =>
+      sum +
+      supplier.payments.reduce(
+        (paymentSum, payment) => paymentSum + Number(payment.amount),
+        0,
+      ),
+    0,
+  );
   const draftValue = nonFinalInvoices
     .filter((invoice) => invoice.status === "DRAFT")
     .reduce((sum, invoice) => sum + Number(invoice.totalAmount), 0);
@@ -368,13 +458,24 @@ export default async function SupplierBillsReportPage({
     bills
       .filter((bill) => bill.createdAt >= date)
       .reduce((sum, bill) => sum + Number(bill.totalAmount), 0);
-  const supplierTotals = new Map<string, number>();
-  for (const bill of bills) {
-    supplierTotals.set(
-      bill.supplier.name,
-      (supplierTotals.get(bill.supplier.name) || 0) + Number(bill.totalAmount),
+  const supplierAccounts = suppliers.map((supplier) => {
+    const outstanding = supplier.bills.reduce(
+      (sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount),
+      0,
     );
-  }
+    const credit = supplier.payments.reduce(
+      (sum, payment) =>
+        sum +
+        Number(payment.amount) -
+        payment.allocations.reduce(
+          (allocationSum, allocation) =>
+            allocationSum + Number(allocation.amount),
+          0,
+        ),
+      0,
+    );
+    return { id: supplier.id, name: supplier.name, outstanding, credit };
+  });
 
   return (
     <AdminPage
@@ -407,12 +508,14 @@ export default async function SupplierBillsReportPage({
       <SupplierBillsSummary
         unpaid={unpaid}
         paid={paid}
+        supplierCredit={supplierCredit}
+        supplierCashPaid={supplierCashPaid}
         draftValue={draftValue}
         voidCount={voidCount}
         today={totalSince(dayStart)}
         thisWeek={totalSince(weekStart)}
         thisMonth={totalSince(monthStart)}
-        supplierTotals={supplierTotals}
+        supplierAccounts={supplierAccounts}
       />
       <SupplierBillsTable rows={rows} now={now} />
     </AdminPage>
