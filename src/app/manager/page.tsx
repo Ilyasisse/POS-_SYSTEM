@@ -27,6 +27,7 @@ type ManagerPageProps = {
 };
 
 type Alert = {
+  id: string;
   tone: "warning" | "danger";
   title: string;
   message: string;
@@ -261,9 +262,9 @@ function OperationalAlertsPanel({ alerts }: { alerts: Alert[] }) {
         </p>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {alerts.map((alert, index) => (
+          {alerts.map((alert) => (
             <div
-              key={`${alert.title}-${index}`}
+              key={alert.id}
               className={`rounded-xl border px-4 py-3 ${
                 alert.tone === "danger"
                   ? "border-red-200 bg-red-50 text-red-800"
@@ -774,6 +775,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       currentTime - order.createdAt.getTime() > 60 * 60 * 1000
         ? [
             {
+              id: `open-order-${order.id}`,
               tone: "warning" as const,
               title: `Long open order #${order.orderNumber}`,
               message: `${order.table?.name ?? "Table"} has been unpaid since ${formatDateTime(order.createdAt)}.`,
@@ -785,6 +787,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       summary.shiftSummary.variance != null && summary.shiftSummary.variance < 0
         ? [
             {
+              id: `negative-variance-${summary.id}`,
               tone: "danger" as const,
               title: `${summary.fullName} has a negative balance variance`,
               message: `Variance is ${formatMoney(summary.shiftSummary.variance)}.`,
@@ -796,6 +799,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       summary.hasClosedShift && summary.hasOrdersWithoutPayments
         ? [
             {
+              id: `closed-shift-inconsistency-${summary.id}`,
               tone: "warning" as const,
               title: `${summary.fullName} has closed shift order inconsistencies`,
               message:
@@ -808,6 +812,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       count > 1
         ? [
             {
+              id: `multiple-open-orders-${tableName}`,
               tone: "warning" as const,
               title: `${tableName} has multiple open orders`,
               message: `${count} unpaid orders are currently open for this table.`,
