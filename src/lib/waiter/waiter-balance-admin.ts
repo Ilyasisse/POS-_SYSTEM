@@ -196,10 +196,6 @@ export async function getWaiterBalanceAdminRows(
   });
 }
 
-export async function getWaiterInitializationRows(includeInactive = false) {
-  return getWaiterInitializationRowsWithInactive(includeInactive);
-}
-
 export async function getWaiterInitializationRowsWithInactive(
   includeInactive = false,
 ) {

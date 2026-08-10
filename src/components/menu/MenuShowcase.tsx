@@ -98,7 +98,7 @@ function menuShowcaseReducer(
 }
 
 function isPastScrollOffset(offset: number) {
-  return typeof window !== "undefined" && window.scrollY > offset;
+  return window.scrollY > offset;
 }
 
 function scrollToTop() {
@@ -125,9 +125,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   );
 
   // Controls visibility of back-to-top button
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(620),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   // Finds currently selected category object
   const selectedCategoryData =

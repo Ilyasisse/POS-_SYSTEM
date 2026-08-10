@@ -241,12 +241,6 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
   },
 ] as const satisfies readonly StaffNavigationItem[];
 
-const sectionLabels: Record<StaffNavigationSection, string> = {
-  admin: "Administration",
-  operations: "Operations",
-  kitchen: "Kitchen",
-};
-
 export function getVisibleStaffNavigationItems(
   currentUser: Pick<PermissionUser, "role" | "station">,
   scope: StaffNavigationScope = "all",
@@ -270,32 +264,6 @@ export function getVisibleStaffNavigationItems(
 
     return true;
   });
-}
-
-export function getStaffNavigationSectionsFromItems(
-  items: readonly StaffNavigationItem[],
-) {
-  return (Object.keys(sectionLabels) as StaffNavigationSection[]).reduce<
-    {
-      section: StaffNavigationSection;
-      label: string;
-      items: StaffNavigationItem[];
-    }[]
-  >((groups, section) => {
-    const sectionItems = items.filter(
-      (item) => (item.section ?? "admin") === section,
-    );
-
-    if (sectionItems.length > 0) {
-      groups.push({
-        section,
-        label: sectionLabels[section],
-        items: sectionItems,
-      });
-    }
-
-    return groups;
-  }, []);
 }
 
 export function getStaffNavigationNodesFromItems(
