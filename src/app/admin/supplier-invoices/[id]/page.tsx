@@ -37,16 +37,8 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-export default async function SupplierInvoiceDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams?: Promise<{ invoiceStatus?: string }>;
-}) {
-  const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  const [{ id }, query] = await Promise.all([params, searchParams]);
-  const invoice = await prisma.supplierInvoice.findUnique({
+function findSupplierInvoice(id: string) {
+  return prisma.supplierInvoice.findUnique({
     where: { id },
     include: {
       supplier: { select: { id: true, name: true, phone: true, email: true } },
@@ -91,6 +83,332 @@ export default async function SupplierInvoiceDetailPage({
       },
     },
   });
+}
+
+type SupplierInvoiceDetail = NonNullable<
+  Awaited<ReturnType<typeof findSupplierInvoice>>
+>;
+
+type BillPaymentRow = {
+  id: string;
+  amount: number;
+  paymentMethod: string | null;
+  recordedByName: string;
+  paidAtLabel: string;
+  dailyCashBusinessDate: string | null;
+  reversalError: string | null;
+};
+
+function InvoicePageActions({ invoice }: { invoice: SupplierInvoiceDetail }) {
+  return (
+    <>
+      <Button asChild>
+        <Link
+          href={`/print/supplier-invoices/${invoice.id}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Printable view
+        </Link>
+      </Button>
+      {invoice.purchaseOrder ? (
+        <Button asChild variant="outline">
+          <Link
+            href={`/admin/supplier-purchase-orders/${invoice.purchaseOrder.id}`}
+          >
+            Open purchase order
+          </Link>
+        </Button>
+      ) : null}
+    </>
+  );
+}
+
+function InvoiceStatusAlerts({ invoiceStatus }: { invoiceStatus?: string }) {
+  return (
+    <>
+      {invoiceStatus === "approved" ? (
+        <Alert>
+          <AlertTitle>Invoice approved</AlertTitle>
+          <AlertDescription>
+            The invoice is now read-only, its supplier bill was created, and
+            payment is pending.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {invoiceStatus === "created" ? (
+        <Alert>
+          <AlertTitle>Invoice draft created</AlertTitle>
+          <AlertDescription>
+            Review the invoice details, then save or finalize it when ready.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
+function InvoiceOverview({
+  invoice,
+  displayStatus,
+  effectiveDueDate,
+  remainingBalance,
+}: {
+  invoice: SupplierInvoiceDetail;
+  displayStatus: ReturnType<typeof getSupplierInvoiceDisplayStatus>;
+  effectiveDueDate: Date;
+  remainingBalance: number | null;
+}) {
+  return (
+    <section className="grid gap-4 md:grid-cols-4">
+      <Card className="gap-2 p-5">
+        <span className="text-sm text-muted-foreground">Status</span>
+        <div>
+          <ToneBadge
+            tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}
+          >
+            {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
+          </ToneBadge>
+        </div>
+      </Card>
+      <Card className="gap-1 p-5">
+        <span className="text-sm text-muted-foreground">Supplier</span>
+        <strong>{invoice.supplier.name}</strong>
+        <span className="text-xs text-muted-foreground">
+          {invoice.supplier.phone ||
+            invoice.supplier.email ||
+            "No contact recorded"}
+        </span>
+      </Card>
+      <Card className="gap-1 p-5">
+        <span className="text-sm text-muted-foreground">Invoice date</span>
+        <strong>{DATE_FORMATTER.format(invoice.invoiceDate)}</strong>
+        <span className="text-xs text-muted-foreground">
+          Due {DATE_FORMATTER.format(effectiveDueDate)}
+        </span>
+      </Card>
+      <Card className="gap-1 p-5">
+        <span className="text-sm text-muted-foreground">Invoice total</span>
+        <strong className="text-2xl tabular-nums">
+          {formatMoney(Number(invoice.totalAmount))}
+        </strong>
+        <span className="text-xs text-muted-foreground">
+          {invoice.bill
+            ? displayStatus === "PAID"
+              ? "Paid in full"
+              : `${formatMoney(remainingBalance || 0)} remaining`
+            : invoice.status === "VOID"
+              ? "Invoice voided"
+              : "No supplier bill until finalized"}
+        </span>
+      </Card>
+    </section>
+  );
+}
+
+function InvoicePaymentHistory({ payments }: { payments: BillPaymentRow[] }) {
+  if (!payments.length) return null;
+
+  return (
+    <Card className="gap-3 p-5">
+      <div>
+        <h2 className="font-semibold">Payments</h2>
+        <p className="text-sm text-muted-foreground">
+          Recorded payments for this supplier invoice.
+        </p>
+      </div>
+      <div className="grid gap-2">
+        {payments.map((payment) => (
+          <div
+            key={payment.id}
+            className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="text-sm">
+              <div className="font-semibold tabular-nums">
+                {formatMoney(payment.amount)}
+              </div>
+              <div className="text-muted-foreground">
+                {payment.paymentMethod || "Unspecified method"} ·{" "}
+                {payment.recordedByName} · {payment.paidAtLabel}
+              </div>
+              {payment.dailyCashBusinessDate ? (
+                <div className="text-xs text-muted-foreground">
+                  Daily Cash {payment.dailyCashBusinessDate}
+                </div>
+              ) : null}
+            </div>
+            <RevertPaymentButton
+              paymentId={payment.id}
+              amount={formatMoney(payment.amount)}
+              disabledReason={payment.reversalError}
+            />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function InvoiceInstallmentSchedule({
+  invoice,
+}: {
+  invoice: SupplierInvoiceDetail;
+}) {
+  if (!invoice.installments.length) return null;
+
+  return (
+    <Card className="gap-3 p-5">
+      <h2 className="font-semibold">Installment schedule</h2>
+      <div className="grid gap-2 md:grid-cols-3">
+        {invoice.installments.map((installment) => {
+          const remaining =
+            Number(installment.amount) - Number(installment.paidAmount);
+          return (
+            <div key={installment.id} className="rounded-lg border p-3 text-sm">
+              <div className="font-semibold">
+                {DATE_FORMATTER.format(installment.dueDate)}
+              </div>
+              <div>{formatMoney(Number(installment.amount))}</div>
+              <div className="text-muted-foreground">
+                {formatMoney(remaining)} remaining · {installment.status}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {invoice.bill ? (
+        <Button asChild variant="outline" className="w-fit">
+          <Link
+            href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
+          >
+            Manage installments and payments
+          </Link>
+        </Button>
+      ) : null}
+    </Card>
+  );
+}
+
+function InvoiceAudit({ invoice }: { invoice: SupplierInvoiceDetail }) {
+  if (invoice.status === "DRAFT") return null;
+
+  return (
+    <Card className="gap-2 p-5 text-sm">
+      <h2 className="font-semibold">Invoice audit</h2>
+      <p>
+        Created by {invoice.createdBy?.fullName || "Legacy import"} on{" "}
+        {invoice.createdAt.toLocaleString()}.
+      </p>
+      {invoice.finalizedAt ? (
+        <p>
+          Finalized by {invoice.finalizedBy?.fullName || "Unknown user"} on{" "}
+          {invoice.finalizedAt.toLocaleString()}.
+        </p>
+      ) : null}
+      {invoice.voidedAt ? (
+        <p>
+          Voided by {invoice.voidedBy?.fullName || "Unknown user"} on{" "}
+          {invoice.voidedAt.toLocaleString()}.
+          {invoice.voidReason ? ` Reason: ${invoice.voidReason}` : ""}
+        </p>
+      ) : null}
+      {invoice.source === "LEGACY_UPLOAD" ? (
+        <>
+          <p>
+            Converted from the former supplier delivery workflow with its
+            original record ID and receipt reference.
+          </p>
+          {invoice.legacyDeliveryDate ? (
+            <p>
+              Original delivery timestamp:{" "}
+              {invoice.legacyDeliveryDate.toLocaleString()}.
+            </p>
+          ) : null}
+          {invoice.legacyInventoryUpdatedAt ? (
+            <p>
+              Historical inventory update:{" "}
+              {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This is audit
+              history only; invoices no longer update inventory.
+            </p>
+          ) : null}
+          {invoice.legacySubtotalAmount !== null ||
+          invoice.legacyTaxAmount !== null ||
+          invoice.legacyDiscountAmount !== null ? (
+            <p>
+              Legacy breakdown: subtotal{" "}
+              {formatMoney(Number(invoice.legacySubtotalAmount || 0))}, tax{" "}
+              {formatMoney(Number(invoice.legacyTaxAmount || 0))}, discount{" "}
+              {formatMoney(Number(invoice.legacyDiscountAmount || 0))}.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+      {invoice.bill ? (
+        <Button asChild variant="outline" className="mt-2 w-fit">
+          <Link
+            href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
+          >
+            Open supplier bill
+          </Link>
+        </Button>
+      ) : null}
+    </Card>
+  );
+}
+
+function InvoiceReferences({
+  invoice,
+  receiptUrl,
+}: {
+  invoice: SupplierInvoiceDetail;
+  receiptUrl: string | null;
+}) {
+  return (
+    <>
+      {receiptUrl ? (
+        <Card className="p-5">
+          <h2 className="font-semibold">Receipt reference</h2>
+          <a
+            href={receiptUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm font-semibold text-primary hover:underline"
+          >
+            Open receipt image
+          </a>
+        </Card>
+      ) : null}
+      {invoice.generatedByRecurrence ? (
+        <Card className="gap-2 p-5">
+          <h2 className="font-semibold">Recurring draft</h2>
+          <p className="text-sm text-muted-foreground">
+            This draft was generated from a recurring supplier invoice
+            template.
+          </p>
+          <Button asChild variant="outline" className="w-fit">
+            <Link
+              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
+            >
+              Open source invoice
+              {` ${formatSupplierInvoiceNumber(invoice.generatedByRecurrence.sourceInvoice.invoiceNumber)}`}
+            </Link>
+          </Button>
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+export default async function SupplierInvoiceDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ invoiceStatus?: string }>;
+}) {
+  const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const invoice = await findSupplierInvoice(id);
   if (!invoice) notFound();
   const formattedInvoiceNumber = formatSupplierInvoiceNumber(
     invoice.invoiceNumber,
@@ -106,7 +424,11 @@ export default async function SupplierInvoiceDetailPage({
         ? formatBusinessDateKey(dailyCashPayment.dailyCashDay.businessDate)
         : null;
       return {
-        ...payment,
+        id: payment.id,
+        amount: Number(payment.amount),
+        paymentMethod: payment.paymentMethod,
+        recordedByName: payment.recordedBy.fullName,
+        paidAtLabel: payment.paidAt.toLocaleString(),
         dailyCashBusinessDate,
         reversalError: getSupplierPaymentReversalError({
           installmentId: payment.installmentId,
@@ -142,259 +464,24 @@ export default async function SupplierInvoiceDetailPage({
     <AdminPage
       title={`Supplier invoice ${formattedInvoiceNumber}`}
       description={`${invoice.supplier.name} · ${SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}`}
-      action={
-        <>
-          <Button asChild>
-            <Link
-              href={`/print/supplier-invoices/${invoice.id}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Printable view
-            </Link>
-          </Button>
-          {invoice.purchaseOrder ? (
-            <Button asChild variant="outline">
-              <Link
-                href={`/admin/supplier-purchase-orders/${invoice.purchaseOrder.id}`}
-              >
-                Open purchase order
-              </Link>
-            </Button>
-          ) : null}
-        </>
-      }
+      action={<InvoicePageActions invoice={invoice} />}
     >
-      {query?.invoiceStatus === "approved" ? (
-        <Alert>
-          <AlertTitle>Invoice approved</AlertTitle>
-          <AlertDescription>
-            The invoice is now read-only, its supplier bill was created, and
-            payment is pending.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {query?.invoiceStatus === "created" ? (
-        <Alert>
-          <AlertTitle>Invoice draft created</AlertTitle>
-          <AlertDescription>
-            Review the invoice details, then save or finalize it when ready.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <InvoiceStatusAlerts invoiceStatus={query?.invoiceStatus} />
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <Card className="gap-2 p-5">
-          <span className="text-sm text-muted-foreground">Status</span>
-          <div>
-            <ToneBadge
-              tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}
-            >
-              {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
-            </ToneBadge>
-          </div>
-        </Card>
-        <Card className="gap-1 p-5">
-          <span className="text-sm text-muted-foreground">Supplier</span>
-          <strong>{invoice.supplier.name}</strong>
-          <span className="text-xs text-muted-foreground">
-            {invoice.supplier.phone ||
-              invoice.supplier.email ||
-              "No contact recorded"}
-          </span>
-        </Card>
-        <Card className="gap-1 p-5">
-          <span className="text-sm text-muted-foreground">Invoice date</span>
-          <strong>{DATE_FORMATTER.format(invoice.invoiceDate)}</strong>
-          <span className="text-xs text-muted-foreground">
-            Due {DATE_FORMATTER.format(effectiveDueDate)}
-          </span>
-        </Card>
-        <Card className="gap-1 p-5">
-          <span className="text-sm text-muted-foreground">Invoice total</span>
-          <strong className="text-2xl tabular-nums">
-            {formatMoney(Number(invoice.totalAmount))}
-          </strong>
-          <span className="text-xs text-muted-foreground">
-            {invoice.bill
-              ? displayStatus === "PAID"
-                ? "Paid in full"
-                : `${formatMoney(remainingBalance || 0)} remaining`
-              : invoice.status === "VOID"
-                ? "Invoice voided"
-                : "No supplier bill until finalized"}
-          </span>
-        </Card>
-      </section>
+      <InvoiceOverview
+        invoice={invoice}
+        displayStatus={displayStatus}
+        effectiveDueDate={effectiveDueDate}
+        remainingBalance={remainingBalance}
+      />
 
-      {billPayments.length ? (
-        <Card className="gap-3 p-5">
-          <div>
-            <h2 className="font-semibold">Payments</h2>
-            <p className="text-sm text-muted-foreground">
-              Recorded payments for this supplier invoice.
-            </p>
-          </div>
-          <div className="grid gap-2">
-            {billPayments.map((payment) => (
-              <div
-                key={payment.id}
-                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="text-sm">
-                  <div className="font-semibold tabular-nums">
-                    {formatMoney(Number(payment.amount))}
-                  </div>
-                  <div className="text-muted-foreground">
-                    {payment.paymentMethod || "Unspecified method"} ·{" "}
-                    {payment.recordedBy.fullName} · {payment.paidAt.toLocaleString()}
-                  </div>
-                  {payment.dailyCashBusinessDate ? (
-                    <div className="text-xs text-muted-foreground">
-                      Daily Cash {payment.dailyCashBusinessDate}
-                    </div>
-                  ) : null}
-                </div>
-                <RevertPaymentButton
-                  paymentId={payment.id}
-                  amount={formatMoney(Number(payment.amount))}
-                  disabledReason={payment.reversalError}
-                />
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
+      <InvoicePaymentHistory payments={billPayments} />
 
-      {invoice.installments.length ? (
-        <Card className="gap-3 p-5">
-          <h2 className="font-semibold">Installment schedule</h2>
-          <div className="grid gap-2 md:grid-cols-3">
-            {invoice.installments.map((installment) => {
-              const remaining =
-                Number(installment.amount) - Number(installment.paidAmount);
-              return (
-                <div
-                  key={installment.id}
-                  className="rounded-lg border p-3 text-sm"
-                >
-                  <div className="font-semibold">
-                    {DATE_FORMATTER.format(installment.dueDate)}
-                  </div>
-                  <div>{formatMoney(Number(installment.amount))}</div>
-                  <div className="text-muted-foreground">
-                    {formatMoney(remaining)} remaining · {installment.status}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {invoice.bill ? (
-            <Button asChild variant="outline" className="w-fit">
-              <Link
-                href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
-              >
-                Manage installments and payments
-              </Link>
-            </Button>
-          ) : null}
-        </Card>
-      ) : null}
+      <InvoiceInstallmentSchedule invoice={invoice} />
 
-      {invoice.status !== "DRAFT" ? (
-        <Card className="gap-2 p-5 text-sm">
-          <h2 className="font-semibold">Invoice audit</h2>
-          <p>
-            Created by {invoice.createdBy?.fullName || "Legacy import"} on{" "}
-            {invoice.createdAt.toLocaleString()}.
-          </p>
-          {invoice.finalizedAt ? (
-            <p>
-              Finalized by {invoice.finalizedBy?.fullName || "Unknown user"} on{" "}
-              {invoice.finalizedAt.toLocaleString()}.
-            </p>
-          ) : null}
-          {invoice.voidedAt ? (
-            <p>
-              Voided by {invoice.voidedBy?.fullName || "Unknown user"} on{" "}
-              {invoice.voidedAt.toLocaleString()}.
-              {invoice.voidReason ? ` Reason: ${invoice.voidReason}` : ""}
-            </p>
-          ) : null}
-          {invoice.source === "LEGACY_UPLOAD" ? (
-            <>
-              <p>
-                Converted from the former supplier delivery workflow with its
-                original record ID and receipt reference.
-              </p>
-              {invoice.legacyDeliveryDate ? (
-                <p>
-                  Original delivery timestamp:{" "}
-                  {invoice.legacyDeliveryDate.toLocaleString()}.
-                </p>
-              ) : null}
-              {invoice.legacyInventoryUpdatedAt ? (
-                <p>
-                  Historical inventory update:{" "}
-                  {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This is
-                  audit history only; invoices no longer update inventory.
-                </p>
-              ) : null}
-              {invoice.legacySubtotalAmount !== null ||
-              invoice.legacyTaxAmount !== null ||
-              invoice.legacyDiscountAmount !== null ? (
-                <p>
-                  Legacy breakdown: subtotal{" "}
-                  {formatMoney(Number(invoice.legacySubtotalAmount || 0))}, tax{" "}
-                  {formatMoney(Number(invoice.legacyTaxAmount || 0))}, discount{" "}
-                  {formatMoney(Number(invoice.legacyDiscountAmount || 0))}.
-                </p>
-              ) : null}
-            </>
-          ) : null}
-          {invoice.bill ? (
-            <Button asChild variant="outline" className="mt-2 w-fit">
-              <Link
-                href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
-              >
-                Open supplier bill
-              </Link>
-            </Button>
-          ) : null}
-        </Card>
-      ) : null}
+      <InvoiceAudit invoice={invoice} />
 
-      {receiptUrl ? (
-        <Card className="p-5">
-          <h2 className="font-semibold">Receipt reference</h2>
-          <a
-            href={receiptUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-semibold text-primary hover:underline"
-          >
-            Open receipt image
-          </a>
-        </Card>
-      ) : null}
-
-      {invoice.generatedByRecurrence ? (
-        <Card className="gap-2 p-5">
-          <h2 className="font-semibold">Recurring draft</h2>
-          <p className="text-sm text-muted-foreground">
-            This draft was generated from a recurring supplier invoice
-            template.
-          </p>
-          <Button asChild variant="outline" className="w-fit">
-            <Link
-              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
-            >
-              Open source invoice
-              {` ${formatSupplierInvoiceNumber(invoice.generatedByRecurrence.sourceInvoice.invoiceNumber)}`}
-            </Link>
-          </Button>
-        </Card>
-      ) : null}
+      <InvoiceReferences invoice={invoice} receiptUrl={receiptUrl} />
 
       <RecurringInvoiceCard
         invoiceId={invoice.id}

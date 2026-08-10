@@ -47,6 +47,142 @@ function paymentStatus(value: string | undefined) {
     : undefined;
 }
 
+function SupplierBillReportFilters({
+  suppliers,
+  selectedSupplier,
+  selectedPaymentStatus,
+  showingDueThroughTomorrow,
+  from,
+  to,
+}: {
+  suppliers: readonly { id: string; name: string }[];
+  selectedSupplier?: string;
+  selectedPaymentStatus?: SupplierBillPaymentStatus;
+  showingDueThroughTomorrow: boolean;
+  from: Date;
+  to: Date;
+}) {
+  return (
+    <form
+      className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
+    >
+      {showingDueThroughTomorrow ? (
+        <Input type="hidden" name="scope" value="due-through-tomorrow" />
+      ) : null}
+      <AutoSubmitSelect
+        name="supplier"
+        defaultValue={selectedSupplier || ""}
+        aria-label="Supplier"
+        className="h-10 w-full rounded-lg border border-slate-200 px-2"
+      >
+        <option value="">All suppliers</option>
+        {suppliers.map((supplier) => (
+          <option key={supplier.id} value={supplier.id}>
+            {supplier.name}
+          </option>
+        ))}
+      </AutoSubmitSelect>
+      <AutoSubmitSelect
+        name="status"
+        defaultValue={selectedPaymentStatus || ""}
+        aria-label="Payment status"
+        className="h-10 w-full rounded-lg border border-slate-200 px-2"
+      >
+        <option value="">
+          {showingDueThroughTomorrow
+            ? "All outstanding"
+            : "All payment statuses"}
+        </option>
+        <option value="UNPAID">Unpaid</option>
+        <option value="PARTIAL">Partially paid</option>
+        {showingDueThroughTomorrow ? null : (
+          <option value="PAID">Paid</option>
+        )}
+      </AutoSubmitSelect>
+      {showingDueThroughTomorrow ? null : (
+        <>
+          <AutoSubmitInput
+            type="date"
+            name="from"
+            defaultValue={from.toISOString().slice(0, 10)}
+            aria-label="Start date"
+          />
+          <AutoSubmitInput
+            type="date"
+            name="to"
+            defaultValue={to.toISOString().slice(0, 10)}
+            aria-label="End date"
+          />
+        </>
+      )}
+    </form>
+  );
+}
+
+function DueThroughTomorrowNotice() {
+  return (
+    <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <p className="font-semibold text-amber-900">
+        Showing every unpaid or partially paid invoice bill due through
+        tomorrow, regardless of invoice date.
+      </p>
+      <Button asChild variant="outline" size="sm">
+        <Link href="/admin/reports/supplier-bills">View date-range report</Link>
+      </Button>
+    </Card>
+  );
+}
+
+function SupplierBillReportSummary({
+  unpaid,
+  paid,
+  draftValue,
+  voidCount,
+  todayTotal,
+  weekTotal,
+  monthTotal,
+  supplierTotals,
+}: {
+  unpaid: number;
+  paid: number;
+  draftValue: number;
+  voidCount: number;
+  todayTotal: number;
+  weekTotal: number;
+  monthTotal: number;
+  supplierTotals: readonly (readonly [string, number])[];
+}) {
+  return (
+    <>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Unpaid balance" value={money(unpaid)} />
+        <MetricCard label="Payments recorded" value={money(paid)} />
+        <MetricCard label="Draft invoice value" value={money(draftValue)} />
+        <MetricCard label="Void invoices" value={voidCount} />
+      </section>
+      <section className="grid gap-4 sm:grid-cols-3">
+        <MetricCard label="Today's bills" value={money(todayTotal)} />
+        <MetricCard label="This week" value={money(weekTotal)} />
+        <MetricCard label="This month" value={money(monthTotal)} />
+      </section>
+      <Card className="p-4">
+        <h2 className="font-black">Supplier totals</h2>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {supplierTotals.map(([name, total]) => (
+            <div
+              key={name}
+              className="flex justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
+            >
+              <span>{name}</span>
+              <strong>{money(total)}</strong>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </>
+  );
+}
+
 export default async function SupplierBillsReportPage({
   searchParams,
 }: {
@@ -259,99 +395,25 @@ export default async function SupplierBillsReportPage({
       title="Supplier bills"
       description="Audit approved supplier invoices, balances, due dates, and every payment."
     >
-      <form
-        className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
-      >
-        {showingDueThroughTomorrow ? (
-          <Input type="hidden" name="scope" value="due-through-tomorrow" />
-        ) : null}
-        <AutoSubmitSelect
-          name="supplier"
-          defaultValue={params.supplier || ""}
-          aria-label="Supplier"
-          className="h-10 w-full rounded-lg border border-slate-200 px-2"
-        >
-          <option value="">All suppliers</option>
-          {suppliers.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-        </AutoSubmitSelect>
-        <AutoSubmitSelect
-          name="status"
-          defaultValue={selectedPaymentStatus || ""}
-          aria-label="Payment status"
-          className="h-10 w-full rounded-lg border border-slate-200 px-2"
-        >
-          <option value="">
-            {showingDueThroughTomorrow
-              ? "All outstanding"
-              : "All payment statuses"}
-          </option>
-          <option value="UNPAID">Unpaid</option>
-          <option value="PARTIAL">Partially paid</option>
-          {showingDueThroughTomorrow ? null : (
-            <option value="PAID">Paid</option>
-          )}
-        </AutoSubmitSelect>
-        {showingDueThroughTomorrow ? null : (
-          <>
-            <AutoSubmitInput
-              type="date"
-              name="from"
-              defaultValue={from.toISOString().slice(0, 10)}
-              aria-label="Start date"
-            />
-            <AutoSubmitInput
-              type="date"
-              name="to"
-              defaultValue={to.toISOString().slice(0, 10)}
-              aria-label="End date"
-            />
-          </>
-        )}
-      </form>
-
-      {showingDueThroughTomorrow ? (
-        <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-semibold text-amber-900">
-            Showing every unpaid or partially paid invoice bill due through
-            tomorrow, regardless of invoice date.
-          </p>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/reports/supplier-bills">
-              View date-range report
-            </Link>
-          </Button>
-        </Card>
-      ) : null}
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Unpaid balance" value={money(unpaid)} />
-        <MetricCard label="Payments recorded" value={money(paid)} />
-        <MetricCard label="Draft invoice value" value={money(draftValue)} />
-        <MetricCard label="Void invoices" value={voidCount} />
-      </section>
-      <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Today's bills" value={money(totalSince(dayStart))} />
-        <MetricCard label="This week" value={money(totalSince(weekStart))} />
-        <MetricCard label="This month" value={money(totalSince(monthStart))} />
-      </section>
-      <Card className="p-4">
-        <h2 className="font-black">Supplier totals</h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {[...supplierTotals].map(([name, total]) => (
-            <div
-              key={name}
-              className="flex justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
-            >
-              <span>{name}</span>
-              <strong>{money(total)}</strong>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <SupplierBillReportFilters
+        suppliers={suppliers}
+        selectedSupplier={params.supplier}
+        selectedPaymentStatus={selectedPaymentStatus}
+        showingDueThroughTomorrow={showingDueThroughTomorrow}
+        from={from}
+        to={to}
+      />
+      {showingDueThroughTomorrow ? <DueThroughTomorrowNotice /> : null}
+      <SupplierBillReportSummary
+        unpaid={unpaid}
+        paid={paid}
+        draftValue={draftValue}
+        voidCount={voidCount}
+        todayTotal={totalSince(dayStart)}
+        weekTotal={totalSince(weekStart)}
+        monthTotal={totalSince(monthStart)}
+        supplierTotals={[...supplierTotals]}
+      />
       <SupplierBillsTable rows={rows} now={now} />
     </AdminPage>
   );
