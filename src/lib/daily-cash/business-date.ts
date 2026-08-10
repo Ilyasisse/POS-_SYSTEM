@@ -1,12 +1,17 @@
 import {
   getCurrentBusinessDateKey,
-  getDefaultWaiterBalanceDateKey,
   parseBusinessDateKey,
   shiftBusinessDateKey,
 } from "@/lib/waiter/waiter-balance-calculations";
 
 export function getDailyCashDefaultDateKey(now = new Date()) {
-  return getDefaultWaiterBalanceDateKey(now);
+  return getCurrentBusinessDateKey(now);
+}
+
+export function getDailyCashWaiterBalanceDateKey(
+  dailyCashBusinessDate: string,
+) {
+  return shiftBusinessDateKey(dailyCashBusinessDate, -1);
 }
 
 export function isDailyCashLocked(businessDate: string, now = new Date()) {

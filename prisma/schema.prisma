@@ -27,6 +27,7 @@ model User {
   waiterBalanceInitializationsCreated WaiterBalanceInitialization[]    @relation("WaiterBalanceCreatedBy")
   supplierBillsSettled                SupplierBill[]                   @relation("SupplierBillSettledBy")
   supplierPaymentsRecorded            SupplierPayment[]                @relation("SupplierPaymentRecordedBy")
+  supplierPaymentAllocationsApplied   SupplierPaymentAllocation[]      @relation("SupplierPaymentAllocationAppliedBy")
   supplyPurchasesCreated              SupplyPurchase[]                 @relation("SupplyPurchaseCreatedBy")
   supplyCatalogItemsCreated           SupplyCatalogItem[]              @relation("SupplyCatalogItemCreatedBy")
   supplyDaysClosed                    SupplyDay[]                      @relation("SupplyDayClosedBy")
@@ -338,6 +339,7 @@ model Supplier {
   recurrences    SupplierInvoiceRecurrence[]
   orderSchedules SupplierOrderSchedule[]
   orderRuns      SupplierOrderRun[]
+  payments       SupplierPayment[]
 
   @@index([isActive, name])
 }
@@ -358,7 +360,7 @@ model SupplierBill {
   supplier        Supplier                     @relation(fields: [supplierId], references: [id])
   invoice         SupplierInvoice              @relation(fields: [invoiceId], references: [id])
   settledBy       User?                        @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
-  payments        SupplierPayment[]
+  allocations     SupplierPaymentAllocation[]
   installments    SupplierInvoiceInstallment[]
 
   @@index([supplierId, createdAt])
@@ -368,22 +370,42 @@ model SupplierBill {
 
 model SupplierPayment {
   id               String                      @id @default(cuid())
-  billId           String
-  installmentId    String?
+  supplierId       String
   amount           Decimal
   paymentMethod    String?
   notes            String?
   recordedByUserId String
   paidAt           DateTime                    @default(now())
   createdAt        DateTime                    @default(now())
-  bill             SupplierBill                @relation(fields: [billId], references: [id], onDelete: Cascade)
-  installment      SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  supplier         Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   recordedBy       User                        @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  allocations      SupplierPaymentAllocation[]
   dailyCashPayment DailyCashSupplierPayment?
 
-  @@index([billId, paidAt])
-  @@index([installmentId])
+  @@index([supplierId, paidAt])
   @@index([recordedByUserId, paidAt])
+}
+
+/// Applies part of one physical supplier payment to an invoice bill or installment.
+/// Any payment amount not represented by allocations is available supplier credit.
+model SupplierPaymentAllocation {
+  id                String                      @id @default(cuid())
+  supplierPaymentId String
+  billId            String
+  installmentId     String?
+  amount            Decimal                     @db.Decimal(14, 2)
+  appliedByUserId   String
+  allocatedAt       DateTime                    @default(now())
+  createdAt         DateTime                    @default(now())
+  supplierPayment   SupplierPayment             @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
+  bill              SupplierBill                @relation(fields: [billId], references: [id], onDelete: Restrict)
+  installment       SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  appliedBy         User                        @relation("SupplierPaymentAllocationAppliedBy", fields: [appliedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([supplierPaymentId])
+  @@index([billId, allocatedAt])
+  @@index([installmentId])
+  @@index([appliedByUserId, allocatedAt])
 }
 
 /// A versioned combined salary amount. DailyCashDay stores the resolved amount so
@@ -795,19 +817,19 @@ model SupplierInvoiceRecurrenceItem {
 /// A dated portion of a supplier invoice. Existing invoices without rows here
 /// keep their legacy single-due-date behaviour until explicitly split.
 model SupplierInvoiceInstallment {
-  id         String                @id @default(cuid())
-  invoiceId  String
-  billId     String?
-  sequence   Int
-  amount     Decimal               @db.Decimal(14, 2)
-  paidAmount Decimal               @default(0) @db.Decimal(14, 2)
-  status     SupplierPaymentStatus @default(UNPAID)
-  dueDate    DateTime              @db.Date
-  createdAt  DateTime              @default(now())
-  updatedAt  DateTime              @updatedAt
-  invoice    SupplierInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  bill       SupplierBill?         @relation(fields: [billId], references: [id], onDelete: Cascade)
-  payments   SupplierPayment[]
+  id          String                      @id @default(cuid())
+  invoiceId   String
+  billId      String?
+  sequence    Int
+  amount      Decimal                     @db.Decimal(14, 2)
+  paidAmount  Decimal                     @default(0) @db.Decimal(14, 2)
+  status      SupplierPaymentStatus       @default(UNPAID)
+  dueDate     DateTime                    @db.Date
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+  invoice     SupplierInvoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  bill        SupplierBill?               @relation(fields: [billId], references: [id], onDelete: Cascade)
+  allocations SupplierPaymentAllocation[]
 
   @@unique([invoiceId, sequence])
   @@index([invoiceId, dueDate])
@@ -837,7 +859,7 @@ model SupplyCatalogItem {
   id               String           @id @default(cuid())
   name             String
   unit             String
-  defaultUnitPrice Decimal          @db.Decimal(12, 2)
+  defaultUnitPrice Decimal          @db.Decimal(14, 4)
   isActive         Boolean          @default(true)
   createdByUserId  String
   createdAt        DateTime         @default(now())
@@ -877,7 +899,7 @@ model SupplyPurchase {
   itemName        String
   unit            String             @default("unit")
   quantity        Decimal            @db.Decimal(12, 3)
-  unitPrice       Decimal            @db.Decimal(12, 2)
+  unitPrice       Decimal            @db.Decimal(14, 4)
   createdByUserId String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt

@@ -21,25 +21,31 @@ function requiredSupplierBillDueDate(value: string) {
   return dueDate;
 }
 
-function refreshSupplierBillPages(invoiceId: string) {
+function refreshSupplierBillPages(invoiceIds: readonly string[]) {
   revalidatePath("/admin/supplier-invoices");
-  revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
-  revalidatePath(`/print/supplier-invoices/${invoiceId}`);
+  for (const invoiceId of invoiceIds) {
+    revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
+    revalidatePath(`/print/supplier-invoices/${invoiceId}`);
+  }
   revalidatePath("/admin/reports/supplier-bills");
+  revalidatePath("/admin/suppliers");
   revalidatePath("/admin");
 }
 
 export async function recordPaymentAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  const result = await recordSupplierPayment(
-    text(formData, "billId"),
-    user.id,
-    Number(formData.get("amount")),
-    text(formData, "paymentMethod"),
-    text(formData, "notes"),
-    text(formData, "installmentId") || null,
-  );
-  refreshSupplierBillPages(result.invoiceId);
+  const result = await recordSupplierPayment({
+    supplierId: text(formData, "supplierId"),
+    preferredBillId: text(formData, "billId"),
+    preferredInstallmentId: text(formData, "installmentId") || null,
+    recordedByUserId: user.id,
+    amount: Number(formData.get("amount")),
+    paymentMethod: text(formData, "paymentMethod"),
+    notes: text(formData, "notes"),
+    allowOverpayment: formData.get("allowOverpayment") === "on",
+  });
+  refreshSupplierBillPages(result.invoiceIds);
+  revalidatePath(`/admin/suppliers/${text(formData, "supplierId")}`);
 }
 
 export async function revertSupplierPaymentAction(paymentId: string) {
@@ -47,7 +53,8 @@ export async function revertSupplierPaymentAction(paymentId: string) {
   const result = await revertSupplierPayment(paymentId, {
     canManageDailyCash: hasPermission(user, PERMISSIONS.DAILY_CASH_MANAGE),
   });
-  refreshSupplierBillPages(result.invoiceId);
+  refreshSupplierBillPages(result.invoiceIds);
+  revalidatePath(`/admin/suppliers/${result.supplierId}`);
   if (result.dailyCashBusinessDate) {
     revalidatePath("/admin/daily-cash");
   }
@@ -67,7 +74,7 @@ export async function splitSupplierBillIntoInstallmentsAction(formData: FormData
       amount: amounts[index],
     })),
   );
-  refreshSupplierBillPages(result.invoiceId);
+  refreshSupplierBillPages([result.invoiceId]);
 }
 
 export async function updateSupplierBillDueDateAction(formData: FormData) {
@@ -76,5 +83,5 @@ export async function updateSupplierBillDueDateAction(formData: FormData) {
     text(formData, "billId"),
     requiredSupplierBillDueDate(text(formData, "dueDate")),
   );
-  refreshSupplierBillPages(result.invoiceId);
+  refreshSupplierBillPages([result.invoiceId]);
 }

@@ -19,7 +19,7 @@ export default async function SupplyItemsPage() {
       <form action={createSupplyCatalogItem} className="mt-4 grid gap-3 md:grid-cols-[1fr_10rem_10rem_auto] md:items-end">
         <div className="grid gap-1"><Label htmlFor="catalog-name">Name</Label><Input id="catalog-name" name="name" required maxLength={160} placeholder="Milk" /></div>
         <div className="grid gap-1"><Label htmlFor="catalog-unit">Unit</Label><Input id="catalog-unit" name="unit" required maxLength={40} placeholder="kg or box" /></div>
-        <div className="grid gap-1"><Label htmlFor="catalog-price">Default price</Label><Input id="catalog-price" name="defaultUnitPrice" type="number" min="0" step="0.01" required /></div>
+        <div className="grid gap-1"><Label htmlFor="catalog-price">Default price</Label><Input id="catalog-price" name="defaultUnitPrice" type="number" min="0" step="0.0001" required /></div>
         <Button>Add item</Button>
       </form>
     </Card>
@@ -30,7 +30,7 @@ export default async function SupplyItemsPage() {
           return <tr key={item.id} className="border-t">
             <TableCell><Input form={updateFormId} name="name" defaultValue={item.name} required maxLength={160} aria-label={`Name for ${item.name}`} disabled={!item.isActive} /></TableCell>
             <TableCell><Input form={updateFormId} name="unit" defaultValue={item.unit} required maxLength={40} aria-label={`Unit for ${item.name}`} disabled={!item.isActive} /></TableCell>
-            <TableCell><Input form={updateFormId} name="defaultUnitPrice" type="number" min="0" step="0.01" defaultValue={item.defaultUnitPrice.toString()} required aria-label={`Default price for ${item.name}`} disabled={!item.isActive} /></TableCell>
+            <TableCell><Input form={updateFormId} name="defaultUnitPrice" type="number" min="0" step="0.0001" defaultValue={item.defaultUnitPrice.toString()} required aria-label={`Default price for ${item.name}`} disabled={!item.isActive} /></TableCell>
             <TableCell><span className="text-sm font-medium">{item.isActive ? "Active" : "Archived"}</span></TableCell>
             <TableCell><div className="flex gap-2">
               <form id={updateFormId} action={updateSupplyCatalogItem}><Input type="hidden" name="id" value={item.id} /></form>
