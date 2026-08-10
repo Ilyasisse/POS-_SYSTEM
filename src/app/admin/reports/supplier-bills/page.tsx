@@ -195,13 +195,8 @@ function SupplierBillsSummary({
   );
 }
 
-export default async function SupplierBillsReportPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SupplierBillsSearchParams>;
-}) {
+async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
   const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  const params = (await searchParams) || {};
   const now = new Date();
   const showingDueThroughTomorrow = params.scope === "due-through-tomorrow";
   const dueCutoff = getSupplierBillDueCutoffDate(now);
@@ -477,21 +472,50 @@ export default async function SupplierBillsReportPage({
     return { id: supplier.id, name: supplier.name, outstanding, credit };
   });
 
+  return {
+    params,
+    suppliers,
+    showingDueThroughTomorrow,
+    selectedPaymentStatus,
+    from,
+    to,
+    unpaid,
+    paid,
+    supplierCredit,
+    supplierCashPaid,
+    draftValue,
+    voidCount,
+    today: totalSince(dayStart),
+    thisWeek: totalSince(weekStart),
+    thisMonth: totalSince(monthStart),
+    supplierAccounts,
+    rows,
+    now,
+  };
+}
+
+export default async function SupplierBillsReportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SupplierBillsSearchParams>;
+}) {
+  const report = await getSupplierBillsReportData((await searchParams) || {});
+
   return (
     <AdminPage
       title="Supplier bills"
       description="Audit approved supplier invoices, balances, due dates, and every payment."
     >
       <SupplierBillsFilters
-        params={params}
-        suppliers={suppliers}
-        showingDueThroughTomorrow={showingDueThroughTomorrow}
-        selectedPaymentStatus={selectedPaymentStatus}
-        from={from}
-        to={to}
+        params={report.params}
+        suppliers={report.suppliers}
+        showingDueThroughTomorrow={report.showingDueThroughTomorrow}
+        selectedPaymentStatus={report.selectedPaymentStatus}
+        from={report.from}
+        to={report.to}
       />
 
-      {showingDueThroughTomorrow ? (
+      {report.showingDueThroughTomorrow ? (
         <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-amber-900">
             Showing every unpaid or partially paid invoice bill due through
@@ -506,18 +530,18 @@ export default async function SupplierBillsReportPage({
       ) : null}
 
       <SupplierBillsSummary
-        unpaid={unpaid}
-        paid={paid}
-        supplierCredit={supplierCredit}
-        supplierCashPaid={supplierCashPaid}
-        draftValue={draftValue}
-        voidCount={voidCount}
-        today={totalSince(dayStart)}
-        thisWeek={totalSince(weekStart)}
-        thisMonth={totalSince(monthStart)}
-        supplierAccounts={supplierAccounts}
+        unpaid={report.unpaid}
+        paid={report.paid}
+        supplierCredit={report.supplierCredit}
+        supplierCashPaid={report.supplierCashPaid}
+        draftValue={report.draftValue}
+        voidCount={report.voidCount}
+        today={report.today}
+        thisWeek={report.thisWeek}
+        thisMonth={report.thisMonth}
+        supplierAccounts={report.supplierAccounts}
       />
-      <SupplierBillsTable rows={rows} now={now} />
+      <SupplierBillsTable rows={report.rows} now={report.now} />
     </AdminPage>
   );
 }
