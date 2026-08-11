@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateDailyCashSummary, fundingFor } from "../../src/lib/daily-cash/money";
+import { calculateDailyCashSummary, fundingFor, validateSavingsDepositAmount } from "../../src/lib/daily-cash/money";
 import {
   getDailyCashDefaultDateKey,
   getDailyCashWaiterBalanceDateKey,
@@ -78,6 +78,40 @@ test("Daily Cash uses revenue before savings and never projects a negative balan
     additionalSavingsRequired: 75.5,
     savingsUsed: 0,
   });
+});
+
+test("savings deposits reduce available cash without changing paid expenses or savings used", () => {
+  assert.deepEqual(
+    calculateDailyCashSummary({
+      revenue: 500,
+      paidRevenueFunded: 100,
+      paidSavingsFunded: 25,
+      unpaidRequired: 200,
+      savingsDeposited: 75,
+    }),
+    {
+      cashAvailableNow: 325,
+      projectedRemaining: 125,
+      additionalSavingsRequired: 0,
+      savingsUsed: 25,
+    },
+  );
+});
+
+test("savings deposits accept the projected remainder and reject unsafe amounts", () => {
+  assert.equal(validateSavingsDepositAmount(125, 125), 125);
+  assert.throws(
+    () => validateSavingsDepositAmount(125.01, 125),
+    /cannot exceed the projected remaining cash/i,
+  );
+  assert.throws(
+    () => validateSavingsDepositAmount(1.001, 125),
+    /no more than two decimal places/i,
+  );
+  assert.throws(
+    () => validateSavingsDepositAmount(0, 125),
+    /greater than zero/i,
+  );
 });
 
 test("Daily Cash resolves the newest salary rate effective on the business date", () => {
