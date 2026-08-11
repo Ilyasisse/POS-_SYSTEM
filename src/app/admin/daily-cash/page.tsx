@@ -11,7 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getCurrentBusinessDateKey, parseBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
-import { getDailyCashDefaultDateKey } from "@/lib/daily-cash/business-date";
+import {
+  DAILY_CASH_START_DATE,
+  getDailyCashDefaultDateKey,
+} from "@/lib/daily-cash/business-date";
 import { getDailyCash } from "@/lib/daily-cash/service";
 import { createManualExpenseAction, deleteManualExpenseAction, finalizeDailyCashAction, overrideSalaryAction, paySalaryAction, paySupplierAdvanceAction, paySupplierObligationAction, paySupplyBalanceAction } from "./actions";
 import SavingsAccountCard from "./SavingsAccountCard";
@@ -68,12 +71,14 @@ export default async function DailyCashPage({ searchParams }: { searchParams?: P
   const now = new Date();
   const currentDate = getCurrentBusinessDateKey(now);
   const requested = parseBusinessDateKey(params?.date ?? "");
-  const date = requested && requested <= currentDate ? requested : getDailyCashDefaultDateKey(now);
+  const date = requested && requested >= DAILY_CASH_START_DATE && requested <= currentDate
+    ? requested
+    : getDailyCashDefaultDateKey(now);
   const data = await getDailyCash(date, now);
 
   return <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
     <PageHeader eyebrow="Operations" title="Daily cash" description="Use waiter end-day cash to pay salary, prior-day supplies, supplier obligations, and one-time expenses." />
-    <Card><CardContent className="pt-6"><form className="flex flex-wrap items-end gap-3"><div className="grid gap-2"><Label htmlFor="daily-cash-date">Business day</Label><Input id="daily-cash-date" name="date" type="date" defaultValue={date} max={currentDate} /></div><Button type="submit" variant="outline">View day</Button><Button asChild variant="outline"><Link href="/admin/daily-cash/settings">Salary settings</Link></Button></form></CardContent></Card>
+    <Card><CardContent className="pt-6"><form className="flex flex-wrap items-end gap-3"><div className="grid gap-2"><Label htmlFor="daily-cash-date">Business day</Label><Input id="daily-cash-date" name="date" type="date" defaultValue={date} min={DAILY_CASH_START_DATE} max={currentDate} /></div><Button type="submit" variant="outline">View day</Button><Button asChild variant="outline"><Link href="/admin/daily-cash/settings">Salary settings</Link></Button></form></CardContent></Card>
     {!data ? <Alert><AlertCircle /><AlertTitle>Salary setup required</AlertTitle><AlertDescription>Set the combined daily salary before Daily Cash can create records or payments.</AlertDescription></Alert> : <DailyCashContent data={data} date={date} />}
   </div>;
 }
@@ -94,7 +99,7 @@ function DailyCashContent({ data, date }: { data: DailyCashData; date: string })
   return <>
     <div className="flex items-center justify-between gap-3"><Badge variant={statusTone}>{data.status.replace("_", " ")}</Badge><span className="text-sm text-muted-foreground">{date} · POS business day</span></div>
     {data.missingWaiters.length ? <Alert><AlertCircle /><AlertTitle>Waiter revenue for {data.waiterBalanceDateKey} is incomplete</AlertTitle><AlertDescription>Missing waiter end-day amounts for {data.waiterBalanceDateKey}: {data.missingWaiters.map((row) => row.fullName).join(", ")}. You may still record payments.</AlertDescription></Alert> : null}
-    {locked ? <Alert variant="destructive"><AlertCircle /><AlertTitle>Day locked</AlertTitle><AlertDescription>This business day is more than seven days old and cannot be changed.</AlertDescription></Alert> : null}
+    {locked ? <Alert variant="destructive"><AlertCircle /><AlertTitle>Day locked</AlertTitle><AlertDescription>This business day is 14 days old or older and cannot be changed.</AlertDescription></Alert> : null}
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <Metric label="Waiter revenue" value={money(data.endDayCash)} help={`Combined from Waiter Balances for ${data.waiterBalanceDateKey}`} />
       <Metric label="Paid expenses" value={money(paidExpenses)} help="Salary, supplies, manual, and supplier payments" />
