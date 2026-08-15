@@ -44,7 +44,14 @@ The existing `test_message` template is not suitable unless its **WhatsApp busin
 
 Every Twilio message includes `https://<APP_BASE_URL>/api/webhooks/whatsapp` as its status callback. The endpoint accepts Twilio's form-encoded POST, validates `X-Twilio-Signature`, and records accepted, delivered, read, failed, and undelivered states. Inbound chat remains out of scope.
 
-The protected `/api/cron/supplier-order-schedules` route must run every minute with `Authorization: Bearer <CRON_SECRET>`. The included Vercel cron configuration requires Vercel Pro for minute-level execution.
+The protected `/api/cron/supplier-order-schedules` route requires `Authorization: Bearer <CRON_SECRET>`. On Vercel Hobby, `.github/workflows/supplier-order-scheduler.yml` calls it every five minutes because Hobby rejects cron schedules that run more than once per day. Add these GitHub repository secrets under **Settings > Secrets and variables > Actions**:
+
+- `APP_BASE_URL`: the stable Vercel production origin, for example `https://cafe-pos.example.com`, without a trailing slash.
+- `CRON_SECRET`: exactly the same strong random value configured as `CRON_SECRET` in Vercel.
+
+The GitHub workflow can also be started manually from **Actions > Supplier order scheduler > Run workflow**. GitHub scheduled jobs can be delayed during periods of high load, so this fallback provides roughly five-minute scheduling rather than exact minute-level execution.
+
+The previous Vercel Pro configuration called `/api/cron/supplier-order-schedules` with `* * * * *` every minute. It processed due invitations, reminders, order finalization, and retryable WhatsApp deliveries. That configuration is preserved as comments in the GitHub workflow. If the project moves to Vercel Pro, restore that entry in `vercel.json` and disable the GitHub schedule so only one scheduler is routinely invoking the route.
 
 Keep `TWILIO_WHATSAPP_ENABLED=false` until the production URL, sender, API credentials, Content SIDs, database migrations, and cron secret are all configured. While disabled, the cron exits before creating or advancing schedule runs. Set it to `true` and redeploy only when setup is complete.
 

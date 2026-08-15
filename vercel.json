@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/supplier-recurring-invoices",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/supplier-order-schedules",
-      "schedule": "* * * * *"
     }
   ]
 }
