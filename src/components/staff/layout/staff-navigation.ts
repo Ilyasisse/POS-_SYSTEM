@@ -87,6 +87,7 @@ const navigationGroups: readonly {
     itemKeys: [
       "suppliers",
       "supplier-purchase-orders",
+      "supplier-order-schedules",
       "supplier-invoices",
       "supplier-bills",
     ],
