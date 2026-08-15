@@ -28,6 +28,12 @@ const INK = rgb(0.06, 0.09, 0.16);
 const MUTED = rgb(0.39, 0.45, 0.55);
 const LINE = rgb(0.86, 0.89, 0.93);
 const PALE_BLUE = rgb(0.94, 0.97, 1);
+const UTC_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+});
 
 function money(value: string) {
   return `$${Number(value).toLocaleString("en-US", {
@@ -37,12 +43,7 @@ function money(value: string) {
 }
 
 function date(value: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(value);
+  return UTC_DATE_FORMATTER.format(value);
 }
 
 function fitText(value: string, font: PDFFont, size: number, width: number) {
@@ -74,8 +75,10 @@ function drawRight(
 
 export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
   const document = await PDFDocument.create();
-  const regular = await document.embedFont(StandardFonts.Helvetica);
-  const bold = await document.embedFont(StandardFonts.HelveticaBold);
+  const [regular, bold] = await Promise.all([
+    document.embedFont(StandardFonts.Helvetica),
+    document.embedFont(StandardFonts.HelveticaBold),
+  ]);
   const pages: PDFPage[] = [];
   let page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   pages.push(page);

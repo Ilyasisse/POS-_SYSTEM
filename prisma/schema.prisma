@@ -691,26 +691,27 @@ model SupplierOrderResponseItem {
 }
 
 model SupplierOrderWhatsAppDelivery {
-  id             String                           @id @default(cuid())
-  runId          String
-  recipientId    String?
-  dedupeKey      String                           @unique
-  type           SupplierOrderWhatsAppMessageType
-  recipientPhone String
-  status         WhatsAppDeliveryStatus           @default(PENDING)
-  metaMessageId  String?                          @unique
-  mediaId        String?
-  attempts       Int                              @default(0)
-  lastAttemptAt  DateTime?
-  acceptedAt     DateTime?
-  deliveredAt    DateTime?
-  readAt         DateTime?
-  failedAt       DateTime?
-  errorMessage   String?
-  createdAt      DateTime                         @default(now())
-  updatedAt      DateTime                         @updatedAt
-  run            SupplierOrderRun                 @relation(fields: [runId], references: [id], onDelete: Cascade)
-  recipient      SupplierOrderRunRecipient?       @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  id                     String                           @id @default(cuid())
+  runId                  String
+  recipientId            String?
+  dedupeKey              String                           @unique
+  type                   SupplierOrderWhatsAppMessageType
+  recipientPhone         String
+  provider               WhatsAppProvider                 @default(TWILIO)
+  status                 WhatsAppDeliveryStatus           @default(PENDING)
+  providerMessageId      String?                          @unique
+  providerMediaReference String?
+  attempts               Int                              @default(0)
+  lastAttemptAt          DateTime?
+  acceptedAt             DateTime?
+  deliveredAt            DateTime?
+  readAt                 DateTime?
+  failedAt               DateTime?
+  errorMessage           String?
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+  run                    SupplierOrderRun                 @relation(fields: [runId], references: [id], onDelete: Cascade)
+  recipient              SupplierOrderRunRecipient?       @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([runId, type, status])
   @@index([recipientId, createdAt])
@@ -1008,6 +1009,11 @@ enum SupplierOrderWhatsAppMessageType {
   INVITATION
   REMINDER
   SUPPLIER_ORDER
+}
+
+enum WhatsAppProvider {
+  META
+  TWILIO
 }
 
 enum WhatsAppDeliveryStatus {

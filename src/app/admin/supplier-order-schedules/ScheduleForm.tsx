@@ -31,6 +31,8 @@ export default function ScheduleForm({
   employees: Option[];
   defaults: Defaults;
 }) {
+  const selectedEmployeeIds = new Set(defaults.employeeIds);
+
   return (
     <form action={action} className="space-y-6">
       {defaults.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
@@ -107,7 +109,7 @@ export default function ScheduleForm({
                   type="checkbox"
                   name="employeeId"
                   value={employee.id}
-                  defaultChecked={defaults.employeeIds.includes(employee.id)}
+                  defaultChecked={selectedEmployeeIds.has(employee.id)}
                   disabled={disabled}
                   className="size-4"
                 />

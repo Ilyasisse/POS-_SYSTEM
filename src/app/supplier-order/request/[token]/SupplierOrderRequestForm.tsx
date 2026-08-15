@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CheckCircle2, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,13 +24,16 @@ export default function SupplierOrderRequestForm({
   const [status, setStatus] = useState(initialStatus);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const latestRequestId = useRef(0);
 
   async function submit(noOrder: boolean) {
+    const requestId = ++latestRequestId.current;
     setPending(true);
     setMessage(null);
-    const chosen = Object.entries(selected)
-      .filter(([, quantity]) => Number(quantity) > 0)
-      .map(([catalogItemId, quantity]) => ({ catalogItemId, quantity }));
+    const chosen: { catalogItemId: string; quantity: string }[] = [];
+    for (const [catalogItemId, quantity] of Object.entries(selected)) {
+      if (Number(quantity) > 0) chosen.push({ catalogItemId, quantity });
+    }
     try {
       const response = await fetch(
         `/api/supplier-order-requests/${encodeURIComponent(token)}`,
@@ -42,6 +45,7 @@ export default function SupplierOrderRequestForm({
       );
       const payload = (await response.json()) as { error?: string; status?: typeof status };
       if (!response.ok) throw new Error(payload.error ?? "Unable to save your order.");
+      if (requestId !== latestRequestId.current) return;
       setStatus(noOrder ? "NO_ORDER" : "RESPONDED");
       if (noOrder) setSelected({});
       setMessage(
@@ -50,9 +54,11 @@ export default function SupplierOrderRequestForm({
           : "Your latest item quantities have been saved.",
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save your order.");
+      if (requestId === latestRequestId.current) {
+        setMessage(error instanceof Error ? error.message : "Unable to save your order.");
+      }
     } finally {
-      setPending(false);
+      if (requestId === latestRequestId.current) setPending(false);
     }
   }
 

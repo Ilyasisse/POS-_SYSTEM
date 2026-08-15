@@ -5,7 +5,15 @@ import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
 } from "@/lib/suppliers/purchase-orders";
+import {
+  assertWhatsAppPdfSize,
+  purchaseOrderPdfMediaPath,
+} from "./pdf-access";
 import { generatePurchaseOrderPdf } from "./purchase-order-pdf";
+import {
+  purchaseOrderPdfInclude,
+  purchaseOrderPdfInput,
+} from "./purchase-order-pdf-snapshot";
 import {
   advanceRecurringDate,
   aggregateResponseQuantities,
@@ -16,14 +24,18 @@ import {
   normalizeE164Phone,
 } from "./scheduling";
 import {
+  isWhatsAppEnabled,
   readWhatsAppConfig,
   sendEmployeeOrderLink,
   sendSupplierPurchaseOrder,
-  uploadPurchaseOrderPdf,
 } from "./whatsapp";
 
 const MAX_DELIVERY_ATTEMPTS = 3;
 const RETRY_AFTER_MS = 5 * 60 * 1000;
+const UTC_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  dateStyle: "medium",
+});
 
 function linkSecret() {
   const value = process.env.SUPPLIER_ORDER_LINK_SECRET?.trim();
@@ -40,10 +52,7 @@ function deadlineLabel(date: Date, timeZone: string) {
 }
 
 function dateLabel(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    dateStyle: "medium",
-  }).format(date);
+  return UTC_DATE_FORMATTER.format(date);
 }
 
 function money(value: Prisma.Decimal.Value) {
@@ -172,6 +181,7 @@ async function attemptEmployeeMessage(
       dedupeKey,
       type: reminder ? "REMINDER" : "INVITATION",
       recipientPhone: recipient.phone,
+      provider: "TWILIO",
     },
     update: {},
   });
@@ -198,7 +208,8 @@ async function attemptEmployeeMessage(
         where: { id: delivery.id },
         data: {
           status: "ACCEPTED",
-          metaMessageId: messageId,
+          provider: "TWILIO",
+          providerMessageId: messageId,
           attempts: { increment: 1 },
           lastAttemptAt: now,
           acceptedAt: now,
@@ -405,11 +416,7 @@ async function sendFinalizedOrders(now: Date) {
     where: { status: "FINALIZING", purchaseOrderId: { not: null } },
     include: {
       purchaseOrder: {
-        include: {
-          supplier: true,
-          createdBy: { select: { fullName: true } },
-          items: { orderBy: { createdAt: "asc" } },
-        },
+        include: purchaseOrderPdfInclude,
       },
     },
     take: 25,
@@ -427,6 +434,7 @@ async function sendFinalizedOrders(now: Date) {
         dedupeKey,
         type: "SUPPLIER_ORDER",
         recipientPhone: run.supplierPhone,
+        provider: "TWILIO",
       },
       update: {},
     });
@@ -440,32 +448,16 @@ async function sendFinalizedOrders(now: Date) {
     ) continue;
     try {
       const config = readWhatsAppConfig();
-      const filename = `purchase-order-${order.orderNumber}.pdf`;
-      const pdf = await generatePurchaseOrderPdf({
-        orderNumber: order.orderNumber,
-        status: order.status,
-        supplierName: order.supplier.name,
-        supplierContact: order.supplier.contactName,
-        supplierPhone: order.supplier.phone,
-        createdAt: order.createdAt,
-        expectedDeliveryDate: order.expectedDeliveryDate,
-        preparedBy: order.createdBy.fullName,
-        notes: order.notes,
-        totalAmount: order.totalAmount.toString(),
-        items: order.items.map((item) => ({
-          name: item.itemName,
-          unit: item.itemUnit,
-          quantity: item.quantity.toString(),
-          unitPrice: item.unitPrice.toString(),
-          lineTotal: item.lineTotal.toString(),
-        })),
-      });
-      const mediaId = await uploadPurchaseOrderPdf(config, pdf, filename);
+      const pdf = await generatePurchaseOrderPdf(purchaseOrderPdfInput(order));
+      assertWhatsAppPdfSize(pdf);
+      const mediaPath = purchaseOrderPdfMediaPath(
+        delivery.id,
+        order.orderNumber,
+      );
       const messageId = await sendSupplierPurchaseOrder({
         config,
         to: run.supplierPhone,
-        mediaId,
-        filename,
+        mediaPath,
         orderNumber: order.orderNumber,
         deliveryDate: dateLabel(order.expectedDeliveryDate),
         total: money(order.totalAmount),
@@ -475,8 +467,9 @@ async function sendFinalizedOrders(now: Date) {
           where: { id: delivery.id },
           data: {
             status: "ACCEPTED",
-            metaMessageId: messageId,
-            mediaId,
+            provider: "TWILIO",
+            providerMessageId: messageId,
+            providerMediaReference: mediaPath,
             attempts: { increment: 1 },
             lastAttemptAt: now,
             acceptedAt: now,
@@ -515,9 +508,25 @@ async function sendFinalizedOrders(now: Date) {
 }
 
 export async function processScheduledSupplierOrders(now = new Date()) {
+  if (!isWhatsAppEnabled()) {
+    return {
+      enabled: false,
+      runsCreated: 0,
+      invitations: 0,
+      reminders: 0,
+      finalized: { created: 0, skipped: 0, failed: 0 },
+      supplierMessages: { sent: 0, failed: 0 },
+    };
+  }
   const runsCreated = await createDueRuns(now);
   const employeeMessages = await sendDueEmployeeMessages(now);
   const finalized = await finalizeDueRuns(now);
   const supplierMessages = await sendFinalizedOrders(now);
-  return { runsCreated, ...employeeMessages, finalized, supplierMessages };
+  return {
+    enabled: true,
+    runsCreated,
+    ...employeeMessages,
+    finalized,
+    supplierMessages,
+  };
 }

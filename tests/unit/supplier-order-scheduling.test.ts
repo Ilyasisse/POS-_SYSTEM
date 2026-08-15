@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
 import test from "node:test";
 import { PDFDocument } from "pdf-lib";
+import twilio from "twilio";
+import {
+  assertWhatsAppPdfSize,
+  derivePurchaseOrderPdfToken,
+  MAX_WHATSAPP_PDF_BYTES,
+  purchaseOrderPdfMediaPath,
+  verifyPurchaseOrderPdfToken,
+} from "../../src/lib/supplier-orders/pdf-access";
 import { generatePurchaseOrderPdf } from "../../src/lib/supplier-orders/purchase-order-pdf";
 import {
   advanceRecurringDate,
@@ -16,12 +23,14 @@ import {
   zonedDateTimeToUtc,
 } from "../../src/lib/supplier-orders/scheduling";
 import {
-  extractWhatsAppStatusUpdates,
+  extractTwilioStatusUpdate,
+  isWhatsAppEnabled,
   readWhatsAppConfig,
   sendEmployeeOrderLink,
   sendSupplierPurchaseOrder,
-  uploadPurchaseOrderPdf,
-  verifyWhatsAppSignature,
+  shouldApplyWhatsAppStatus,
+  type TwilioMessageClient,
+  verifyTwilioSignature,
 } from "../../src/lib/supplier-orders/whatsapp";
 
 test("converts Nairobi wall-clock schedule values to UTC and back", () => {
@@ -134,63 +143,86 @@ test("calculates expected delivery from the schedule local date", () => {
   );
 });
 
-test("verifies Meta webhook signatures and extracts delivery updates", () => {
-  const body = JSON.stringify({
-    entry: [
-      {
-        changes: [
-          {
-            value: {
-              statuses: [
-                { id: "wamid-1", status: "delivered" },
-                {
-                  id: "wamid-2",
-                  status: "failed",
-                  errors: [{ message: "Undeliverable" }],
-                },
-              ],
-            },
-          },
-        ],
-      },
-    ],
+test("verifies Twilio signatures and maps status callbacks", () => {
+  const authToken = "twilio-auth-token";
+  const url = "https://cafe.example.com/api/webhooks/whatsapp";
+  const params = {
+    MessageSid: "SM11111111111111111111111111111111",
+    MessageStatus: "delivered",
+  };
+  const signature = twilio.getExpectedTwilioSignature(authToken, url, params);
+  assert.equal(
+    verifyTwilioSignature({ authToken, signatureHeader: signature, url, params }),
+    true,
+  );
+  assert.equal(
+    verifyTwilioSignature({ authToken, signatureHeader: "invalid", url, params }),
+    false,
+  );
+  assert.deepEqual(extractTwilioStatusUpdate(params), {
+    messageId: params.MessageSid,
+    status: "delivered",
   });
-  const secret = "meta-secret";
-  const signature = createHmac("sha256", secret).update(body).digest("hex");
-  assert.equal(verifyWhatsAppSignature(body, `sha256=${signature}`, secret), true);
-  assert.equal(verifyWhatsAppSignature(body, "sha256=deadbeef", secret), false);
-  assert.deepEqual(extractWhatsAppStatusUpdates(JSON.parse(body)), [
-    { messageId: "wamid-1", status: "delivered", error: undefined },
-    { messageId: "wamid-2", status: "failed", error: "Undeliverable" },
-  ]);
+  assert.deepEqual(
+    extractTwilioStatusUpdate({
+      MessageSid: "SM22222222222222222222222222222222",
+      MessageStatus: "undelivered",
+      ErrorCode: "63015",
+      ChannelStatusMessage: "Recipient is not available",
+    }),
+    {
+      messageId: "SM22222222222222222222222222222222",
+      status: "failed",
+      error: "Recipient is not available",
+    },
+  );
+  assert.deepEqual(
+    extractTwilioStatusUpdate({
+      MessageSid: "SM33333333333333333333333333333333",
+      MessageStatus: "delivered",
+      EventType: "READ",
+    }),
+    {
+      messageId: "SM33333333333333333333333333333333",
+      status: "read",
+    },
+  );
 });
 
-test("builds Meta invitation, media, and supplier template requests", { concurrency: false }, async () => {
+test("ignores stale or regressive Twilio status updates", () => {
+  assert.equal(shouldApplyWhatsAppStatus("PENDING", "ACCEPTED"), true);
+  assert.equal(shouldApplyWhatsAppStatus("DELIVERED", "ACCEPTED"), false);
+  assert.equal(shouldApplyWhatsAppStatus("READ", "FAILED"), false);
+  assert.equal(shouldApplyWhatsAppStatus("FAILED", "DELIVERED"), false);
+});
+
+test("builds Twilio invitation and supplier Content API messages", async () => {
   const config = readWhatsAppConfig({
-    NODE_ENV: "test",
-    WHATSAPP_GRAPH_API_VERSION: "v23.0",
-    WHATSAPP_ACCESS_TOKEN: "token",
-    WHATSAPP_PHONE_NUMBER_ID: "phone-id",
-    WHATSAPP_BUSINESS_ACCOUNT_ID: "business-id",
-    WHATSAPP_APP_SECRET: "app-secret",
-    WHATSAPP_WEBHOOK_VERIFY_TOKEN: "verify",
+    NODE_ENV: "test" as const,
+    TWILIO_ACCOUNT_SID: "AC11111111111111111111111111111111",
+    TWILIO_API_KEY_SID: "SK11111111111111111111111111111111",
+    TWILIO_API_KEY_SECRET: "api-key-secret",
+    TWILIO_AUTH_TOKEN: "auth-token",
+    TWILIO_WHATSAPP_FROM: "+15553269140",
     APP_BASE_URL: "https://cafe.example.com/",
-    WHATSAPP_TEMPLATE_LANGUAGE: "en_US",
-    WHATSAPP_EMPLOYEE_INVITATION_TEMPLATE: "employee_invite",
-    WHATSAPP_EMPLOYEE_REMINDER_TEMPLATE: "employee_reminder",
-    WHATSAPP_SUPPLIER_ORDER_TEMPLATE: "supplier_order",
+    TWILIO_EMPLOYEE_INVITATION_CONTENT_SID:
+      "HX11111111111111111111111111111111",
+    TWILIO_EMPLOYEE_REMINDER_CONTENT_SID:
+      "HX22222222222222222222222222222222",
+    TWILIO_SUPPLIER_ORDER_CONTENT_SID:
+      "HX33333333333333333333333333333333",
   });
-  const calls: { url: string; init?: RequestInit }[] = [];
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
-    calls.push({ url, init });
-    return Response.json(
-      url.endsWith("/media") ? { id: "media-1" } : { messages: [{ id: `wamid-${calls.length}` }] },
-    );
-  }) as typeof fetch;
-  try {
-    const invitationId = await sendEmployeeOrderLink({
+  const calls: Parameters<TwilioMessageClient["messages"]["create"]>[0][] = [];
+  const client: TwilioMessageClient = {
+    messages: {
+      async create(input) {
+        calls.push(input);
+        return { sid: `SM${String(calls.length).padStart(32, "0")}` };
+      },
+    },
+  };
+  const invitationId = await sendEmployeeOrderLink(
+    {
       config,
       to: "+252612345678",
       employeeName: "Amina",
@@ -198,43 +230,83 @@ test("builds Meta invitation, media, and supplier template requests", { concurre
       deadline: "Aug 10, 2026, 3:00 PM",
       token: "link-token",
       reminder: false,
-    });
-    assert.equal(invitationId, "wamid-1");
-    const invitation = JSON.parse(String(calls[0]?.init?.body));
-    assert.equal(invitation.to, "252612345678");
-    assert.equal(invitation.template.name, "employee_invite");
-    assert.equal(
-      invitation.template.components[1].parameters[0].text,
-      "link-token",
-    );
+    },
+    client,
+  );
+  assert.equal(invitationId, "SM00000000000000000000000000000001");
+  assert.equal(calls[0]?.from, "whatsapp:+15553269140");
+  assert.equal(calls[0]?.to, "whatsapp:+252612345678");
+  assert.equal(
+    calls[0]?.contentSid,
+    "HX11111111111111111111111111111111",
+  );
+  assert.deepEqual(JSON.parse(calls[0]?.contentVariables ?? "{}"), {
+    "1": "Amina",
+    "2": "Jasper Market",
+    "3": "Aug 10, 2026, 3:00 PM",
+    "4": "link-token",
+  });
+  assert.equal(
+    calls[0]?.statusCallback,
+    "https://cafe.example.com/api/webhooks/whatsapp",
+  );
 
-    const mediaId = await uploadPurchaseOrderPdf(
-      config,
-      new Uint8Array([37, 80, 68, 70]),
-      "purchase-order-101.pdf",
-    );
-    assert.equal(mediaId, "media-1");
-    assert.ok(calls[1]?.init?.body instanceof FormData);
-
-    const supplierMessageId = await sendSupplierPurchaseOrder({
+  const supplierMessageId = await sendSupplierPurchaseOrder(
+    {
       config,
       to: "+252612345679",
-      mediaId,
-      filename: "purchase-order-101.pdf",
+      mediaPath: "delivery-id/token/purchase-order-101.pdf",
       orderNumber: 101,
       deliveryDate: "Aug 11, 2026",
       total: "$125.50",
-    });
-    assert.equal(supplierMessageId, "wamid-3");
-    const supplier = JSON.parse(String(calls[2]?.init?.body));
-    assert.equal(supplier.template.name, "supplier_order");
-    assert.equal(
-      supplier.template.components[0].parameters[0].document.id,
-      "media-1",
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    },
+    client,
+  );
+  assert.equal(supplierMessageId, "SM00000000000000000000000000000002");
+  assert.equal(
+    calls[1]?.contentSid,
+    "HX33333333333333333333333333333333",
+  );
+  assert.deepEqual(JSON.parse(calls[1]?.contentVariables ?? "{}"), {
+    "1": "delivery-id/token/purchase-order-101.pdf",
+    "2": "101",
+    "3": "Aug 11, 2026",
+    "4": "$125.50",
+  });
+});
+
+test("gates WhatsApp processing and signs private PDF paths", () => {
+  assert.equal(
+    isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "true" }),
+    true,
+  );
+  assert.equal(
+    isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "false" }),
+    false,
+  );
+  const env = {
+    NODE_ENV: "test" as const,
+    SUPPLIER_ORDER_PDF_LINK_SECRET:
+      "a-different-pdf-link-secret-with-at-least-32-characters",
+  };
+  const filename = "purchase-order-101.pdf";
+  const token = derivePurchaseOrderPdfToken("delivery-1", filename, env);
+  assert.equal(
+    verifyPurchaseOrderPdfToken("delivery-1", filename, token, env),
+    true,
+  );
+  assert.equal(
+    verifyPurchaseOrderPdfToken("delivery-2", filename, token, env),
+    false,
+  );
+  assert.equal(
+    purchaseOrderPdfMediaPath("delivery-1", 101, env),
+    `delivery-1/${token}/${filename}`,
+  );
+  assert.doesNotThrow(() => assertWhatsAppPdfSize(new Uint8Array(100)));
+  assert.throws(() =>
+    assertWhatsAppPdfSize(new Uint8Array(MAX_WHATSAPP_PDF_BYTES + 1)),
+  );
 });
 
 test("generates valid one-page and multi-page purchase-order PDFs", async () => {

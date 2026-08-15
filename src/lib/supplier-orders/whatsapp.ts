@@ -1,23 +1,43 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import twilio from "twilio";
 
 export type WhatsAppConfig = {
-  apiVersion: string;
-  accessToken: string;
-  phoneNumberId: string;
-  businessAccountId: string;
-  appSecret: string;
-  webhookVerifyToken: string;
+  accountSid: string;
+  apiKeySid: string;
+  apiKeySecret: string;
+  authToken: string;
+  from: string;
   appBaseUrl: string;
-  templateLanguage: string;
-  invitationTemplate: string;
-  reminderTemplate: string;
-  supplierOrderTemplate: string;
+  invitationContentSid: string;
+  reminderContentSid: string;
+  supplierOrderContentSid: string;
 };
 
-type MetaMessageResponse = {
-  messages?: { id?: string }[];
-  error?: { message?: string; code?: number };
+type TwilioMessage = { sid: string };
+
+export type TwilioMessageClient = {
+  messages: {
+    create(input: {
+      contentSid: string;
+      contentVariables: string;
+      from: string;
+      to: string;
+      statusCallback: string;
+    }): Promise<TwilioMessage>;
+  };
 };
+
+export type TwilioStatusUpdate = {
+  messageId: string;
+  status: "accepted" | "delivered" | "read" | "failed";
+  error?: string;
+};
+
+export type StoredWhatsAppStatus =
+  | "PENDING"
+  | "ACCEPTED"
+  | "DELIVERED"
+  | "READ"
+  | "FAILED";
 
 function required(env: NodeJS.ProcessEnv, key: string) {
   const value = env[key]?.trim();
@@ -25,225 +45,179 @@ function required(env: NodeJS.ProcessEnv, key: string) {
   return value;
 }
 
+function whatsappAddress(value: string) {
+  return value.startsWith("whatsapp:") ? value : `whatsapp:${value}`;
+}
+
+function baseUrl(value: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("APP_BASE_URL must be an absolute URL.");
+  }
+  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error("APP_BASE_URL must contain only the application origin.");
+  }
+  return parsed.origin;
+}
+
+export function isWhatsAppEnabled(env: NodeJS.ProcessEnv = process.env) {
+  return env.TWILIO_WHATSAPP_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export function readWhatsAppConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): WhatsAppConfig {
-  const apiVersion = required(env, "WHATSAPP_GRAPH_API_VERSION");
   return {
-    apiVersion: apiVersion.startsWith("v") ? apiVersion : `v${apiVersion}`,
-    accessToken: required(env, "WHATSAPP_ACCESS_TOKEN"),
-    phoneNumberId: required(env, "WHATSAPP_PHONE_NUMBER_ID"),
-    businessAccountId: required(env, "WHATSAPP_BUSINESS_ACCOUNT_ID"),
-    appSecret: required(env, "WHATSAPP_APP_SECRET"),
-    webhookVerifyToken: required(env, "WHATSAPP_WEBHOOK_VERIFY_TOKEN"),
-    appBaseUrl: required(env, "APP_BASE_URL").replace(/\/$/, ""),
-    templateLanguage: required(env, "WHATSAPP_TEMPLATE_LANGUAGE"),
-    invitationTemplate: required(env, "WHATSAPP_EMPLOYEE_INVITATION_TEMPLATE"),
-    reminderTemplate: required(env, "WHATSAPP_EMPLOYEE_REMINDER_TEMPLATE"),
-    supplierOrderTemplate: required(env, "WHATSAPP_SUPPLIER_ORDER_TEMPLATE"),
+    accountSid: required(env, "TWILIO_ACCOUNT_SID"),
+    apiKeySid: required(env, "TWILIO_API_KEY_SID"),
+    apiKeySecret: required(env, "TWILIO_API_KEY_SECRET"),
+    authToken: required(env, "TWILIO_AUTH_TOKEN"),
+    from: whatsappAddress(required(env, "TWILIO_WHATSAPP_FROM")),
+    appBaseUrl: baseUrl(required(env, "APP_BASE_URL")),
+    invitationContentSid: required(
+      env,
+      "TWILIO_EMPLOYEE_INVITATION_CONTENT_SID",
+    ),
+    reminderContentSid: required(
+      env,
+      "TWILIO_EMPLOYEE_REMINDER_CONTENT_SID",
+    ),
+    supplierOrderContentSid: required(
+      env,
+      "TWILIO_SUPPLIER_ORDER_CONTENT_SID",
+    ),
   };
 }
 
-function graphUrl(config: WhatsAppConfig, path: string) {
-  return `https://graph.facebook.com/${config.apiVersion}/${path}`;
-}
-
-async function readMetaResponse(response: Response) {
-  const payload = (await response.json().catch(() => ({}))) as MetaMessageResponse;
-  if (!response.ok) {
-    throw new Error(
-      payload.error?.message ?? `WhatsApp API request failed (${response.status}).`,
-    );
-  }
-  return payload;
+export function createWhatsAppClient(config: WhatsAppConfig): TwilioMessageClient {
+  return twilio(config.apiKeySid, config.apiKeySecret, {
+    accountSid: config.accountSid,
+  }) as TwilioMessageClient;
 }
 
 async function sendTemplate(
   config: WhatsAppConfig,
   to: string,
-  name: string,
-  components: unknown[],
+  contentSid: string,
+  variables: Record<string, string>,
+  client: TwilioMessageClient,
 ) {
-  const response = await fetch(
-    graphUrl(config, `${config.phoneNumberId}/messages`),
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: to.replace(/^\+/, ""),
-        type: "template",
-        template: {
-          name,
-          language: { code: config.templateLanguage },
-          components,
-        },
-      }),
-    },
-  );
-  const payload = await readMetaResponse(response);
-  const messageId = payload.messages?.[0]?.id;
-  if (!messageId) throw new Error("WhatsApp accepted no message identifier.");
-  return messageId;
+  const message = await client.messages.create({
+    contentSid,
+    contentVariables: JSON.stringify(variables),
+    from: config.from,
+    to: whatsappAddress(to),
+    statusCallback: `${config.appBaseUrl}/api/webhooks/whatsapp`,
+  });
+  if (!message.sid) throw new Error("Twilio accepted no message SID.");
+  return message.sid;
 }
 
-const textParameter = (text: string) => ({ type: "text", text });
-
-export async function sendEmployeeOrderLink(input: {
-  config: WhatsAppConfig;
-  to: string;
-  employeeName: string;
-  supplierName: string;
-  deadline: string;
-  token: string;
-  reminder: boolean;
-}) {
+export async function sendEmployeeOrderLink(
+  input: {
+    config: WhatsAppConfig;
+    to: string;
+    employeeName: string;
+    supplierName: string;
+    deadline: string;
+    token: string;
+    reminder: boolean;
+  },
+  client = createWhatsAppClient(input.config),
+) {
   return sendTemplate(
     input.config,
     input.to,
     input.reminder
-      ? input.config.reminderTemplate
-      : input.config.invitationTemplate,
-    [
-      {
-        type: "body",
-        parameters: [
-          textParameter(input.employeeName),
-          textParameter(input.supplierName),
-          textParameter(input.deadline),
-        ],
-      },
-      {
-        type: "button",
-        sub_type: "url",
-        index: "0",
-        parameters: [textParameter(input.token)],
-      },
-    ],
-  );
-}
-
-export async function uploadPurchaseOrderPdf(
-  config: WhatsAppConfig,
-  pdf: Uint8Array,
-  filename: string,
-) {
-  const form = new FormData();
-  form.set("messaging_product", "whatsapp");
-  form.set("type", "application/pdf");
-  form.set(
-    "file",
-    new Blob([new Uint8Array(pdf)], { type: "application/pdf" }),
-    filename,
-  );
-  const response = await fetch(
-    graphUrl(config, `${config.phoneNumberId}/media`),
+      ? input.config.reminderContentSid
+      : input.config.invitationContentSid,
     {
-      method: "POST",
-      headers: { Authorization: `Bearer ${config.accessToken}` },
-      body: form,
+      "1": input.employeeName,
+      "2": input.supplierName,
+      "3": input.deadline,
+      "4": input.token,
     },
+    client,
   );
-  const payload = (await response.json().catch(() => ({}))) as {
-    id?: string;
-    error?: { message?: string };
-  };
-  if (!response.ok || !payload.id) {
-    throw new Error(
-      payload.error?.message ?? `WhatsApp media upload failed (${response.status}).`,
-    );
-  }
-  return payload.id;
 }
 
-export async function sendSupplierPurchaseOrder(input: {
-  config: WhatsAppConfig;
-  to: string;
-  mediaId: string;
-  filename: string;
-  orderNumber: number;
-  deliveryDate: string;
-  total: string;
-}) {
+export async function sendSupplierPurchaseOrder(
+  input: {
+    config: WhatsAppConfig;
+    to: string;
+    mediaPath: string;
+    orderNumber: number;
+    deliveryDate: string;
+    total: string;
+  },
+  client = createWhatsAppClient(input.config),
+) {
   return sendTemplate(
     input.config,
     input.to,
-    input.config.supplierOrderTemplate,
-    [
-      {
-        type: "header",
-        parameters: [
-          {
-            type: "document",
-            document: { id: input.mediaId, filename: input.filename },
-          },
-        ],
-      },
-      {
-        type: "body",
-        parameters: [
-          textParameter(String(input.orderNumber)),
-          textParameter(input.deliveryDate),
-          textParameter(input.total),
-        ],
-      },
-    ],
+    input.config.supplierOrderContentSid,
+    {
+      "1": input.mediaPath,
+      "2": String(input.orderNumber),
+      "3": input.deliveryDate,
+      "4": input.total,
+    },
+    client,
   );
 }
 
-export function verifyWhatsAppSignature(
-  rawBody: string,
-  signatureHeader: string | null,
-  appSecret: string,
-) {
-  if (!signatureHeader?.startsWith("sha256=")) return false;
-  const received = Buffer.from(signatureHeader.slice(7), "hex");
-  const expected = createHmac("sha256", appSecret).update(rawBody).digest();
-  return received.length === expected.length && timingSafeEqual(received, expected);
+export function verifyTwilioSignature(input: {
+  authToken: string;
+  signatureHeader: string | null;
+  url: string;
+  params: Record<string, string>;
+}) {
+  if (!input.signatureHeader) return false;
+  return twilio.validateRequest(
+    input.authToken,
+    input.signatureHeader,
+    input.url,
+    input.params,
+  );
 }
 
-export type WhatsAppStatusUpdate = {
-  messageId: string;
-  status: "accepted" | "sent" | "delivered" | "read" | "failed";
-  error?: string;
-};
-
-export function extractWhatsAppStatusUpdates(payload: unknown) {
-  const updates: WhatsAppStatusUpdate[] = [];
-  if (!payload || typeof payload !== "object") return updates;
-  const entries = (payload as { entry?: unknown }).entry;
-  if (!Array.isArray(entries)) return updates;
-  for (const entry of entries) {
-    const changes = (entry as { changes?: unknown }).changes;
-    if (!Array.isArray(changes)) continue;
-    for (const change of changes) {
-      const statuses = (change as { value?: { statuses?: unknown } }).value
-        ?.statuses;
-      if (!Array.isArray(statuses)) continue;
-      for (const raw of statuses) {
-        const status = raw as {
-          id?: unknown;
-          status?: unknown;
-          errors?: { title?: string; message?: string }[];
-        };
-        if (
-          typeof status.id === "string" &&
-          ["accepted", "sent", "delivered", "read", "failed"].includes(
-            String(status.status),
-          )
-        ) {
-          updates.push({
-            messageId: status.id,
-            status: status.status as WhatsAppStatusUpdate["status"],
-            error: status.errors?.[0]?.message ?? status.errors?.[0]?.title,
-          });
-        }
-      }
-    }
+export function extractTwilioStatusUpdate(
+  params: Record<string, string>,
+): TwilioStatusUpdate | null {
+  const messageId = params.MessageSid || params.SmsSid;
+  if (!messageId) return null;
+  if (params.EventType?.toUpperCase() === "READ") {
+    return { messageId, status: "read" };
   }
-  return updates;
+
+  const rawStatus = (params.MessageStatus || params.SmsStatus || "").toLowerCase();
+  const error =
+    params.ChannelStatusMessage ||
+    params.ErrorMessage ||
+    (params.ErrorCode ? `Twilio error ${params.ErrorCode}` : undefined);
+  if (["failed", "undelivered", "canceled"].includes(rawStatus)) {
+    return { messageId, status: "failed", error };
+  }
+  if (rawStatus === "delivered") return { messageId, status: "delivered" };
+  if (["accepted", "queued", "sending", "sent"].includes(rawStatus)) {
+    return { messageId, status: "accepted" };
+  }
+  return null;
+}
+
+export function shouldApplyWhatsAppStatus(
+  current: StoredWhatsAppStatus,
+  next: StoredWhatsAppStatus,
+) {
+  if (current === "FAILED") return false;
+  if (next === "FAILED") return !["DELIVERED", "READ"].includes(current);
+  const rank: Record<Exclude<StoredWhatsAppStatus, "FAILED">, number> = {
+    PENDING: 0,
+    ACCEPTED: 1,
+    DELIVERED: 2,
+    READ: 3,
+  };
+  return rank[next as Exclude<StoredWhatsAppStatus, "FAILED">] > rank[current];
 }
