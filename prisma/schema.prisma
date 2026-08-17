@@ -582,6 +582,16 @@ model SupplierPurchaseOrderItem {
   @@index([supplierCatalogItemId])
 }
 
+model SchedulerLease {
+  key        String   @id
+  ownerToken String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 model SupplierOrderSchedule {
   id                      String                           @id @default(cuid())
   name                    String
