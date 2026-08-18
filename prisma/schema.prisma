@@ -607,6 +607,7 @@ model SupplierOrderSchedule {
   endAt                   DateTime?
   deliveryLeadDays        Int                              @default(1)
   isActive                Boolean                          @default(true)
+  deletedAt               DateTime?
   createdByUserId         String
   createdAt               DateTime                         @default(now())
   updatedAt               DateTime                         @updatedAt

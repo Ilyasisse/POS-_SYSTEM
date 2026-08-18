@@ -504,3 +504,80 @@ test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => 
   );
   assert.match(disabling, /active := false/);
 });
+
+test("soft-deletes supplier-order schedules while preserving their audit history", () => {
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  assert.match(
+    schema,
+    /model SupplierOrderSchedule \{[\s\S]*deletedAt\s+DateTime\?/,
+  );
+
+  const migration = readFileSync(
+    "prisma/migrations/20260818_supplier_order_schedule_soft_delete/migration.sql",
+    "utf8",
+  );
+  assert.match(migration, /ADD COLUMN "deletedAt" TIMESTAMP\(3\)/);
+
+  const actions = readFileSync(
+    "src/app/admin/supplier-order-schedules/actions.ts",
+    "utf8",
+  );
+  assert.match(
+    actions,
+    /deleteSupplierOrderSchedule[\s\S]*requirePermission\(PERMISSIONS\.SUPPLIER_MANAGE\)/,
+  );
+  assert.match(
+    actions,
+    /deleteSupplierOrderSchedule[\s\S]*executeExclusiveSupplierOrderSchedulerOperation/,
+  );
+  assert.match(
+    actions,
+    /deletedAt,[\s\S]*isActive: false,[\s\S]*nextInviteAt: null,[\s\S]*nextSupplierSendAt: null/,
+  );
+  assert.match(
+    actions,
+    /status: \{ in: \["SCHEDULED", "COLLECTING", "FINALIZING"\] \}[\s\S]*status: "CANCELLED"/,
+  );
+  assert.doesNotMatch(actions, /supplierOrderSchedule\.delete\(/);
+  assert.doesNotMatch(actions, /supplierOrderRun\.delete/);
+  assert.doesNotMatch(actions, /supplierPurchaseOrder\.delete/);
+  assert.doesNotMatch(actions, /supplierOrderWhatsAppDelivery\.delete/);
+
+  const service = readFileSync(
+    "src/lib/supplier-orders/service.ts",
+    "utf8",
+  );
+  assert.ok(
+    service.match(/deletedAt: null/g)?.length >= 6,
+    "every scheduler stage and the transactional claim must exclude deleted schedules",
+  );
+
+  const listPage = readFileSync(
+    "src/app/admin/supplier-order-schedules/page.tsx",
+    "utf8",
+  );
+  assert.match(listPage, /where: \{ deletedAt: null \}/);
+  assert.match(listPage, /Schedule deleted/);
+
+  const detailPage = readFileSync(
+    "src/app/admin/supplier-order-schedules/\[id\]/page.tsx",
+    "utf8",
+  );
+  assert.match(detailPage, /where: \{ id, deletedAt: null \}/);
+  assert.match(detailPage, /DeleteScheduleButton/);
+
+  const deleteButton = readFileSync(
+    "src/app/admin/supplier-order-schedules/\[id\]/DeleteScheduleButton.tsx",
+    "utf8",
+  );
+  assert.match(deleteButton, /AlertDialog/);
+  assert.match(deleteButton, /variant="destructive"/);
+  assert.match(deleteButton, /Existing purchase orders/);
+
+  const requests = readFileSync(
+    "src/lib/supplier-orders/requests.ts",
+    "utf8",
+  );
+  assert.match(requests, /recipient\.run\.schedule\.deletedAt === null/);
+  assert.match(requests, /recipient\.run\.schedule\.deletedAt !== null/);
+});

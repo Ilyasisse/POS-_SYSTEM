@@ -45,13 +45,21 @@ const prismaSchedulerLease: SchedulerLeaseOperations = {
   },
 };
 
+export function executeExclusiveSupplierOrderSchedulerOperation<T>(
+  process: () => Promise<T>,
+) {
+  return executeWithSupplierOrderSchedulerLease({
+    lease: prismaSchedulerLease,
+    process,
+  });
+}
+
 // This lease prevents concurrent sends. It cannot provide absolute exactly-once
 // delivery if Twilio accepts a message immediately before the process exits.
 export async function runSupplierOrderScheduler() {
-  const execution = await executeWithSupplierOrderSchedulerLease({
-    lease: prismaSchedulerLease,
-    process: processScheduledSupplierOrders,
-  });
+  const execution = await executeExclusiveSupplierOrderSchedulerOperation(
+    processScheduledSupplierOrders,
+  );
   if (execution.alreadyRunning) {
     return {
       enabled: isWhatsAppEnabled(),

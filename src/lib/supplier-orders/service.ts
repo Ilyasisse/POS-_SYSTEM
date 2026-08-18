@@ -64,7 +64,7 @@ function money(value: Prisma.Decimal.Value) {
 
 async function createDueRuns(now: Date) {
   const schedules = await prisma.supplierOrderSchedule.findMany({
-    where: { isActive: true, nextInviteAt: { lte: now } },
+    where: { deletedAt: null, isActive: true, nextInviteAt: { lte: now } },
     include: {
       supplier: { select: { id: true, name: true, phone: true, isActive: true } },
       recipients: {
@@ -129,7 +129,12 @@ async function createDueRuns(now: Date) {
 
     const didCreate = await prisma.$transaction(async (tx) => {
       const claimed = await tx.supplierOrderSchedule.updateMany({
-        where: { id: schedule.id, isActive: true, nextInviteAt: inviteAt },
+        where: {
+          id: schedule.id,
+          deletedAt: null,
+          isActive: true,
+          nextInviteAt: inviteAt,
+        },
         data: {
           nextInviteAt,
           nextSupplierSendAt,
@@ -243,6 +248,7 @@ async function attemptEmployeeMessage(
 async function sendDueEmployeeMessages(now: Date) {
   const runs = await prisma.supplierOrderRun.findMany({
     where: {
+      schedule: { deletedAt: null },
       status: { in: ["SCHEDULED", "COLLECTING"] },
       inviteAt: { lte: now },
       supplierSendAt: { gt: now },
@@ -286,14 +292,18 @@ async function sendDueEmployeeMessages(now: Date) {
 async function finalizeRun(runId: string, now: Date) {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const run = await tx.supplierOrderRun.findUnique({
-        where: { id: runId },
+      const run = await tx.supplierOrderRun.findFirst({
+        where: {
+          id: runId,
+          status: "FINALIZING",
+          schedule: { deletedAt: null },
+        },
         include: {
           schedule: { select: { createdByUserId: true, name: true } },
           recipients: { include: { responseItems: true } },
         },
       });
-      if (!run || run.status !== "FINALIZING" || run.purchaseOrderId) return "ignored" as const;
+      if (!run || run.purchaseOrderId) return "ignored" as const;
       const quantities = aggregateResponseQuantities(
         run.recipients.flatMap((recipient) =>
           recipient.responseItems.map((item) => ({
@@ -392,14 +402,22 @@ async function finalizeRun(runId: string, now: Date) {
 
 async function finalizeDueRuns(now: Date) {
   const due = await prisma.supplierOrderRun.findMany({
-    where: { status: { in: ["SCHEDULED", "COLLECTING"] }, supplierSendAt: { lte: now } },
+    where: {
+      schedule: { deletedAt: null },
+      status: { in: ["SCHEDULED", "COLLECTING"] },
+      supplierSendAt: { lte: now },
+    },
     select: { id: true },
     take: 50,
   });
   const counts = { created: 0, skipped: 0, failed: 0 };
   for (const candidate of due) {
     const claimed = await prisma.supplierOrderRun.updateMany({
-      where: { id: candidate.id, status: { in: ["SCHEDULED", "COLLECTING"] } },
+      where: {
+        id: candidate.id,
+        schedule: { deletedAt: null },
+        status: { in: ["SCHEDULED", "COLLECTING"] },
+      },
       data: { status: "FINALIZING" },
     });
     if (claimed.count !== 1) continue;
@@ -413,7 +431,11 @@ async function finalizeDueRuns(now: Date) {
 
 async function sendFinalizedOrders(now: Date) {
   const runs = await prisma.supplierOrderRun.findMany({
-    where: { status: "FINALIZING", purchaseOrderId: { not: null } },
+    where: {
+      schedule: { deletedAt: null },
+      status: "FINALIZING",
+      purchaseOrderId: { not: null },
+    },
     include: {
       purchaseOrder: {
         include: purchaseOrderPdfInclude,
