@@ -215,6 +215,6 @@ export async function getWaiterInitializationRowsWithInactive(
         },
       },
     },
-    orderBy: { fullName: "asc" },
+    orderBy: { fullName: "desc" },
   });
 }
