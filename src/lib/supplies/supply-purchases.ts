@@ -1,10 +1,9 @@
 import { Prisma } from "@prisma/client";
-import { parseCurrencyAmount } from "@/lib/currency/amount-input";
 
 export const NAIROBI_TIME_ZONE = "Africa/Nairobi";
 
 export type SupplyPurchaseInput = {
-  itemName: string;
+  catalogItemId: string;
   purchaseDateKey: string;
   quantity: Prisma.Decimal;
   unitPrice: Prisma.Decimal;
@@ -15,6 +14,21 @@ export type SupplyPurchaseValidation =
   | { ok: false; status: "invalid_date" | "invalid_entry" };
 
 const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
+const UNIT_PRICE_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,4})?$/;
+
+export function parseSupplyUnitPrice(
+  value: FormDataEntryValue | string | number | null | undefined,
+) {
+  const input = String(value ?? "").trim();
+  if (!UNIT_PRICE_PATTERN.test(input)) return null;
+
+  try {
+    const price = new Prisma.Decimal(input);
+    return price.isNegative() ? null : price;
+  } catch {
+    return null;
+  }
+}
 
 const nairobiDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: NAIROBI_TIME_ZONE,
@@ -25,11 +39,10 @@ const nairobiDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
 
 function datePartsInNairobi(date: Date) {
   const parts = nairobiDatePartsFormatter.formatToParts(date);
-  const values = Object.fromEntries(
-    parts
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
+  const values: Record<string, string> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") values[part.type] = part.value;
+  }
 
   return `${values.year}-${values.month}-${values.day}`;
 }
@@ -77,7 +90,7 @@ export function parseSupplyPurchaseInput(
   formData: FormData,
   now = new Date(),
 ): SupplyPurchaseValidation {
-  const itemName = String(formData.get("itemName") ?? "").trim();
+  const catalogItemId = String(formData.get("catalogItemId") ?? "").trim();
   const purchaseDateKey = String(formData.get("purchaseDate") ?? "").trim();
   const quantityInput = String(formData.get("quantity") ?? "").trim();
   const unitPriceInput = String(formData.get("unitPrice") ?? "").trim();
@@ -87,9 +100,9 @@ export function parseSupplyPurchaseInput(
     return { ok: false, status: "invalid_date" };
   }
 
-  const unitPrice = parseCurrencyAmount(unitPriceInput);
+  const unitPrice = parseSupplyUnitPrice(unitPriceInput);
   if (
-    !itemName ||
+    !catalogItemId ||
     !QUANTITY_PATTERN.test(quantityInput) ||
     !unitPriceInput ||
     unitPrice === null
@@ -103,10 +116,10 @@ export function parseSupplyPurchaseInput(
   return {
     ok: true,
     value: {
-      itemName,
+      catalogItemId,
       purchaseDateKey,
       quantity,
-      unitPrice: new Prisma.Decimal(unitPriceInput),
+      unitPrice,
     },
   };
 }
