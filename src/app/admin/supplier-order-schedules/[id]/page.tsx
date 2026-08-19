@@ -21,6 +21,7 @@ import {
   updateSupplierOrderSchedule,
 } from "../actions";
 import ScheduleForm from "../ScheduleForm";
+import DeleteScheduleButton from "./DeleteScheduleButton";
 
 function tone(status: SupplierOrderRunStatus) {
   if (status === "SENT") return "green" as const;
@@ -41,8 +42,8 @@ export default async function SupplierOrderScheduleDetailPage({
   const { id } = await params;
   const query = (await searchParams) ?? {};
   const [schedule, suppliers, employees] = await Promise.all([
-    prisma.supplierOrderSchedule.findUnique({
-      where: { id },
+    prisma.supplierOrderSchedule.findFirst({
+      where: { id, deletedAt: null },
       include: {
         recipients: { select: { userId: true } },
         runs: {
@@ -93,6 +94,7 @@ export default async function SupplierOrderScheduleDetailPage({
               {schedule.isActive ? "Pause schedule" : "Resume schedule"}
             </Button>
           </form>
+          <DeleteScheduleButton scheduleId={schedule.id} scheduleName={schedule.name} />
           <Button asChild variant="outline">
             <Link href="/admin/supplier-order-schedules">Back to schedules</Link>
           </Button>

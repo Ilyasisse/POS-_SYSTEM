@@ -27,6 +27,7 @@ export async function getSupplierOrderRequest(token: string) {
       responseItems: true,
       run: {
         include: {
+          schedule: { select: { deletedAt: true } },
           supplier: {
             select: {
               catalogItems: {
@@ -46,6 +47,7 @@ export async function getSupplierOrderRequest(token: string) {
   });
   if (!recipient) return null;
   const editable =
+    recipient.run.schedule.deletedAt === null &&
     recipient.run.supplierSendAt.getTime() > Date.now() &&
     ["SCHEDULED", "COLLECTING"].includes(recipient.run.status);
   const items = recipient.run.supplier.catalogItems
@@ -82,10 +84,15 @@ export async function saveSupplierOrderRequest(token: string, raw: unknown) {
   return prisma.$transaction(async (tx) => {
     const recipient = await tx.supplierOrderRunRecipient.findUnique({
       where: { tokenHash },
-      include: { run: true },
+      include: {
+        run: {
+          include: { schedule: { select: { deletedAt: true } } },
+        },
+      },
     });
     if (!recipient) throw new Error("This order link is invalid or expired.");
     if (
+      recipient.run.schedule.deletedAt !== null ||
       recipient.run.supplierSendAt.getTime() <= Date.now() ||
       !["SCHEDULED", "COLLECTING"].includes(recipient.run.status)
     ) {
