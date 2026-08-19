@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateDailyCashSummary, fundingFor } from "../../src/lib/daily-cash/money";
 import {
+  assertDailyCashBusinessDate,
   getDailyCashDefaultDateKey,
   getDailyCashWaiterBalanceDateKey,
+  isDailyCashLocked,
 } from "../../src/lib/daily-cash/business-date";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "../../src/lib/daily-cash/paid-breakdown";
 import { resolveDailySalaryRate } from "../../src/lib/daily-cash/salary-rates";
@@ -23,6 +25,27 @@ test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
     getDailyCashWaiterBalanceDateKey("2026-08-10"),
     "2026-08-09",
   );
+});
+
+test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dates", () => {
+  const now = new Date(2026, 7, 11, 12, 0, 0);
+
+  assert.equal(assertDailyCashBusinessDate("2026-08-01", now), "2026-08-01");
+  assert.throws(
+    () => assertDailyCashBusinessDate("2026-07-31", now),
+    /begins on August 1, 2026/,
+  );
+  assert.throws(
+    () => assertDailyCashBusinessDate("2026-08-12", now),
+    /Future business days cannot be used/,
+  );
+});
+
+test("Daily Cash locks a business day when it reaches exactly 14 days old", () => {
+  const now = new Date(2026, 7, 15, 12, 0, 0);
+
+  assert.equal(isDailyCashLocked("2026-08-02", now), false);
+  assert.equal(isDailyCashLocked("2026-08-01", now), true);
 });
 
 test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
