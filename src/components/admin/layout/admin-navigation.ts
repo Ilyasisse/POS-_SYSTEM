@@ -171,6 +171,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.REPORT_VIEW,
   },
   {
+    key: "business-intelligence",
+    href: "/admin/business-intelligence",
+    label: "Business intelligence",
+    icon: ChartNoAxesCombined,
+    permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
     key: "operations",
     href: "/admin/operations",
     label: "Operations",
