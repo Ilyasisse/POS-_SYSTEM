@@ -1,11 +1,18 @@
 import Link from "next/link";
-import { AdminPage, Button, Card, MetricCard } from "@/components/admin/shared";
+import {
+  AdminPage,
+  Button,
+  Card,
+  ClearFiltersLink,
+  MetricCard,
+} from "@/components/admin/shared";
 import AutoSubmitInput from "@/components/AutoSubmitInput";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { Input } from "@/components/ui/input";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
+import { isValidDateKey } from "@/lib/admin/admin-filters";
 import { prisma } from "@/lib/prisma";
 import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
@@ -29,7 +36,7 @@ function dateInput(
   fallback: Date,
   endOfDay = false,
 ) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback;
+  if (!isValidDateKey(value)) return fallback;
   const parsed = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00"}`);
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
@@ -72,7 +79,8 @@ function SupplierBillsFilters({
 }) {
   return (
     <form
-      className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
+      method="get"
+      className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}
     >
       {showingDueThroughTomorrow ? (
         <Input type="hidden" name="scope" value="due-through-tomorrow" />
@@ -121,6 +129,16 @@ function SupplierBillsFilters({
           />
         </>
       )}
+      <ClearFiltersLink
+        href="/admin/reports/supplier-bills"
+        show={Boolean(
+          params.supplier ||
+            params.status ||
+            params.from ||
+            params.to ||
+            params.scope,
+        )}
+      />
     </form>
   );
 }

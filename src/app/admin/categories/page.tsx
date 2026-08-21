@@ -1,11 +1,10 @@
-﻿import { Button } from "@/components/ui/button";
+﻿import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   PaginationBar,
   AdminPage,
   PrimaryLink,
   RowActions,
   SearchToolbar,
-  NativeSelect,
   Table,
   DataTableCard,
   TableCell,
@@ -13,6 +12,7 @@ import {
   StatusBadge,
 } from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
+import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { prisma } from "@/lib/prisma";
 
 type AdminCategoriesPageProps = {
@@ -30,7 +30,11 @@ export default async function AdminCategoriesPage({
   const currentPage = Math.max(Number(params.page) || 1, 1);
   const pageSize = 10;
   const q = params.q?.trim() ?? "";
-  const status = params.status ?? "all";
+  const status = normalizeFilterChoice(
+    params.status,
+    ["all", "active", "inactive"] as const,
+    "all",
+  );
   const where = {
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
     ...(status === "active"
@@ -79,18 +83,17 @@ export default async function AdminCategoriesPage({
           />
         }
       >
-        <SearchToolbar placeholder="Search categories..." defaultValue={q}>
-          <NativeSelect name="status" defaultValue={status}>
+        <SearchToolbar
+          placeholder="Search categories..."
+          defaultValue={q}
+          hasActiveFilters={Boolean(q || status !== "all")}
+          clearHref="/admin/categories"
+        >
+          <AutoSubmitSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </NativeSelect>
-          <Button
-            type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
-          >
-            Filter
-          </Button>
+          </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
           <thead>

@@ -82,13 +82,20 @@ export function SearchToolbar({
   placeholder,
   defaultValue,
   children,
+  hasActiveFilters = false,
+  clearHref,
 }: {
   placeholder: string;
   defaultValue?: string;
   children?: ReactNode;
+  hasActiveFilters?: boolean;
+  clearHref: string;
 }) {
   return (
-    <form className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center">
+    <form
+      method="get"
+      className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center"
+    >
       <label className="relative min-w-0 flex-1">
         <span className="sr-only">{placeholder}</span>
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -101,7 +108,27 @@ export function SearchToolbar({
         />
       </label>
       {children}
+      <Button type="submit">Search</Button>
+      <ClearFiltersLink href={clearHref} show={hasActiveFilters} />
     </form>
+  );
+}
+
+export function ClearFiltersLink({
+  href,
+  show,
+  label = "Clear filters",
+}: {
+  href: string;
+  show: boolean;
+  label?: string;
+}) {
+  if (!show) return null;
+
+  return (
+    <Button asChild variant="outline">
+      <Link href={href}>{label}</Link>
+    </Button>
   );
 }
 

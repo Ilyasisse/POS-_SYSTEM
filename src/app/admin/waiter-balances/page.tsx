@@ -1,4 +1,5 @@
 import { AlertCircle, CalendarDays, CircleDollarSign, Users } from "lucide-react";
+import { ClearFiltersLink } from "@/components/admin/shared";
 import { PageHeader } from "@/components/ui/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -373,12 +374,19 @@ export default async function WaiterBalancesPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <form
+            method="get"
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
             <WaiterBalanceDateFilter
               latestCompletedBusinessDate={defaultBusinessDate}
               ledgerStartDate={WAITER_BALANCE_LEDGER_START_DATE}
               selectedBusinessDate={selectedBusinessDate}
               showInactive={showInactive}
+            />
+            <ClearFiltersLink
+              href="/admin/waiter-balances"
+              show={Boolean(params?.date || showInactive)}
             />
           </form>
         </CardContent>

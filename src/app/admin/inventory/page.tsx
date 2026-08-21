@@ -4,7 +4,6 @@ import {
   Card,
   AdminPage,
   SearchToolbar,
-  NativeSelect,
   MetricCard,
   Table,
   DataTableCard,
@@ -12,7 +11,9 @@ import {
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { prisma } from "@/lib/prisma";
+import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import { canonicalUnitLabel } from "@/lib/inventory/inventory-domain";
 import {
@@ -130,9 +131,21 @@ function InventorySummary({
 }) {
   return (
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <MetricCard label="In Stock" value={summary.ok} helper="Healthy supplies" />
-      <MetricCard label="Low Stock" value={summary.low} helper="Needs attention" />
-      <MetricCard label="Out of Stock" value={summary.out} helper="Restock now" />
+      <MetricCard
+        label="In Stock"
+        value={summary.ok}
+        helper="Healthy supplies"
+      />
+      <MetricCard
+        label="Low Stock"
+        value={summary.low}
+        helper="Needs attention"
+      />
+      <MetricCard
+        label="Out of Stock"
+        value={summary.out}
+        helper="Restock now"
+      />
       <MetricCard
         label="Taken Today"
         value={takenTodayCount}
@@ -207,19 +220,18 @@ function InventorySuppliesTable({
         </p>
       }
     >
-      <SearchToolbar placeholder="Search inventory..." defaultValue={searchQuery}>
-        <NativeSelect name="status" defaultValue={statusFilter}>
-          <option value="all">Category All</option>
+      <SearchToolbar
+        placeholder="Search inventory..."
+        defaultValue={searchQuery}
+        hasActiveFilters={Boolean(searchQuery || statusFilter !== "all")}
+        clearHref="/admin/inventory"
+      >
+        <AutoSubmitSelect name="status" defaultValue={statusFilter}>
+          <option value="all">Status All</option>
           <option value="ok">In Stock</option>
           <option value="low">Low Stock</option>
           <option value="out">Out of Stock</option>
-        </NativeSelect>
-        <Button
-          type="submit"
-          className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
-        >
-          Filter
-        </Button>
+        </AutoSubmitSelect>
       </SearchToolbar>
       <Table>
         <thead>
@@ -381,7 +393,11 @@ export default async function AdminInventoryPage({
 }: AdminInventoryPageProps) {
   const params = await searchParams;
   const q = params?.q?.trim().toLowerCase() ?? "";
-  const statusFilter = params?.status ?? "all";
+  const statusFilter = normalizeFilterChoice(
+    params?.status,
+    ["all", "ok", "low", "out"] as const,
+    "all",
+  );
   const todayStart = getEatDayStart();
   const notice = getInventoryEmailMessage(params?.inventoryEmail);
 

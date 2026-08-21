@@ -1,4 +1,6 @@
 import Link from "next/link";
+import AutoSubmitInput from "@/components/AutoSubmitInput";
+import { ClearFiltersLink } from "@/components/admin/shared";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -78,7 +80,7 @@ export default async function DailyCashPage({ searchParams }: { searchParams?: P
 
   return <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
     <PageHeader eyebrow="Operations" title="Daily cash" description="Use waiter end-day cash to pay salary, prior-day supplies, supplier obligations, and one-time expenses." />
-    <Card><CardContent className="pt-6"><form className="flex flex-wrap items-end gap-3"><div className="grid gap-2"><Label htmlFor="daily-cash-date">Business day</Label><Input id="daily-cash-date" name="date" type="date" defaultValue={date} min={DAILY_CASH_START_DATE} max={currentDate} /></div><Button type="submit" variant="outline">View day</Button><Button asChild variant="outline"><Link href="/admin/daily-cash/settings">Salary settings</Link></Button></form></CardContent></Card>
+    <Card><CardContent className="pt-6"><form method="get" className="flex flex-wrap items-end gap-3"><div className="grid gap-2"><Label htmlFor="daily-cash-date">Business day</Label><AutoSubmitInput id="daily-cash-date" name="date" type="date" defaultValue={date} min={DAILY_CASH_START_DATE} max={currentDate} /></div><ClearFiltersLink href="/admin/daily-cash" show={Boolean(params?.date)} /><Button asChild variant="outline"><Link href="/admin/daily-cash/settings">Salary settings</Link></Button></form></CardContent></Card>
     {!data ? <Alert><AlertCircle /><AlertTitle>Salary setup required</AlertTitle><AlertDescription>Set the combined daily salary before Daily Cash can create records or payments.</AlertDescription></Alert> : <DailyCashContent data={data} date={date} />}
   </div>;
 }
