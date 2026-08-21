@@ -3,13 +3,16 @@
 import type { ComponentProps } from "react";
 import { Input } from "@/components/ui/input";
 
-type AutoSubmitInputProps = Omit<ComponentProps<typeof Input>, "onChange">;
+type AutoSubmitInputProps = Omit<
+  ComponentProps<typeof Input>,
+  "onChange" | "onInput"
+>;
 
 export default function AutoSubmitInput(props: AutoSubmitInputProps) {
   return (
     <Input
       {...props}
-      onChange={(event) => event.currentTarget.form?.requestSubmit()}
+      onInput={(event) => event.currentTarget.form?.requestSubmit()}
     />
   );
 }

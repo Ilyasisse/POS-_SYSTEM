@@ -4,6 +4,7 @@ import {
   AdminPage,
   Button,
   Card,
+  ClearFiltersLink,
   DataTableCard,
   MetricCard,
   Table,
@@ -109,7 +110,7 @@ function SupplyDateControls({
 
   return (
     <Card className="p-4">
-      <form className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="grid gap-2">
           <Label htmlFor="supply-date">Purchase date</Label>
           <AutoSubmitInput
@@ -120,9 +121,10 @@ function SupplyDateControls({
             max={today}
           />
         </div>
-        <Button asChild type="button" variant="outline">
-          <Link href="/admin/supplies">Today</Link>
-        </Button>
+        <ClearFiltersLink
+          href="/admin/supplies"
+          show={selectedDate !== today}
+        />
         <div className="flex gap-2 sm:ml-auto">
           <Button
             asChild

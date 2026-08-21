@@ -3,6 +3,7 @@ import type { SupplierPurchaseOrderStatus } from "@prisma/client";
 import {
   AdminPage,
   Button,
+  ClearFiltersLink,
   DataTableCard,
   MetricCard,
   Table,
@@ -87,7 +88,10 @@ export default async function SupplierPurchaseOrdersPage({
         </>
       }
     >
-      <form className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+      <form
+        method="get"
+        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+      >
         <AutoSubmitSelect
           name="supplier"
           defaultValue={query.supplier || ""}
@@ -114,6 +118,10 @@ export default async function SupplierPurchaseOrdersPage({
             </option>
           ))}
         </AutoSubmitSelect>
+        <ClearFiltersLink
+          href="/admin/supplier-purchase-orders"
+          show={Boolean(query.supplier || status)}
+        />
       </form>
 
       <section className="grid gap-4 sm:grid-cols-3">

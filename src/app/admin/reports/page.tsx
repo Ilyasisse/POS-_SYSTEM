@@ -3,10 +3,12 @@ import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   Card,
   AdminPage,
+  ClearFiltersLink,
   MetricCard,
   ToneBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
+import { isValidDateKey } from "@/lib/admin/admin-filters";
 import { buildWaiterShiftSummary } from "@/lib/waiter/waiter-shifts";
 import {
   formatCashierBusinessDayRange,
@@ -33,7 +35,7 @@ function formatDateInput(date: Date) {
 }
 
 function parseDateInput(dateInput?: string) {
-  if (!dateInput) return new Date();
+  if (!isValidDateKey(dateInput)) return new Date();
   const [year, month, day] = dateInput.split("-").map(Number);
   if (!year || !month || !day) return new Date();
   return new Date(year, month - 1, day, 12, 0, 0, 0);
@@ -202,7 +204,10 @@ export default async function AdminReportsPage({
       title="Reports"
       description="View business reports and analytics"
     >
-      <form className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:flex-row md:items-end">
+      <form
+        method="get"
+        className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:flex-row md:items-end"
+      >
         <label className="min-w-0 flex-1">
           <span className="mb-1 block text-sm font-bold text-slate-700">
             Staff
@@ -235,6 +240,10 @@ export default async function AdminReportsPage({
             className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           />
         </label>
+        <ClearFiltersLink
+          href="/admin/reports"
+          show={Boolean(params?.waiterId || params?.date)}
+        />
       </form>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
