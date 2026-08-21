@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type StaffPageProps = {
   searchParams?: Promise<{
