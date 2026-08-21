@@ -29,12 +29,16 @@ export async function saveKitchenPreparationTarget(input: {
     throw new Error("Preparation target must be between 1 and 240 minutes.");
   }
   return prisma.$transaction(async (tx) => {
-    const previous = await tx.kitchenPreparationTarget.findUnique({ where: { station: input.station } });
-    const target = await tx.kitchenPreparationTarget.upsert({
-      where: { station: input.station },
-      create: { station: input.station, targetMinutes: input.targetMinutes, updatedByUserId: input.actorUserId },
-      update: { targetMinutes: input.targetMinutes, updatedByUserId: input.actorUserId },
-    });
+    const { previous, target } = await tx.kitchenPreparationTarget
+      .findUnique({ where: { station: input.station } })
+      .then(async (previous) => ({
+        previous,
+        target: await tx.kitchenPreparationTarget.upsert({
+          where: { station: input.station },
+          create: { station: input.station, targetMinutes: input.targetMinutes, updatedByUserId: input.actorUserId },
+          update: { targetMinutes: input.targetMinutes, updatedByUserId: input.actorUserId },
+        }),
+      }));
     await tx.auditLog.create({ data: {
       actorUserId: input.actorUserId,
       action: "kitchen.preparation_target.changed",
