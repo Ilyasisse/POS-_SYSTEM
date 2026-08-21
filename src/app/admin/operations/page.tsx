@@ -59,7 +59,7 @@ export default async function OperationsPage() {
             <select name="severity" className={fieldClass} aria-label="Incident severity"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select>
             <Input name="title" placeholder="Incident title" required />
             <select name="station" className={fieldClass} aria-label="Affected station"><option value="">All areas</option>{KITCHEN_STATIONS.map((station) => <option key={station}>{station}</option>)}</select>
-            <textarea name="description" required placeholder="What happened?" className="min-h-24 rounded-lg border p-3 sm:col-span-2" />
+            <textarea name="description" required placeholder="What happened?" aria-label="Incident description" className="min-h-24 rounded-lg border p-3 sm:col-span-2" />
             <select name="assignedToUserId" className={fieldClass} aria-label="Assign incident"><option value="">Unassigned</option>{staff.map((member) => <option key={member.id} value={member.id}>{member.fullName}</option>)}</select>
             <Button className="sm:w-fit">Record incident</Button>
           </form>
@@ -85,7 +85,7 @@ export default async function OperationsPage() {
             <Input name="name" placeholder="Checklist name" required />
             <select name="station" className={fieldClass} aria-label="Cleaning station"><option value="">All areas</option>{KITCHEN_STATIONS.map((station) => <option key={station}>{station}</option>)}</select>
             <Input name="schedule" placeholder="Schedule, e.g. Daily at 17:00" required />
-            <textarea name="tasks" className="min-h-28 rounded-lg border p-3" placeholder="One required task per line" required />
+            <textarea name="tasks" className="min-h-28 rounded-lg border p-3" placeholder="One required task per line" aria-label="Cleaning checklist tasks" required />
             <Button className="w-fit">Create template</Button>
           </form> : null}
           {templates.map((template) => <div key={template.id} className="rounded-xl border p-3"><strong>{template.name}</strong><p className="text-xs text-slate-500">{template.schedule} · {template.tasks.length} tasks</p>{canManageCleaning ? <form action={scheduleCleaningRunAction} className="mt-2 grid gap-2 sm:grid-cols-3"><input type="hidden" name="templateId" value={template.id} /><Input name="scheduledFor" type="datetime-local" required /><select name="assignedToUserId" className={fieldClass} aria-label="Assign cleaning run"><option value="">Unassigned</option>{staff.map((member) => <option key={member.id} value={member.id}>{member.fullName}</option>)}</select><Button>Schedule</Button></form> : null}</div>)}

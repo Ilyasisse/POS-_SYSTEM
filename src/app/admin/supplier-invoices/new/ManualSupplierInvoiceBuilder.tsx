@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -118,7 +118,6 @@ export default function ManualSupplierInvoiceBuilder({
   defaultDueDateKey: string;
 }) {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const nextKey = useRef(2);
   const [rows, setRows] = useState<InvoiceRow[]>([
     { key: 1, catalogItemId: "", quantity: "1", unitPrice: "", notes: "" },
@@ -126,7 +125,7 @@ export default function ManualSupplierInvoiceBuilder({
   const [message, setMessage] = useState("");
   const [hasError, setHasError] = useState(false);
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const catalogById = useMemo(
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
@@ -143,6 +142,25 @@ export default function ManualSupplierInvoiceBuilder({
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
+  }
+
+  async function handleSubmit(data: FormData) {
+    setMessage("");
+    setPending(true);
+
+    try {
+      const result = await createManualSupplierInvoiceDraftAction(data);
+      setHasError(false);
+      setMessage(result.message);
+      router.push(result.redirectTo);
+    } catch (error) {
+      setHasError(true);
+      setMessage(
+        error instanceof Error ? error.message : "Invoice draft could not be created.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   if (!selectedSupplier) {
@@ -248,28 +266,8 @@ export default function ManualSupplierInvoiceBuilder({
       </Card>
 
       <form
-        ref={formRef}
         className="space-y-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const form = formRef.current;
-          if (!form) return;
-          const data = new FormData(form);
-          setMessage("");
-          startTransition(async () => {
-            try {
-              const result = await createManualSupplierInvoiceDraftAction(data);
-              setHasError(false);
-              setMessage(result.message);
-              router.push(result.redirectTo);
-            } catch (error) {
-              setHasError(true);
-              setMessage(
-                error instanceof Error ? error.message : "Invoice draft could not be created.",
-              );
-            }
-          });
-        }}
+        action={handleSubmit}
       >
         <Input type="hidden" name="supplierId" value={selectedSupplier.id} />
 

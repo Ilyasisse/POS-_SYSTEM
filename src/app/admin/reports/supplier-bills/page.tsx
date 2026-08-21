@@ -39,6 +39,14 @@ const SUPPLIER_BILL_PAYMENT_STATUSES = ["UNPAID", "PARTIAL", "PAID"] as const;
 type SupplierBillPaymentStatus =
   (typeof SUPPLIER_BILL_PAYMENT_STATUSES)[number];
 
+type SupplierBillsSearchParams = {
+  from?: string;
+  to?: string;
+  supplier?: string;
+  scope?: string;
+  status?: string;
+};
+
 function paymentStatus(value: string | undefined) {
   return SUPPLIER_BILL_PAYMENT_STATUSES.includes(
     value as SupplierBillPaymentStatus,
@@ -47,19 +55,148 @@ function paymentStatus(value: string | undefined) {
     : undefined;
 }
 
-export default async function SupplierBillsReportPage({
-  searchParams,
+function SupplierBillsFilters({
+  params,
+  suppliers,
+  showingDueThroughTomorrow,
+  selectedPaymentStatus,
+  from,
+  to,
 }: {
-  searchParams?: Promise<{
-    from?: string;
-    to?: string;
-    supplier?: string;
-    scope?: string;
-    status?: string;
-  }>;
+  params: SupplierBillsSearchParams;
+  suppliers: readonly { id: string; name: string }[];
+  showingDueThroughTomorrow: boolean;
+  selectedPaymentStatus: SupplierBillPaymentStatus | undefined;
+  from: Date;
+  to: Date;
 }) {
+  return (
+    <form
+      className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
+    >
+      {showingDueThroughTomorrow ? (
+        <Input type="hidden" name="scope" value="due-through-tomorrow" />
+      ) : null}
+      <AutoSubmitSelect
+        name="supplier"
+        defaultValue={params.supplier || ""}
+        aria-label="Supplier"
+        className="h-10 w-full rounded-lg border border-slate-200 px-2"
+      >
+        <option value="">All suppliers</option>
+        {suppliers.map((row) => (
+          <option key={row.id} value={row.id}>
+            {row.name}
+          </option>
+        ))}
+      </AutoSubmitSelect>
+      <AutoSubmitSelect
+        name="status"
+        defaultValue={selectedPaymentStatus || ""}
+        aria-label="Payment status"
+        className="h-10 w-full rounded-lg border border-slate-200 px-2"
+      >
+        <option value="">
+          {showingDueThroughTomorrow
+            ? "All outstanding"
+            : "All payment statuses"}
+        </option>
+        <option value="UNPAID">Unpaid</option>
+        <option value="PARTIAL">Partially paid</option>
+        {showingDueThroughTomorrow ? null : <option value="PAID">Paid</option>}
+      </AutoSubmitSelect>
+      {showingDueThroughTomorrow ? null : (
+        <>
+          <AutoSubmitInput
+            type="date"
+            name="from"
+            defaultValue={from.toISOString().slice(0, 10)}
+            aria-label="Start date"
+          />
+          <AutoSubmitInput
+            type="date"
+            name="to"
+            defaultValue={to.toISOString().slice(0, 10)}
+            aria-label="End date"
+          />
+        </>
+      )}
+    </form>
+  );
+}
+
+function SupplierBillsSummary({
+  unpaid,
+  paid,
+  supplierCredit,
+  supplierCashPaid,
+  draftValue,
+  voidCount,
+  today,
+  thisWeek,
+  thisMonth,
+  supplierAccounts,
+}: {
+  unpaid: number;
+  paid: number;
+  supplierCredit: number;
+  supplierCashPaid: number;
+  draftValue: number;
+  voidCount: number;
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  supplierAccounts: readonly {
+    id: string;
+    name: string;
+    outstanding: number;
+    credit: number;
+  }[];
+}) {
+  return (
+    <>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <MetricCard label="Unpaid balance" value={money(unpaid)} />
+        <MetricCard label="Applied to invoices" value={money(paid)} />
+        <MetricCard label="Supplier credit" value={money(supplierCredit)} />
+        <MetricCard label="All-time cash paid" value={money(supplierCashPaid)} />
+        <MetricCard label="Draft invoice value" value={money(draftValue)} />
+        <MetricCard label="Void invoices" value={voidCount} />
+      </section>
+      <section className="grid gap-4 sm:grid-cols-3">
+        <MetricCard label="Today's bills" value={money(today)} />
+        <MetricCard label="This week" value={money(thisWeek)} />
+        <MetricCard label="This month" value={money(thisMonth)} />
+      </section>
+      <Card className="p-4">
+        <h2 className="font-black">Supplier totals</h2>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {supplierAccounts.map((supplier) => (
+            <div
+              key={supplier.id}
+              className="rounded-xl bg-slate-50 px-3 py-2 text-sm"
+            >
+              <div className="flex justify-between gap-3 font-semibold">
+                <span>{supplier.name}</span>
+                <span>
+                  {money(Math.max(0, supplier.outstanding - supplier.credit))}{" "}
+                  net owed
+                </span>
+              </div>
+              <div className="mt-1 flex justify-between gap-3 text-xs text-muted-foreground">
+                <span>Outstanding {money(supplier.outstanding)}</span>
+                <span>Credit {money(supplier.credit)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </>
+  );
+}
+
+async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
   const currentUser = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  const params = (await searchParams) || {};
   const now = new Date();
   const showingDueThroughTomorrow = params.scope === "due-through-tomorrow";
   const dueCutoff = getSupplierBillDueCutoffDate(now);
@@ -335,66 +472,50 @@ export default async function SupplierBillsReportPage({
     return { id: supplier.id, name: supplier.name, outstanding, credit };
   });
 
+  return {
+    params,
+    suppliers,
+    showingDueThroughTomorrow,
+    selectedPaymentStatus,
+    from,
+    to,
+    unpaid,
+    paid,
+    supplierCredit,
+    supplierCashPaid,
+    draftValue,
+    voidCount,
+    today: totalSince(dayStart),
+    thisWeek: totalSince(weekStart),
+    thisMonth: totalSince(monthStart),
+    supplierAccounts,
+    rows,
+    now,
+  };
+}
+
+export default async function SupplierBillsReportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SupplierBillsSearchParams>;
+}) {
+  const report = await getSupplierBillsReportData((await searchParams) || {});
+
   return (
     <AdminPage
       title="Supplier bills"
       description="Audit approved supplier invoices, balances, due dates, and every payment."
     >
-      <form
-        className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}
-      >
-        {showingDueThroughTomorrow ? (
-          <Input type="hidden" name="scope" value="due-through-tomorrow" />
-        ) : null}
-        <AutoSubmitSelect
-          name="supplier"
-          defaultValue={params.supplier || ""}
-          aria-label="Supplier"
-          className="h-10 w-full rounded-lg border border-slate-200 px-2"
-        >
-          <option value="">All suppliers</option>
-          {suppliers.map((row) => (
-            <option key={row.id} value={row.id}>
-              {row.name}
-            </option>
-          ))}
-        </AutoSubmitSelect>
-        <AutoSubmitSelect
-          name="status"
-          defaultValue={selectedPaymentStatus || ""}
-          aria-label="Payment status"
-          className="h-10 w-full rounded-lg border border-slate-200 px-2"
-        >
-          <option value="">
-            {showingDueThroughTomorrow
-              ? "All outstanding"
-              : "All payment statuses"}
-          </option>
-          <option value="UNPAID">Unpaid</option>
-          <option value="PARTIAL">Partially paid</option>
-          {showingDueThroughTomorrow ? null : (
-            <option value="PAID">Paid</option>
-          )}
-        </AutoSubmitSelect>
-        {showingDueThroughTomorrow ? null : (
-          <>
-            <AutoSubmitInput
-              type="date"
-              name="from"
-              defaultValue={from.toISOString().slice(0, 10)}
-              aria-label="Start date"
-            />
-            <AutoSubmitInput
-              type="date"
-              name="to"
-              defaultValue={to.toISOString().slice(0, 10)}
-              aria-label="End date"
-            />
-          </>
-        )}
-      </form>
+      <SupplierBillsFilters
+        params={report.params}
+        suppliers={report.suppliers}
+        showingDueThroughTomorrow={report.showingDueThroughTomorrow}
+        selectedPaymentStatus={report.selectedPaymentStatus}
+        from={report.from}
+        to={report.to}
+      />
 
-      {showingDueThroughTomorrow ? (
+      {report.showingDueThroughTomorrow ? (
         <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p className="font-semibold text-amber-900">
             Showing every unpaid or partially paid invoice bill due through
@@ -408,43 +529,19 @@ export default async function SupplierBillsReportPage({
         </Card>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <MetricCard label="Unpaid balance" value={money(unpaid)} />
-        <MetricCard label="Applied to invoices" value={money(paid)} />
-        <MetricCard label="Supplier credit" value={money(supplierCredit)} />
-        <MetricCard label="All-time cash paid" value={money(supplierCashPaid)} />
-        <MetricCard label="Draft invoice value" value={money(draftValue)} />
-        <MetricCard label="Void invoices" value={voidCount} />
-      </section>
-      <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Today's bills" value={money(totalSince(dayStart))} />
-        <MetricCard label="This week" value={money(totalSince(weekStart))} />
-        <MetricCard label="This month" value={money(totalSince(monthStart))} />
-      </section>
-      <Card className="p-4">
-        <h2 className="font-black">Supplier totals</h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {supplierAccounts.map((supplier) => (
-            <div
-              key={supplier.id}
-              className="rounded-xl bg-slate-50 px-3 py-2 text-sm"
-            >
-              <div className="flex justify-between gap-3 font-semibold">
-                <span>{supplier.name}</span>
-                <span>
-                  {money(Math.max(0, supplier.outstanding - supplier.credit))}{" "}
-                  net owed
-                </span>
-              </div>
-              <div className="mt-1 flex justify-between gap-3 text-xs text-muted-foreground">
-                <span>Outstanding {money(supplier.outstanding)}</span>
-                <span>Credit {money(supplier.credit)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <SupplierBillsTable rows={rows} now={now} />
+      <SupplierBillsSummary
+        unpaid={report.unpaid}
+        paid={report.paid}
+        supplierCredit={report.supplierCredit}
+        supplierCashPaid={report.supplierCashPaid}
+        draftValue={report.draftValue}
+        voidCount={report.voidCount}
+        today={report.today}
+        thisWeek={report.thisWeek}
+        thisMonth={report.thisMonth}
+        supplierAccounts={report.supplierAccounts}
+      />
+      <SupplierBillsTable rows={report.rows} now={report.now} />
     </AdminPage>
   );
 }

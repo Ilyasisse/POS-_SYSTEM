@@ -107,6 +107,22 @@ export async function appendStockEvent(
   });
 }
 
+function appendStockEventsInOrder(
+  tx: Prisma.TransactionClient,
+  mutations: readonly StockMutation[],
+) {
+  return mutations.reduce<Promise<Awaited<ReturnType<typeof appendStockEvent>>[]>>(
+    (pendingEvents, mutation) =>
+      pendingEvents.then((events) =>
+        appendStockEvent(tx, mutation).then((event) => {
+          events.push(event);
+          return events;
+        }),
+      ),
+    Promise.resolve([]),
+  );
+}
+
 export type SaleInventoryLine = { productId: string; qty: number };
 
 export async function deductSaleInventory(
@@ -134,28 +150,25 @@ export async function deductSaleInventory(
       },
     },
   });
-  const events = [];
-  for (const product of products) {
+  const mutations = products.flatMap<StockMutation>((product) => {
     const sold = quantityByProduct.get(product.id)!;
     const recipe = selectEffectiveRecipe(product.recipeVersions, now);
     if (recipe) {
-      for (const ingredient of recipe.ingredients) {
+      return recipe.ingredients.map((ingredient) => {
         const usage = new Prisma.Decimal(ingredient.quantity).mul(sold).div(recipe.yieldQuantity);
-        events.push(
-          await appendStockEvent(tx, {
-            supplyId: ingredient.supplyId,
-            type: "RECIPE_USAGE",
-            quantityDelta: usage.negated(),
-            reason: `Recipe usage: ${product.name}`,
-            actorUserId,
-            sourceType: "Order",
-            sourceId: sourceOrderId,
-          }),
-        );
-      }
-    } else if (product.trackStock) {
-      events.push(
-        await appendStockEvent(tx, {
+        return {
+          supplyId: ingredient.supplyId,
+          type: "RECIPE_USAGE",
+          quantityDelta: usage.negated(),
+          reason: `Recipe usage: ${product.name}`,
+          actorUserId,
+          sourceType: "Order",
+          sourceId: sourceOrderId,
+        };
+      });
+    }
+    return product.trackStock
+      ? [{
           productId: product.id,
           type: "SALE_USAGE",
           quantityDelta: sold.negated(),
@@ -163,11 +176,10 @@ export async function deductSaleInventory(
           actorUserId,
           sourceType: "Order",
           sourceId: sourceOrderId,
-        }),
-      );
-    }
-  }
-  return events;
+        }]
+      : [];
+  });
+  return appendStockEventsInOrder(tx, mutations);
 }
 
 export async function recordSupplierInvoiceReceipts(
@@ -186,13 +198,11 @@ export async function recordSupplierInvoiceReceipts(
       },
     },
   });
-  let recorded = 0;
-  let incomplete = 0;
-  for (const item of items) {
+  const receiptPlan = items.reduce<{ mutations: StockMutation[]; incomplete: number }>((plan, item) => {
     const catalog = item.supplierCatalogItem;
     if (!catalog) {
-      incomplete += 1;
-      continue;
+      plan.incomplete += 1;
+      return plan;
     }
     if (catalog.inventorySupply) {
       const conversion = catalog.inventorySupply.purchaseUnitConversions.find(
@@ -203,10 +213,10 @@ export async function recordSupplierInvoiceReceipts(
         !catalog.inventorySupply.canonicalUnit ||
         catalog.inventorySupply.quantityCoverage !== "COMPLETE"
       ) {
-        incomplete += 1;
-        continue;
+        plan.incomplete += 1;
+        return plan;
       }
-      await appendStockEvent(tx, {
+      plan.mutations.push({
         supplyId: catalog.inventorySupply.id,
         type: "RECEIPT",
         quantityDelta: convertPurchaseQuantity(item.quantity, conversion.canonicalQuantity),
@@ -215,8 +225,7 @@ export async function recordSupplierInvoiceReceipts(
         sourceType: "SupplierInvoice",
         sourceId: invoiceId,
       });
-      recorded += 1;
-      continue;
+      return plan;
     }
     if (
       catalog.product?.trackStock &&
@@ -224,7 +233,7 @@ export async function recordSupplierInvoiceReceipts(
       catalog.product.canonicalUnit === "PIECE" &&
       ["piece", "pieces", "pc", "pcs", "unit", "units", "each"].includes(item.itemUnit.trim().toLowerCase())
     ) {
-      await appendStockEvent(tx, {
+      plan.mutations.push({
         productId: catalog.product.id,
         type: "RECEIPT",
         quantityDelta: item.quantity,
@@ -233,12 +242,13 @@ export async function recordSupplierInvoiceReceipts(
         sourceType: "SupplierInvoice",
         sourceId: invoiceId,
       });
-      recorded += 1;
     } else {
-      incomplete += 1;
+      plan.incomplete += 1;
     }
-  }
-  return { recorded, incomplete };
+    return plan;
+  }, { mutations: [], incomplete: 0 });
+  const events = await appendStockEventsInOrder(tx, receiptPlan.mutations);
+  return { recorded: events.length, incomplete: receiptPlan.incomplete };
 }
 
 export async function updateProductStandardCost(input: {
@@ -348,21 +358,24 @@ export async function approveInventoryCount(sessionId: string, approvedByUserId:
   return prisma.$transaction(async (tx) => {
     const session = await tx.inventoryCountSession.findUnique({ where: { id: sessionId }, include: { lines: true } });
     if (!session || session.status !== "SUBMITTED") throw new Error("Only a submitted count can be approved.");
-    for (const line of session.lines) {
-      const variance = calculateCountVariance(line.expectedQuantity, line.physicalQuantity);
-      const event = variance.isZero()
-        ? null
-        : await appendStockEvent(tx, {
-            ...(line.productId ? { productId: line.productId } : { supplyId: line.supplyId! }),
-            type: "COUNT_VARIANCE",
-            quantityDelta: variance,
-            reason: session.reason || "Approved physical count variance",
-            approvedByUserId,
-            sourceType: "InventoryCountSession",
-            sourceId: session.id,
-          });
-      await tx.inventoryCountLine.update({ where: { id: line.id }, data: { varianceQuantity: variance, stockEventId: event?.id ?? null } });
-    }
+    await session.lines.reduce<Promise<void>>(
+      (pendingLine, line) => pendingLine.then(async () => {
+        const variance = calculateCountVariance(line.expectedQuantity, line.physicalQuantity);
+        const event = variance.isZero()
+          ? null
+          : await appendStockEvent(tx, {
+              ...(line.productId ? { productId: line.productId } : { supplyId: line.supplyId! }),
+              type: "COUNT_VARIANCE",
+              quantityDelta: variance,
+              reason: session.reason || "Approved physical count variance",
+              approvedByUserId,
+              sourceType: "InventoryCountSession",
+              sourceId: session.id,
+            });
+        await tx.inventoryCountLine.update({ where: { id: line.id }, data: { varianceQuantity: variance, stockEventId: event?.id ?? null } });
+      }),
+      Promise.resolve(),
+    );
     return tx.inventoryCountSession.update({
       where: { id: session.id },
       data: { status: "APPROVED", approvedByUserId, approvedAt: new Date() },

@@ -5,7 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { businessDateKeyToDatabaseDate } from "@/lib/waiter/waiter-balance-calculations";
 import { recordSupplierPaymentInTransaction, revertSupplierPayment } from "@/lib/suppliers/bill-service";
 import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
-import { assertDailyCashBusinessDate, isDailyCashLocked } from "./business-date";
+import {
+  assertDailyCashBusinessDate,
+  getDailyCashWaiterBalanceDateKey,
+  isDailyCashLocked,
+} from "./business-date";
 import { dailyCashFingerprint } from "./fingerprint";
 import { calculateDailyCashSummary, fundingFor, roundMoney } from "./money";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "./paid-breakdown";
@@ -19,6 +23,12 @@ type TransactionQuery = () => PromiseLike<unknown>;
 type TransactionQueryResults<Queries extends readonly TransactionQuery[]> = {
   [Index in keyof Queries]: Awaited<ReturnType<Queries[Index]>>;
 };
+
+const DAILY_CASH_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  maxWait: 5_000,
+  timeout: 15_000,
+} as const;
 
 async function runTransactionQueriesSequentially<
   Queries extends readonly TransactionQuery[],
@@ -70,13 +80,17 @@ async function currentState(tx: Tx, dateKey: string) {
   const day = await materializeDay(tx, dateKey);
   if (!day) return null;
   const businessDate = businessDateKeyToDatabaseDate(dateKey);
+  const waiterBalanceDateKey = getDailyCashWaiterBalanceDateKey(dateKey);
+  const waiterBalanceDate = businessDateKeyToDatabaseDate(
+    waiterBalanceDateKey,
+  );
   // Interactive transactions use one pg client, so these independent reads
   // must be issued sequentially even though they would normally be parallel.
   const [shifts, activeWaiters, bills, suppliers, supplyDays] =
     await runTransactionQueriesSequentially([
       () =>
         tx.shift.findMany({
-          where: { businessDate },
+          where: { businessDate: waiterBalanceDate },
           select: { id: true, userId: true, closingAmount: true },
         }),
       () =>
@@ -224,6 +238,7 @@ async function currentState(tx: Tx, dateKey: string) {
   const paidBreakdownTotals = calculatePaidBreakdownTotals(endDayCash, paidBreakdownRows);
   const fingerprint = dailyCashFingerprint({
     dateKey,
+    waiterBalanceDateKey,
     shifts: shiftCash.fingerprintRows,
     missing: missingWaiters.map((waiter) => waiter.id).sort(),
     salary: [number(day.salaryAmount), day.salaryOverridden, day.salaryPaidAt?.toISOString() ?? null, number(day.salaryRevenueFunded), number(day.salarySavingsFunded)],
@@ -235,12 +250,15 @@ async function currentState(tx: Tx, dateKey: string) {
   });
   const locked = isDailyCashLocked(dateKey);
   const status: DailyCashStatus = locked ? "LOCKED" : !day.finalizedAt ? "OPEN" : day.finalizationFingerprint === fingerprint ? "FINALIZED" : "NEEDS_REVIEW";
-  return { day, endDayCash, missingWaiters, obligations, supplierAccounts, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
+  return { day, waiterBalanceDateKey, endDayCash, missingWaiters, obligations, supplierAccounts, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
 }
 
 export async function getDailyCash(dateKey: string, now = new Date()) {
   const valid = assertDailyCashBusinessDate(dateKey, now);
-  return prisma.$transaction((tx) => currentState(tx, valid), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  return prisma.$transaction(
+    (tx) => currentState(tx, valid),
+    DAILY_CASH_TRANSACTION_OPTIONS,
+  );
 }
 
 async function mutate<T>(dateKey: string, now: Date, fn: (tx: Tx, state: NonNullable<Awaited<ReturnType<typeof currentState>>>) => Promise<T>) {
@@ -250,7 +268,7 @@ async function mutate<T>(dateKey: string, now: Date, fn: (tx: Tx, state: NonNull
     const state = await currentState(tx, valid);
     if (!state) throw new Error("Set a salary rate before using Daily Cash.");
     return fn(tx, state);
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, DAILY_CASH_TRANSACTION_OPTIONS);
 }
 
 export async function createDailySalaryRate(input: { amount: number; effectiveDate: string; userId: string }) {

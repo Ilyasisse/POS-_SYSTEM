@@ -256,10 +256,14 @@ export async function getKitchenTicketSnapshot(
     },
   });
 
-  return states
-    .map(mapKitchenTicket)
-    .map((ticket) => filterKitchenTicketByStation(ticket, filter))
-    .filter((ticket): ticket is KitchenTicket => ticket !== null);
+  const tickets: KitchenTicket[] = [];
+  for (const state of states) {
+    const ticket = filterKitchenTicketByStation(mapKitchenTicket(state), filter);
+    if (ticket) {
+      tickets.push(ticket);
+    }
+  }
+  return tickets;
 }
 
 async function lockTicket(tx: KitchenStateTransaction, orderId: string) {

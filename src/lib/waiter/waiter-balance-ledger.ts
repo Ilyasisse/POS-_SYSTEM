@@ -346,21 +346,22 @@ export async function reopenWaiterSettlement(input: {
   return prisma.$transaction(
     async (tx) => {
       const businessDate = businessDateKeyToDatabaseDate(businessDateKey);
-      const openingBalance = await getWaiterOpeningBalanceForBusinessDate(
-        input.waiterId,
-        businessDateKey,
-        tx,
-      );
-
-      const shift = await tx.shift.findUnique({
-        where: {
-          userId_businessDate: {
-            userId: input.waiterId,
-            businessDate,
+      const [openingBalance, shift] = await Promise.all([
+        getWaiterOpeningBalanceForBusinessDate(
+          input.waiterId,
+          businessDateKey,
+          tx,
+        ),
+        tx.shift.findUnique({
+          where: {
+            userId_businessDate: {
+              userId: input.waiterId,
+              businessDate,
+            },
           },
-        },
-        select: { id: true, closedAt: true },
-      });
+          select: { id: true, closedAt: true },
+        }),
+      ]);
 
       if (!shift?.closedAt) {
         throw new Error("There is no closed balance for this waiter.");

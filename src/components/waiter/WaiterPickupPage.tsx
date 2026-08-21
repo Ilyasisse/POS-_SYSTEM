@@ -15,6 +15,7 @@ function formatTime(value: string) {
   return new Date(value).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "Africa/Nairobi",
   });
 }
 

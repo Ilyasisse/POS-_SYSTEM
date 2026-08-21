@@ -16,6 +16,7 @@ import {
   ShoppingBasket,
   ShoppingCart,
   Wrench,
+  MessageCircle,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -139,6 +140,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     href: "/admin/supplier-purchase-orders",
     label: "Purchase orders",
     icon: ShoppingCart,
+    permission: PERMISSIONS.SUPPLIER_MANAGE,
+  },
+  {
+    key: "supplier-order-schedules",
+    href: "/admin/supplier-order-schedules",
+    label: "WhatsApp ordering",
+    icon: MessageCircle,
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },
   {

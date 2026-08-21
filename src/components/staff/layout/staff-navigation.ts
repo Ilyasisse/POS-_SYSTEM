@@ -11,6 +11,7 @@ import {
   Users,
   UtensilsCrossed,
   ChefHat,
+  ChartNoAxesCombined,
   Coffee,
 } from "lucide-react";
 import type { Station } from "@prisma/client";
@@ -31,6 +32,7 @@ export type StaffNavigationGroupKey =
   | "catalog"
   | "admin-operations"
   | "suppliers"
+  | "reports"
   | "administration"
   | "role-workspaces"
   | "kitchen";
@@ -78,7 +80,7 @@ const navigationGroups: readonly {
     key: "admin-operations",
     label: "Operations",
     icon: ClipboardList,
-    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash"],
+    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash", "operations"],
   },
   {
     key: "suppliers",
@@ -87,9 +89,16 @@ const navigationGroups: readonly {
     itemKeys: [
       "suppliers",
       "supplier-purchase-orders",
+      "supplier-order-schedules",
       "supplier-invoices",
       "supplier-bills",
     ],
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    icon: ChartNoAxesCombined,
+    itemKeys: ["reports", "business-intelligence"],
   },
   {
     key: "administration",
@@ -241,12 +250,6 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
   },
 ] as const satisfies readonly StaffNavigationItem[];
 
-const sectionLabels: Record<StaffNavigationSection, string> = {
-  admin: "Administration",
-  operations: "Operations",
-  kitchen: "Kitchen",
-};
-
 export function getVisibleStaffNavigationItems(
   currentUser: Pick<PermissionUser, "role" | "station">,
   scope: StaffNavigationScope = "all",
@@ -270,32 +273,6 @@ export function getVisibleStaffNavigationItems(
 
     return true;
   });
-}
-
-export function getStaffNavigationSectionsFromItems(
-  items: readonly StaffNavigationItem[],
-) {
-  return (Object.keys(sectionLabels) as StaffNavigationSection[]).reduce<
-    {
-      section: StaffNavigationSection;
-      label: string;
-      items: StaffNavigationItem[];
-    }[]
-  >((groups, section) => {
-    const sectionItems = items.filter(
-      (item) => (item.section ?? "admin") === section,
-    );
-
-    if (sectionItems.length > 0) {
-      groups.push({
-        section,
-        label: sectionLabels[section],
-        items: sectionItems,
-      });
-    }
-
-    return groups;
-  }, []);
 }
 
 export function getStaffNavigationNodesFromItems(

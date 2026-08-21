@@ -5,7 +5,8 @@ export type AuthCookieStore = {
     value: string;
     path: string;
     sameSite: "lax";
-    httpOnly: false;
+    httpOnly: true;
+    secure: true;
     maxAge: number;
     expires: Date;
   }): unknown;
@@ -62,7 +63,8 @@ export function clearProjectAuthCookies(
       value: "",
       path: "/",
       sameSite: "lax",
-      httpOnly: false,
+      httpOnly: true,
+      secure: true,
       maxAge: 0,
       expires: new Date(0),
     });

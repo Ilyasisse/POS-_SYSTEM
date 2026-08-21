@@ -123,8 +123,10 @@ export async function createInventoryCountAction(formData: FormData) {
   const reason = z.string().trim().max(500).parse(String(formData.get("reason") ?? "")) || null;
   const lines = z.array(countLineInput).min(1).parse(JSON.parse(String(formData.get("lines") ?? "[]")));
   await prisma.$transaction(async (tx) => {
-    const products = await tx.product.findMany({ where: { id: { in: lines.flatMap((line) => line.productId ? [line.productId] : []) } } });
-    const supplies = await tx.inventorySupply.findMany({ where: { id: { in: lines.flatMap((line) => line.supplyId ? [line.supplyId] : []) } } });
+    const [products, supplies] = await Promise.all([
+      tx.product.findMany({ where: { id: { in: lines.flatMap((line) => line.productId ? [line.productId] : []) } } }),
+      tx.inventorySupply.findMany({ where: { id: { in: lines.flatMap((line) => line.supplyId ? [line.supplyId] : []) } } }),
+    ]);
     const productMap = new Map(products.map((item) => [item.id, item]));
     const supplyMap = new Map(supplies.map((item) => [item.id, item]));
     await tx.inventoryCountSession.create({

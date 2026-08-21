@@ -29,8 +29,15 @@ async function inspect(database: Database, sourceBusinessDateKey: string) {
     where: { businessDate: businessDateKeyToDatabaseDate(sourceBusinessDateKey), waiter: { role: "WAITER" } },
     select: { id: true, userId: true, closedAt: true, closingAmount: true, reportedSales: true },
   });
-  const incompleteShiftIds = source.filter((shift) => !shift.closedAt || shift.closingAmount == null || shift.reportedSales == null).map((shift) => shift.id);
-  const candidates = source.filter((shift) => shift.closedAt && shift.closingAmount != null && shift.reportedSales != null);
+  const incompleteShiftIds: string[] = [];
+  const candidates: typeof source = [];
+  for (const shift of source) {
+    if (!shift.closedAt || shift.closingAmount == null || shift.reportedSales == null) {
+      incompleteShiftIds.push(shift.id);
+    } else {
+      candidates.push(shift);
+    }
+  }
   const conflicts = candidates.length ? await database.shift.findMany({
     where: { userId: { in: candidates.map((shift) => shift.userId) }, businessDate: businessDateKeyToDatabaseDate(targetBusinessDateKey) },
     select: { id: true },
@@ -45,11 +52,13 @@ export async function shiftWaiterSettlementsBackOneDay(input: { sourceBusinessDa
       return { ...result, candidateShiftIds: result.candidates.map((shift) => shift.id), applied: false };
     }
     const { start } = getBusinessDayRangeForKey(result.targetBusinessDateKey);
-    for (const shift of result.candidates) {
-      const openingBalance = await getWaiterOpeningBalanceForBusinessDate(shift.userId, result.targetBusinessDateKey, database);
-      await database.shift.update({ where: { id: shift.id }, data: { businessDate: businessDateKeyToDatabaseDate(result.targetBusinessDateKey), openedAt: start, openingAmount: new Prisma.Decimal(openingBalance) } });
-      await recalculateFollowingBalances(database as Prisma.TransactionClient, shift.userId, result.targetBusinessDateKey, openingBalance);
-    }
+    await Promise.all(
+      result.candidates.map(async (shift) => {
+        const openingBalance = await getWaiterOpeningBalanceForBusinessDate(shift.userId, result.targetBusinessDateKey, database);
+        await database.shift.update({ where: { id: shift.id }, data: { businessDate: businessDateKeyToDatabaseDate(result.targetBusinessDateKey), openedAt: start, openingAmount: new Prisma.Decimal(openingBalance) } });
+        await recalculateFollowingBalances(database as Prisma.TransactionClient, shift.userId, result.targetBusinessDateKey, openingBalance);
+      }),
+    );
     return { ...result, candidateShiftIds: result.candidates.map((shift) => shift.id), applied: true };
   };
   return input.apply ? prisma.$transaction((tx) => run(tx), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }) : run(prisma);

@@ -46,6 +46,7 @@ test("supplier routes stay together and include invoices and bills", () => {
     [
       "suppliers",
       "supplier-purchase-orders",
+      "supplier-order-schedules",
       "supplier-invoices",
       "supplier-bills",
     ],

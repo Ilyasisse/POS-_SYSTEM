@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type WaiterBalanceDateFilterProps = {
-  currentBusinessDate: string;
+  latestCompletedBusinessDate: string;
   ledgerStartDate: string;
   selectedBusinessDate: string;
   showInactive: boolean;
@@ -16,7 +16,7 @@ function submitFilter(control: HTMLElement) {
 }
 
 export function WaiterBalanceDateFilter({
-  currentBusinessDate,
+  latestCompletedBusinessDate,
   ledgerStartDate,
   selectedBusinessDate,
   showInactive,
@@ -29,7 +29,7 @@ export function WaiterBalanceDateFilter({
         name="date"
         type="date"
         min={ledgerStartDate}
-        max={currentBusinessDate}
+        max={latestCompletedBusinessDate}
         defaultValue={selectedBusinessDate}
         onChange={(event) => submitFilter(event.currentTarget)}
       />

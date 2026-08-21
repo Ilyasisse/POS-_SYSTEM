@@ -10,16 +10,18 @@ type SupplyFormAction = (formData: FormData) => void | Promise<void>;
 
 function previewLineTotal(quantity: string, unitPrice: string) {
   const quantityMatch = quantity.match(/^(\d+)(?:\.(\d{0,3}))?$/);
-  const priceMatch = unitPrice.match(/^(\d+)(?:\.(\d{0,2}))?$/);
+  const priceMatch = unitPrice.match(/^(\d+)(?:\.(\d{0,4}))?$/);
   if (!quantityMatch || !priceMatch) return "$0.00";
 
   const quantityThousands =
     Number(quantityMatch[1]) * 1000 +
     Number((quantityMatch[2] || "").padEnd(3, "0"));
-  const priceCents =
-    Number(priceMatch[1]) * 100 +
-    Number((priceMatch[2] || "").padEnd(2, "0"));
-  const lineCents = Math.floor((quantityThousands * priceCents + 500) / 1000);
+  const priceTenThousandths =
+    Number(priceMatch[1]) * 10_000 +
+    Number((priceMatch[2] || "").padEnd(4, "0"));
+  const lineCents = Math.floor(
+    (quantityThousands * priceTenThousandths + 50_000) / 100_000,
+  );
 
   return `$${(lineCents / 100).toFixed(2)}`;
 }
@@ -114,7 +116,7 @@ export function SupplyEntryFields({
           name="unitPrice"
           type="number"
           min="0"
-          step="0.01"
+          step="0.0001"
           required
           readOnly={!priceOverride}
           value={currentUnitPrice}
