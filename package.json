@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "doctor": "npx react-doctor@latest",
+    "test:reports": "tsx --test tests/unit/reporting-foundation.test.ts",
     "waiter-balances:shift-date": "tsx scripts/shift-waiter-settlements.ts",
     "test:suppliers": "tsx --test tests/unit/suppliers.test.ts",
     "test:supplier-ordering": "tsx --test tests/unit/supplier-order-scheduling.test.ts"
@@ -31,6 +32,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.8.1",
+    "zod": "^4.2.1",
     "resend": "^6.12.3",
     "shadcn": "^4.12.0",
     "tailwind-merge": "^3.6.0",

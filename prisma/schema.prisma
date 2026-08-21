@@ -48,9 +48,47 @@ model User {
   supplierOrderSchedulesCreated       SupplierOrderSchedule[]          @relation("SupplierOrderScheduleCreatedBy")
   supplierOrderScheduleRecipients     SupplierOrderScheduleRecipient[]
   supplierOrderRunRecipients          SupplierOrderRunRecipient[]
+  auditLogsCreated                    AuditLog[]                       @relation("AuditLogActor")
+  cafeSettingsUpdated                 CafeSetting[]                    @relation("CafeSettingUpdatedBy")
 
   @@index([role, isActive])
   @@index([station])
+}
+
+model CafeSetting {
+  id                     String   @id @default("default")
+  businessName           String   @default("Mash Allah Cafe")
+  currencyCode           String   @default("USD")
+  timezone               String   @default("Africa/Nairobi")
+  businessDayStartMinute Int      @default(420)
+  businessDayEndMinute   Int      @default(300)
+  weekStartDay           Int      @default(6)
+  updatedByUserId        String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  updatedBy              User?    @relation("CafeSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedByUserId])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  actorUserId       String?
+  action            String
+  entityType        String
+  entityId          String
+  reason            String?
+  previousValue     Json?
+  newValue          Json?
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime @default(now())
+  actor             User?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([relatedEntityType, relatedEntityId])
 }
 
 model Category {
