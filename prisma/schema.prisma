@@ -61,6 +61,14 @@ model User {
   inventoryCountsCreated              InventoryCountSession[]          @relation("InventoryCountCreatedBy")
   inventoryCountsSubmitted            InventoryCountSession[]          @relation("InventoryCountSubmittedBy")
   inventoryCountsApproved             InventoryCountSession[]          @relation("InventoryCountApprovedBy")
+  kitchenTransitions                  KitchenTransitionEvent[]         @relation("KitchenTransitionActor")
+  kitchenTargetsUpdated               KitchenPreparationTarget[]       @relation("KitchenTargetUpdatedBy")
+  kitchenQualityEvents                KitchenQualityEvent[]            @relation("KitchenQualityActor")
+  incidentsReported                   OperationalIncident[]            @relation("IncidentReporter")
+  incidentsAssigned                   OperationalIncident[]            @relation("IncidentAssignee")
+  cleaningRunsAssigned                CleaningChecklistRun[]           @relation("CleaningRunAssignee")
+  cleaningRunsCompleted               CleaningChecklistRun[]           @relation("CleaningRunCompletedBy")
+  cleaningTasksCompleted              CleaningChecklistRunTask[]       @relation("CleaningTaskCompletedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -281,25 +289,26 @@ model Order {
 }
 
 model OrderItem {
-  id                 String              @id @default(cuid())
-  orderId            String
-  productId          String
-  productName        String
-  qty                Int
-  unitPrice          Decimal
-  lineTotal          Decimal
-  unitCostSnapshot   Decimal?            @db.Decimal(14, 6)
-  costSnapshotSource CostSnapshotSource?
-  recipeVersionId    String?
-  createdAt          DateTime            @default(now())
-  assignedUserId     String?
-  station            Station?
-  assignedUser       User?               @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
-  order              Order               @relation(fields: [orderId], references: [id])
-  product            Product             @relation(fields: [productId], references: [id])
-  recipeVersion      RecipeVersion?      @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
-  modifiers          OrderItemModifier[]
-  salesAdjustments   SalesAdjustment[]
+  id                   String                @id @default(cuid())
+  orderId              String
+  productId            String
+  productName          String
+  qty                  Int
+  unitPrice            Decimal
+  lineTotal            Decimal
+  unitCostSnapshot     Decimal?              @db.Decimal(14, 6)
+  costSnapshotSource   CostSnapshotSource?
+  recipeVersionId      String?
+  createdAt            DateTime              @default(now())
+  assignedUserId       String?
+  station              Station?
+  assignedUser         User?                 @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
+  order                Order                 @relation(fields: [orderId], references: [id])
+  product              Product               @relation(fields: [productId], references: [id])
+  recipeVersion        RecipeVersion?        @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  modifiers            OrderItemModifier[]
+  salesAdjustments     SalesAdjustment[]
+  kitchenQualityEvents KitchenQualityEvent[]
 
   @@index([orderId])
   @@index([productId])
@@ -470,6 +479,8 @@ model KitchenTicketState {
   order               Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   claimedByWaiter     User?                       @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
   stationStates       KitchenTicketStationState[]
+  transitions         KitchenTransitionEvent[]
+  qualityEvents       KitchenQualityEvent[]
 
   @@index([pickupStatus, updatedAt])
   @@index([claimedByWaiterId])
@@ -486,6 +497,151 @@ model KitchenTicketStationState {
 
   @@id([orderId, station])
   @@index([station, status])
+}
+
+model KitchenPreparationTarget {
+  id              String   @id @default(cuid())
+  station         Station  @unique
+  targetMinutes   Int
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  updatedBy       User     @relation("KitchenTargetUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([updatedByUserId])
+}
+
+model KitchenTransitionEvent {
+  id                    String                      @id @default(cuid())
+  orderId               String
+  station               Station?
+  type                  KitchenTransitionType
+  fromStationStatus     KitchenStationTicketStatus?
+  toStationStatus       KitchenStationTicketStatus?
+  fromPickupStatus      KitchenPickupStatus?
+  toPickupStatus        KitchenPickupStatus?
+  targetMinutesSnapshot Int?
+  actorUserId           String?
+  occurredAt            DateTime                    @default(now())
+  createdAt             DateTime                    @default(now())
+  ticket                KitchenTicketState          @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  actor                 User?                       @relation("KitchenTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, station, occurredAt])
+  @@index([type, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model KitchenQualityEvent {
+  id          String                  @id @default(cuid())
+  orderId     String
+  orderItemId String?
+  station     Station?
+  type        KitchenQualityEventType
+  reason      String
+  actorUserId String
+  occurredAt  DateTime                @default(now())
+  createdAt   DateTime                @default(now())
+  ticket      KitchenTicketState      @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  orderItem   OrderItem?              @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  actor       User                    @relation("KitchenQualityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([station, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model OperationalIncident {
+  id               String                  @id @default(cuid())
+  type             OperationalIncidentType
+  severity         IncidentSeverity
+  status           IncidentStatus          @default(OPEN)
+  title            String
+  description      String
+  station          Station?
+  reportedByUserId String
+  assignedToUserId String?
+  startedAt        DateTime                @default(now())
+  resolvedAt       DateTime?
+  resolutionNotes  String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  reportedBy       User                    @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  assignedTo       User?                   @relation("IncidentAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([type, status, startedAt])
+  @@index([severity, status])
+  @@index([assignedToUserId, status])
+}
+
+model CleaningChecklistTemplate {
+  id        String                  @id @default(cuid())
+  name      String
+  station   Station?
+  schedule  String
+  isActive  Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  tasks     CleaningChecklistTask[]
+  runs      CleaningChecklistRun[]
+
+  @@index([station, isActive])
+}
+
+model CleaningChecklistTask {
+  id         String                     @id @default(cuid())
+  templateId String
+  label      String
+  sortOrder  Int                        @default(0)
+  isRequired Boolean                    @default(true)
+  createdAt  DateTime                   @default(now())
+  template   CleaningChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  runTasks   CleaningChecklistRunTask[]
+
+  @@index([templateId, sortOrder])
+}
+
+model CleaningChecklistRun {
+  id                String                     @id @default(cuid())
+  templateId        String
+  station           Station?
+  scheduledFor      DateTime
+  status            CleaningRunStatus          @default(PENDING)
+  assignedToUserId  String?
+  completedByUserId String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  evidenceNote      String?
+  evidenceUrl       String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  template          CleaningChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  assignedTo        User?                      @relation("CleaningRunAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  completedBy       User?                      @relation("CleaningRunCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  tasks             CleaningChecklistRunTask[]
+
+  @@index([status, scheduledFor])
+  @@index([assignedToUserId, status])
+  @@index([station, scheduledFor])
+}
+
+model CleaningChecklistRunTask {
+  id                String                @id @default(cuid())
+  runId             String
+  taskId            String
+  completed         Boolean               @default(false)
+  completedAt       DateTime?
+  completedByUserId String?
+  evidenceText      String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  run               CleaningChecklistRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  task              CleaningChecklistTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  completedBy       User?                 @relation("CleaningTaskCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([runId, taskId])
+  @@index([completedByUserId, completedAt])
 }
 
 model OrderItemModifier {
@@ -1258,6 +1414,49 @@ enum KitchenPickupStatus {
   READY
   CLAIMED
   DELIVERED
+}
+
+enum KitchenTransitionType {
+  STATION_CREATED
+  STATION_STARTED
+  STATION_COMPLETED
+  STATION_REOPENED
+  PICKUP_READY
+  PICKUP_REOPENED
+  PICKUP_CLAIMED
+  PICKUP_DELIVERED
+}
+
+enum KitchenQualityEventType {
+  LATE
+  REMAKE
+  WRONG_ORDER
+  WAITER_MISTAKE
+}
+
+enum OperationalIncidentType {
+  EQUIPMENT
+  POS
+  INTERNET
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+enum CleaningRunStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  MISSED
 }
 
 enum SupplierPaymentStatus {

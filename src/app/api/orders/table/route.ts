@@ -370,6 +370,7 @@ export async function POST(request: Request) {
         await createKitchenTicketState(tx, {
           orderId: createdOrder.id,
           lines: preparedLines,
+          actorUserId: currentUser.id,
         });
 
         const inventoryAlerts = await deductProductInventoryForSale(

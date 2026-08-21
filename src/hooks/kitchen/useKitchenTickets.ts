@@ -230,11 +230,33 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
     [currentUserId, currentUserName, refreshTickets, tickets],
   );
 
+  const recordQualityEvent = useCallback(
+    async (
+      id: string,
+      type: "LATE" | "REMAKE" | "WRONG_ORDER" | "WAITER_MISTAKE",
+      reason: string,
+    ) => {
+      const response = await fetch(
+        `/api/kitchen/tickets/${encodeURIComponent(id)}/quality`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ station, type, reason }),
+        },
+      );
+      setStatusMessage(
+        response.ok ? "Quality event recorded." : await readError(response),
+      );
+    },
+    [station],
+  );
+
   return {
     tickets,
     activeTickets,
     statusMessage,
     updateTicketStatus,
     updatePickupStatus,
+    recordQualityEvent,
   };
 }
