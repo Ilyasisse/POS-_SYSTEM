@@ -303,6 +303,8 @@ function ModifierGroupCard({
   onToggleOption,
   onPlayModifier,
 }: ModifierGroupCardProps) {
+  const selectedOptionIdSet = new Set(groupSelected);
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -320,7 +322,7 @@ function ModifierGroupCard({
 
       <div className="space-y-2">
         {group.options.map((option) => {
-          const checked = groupSelected.includes(option.id);
+          const checked = selectedOptionIdSet.has(option.id);
 
           return (
             <div
@@ -468,9 +470,10 @@ export default function ModifierModal({
   const selectedSummary = useMemo(() => {
     return modifierGroups.flatMap((group) => {
       const selectedOptionIds = selected[group.id] || [];
+      const selectedOptionIdSet = new Set(selectedOptionIds);
 
       return group.options.flatMap((option) =>
-        selectedOptionIds.includes(option.id)
+        selectedOptionIdSet.has(option.id)
           ? [
               {
                 groupName: group.name,

@@ -11,17 +11,21 @@ import { useRouter } from "next/navigation";
 import { recordPaymentAction } from "./actions";
 
 export default function PaymentForm({
+  supplierId,
   billId,
   remaining,
   installmentId,
 }: {
+  supplierId: string;
   billId: string;
   remaining: number;
   installmentId?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
+  const [amount, setAmount] = useState(() => remaining.toFixed(2));
   const router = useRouter();
+  const includesExtra = Number(amount) > remaining;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,6 +45,7 @@ export default function PaymentForm({
   return (
     <form onSubmit={submit} className="grid min-w-64 gap-2">
       <Input type="hidden" name="billId" value={billId} />
+      <Input type="hidden" name="supplierId" value={supplierId} />
       {installmentId ? (
         <Input type="hidden" name="installmentId" value={installmentId} />
       ) : null}
@@ -50,9 +55,9 @@ export default function PaymentForm({
           name="amount"
           type="number"
           min="0.1"
-          max={remaining}
           step="0.01"
-          defaultValue={remaining.toFixed(2)}
+          value={amount}
+          onChange={(event) => setAmount(event.target.value)}
           className="h-9 w-28 rounded-lg border border-slate-200 px-2"
           aria-label="Payment amount"
         />
@@ -75,6 +80,18 @@ export default function PaymentForm({
         placeholder="Payment note"
         className="h-9 rounded-lg border border-slate-200 px-2"
       />
+      {includesExtra ? (
+        <label className="flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-950">
+          <Input
+            type="checkbox"
+            name="allowOverpayment"
+            required
+            className="mt-0.5 size-4"
+          />
+          Use the extra amount for this supplier&apos;s other open invoices,
+          then keep any remainder as future credit.
+        </label>
+      ) : null}
       <Button
         disabled={pending}
         className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white disabled:opacity-50"

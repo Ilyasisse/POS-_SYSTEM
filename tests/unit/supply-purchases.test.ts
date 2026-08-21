@@ -5,6 +5,7 @@ import {
   calculateSupplyLineTotal,
   getTodaySupplyDateKey,
   isValidSupplyDateKey,
+  parseSupplyUnitPrice,
   parseSupplyPurchaseInput,
   resolveSupplyDateKey,
   supplyDateKeyToDatabaseDate,
@@ -43,20 +44,23 @@ test("validates decimal quantities and unit prices", () => {
   const now = new Date("2026-07-13T10:00:00.000Z");
   const valid = parseSupplyPurchaseInput(
     purchaseFormData({
-      itemName: "  Milk  ",
+      catalogItemId: "milk-id",
       purchaseDate: "2026-07-13",
       quantity: "2.5",
-      unitPrice: "1.20",
+      unitPrice: "0.0742",
     }),
     now,
   );
   assert.equal(valid.ok, true);
-  if (valid.ok) assert.equal(valid.value.itemName, "Milk");
+  if (valid.ok) {
+    assert.equal(valid.value.catalogItemId, "milk-id");
+    assert.equal(valid.value.unitPrice.toString(), "0.0742");
+  }
 
   assert.deepEqual(
     parseSupplyPurchaseInput(
       purchaseFormData({
-        itemName: "Milk",
+        catalogItemId: "milk-id",
         purchaseDate: "2026-07-13",
         quantity: "1.2345",
         unitPrice: "1.20",
@@ -67,8 +71,19 @@ test("validates decimal quantities and unit prices", () => {
   );
 });
 
+test("accepts up to four decimal places for Supply unit prices", () => {
+  for (const value of ["0", "0.07", "0.074", "0.0742"]) {
+    assert.equal(parseSupplyUnitPrice(value)?.toString(), String(Number(value)));
+  }
+
+  for (const value of ["-0.0742", "0.07421", ".0742", "1.", "not-a-price"]) {
+    assert.equal(parseSupplyUnitPrice(value), null);
+  }
+});
+
 test("rounds each Supply line before calculating the daily total", () => {
   assert.equal(calculateSupplyLineTotal("1.005", "1").toString(), "1.01");
+  assert.equal(calculateSupplyLineTotal("100", "0.0742").toString(), "7.42");
   assert.equal(
     calculateSupplyDayTotal([
       { quantity: "1.005", unitPrice: "1" },

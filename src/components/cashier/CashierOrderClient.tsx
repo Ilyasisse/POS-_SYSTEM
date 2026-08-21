@@ -516,9 +516,10 @@ export default function CashierOrderClient({
     const modifierLines: SelectedModifierLine[] = modifierGroups.flatMap(
       (group) => {
         const selectedOptionIds = selectedModifiers[group.id] || [];
+        const selectedOptionIdSet = new Set(selectedOptionIds);
 
         return group.options.flatMap((option) =>
-          selectedOptionIds.includes(option.id)
+          selectedOptionIdSet.has(option.id)
             ? [
                 {
                   groupId: group.id,
