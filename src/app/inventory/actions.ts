@@ -9,17 +9,18 @@ import {
   setSupplyInventoryLevel,
 } from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
+import { decimalQuantity } from "@/lib/inventory/inventory-domain";
 
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
 }
 
 function getQuantity(formData: FormData, key: string) {
-  return Math.max(0, Math.floor(Number(formData.get(key)) || 0));
+  return decimalQuantity(String(formData.get(key) ?? "0"), key);
 }
 
 async function requireInventoryUseAccess() {
-  await requirePermission(PERMISSIONS.INVENTORY_MANAGE, {
+  return requirePermission(PERMISSIONS.INVENTORY_MANAGE, {
     stations: ["CABITAAN"],
   });
 }
@@ -45,7 +46,7 @@ function redirectWithInventoryEmailStatus(
 }
 
 export async function takeSupplyInventory(formData: FormData) {
-  await requireInventoryUseAccess();
+  const user = await requireInventoryUseAccess();
 
   const supplyId = getString(formData, "supplyId");
   const quantity = getQuantity(formData, "quantity");
@@ -55,7 +56,7 @@ export async function takeSupplyInventory(formData: FormData) {
     throw new Error("Supply is required.");
   }
 
-  if (quantity <= 0) {
+  if (quantity.lte(0)) {
     throw new Error("Take quantity must be greater than zero.");
   }
 
@@ -75,10 +76,11 @@ export async function takeSupplyInventory(formData: FormData) {
     return setSupplyInventoryLevel(
       tx,
       supplyId,
-      supply.stockQty - quantity,
+      supply.stockQty.sub(quantity),
       supply.lowStockThreshold,
       "TAKEN",
       note || "Taken from inventory page",
+      user.id,
     );
   });
 

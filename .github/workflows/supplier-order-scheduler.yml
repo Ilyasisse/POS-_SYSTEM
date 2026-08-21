@@ -1,0 +1,40 @@
+name: Supplier order scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supplier-order-scheduler
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      # Previous Vercel Pro cron:
+      # path: /api/cron/supplier-order-schedules
+      # schedule: "* * * * *"
+      # It invoked the supplier-order processor every minute for invitations,
+      # reminders, finalization, and retryable WhatsApp deliveries.
+      - name: Invoke supplier-order scheduler
+        env:
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        shell: bash
+        run: |
+          if [ -z "$APP_BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "APP_BASE_URL and CRON_SECRET repository secrets are required."
+            exit 1
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            --retry 2 \
+            --max-time 45 \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_BASE_URL%/}/api/cron/supplier-order-schedules"

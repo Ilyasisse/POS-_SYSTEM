@@ -30,7 +30,6 @@ import {
 } from "@/lib/waiter/waiter-balance-admin";
 import {
   getBusinessDayRangeForKey,
-  getCurrentBusinessDateKey,
   getDefaultWaiterBalanceDateKey,
   isLedgerActive,
   parseBusinessDateKey,
@@ -282,7 +281,6 @@ export default async function WaiterBalancesPage({
   await requirePermission(PERMISSIONS.WAITER_BALANCE_ADMIN);
   const params = await searchParams;
   const now = new Date();
-  const currentBusinessDate = getCurrentBusinessDateKey(now);
   const defaultBusinessDate = getDefaultWaiterBalanceDateKey(now);
   const ledgerActive = isLedgerActive(now);
   const requestedDate = parseBusinessDateKey(params?.date ?? "");
@@ -290,7 +288,7 @@ export default async function WaiterBalancesPage({
   const selectedDateIsValid =
     requestedDate != null &&
     requestedDate >= WAITER_BALANCE_LEDGER_START_DATE &&
-    requestedDate <= currentBusinessDate;
+    requestedDate <= defaultBusinessDate;
   const selectedBusinessDate = selectedDateIsValid
     ? requestedDate
     : defaultBusinessDate;
@@ -363,7 +361,7 @@ export default async function WaiterBalancesPage({
           <AlertCircle aria-hidden="true" />
           <AlertTitle>Date unavailable</AlertTitle>
           <AlertDescription>
-            Showing the most recently completed business day instead. Select July 1, 2026 through the current POS business day.
+            Showing the most recently completed business day instead. The active POS business day becomes available after it closes at 5:00 AM.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -381,7 +379,7 @@ export default async function WaiterBalancesPage({
             className="flex flex-col gap-3 sm:flex-row sm:items-end"
           >
             <WaiterBalanceDateFilter
-              currentBusinessDate={currentBusinessDate}
+              latestCompletedBusinessDate={defaultBusinessDate}
               ledgerStartDate={WAITER_BALANCE_LEDGER_START_DATE}
               selectedBusinessDate={selectedBusinessDate}
               showInactive={showInactive}

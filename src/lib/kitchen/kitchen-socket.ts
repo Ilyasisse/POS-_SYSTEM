@@ -12,6 +12,17 @@ export type KitchenTicketPickupStatus = "preparing" | "ready" | "claimed" | "del
 export type KitchenTicketStationStatuses = Partial<
   Record<KitchenStation, KitchenTicketStatus>
 >;
+export type KitchenTicketStationMetric = {
+  startedAt: string | null;
+  completedAt: string | null;
+  preparationSeconds: number | null;
+  targetMinutes: number | null;
+  isLate: boolean | null;
+  coverage: "COMPLETE" | "IN_PROGRESS" | "UNAVAILABLE";
+};
+export type KitchenTicketStationMetrics = Partial<
+  Record<KitchenStation, KitchenTicketStationMetric>
+>;
 
 export type KitchenViewerRole = "ADMIN" | "BARISTA" | "COOK" | string;
 
@@ -39,6 +50,7 @@ export type KitchenTicket = {
   createdAt: string;
   status: KitchenTicketStatus;
   stationStatuses: KitchenTicketStationStatuses;
+  stationMetrics: KitchenTicketStationMetrics;
   pickupStatus: KitchenTicketPickupStatus;
   tableId?: string | null;
   tableName?: string | null;
@@ -64,6 +76,29 @@ type KitchenTicketLike = Partial<KitchenTicket> & {
     }
   >;
 };
+
+function normalizeStationMetrics(
+  value: KitchenTicketStationMetrics | null | undefined,
+): KitchenTicketStationMetrics {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([stationName, metric]) => {
+      const station = normalizeKitchenStation(stationName);
+      if (!station || !metric || typeof metric !== "object") return [];
+      const coverage = ["COMPLETE", "IN_PROGRESS", "UNAVAILABLE"].includes(metric.coverage)
+        ? metric.coverage
+        : "UNAVAILABLE";
+      return [[station, {
+        startedAt: metric.startedAt ? String(metric.startedAt) : null,
+        completedAt: metric.completedAt ? String(metric.completedAt) : null,
+        preparationSeconds: Number.isFinite(metric.preparationSeconds) ? Number(metric.preparationSeconds) : null,
+        targetMinutes: Number.isFinite(metric.targetMinutes) ? Number(metric.targetMinutes) : null,
+        isLate: typeof metric.isLate === "boolean" ? metric.isLate : null,
+        coverage,
+      }]];
+    }),
+  );
+}
 
 export type KitchenTicketFilter = {
   station?: string | null;
@@ -205,6 +240,7 @@ export function setKitchenTicketStationStatus(
   const nextTicket = {
     ...ticket,
     stationStatuses,
+    stationMetrics: normalizeStationMetrics(ticket.stationMetrics),
   };
 
   return {
@@ -331,6 +367,7 @@ export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket
     createdAt: String(ticket.createdAt ?? new Date().toISOString()),
     status: "new",
     stationStatuses,
+    stationMetrics: normalizeStationMetrics(ticket.stationMetrics),
     pickupStatus: isKitchenTicketPickupStatus(ticket.pickupStatus)
       ? ticket.pickupStatus
       : "preparing",
@@ -414,19 +451,6 @@ export function filterKitchenTicketByStation(
     status: visibleStatus,
     items,
   };
-}
-
-export function filterKitchenTicketsByStation(
-  tickets: KitchenTicket[],
-  stationOrFilter?: string | KitchenTicketFilter | null,
-  userId?: string | null,
-  role?: KitchenViewerRole | null,
-): KitchenTicket[] {
-  return tickets
-    .map((ticket) =>
-      filterKitchenTicketByStation(ticket, stationOrFilter, userId, role),
-    )
-    .filter((ticket): ticket is KitchenTicket => ticket !== null);
 }
 
 export function stationFromPathSegment(

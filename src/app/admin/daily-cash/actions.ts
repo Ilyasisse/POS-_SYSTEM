@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { createManualExpense, deleteManualExpense, finalizeDailyCash, overrideDailySalary, payDailyCashObligation, payDailyCashSupply, payDailySalary, undoDailyCashSupplierPayment, undoDailyCashSupplyPayment, undoDailySalary } from "@/lib/daily-cash/service";
+import { createDailyCashSavingsDeposit, createManualExpense, deleteManualExpense, finalizeDailyCash, overrideDailySalary, payDailyCashObligation, payDailyCashSupplierAdvance, payDailyCashSupply, payDailySalary, undoDailyCashSavingsDeposit, undoDailyCashSupplierPayment, undoDailyCashSupplyPayment, undoDailySalary } from "@/lib/daily-cash/service";
 
 const text = (formData: FormData, name: string) => String(formData.get(name) ?? "").trim();
 const money = (formData: FormData, name: string) => Number(formData.get(name));
@@ -29,6 +29,18 @@ export async function createManualExpenseAction(formData: FormData) {
 export async function deleteManualExpenseAction(formData: FormData) {
   await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
   await deleteManualExpense({ dateKey: text(formData, "date"), id: text(formData, "id") });
+  refresh();
+}
+
+export async function createSavingsDepositAction(formData: FormData) {
+  const user = await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
+  const result = await createDailyCashSavingsDeposit({ dateKey: text(formData, "date"), amount: money(formData, "amount"), note: text(formData, "note"), userId: user.id });
+  if (!result.ok) throw new Error("message" in result ? result.message : "Unable to move cash to savings.");
+  refresh();
+}
+export async function undoSavingsDepositAction(formData: FormData) {
+  await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
+  await undoDailyCashSavingsDeposit({ dateKey: text(formData, "date"), id: text(formData, "id") });
   refresh();
 }
 export async function undoPaidActivityAction(input: { date: string; type: "SALARY" | "SUPPLIER" | "SUPPLY" | "MANUAL"; rowId: string }) {
@@ -59,7 +71,13 @@ export async function paySupplyBalanceAction(formData: FormData) {
 }
 export async function paySupplierObligationAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
-  const result = await payDailyCashObligation({ dateKey: text(formData, "date"), billId: text(formData, "billId"), installmentId: text(formData, "installmentId") || null, amount: money(formData, "amount"), userId: user.id, confirmSavings: formData.get("confirmSavings") === "on" });
+  const result = await payDailyCashObligation({ dateKey: text(formData, "date"), billId: text(formData, "billId"), installmentId: text(formData, "installmentId") || null, amount: money(formData, "amount"), userId: user.id, confirmSavings: formData.get("confirmSavings") === "on", allowOverpayment: formData.get("allowOverpayment") === "on" });
+  if (!result.ok) throw new Error(result.code === "SAVINGS_CONFIRMATION_REQUIRED" ? `This payment needs $${result.savingsAmount} from savings. Tick the confirmation box and submit again.` : result.message);
+  refresh();
+}
+export async function paySupplierAdvanceAction(formData: FormData) {
+  const user = await requirePermission(PERMISSIONS.DAILY_CASH_MANAGE);
+  const result = await payDailyCashSupplierAdvance({ dateKey: text(formData, "date"), supplierId: text(formData, "supplierId"), amount: money(formData, "amount"), userId: user.id, confirmSavings: formData.get("confirmSavings") === "on" });
   if (!result.ok) throw new Error(result.code === "SAVINGS_CONFIRMATION_REQUIRED" ? `This payment needs $${result.savingsAmount} from savings. Tick the confirmation box and submit again.` : result.message);
   refresh();
 }

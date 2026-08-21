@@ -1,10 +1,52 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateDailyCashSummary, fundingFor } from "../../src/lib/daily-cash/money";
+import { calculateDailyCashSummary, fundingFor, validateSavingsDepositAmount } from "../../src/lib/daily-cash/money";
+import {
+  assertDailyCashBusinessDate,
+  getDailyCashDefaultDateKey,
+  getDailyCashWaiterBalanceDateKey,
+  isDailyCashLocked,
+} from "../../src/lib/daily-cash/business-date";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "../../src/lib/daily-cash/paid-breakdown";
 import { resolveDailySalaryRate } from "../../src/lib/daily-cash/salary-rates";
 import { summarizeDailyCashShiftCash } from "../../src/lib/daily-cash/shift-cash";
 import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } from "../../src/lib/daily-cash/supplier-obligations";
+
+test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
+  assert.equal(
+    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 6, 59, 59)),
+    "2026-08-09",
+  );
+  assert.equal(
+    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 7, 0, 0)),
+    "2026-08-10",
+  );
+  assert.equal(
+    getDailyCashWaiterBalanceDateKey("2026-08-10"),
+    "2026-08-09",
+  );
+});
+
+test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dates", () => {
+  const now = new Date(2026, 7, 11, 12, 0, 0);
+
+  assert.equal(assertDailyCashBusinessDate("2026-08-01", now), "2026-08-01");
+  assert.throws(
+    () => assertDailyCashBusinessDate("2026-07-31", now),
+    /begins on August 1, 2026/,
+  );
+  assert.throws(
+    () => assertDailyCashBusinessDate("2026-08-12", now),
+    /Future business days cannot be used/,
+  );
+});
+
+test("Daily Cash locks a business day when it reaches exactly 14 days old", () => {
+  const now = new Date(2026, 7, 15, 12, 0, 0);
+
+  assert.equal(isDailyCashLocked("2026-08-02", now), false);
+  assert.equal(isDailyCashLocked("2026-08-01", now), true);
+});
 
 test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
   const shifts = [
@@ -35,15 +77,15 @@ test("a zero End-Day Amount is complete and contributes zero cash", () => {
 test("Daily Cash review input changes only when an End-Day Amount changes", () => {
   const waiters = [{ id: "waiter-1", fullName: "Amina" }];
   const original = summarizeDailyCashShiftCash(
-    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100, reportedSales: 200 }],
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100 }],
     waiters,
   );
   const manualSalesChanged = summarizeDailyCashShiftCash(
-    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100, reportedSales: 999 }],
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 100 }],
     waiters,
   );
   const endDayAmountChanged = summarizeDailyCashShiftCash(
-    [{ id: "shift-1", userId: "waiter-1", closingAmount: 125, reportedSales: 999 }],
+    [{ id: "shift-1", userId: "waiter-1", closingAmount: 125 }],
     waiters,
   );
 
@@ -61,6 +103,40 @@ test("Daily Cash uses revenue before savings and never projects a negative balan
   });
 });
 
+test("savings deposits reduce available cash without changing paid expenses or savings used", () => {
+  assert.deepEqual(
+    calculateDailyCashSummary({
+      revenue: 500,
+      paidRevenueFunded: 100,
+      paidSavingsFunded: 25,
+      unpaidRequired: 200,
+      savingsDeposited: 75,
+    }),
+    {
+      cashAvailableNow: 325,
+      projectedRemaining: 125,
+      additionalSavingsRequired: 0,
+      savingsUsed: 25,
+    },
+  );
+});
+
+test("savings deposits accept the projected remainder and reject unsafe amounts", () => {
+  assert.equal(validateSavingsDepositAmount(125, 125), 125);
+  assert.throws(
+    () => validateSavingsDepositAmount(125.01, 125),
+    /cannot exceed the projected remaining cash/i,
+  );
+  assert.throws(
+    () => validateSavingsDepositAmount(1.001, 125),
+    /no more than two decimal places/i,
+  );
+  assert.throws(
+    () => validateSavingsDepositAmount(0, 125),
+    /greater than zero/i,
+  );
+});
+
 test("Daily Cash resolves the newest salary rate effective on the business date", () => {
   const rate = resolveDailySalaryRate(new Date("2026-08-04T00:00:00.000Z"), [
     { effectiveBusinessDate: new Date("2026-08-01T00:00:00.000Z"), amount: 100 },
@@ -71,7 +147,7 @@ test("Daily Cash resolves the newest salary rate effective on the business date"
 
 test("Daily Cash includes overdue and upcoming obligations", () => {
   const rows = selectDailyCashObligations([{
-    id: "bill-1", dueDate: new Date("2026-08-01T00:00:00.000Z"), totalAmount: 900, paidAmount: 0, status: "UNPAID",
+    id: "bill-1", supplierId: "supplier-1", dueDate: new Date("2026-08-01T00:00:00.000Z"), totalAmount: 900, paidAmount: 0, status: "UNPAID",
     supplier: { name: "Milk supplier" }, invoice: { invoiceNumber: 1 },
     installments: [
       { id: "past", dueDate: new Date("2026-07-28T00:00:00.000Z"), amount: 300, paidAmount: 0, status: "UNPAID" },
@@ -85,9 +161,9 @@ test("Daily Cash includes overdue and upcoming obligations", () => {
 
 test("Daily Cash includes future-due bills and sorts oldest first", () => {
   const rows = selectDailyCashObligations([
-    { id: "future", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: 47 }, installments: [] },
-    { id: "due", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: 43 }, installments: [] },
-    { id: "paid", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: 99 }, installments: [] },
+    { id: "future", supplierId: "supplier-1", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: 47 }, installments: [] },
+    { id: "due", supplierId: "supplier-2", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: 43 }, installments: [] },
+    { id: "paid", supplierId: "supplier-3", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: 99 }, installments: [] },
   ]);
   assert.deepEqual(rows.map((row) => row.invoiceNumber), ["INV-000043", "INV-000047"]);
   assert.equal(rows.reduce((sum, row) => sum + row.amount, 0), 121.5);
@@ -96,6 +172,7 @@ test("Daily Cash includes future-due bills and sorts oldest first", () => {
 test("Daily Cash accepts partial supplier payments up to the remaining balance", () => {
   assert.equal(validateSupplierObligationPaymentAmount(20, 67.5), 20);
   assert.equal(validateSupplierObligationPaymentAmount(67.5, 67.5), 67.5);
+  assert.equal(validateSupplierObligationPaymentAmount(100, 67.5, true), 100);
   assert.throws(() => validateSupplierObligationPaymentAmount(0, 67.5), /greater than zero/);
   assert.throws(() => validateSupplierObligationPaymentAmount(68, 67.5), /cannot exceed/);
 });

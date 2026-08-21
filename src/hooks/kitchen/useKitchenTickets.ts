@@ -56,18 +56,29 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
       `/api/kitchen/tickets${params.size > 0 ? `?${params.toString()}` : ""}`,
       { cache: "no-store" },
     );
+
+    if (sequence !== requestSequence.current) return;
+
+    if (!response.ok) {
+      const errorPayload = (await response
+        .json()
+        .catch(() => null)) as TicketResponse | null;
+      setStatusMessage(
+        errorPayload &&
+          "error" in errorPayload &&
+          typeof errorPayload.error === "string"
+          ? errorPayload.error
+          : "Unable to load kitchen tickets.",
+      );
+      return;
+    }
+
     const payload = (await response
       .json()
       .catch(() => null)) as TicketResponse | null;
 
-    if (sequence !== requestSequence.current) return;
-
-    if (!response.ok || !payload || !("tickets" in payload)) {
-      setStatusMessage(
-        payload && "error" in payload && typeof payload.error === "string"
-          ? payload.error
-          : "Unable to load kitchen tickets.",
-      );
+    if (!payload || !("tickets" in payload)) {
+      setStatusMessage("Unable to load kitchen tickets.");
       return;
     }
 
@@ -183,8 +194,8 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
           : currentTicket?.claimedByWaiterName;
 
       setTickets((current) =>
-        current
-          .map((ticket) =>
+        current.reduce<KitchenTicket[]>((nextTickets, ticket) => {
+          const nextTicket =
             ticket.id === id
               ? setKitchenTicketPickupStatus(
                   ticket,
@@ -192,9 +203,13 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
                   claimedByWaiterId,
                   claimedByWaiterName,
                 )
-              : ticket,
-          )
-          .filter((ticket) => ticket.pickupStatus !== "delivered"),
+              : ticket;
+
+          if (nextTicket.pickupStatus !== "delivered") {
+            nextTickets.push(nextTicket);
+          }
+          return nextTickets;
+        }, []),
       );
 
       const response = await fetch(
@@ -215,11 +230,33 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
     [currentUserId, currentUserName, refreshTickets, tickets],
   );
 
+  const recordQualityEvent = useCallback(
+    async (
+      id: string,
+      type: "LATE" | "REMAKE" | "WRONG_ORDER" | "WAITER_MISTAKE",
+      reason: string,
+    ) => {
+      const response = await fetch(
+        `/api/kitchen/tickets/${encodeURIComponent(id)}/quality`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ station, type, reason }),
+        },
+      );
+      setStatusMessage(
+        response.ok ? "Quality event recorded." : await readError(response),
+      );
+    },
+    [station],
+  );
+
   return {
     tickets,
     activeTickets,
     statusMessage,
     updateTicketStatus,
     updatePickupStatus,
+    recordQualityEvent,
   };
 }

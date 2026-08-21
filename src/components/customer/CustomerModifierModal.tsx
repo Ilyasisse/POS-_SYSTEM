@@ -177,8 +177,11 @@ function ModifierGroupList({
 }: ModifierGroupListProps) {
   return (
     <>
-      {modifierGroups.map((group, groupIndex) => (
-        <section
+      {modifierGroups.map((group, groupIndex) => {
+        const selectedOptionIdSet = new Set(selected[group.id] || []);
+
+        return (
+          <section
           key={group.id}
           data-aos="fade-up"
           data-aos-delay={String(groupIndex * 50)}
@@ -202,7 +205,7 @@ function ModifierGroupList({
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {group.options.map((option) => {
-              const checked = (selected[group.id] || []).includes(option.id);
+              const checked = selectedOptionIdSet.has(option.id);
 
               return (
                 <Button
@@ -240,8 +243,9 @@ function ModifierGroupList({
               );
             })}
           </div>
-        </section>
-      ))}
+          </section>
+        );
+      })}
     </>
   );
 }

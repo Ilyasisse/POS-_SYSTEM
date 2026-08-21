@@ -6,21 +6,20 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
-  id                                  String                        @id
-  phoneNumber                         String?                       @unique
+  id                                  String                           @id
+  phoneNumber                         String?                          @unique
   fullName                            String
-  role                                UserRole                      @default(CASHIER)
-  isActive                            Boolean                       @default(true)
-  createdAt                           DateTime                      @default(now())
-  updatedAt                           DateTime                      @updatedAt
-  email                               String                        @unique
+  role                                UserRole                         @default(CASHIER)
+  isActive                            Boolean                          @default(true)
+  createdAt                           DateTime                         @default(now())
+  updatedAt                           DateTime                         @updatedAt
+  email                               String                           @unique
   station                             Station?
-  orders                              Order[]                       @relation("Cashier")
-  waiterOrders                        Order[]                       @relation("WaiterOrders")
-  assignedItems                       OrderItem[]                   @relation("AssignedOrderItems")
-  claimedKitchenTickets               KitchenTicketState[]          @relation("KitchenTicketClaimant")
+  orders                              Order[]                          @relation("Cashier")
+  waiterOrders                        Order[]                          @relation("WaiterOrders")
+  assignedItems                       OrderItem[]                      @relation("AssignedOrderItems")
+  claimedKitchenTickets               KitchenTicketState[]             @relation("KitchenTicketClaimant")
   payments                            Payment[]
   shifts                              Shift[]                       @relation("WaiterShifts")
   shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
@@ -28,6 +27,7 @@ model User {
   waiterBalanceInitializationsCreated WaiterBalanceInitialization[] @relation("WaiterBalanceCreatedBy")
   supplierBillsSettled                SupplierBill[]                @relation("SupplierBillSettledBy")
   supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
+  supplierPaymentAllocationsApplied   SupplierPaymentAllocation[]   @relation("SupplierPaymentAllocationAppliedBy")
   supplyPurchasesCreated              SupplyPurchase[]              @relation("SupplyPurchaseCreatedBy")
   supplyCatalogItemsCreated           SupplyCatalogItem[]           @relation("SupplyCatalogItemCreatedBy")
   supplyDaysClosed                    SupplyDay[]                   @relation("SupplyDayClosedBy")
@@ -36,16 +36,372 @@ model User {
   supplierInvoicesCreated             SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
   supplierInvoicesFinalized           SupplierInvoice[]             @relation("SupplierInvoiceFinalizedBy")
   supplierInvoicesVoided              SupplierInvoice[]             @relation("SupplierInvoiceVoidedBy")
+  supplierInvoiceRecurrencesCreated   SupplierInvoiceRecurrence[]   @relation("SupplierInvoiceRecurrenceCreatedBy")
+  supplierInvoiceRecurrencesPaused    SupplierInvoiceRecurrence[]   @relation("SupplierInvoiceRecurrencePausedBy")
   dailyCashSalaryRatesCreated         DailySalaryRate[]             @relation("DailySalaryRateCreatedBy")
   dailyCashSalaryOverrides            DailyCashDay[]                @relation("DailyCashSalaryOverriddenBy")
   dailyCashSalaryPayments             DailyCashDay[]                @relation("DailyCashSalaryPaidBy")
   dailyCashFinalizations              DailyCashDay[]                @relation("DailyCashFinalizedBy")
   dailyCashManualExpensesCreated      DailyCashManualExpense[]      @relation("DailyCashManualExpenseCreatedBy")
   dailyCashSupplierPaymentsRecorded   DailyCashSupplierPayment[]    @relation("DailyCashSupplierPaymentRecordedBy")
+  supplierOrderSchedulesCreated       SupplierOrderSchedule[]       @relation("SupplierOrderScheduleCreatedBy")
+  supplierOrderScheduleRecipients     SupplierOrderScheduleRecipient[]
+  supplierOrderRunRecipients          SupplierOrderRunRecipient[]
+  auditLogsCreated                    AuditLog[]                    @relation("AuditLogActor")
+  cafeSettingsUpdated                 CafeSetting[]                 @relation("CafeSettingUpdatedBy")
+  customerOrders                      Order[]                       @relation("CustomerOrders")
+  salesAdjustmentsCreated             SalesAdjustment[]             @relation("SalesAdjustmentActor")
+  salesAdjustmentsApproved            SalesAdjustment[]             @relation("SalesAdjustmentApprover")
+  productCostsChanged                 Product[]                     @relation("ProductStandardCostChangedBy")
+  supplyCostsChanged                  InventorySupply[]             @relation("SupplyStandardCostChangedBy")
+  recipeVersionsCreated               RecipeVersion[]               @relation("RecipeVersionCreatedBy")
+  stockEventsCreated                  StockEvent[]                  @relation("StockEventActor")
+  stockEventsApproved                 StockEvent[]                  @relation("StockEventApprover")
+  inventoryCountsCreated              InventoryCountSession[]       @relation("InventoryCountCreatedBy")
+  inventoryCountsSubmitted            InventoryCountSession[]       @relation("InventoryCountSubmittedBy")
+  inventoryCountsApproved             InventoryCountSession[]       @relation("InventoryCountApprovedBy")
+  kitchenTransitions                  KitchenTransitionEvent[]      @relation("KitchenTransitionActor")
+  kitchenTargetsUpdated               KitchenPreparationTarget[]    @relation("KitchenTargetUpdatedBy")
+  kitchenQualityEvents                KitchenQualityEvent[]         @relation("KitchenQualityActor")
+  incidentsReported                   OperationalIncident[]         @relation("IncidentReporter")
+  incidentsAssigned                   OperationalIncident[]         @relation("IncidentAssignee")
+  cleaningRunsAssigned                CleaningChecklistRun[]        @relation("CleaningRunAssignee")
+  cleaningRunsCompleted               CleaningChecklistRun[]        @relation("CleaningRunCompletedBy")
+  cleaningTasksCompleted              CleaningChecklistRunTask[]    @relation("CleaningTaskCompletedBy")
   dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]      @relation("DailyCashSupplyPaymentRecordedBy")
+  dailyCashSavingsDepositsRecorded    DailyCashSavingsDeposit[]     @relation("DailyCashSavingsDepositRecordedBy")
+  employmentProfile                   EmploymentProfile?
+  scheduledShifts                     ScheduledShift[]             @relation("ScheduledShiftWorker")
+  scheduledShiftsCreated              ScheduledShift[]             @relation("ScheduledShiftCreator")
+  clockEvents                         ClockEvent[]                 @relation("ClockEventWorker")
+  attendanceApprovals                 AttendanceRecord[]           @relation("AttendanceApprover")
+  attendanceRecords                   AttendanceRecord[]           @relation("AttendanceWorker")
+  payrollAdjustmentsCreated           PayrollAdjustment[]          @relation("PayrollAdjustmentActor")
+  payrollAdjustmentsApproved          PayrollAdjustment[]          @relation("PayrollAdjustmentApprover")
+  payrollRunsCreated                  PayrollRun[]                 @relation("PayrollRunCreator")
+  payrollRunsApproved                 PayrollRun[]                 @relation("PayrollRunApprover")
+  payrollRunsFinalized                PayrollRun[]                 @relation("PayrollRunFinalizer")
+  payrollAdjustments                  PayrollAdjustment[]          @relation("PayrollAdjustmentWorker")
+  payrollLines                        PayrollLine[]                @relation("PayrollLineWorker")
+  expenseCategoriesCreated            ExpenseCategory[]            @relation("ExpenseCategoryCreator")
+  expensesRecorded                    ExpenseTransaction[]         @relation("ExpenseActor")
+  expensesApproved                    ExpenseTransaction[]         @relation("ExpenseApprover")
+  ownerWithdrawalsRecorded            OwnerWithdrawal[]            @relation("OwnerWithdrawalActor")
+  supplierReceivingsRecorded          SupplierReceiving[]          @relation("SupplierReceivingActor")
+  customerFeedbackRecorded            CustomerFeedback[]           @relation("CustomerFeedbackActor")
+  complaintsAssigned                  ComplaintCase[]              @relation("ComplaintAssignee")
+  complaintsResolved                  ComplaintCase[]              @relation("ComplaintResolver")
+  complaintsRecorded                  ComplaintCase[]              @relation("ComplaintActor")
+  reportExports                       ReportExportAudit[]          @relation("ReportExportActor")
 
   @@index([role, isActive])
   @@index([station])
+}
+
+model CafeSetting {
+  id                     String   @id @default("default")
+  businessName           String   @default("Mash Allah Cafe")
+  currencyCode           String   @default("USD")
+  timezone               String   @default("Africa/Nairobi")
+  businessDayStartMinute Int      @default(420)
+  businessDayEndMinute   Int      @default(300)
+  weekStartDay           Int      @default(6)
+  updatedByUserId        String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  updatedBy              User?    @relation("CafeSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedByUserId])
+}
+
+/// Versioned compensation is deliberately separated from operational staff data.
+model EmploymentProfile {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  compensationType CompensationType
+  dailyRate        Decimal?           @db.Decimal(14, 2)
+  monthlySalary    Decimal?           @db.Decimal(14, 2)
+  effectiveFrom    DateTime           @db.Date
+  effectiveTo      DateTime?          @db.Date
+  status           EmploymentStatus   @default(ACTIVE)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, effectiveFrom])
+}
+
+model AttendancePolicy {
+  id                    String   @id @default("default")
+  shiftMinutes          Int      @default(480)
+  graceMinutes          Int      @default(10)
+  overtimeThresholdMinutes Int   @default(480)
+  timezone              String   @default("Africa/Nairobi")
+  updatedAt             DateTime @updatedAt
+}
+
+model ScheduledShift {
+  id              String           @id @default(cuid())
+  workerId        String
+  startsAt        DateTime
+  endsAt          DateTime
+  station         Station?
+  status          ScheduledShiftStatus @default(SCHEDULED)
+  createdByUserId String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  worker          User             @relation("ScheduledShiftWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy       User             @relation("ScheduledShiftCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  attendance      AttendanceRecord?
+
+  @@index([workerId, startsAt])
+  @@index([status, startsAt])
+}
+
+/// Raw clock records are append-only. Attendance approval stores the reviewed result.
+model ClockEvent {
+  id        String         @id @default(cuid())
+  workerId  String
+  type      ClockEventType
+  occurredAt DateTime      @default(now())
+  note      String?
+  createdAt DateTime       @default(now())
+  worker    User           @relation("ClockEventWorker", fields: [workerId], references: [id], onDelete: Restrict)
+
+  @@index([workerId, occurredAt])
+}
+
+model AttendanceRecord {
+  id                     String           @id @default(cuid())
+  workerId               String
+  scheduledShiftId       String?          @unique
+  businessDate           DateTime         @db.Date
+  status                 AttendanceStatus @default(PENDING)
+  clockInAt              DateTime?
+  clockOutAt             DateTime?
+  workedMinutes          Int              @default(0)
+  lateMinutes            Int              @default(0)
+  approvedOvertimeMinutes Int             @default(0)
+  absenceReason          String?
+  approvedByUserId       String?
+  approvedAt             DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  worker                 User             @relation("AttendanceWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  scheduledShift         ScheduledShift?  @relation(fields: [scheduledShiftId], references: [id], onDelete: SetNull)
+  approvedBy             User?            @relation("AttendanceApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workerId, businessDate])
+  @@index([businessDate, status])
+}
+
+model PayrollAdjustment {
+  id               String                @id @default(cuid())
+  workerId         String
+  periodStart      DateTime              @db.Date
+  periodEnd        DateTime              @db.Date
+  type             PayrollAdjustmentType
+  amount           Decimal               @db.Decimal(14, 2)
+  reason           String
+  createdByUserId  String
+  approvedByUserId String?
+  approvedAt       DateTime?
+  createdAt        DateTime              @default(now())
+  worker           User                  @relation("PayrollAdjustmentWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy        User                  @relation("PayrollAdjustmentActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       User?                 @relation("PayrollAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([workerId, periodStart, periodEnd])
+  @@index([approvedAt])
+}
+
+model PayrollRun {
+  id               String            @id @default(cuid())
+  periodStart      DateTime          @db.Date
+  periodEnd        DateTime          @db.Date
+  status           PayrollRunStatus  @default(DRAFT)
+  createdByUserId  String
+  approvedByUserId String?
+  approvedAt       DateTime?
+  finalizedByUserId String?
+  finalizedAt      DateTime?
+  voidedAt         DateTime?
+  voidReason       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdBy        User              @relation("PayrollRunCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       User?             @relation("PayrollRunApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  finalizedBy      User?             @relation("PayrollRunFinalizer", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  lines            PayrollLine[]
+
+  @@index([status, periodStart, periodEnd])
+}
+
+model PayrollLine {
+  id                    String     @id @default(cuid())
+  payrollRunId          String
+  workerId              String
+  compensationType      CompensationType
+  basePay               Decimal    @db.Decimal(14, 2)
+  overtimePay           Decimal    @default(0) @db.Decimal(14, 2)
+  additions             Decimal    @default(0) @db.Decimal(14, 2)
+  deductions            Decimal    @default(0) @db.Decimal(14, 2)
+  netPay                Decimal    @db.Decimal(14, 2)
+  attendanceDays        Int        @default(0)
+  overtimeMinutes       Int        @default(0)
+  snapshot              Json
+  createdAt             DateTime   @default(now())
+  payrollRun            PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  worker                User       @relation("PayrollLineWorker", fields: [workerId], references: [id], onDelete: Restrict)
+
+  @@unique([payrollRunId, workerId])
+  @@index([workerId, createdAt])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  actorUserId       String?
+  action            String
+  entityType        String
+  entityId          String
+  reason            String?
+  previousValue     Json?
+  newValue          Json?
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime @default(now())
+  actor             User?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+model ExpenseCategory {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       User     @relation("ExpenseCategoryCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  expenses        ExpenseTransaction[]
+}
+
+model ExpenseTransaction {
+  id               String            @id @default(cuid())
+  categoryId       String
+  vendor           String?
+  amount           Decimal           @db.Decimal(14, 2)
+  paymentMethod    String?
+  paidAt           DateTime          @db.Date
+  receiptReference String?
+  isFixed          Boolean           @default(false)
+  isRecurring      Boolean           @default(false)
+  status           ExpenseStatus     @default(PENDING)
+  note             String?
+  createdByUserId  String
+  approvedByUserId String?
+  approvedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  category         ExpenseCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy        User              @relation("ExpenseActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       User?             @relation("ExpenseApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([paidAt, status])
+  @@index([categoryId, paidAt])
+}
+
+model OwnerWithdrawal {
+  id               String   @id @default(cuid())
+  amount           Decimal  @db.Decimal(14, 2)
+  withdrawnAt      DateTime @db.Date
+  reason           String
+  receiptReference String?
+  createdByUserId  String
+  createdAt        DateTime @default(now())
+  createdBy        User     @relation("OwnerWithdrawalActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([withdrawnAt])
+}
+
+model SupplierReceiving {
+  id                    String                @id @default(cuid())
+  purchaseOrderId       String                @unique
+  receivedAt            DateTime              @default(now())
+  receivedByUserId      String
+  qualityRating         Int?
+  rejectionQuantity     Decimal?              @db.Decimal(12, 3)
+  rejectionReason       String?
+  completionNote        String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedBy            User                  @relation("SupplierReceivingActor", fields: [receivedByUserId], references: [id], onDelete: Restrict)
+  items                 SupplierReceivingItem[]
+}
+
+model SupplierReceivingItem {
+  id                    String             @id @default(cuid())
+  receivingId           String
+  purchaseOrderItemId   String
+  expectedQuantity      Decimal            @db.Decimal(12, 3)
+  receivedQuantity      Decimal            @db.Decimal(12, 3)
+  createdAt             DateTime           @default(now())
+  receiving             SupplierReceiving  @relation(fields: [receivingId], references: [id], onDelete: Cascade)
+  purchaseOrderItem     SupplierPurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+
+  @@unique([receivingId, purchaseOrderItemId])
+}
+
+model CustomerFeedback {
+  id               String   @id @default(cuid())
+  orderId          String?
+  rating           Int?
+  comment          String?
+  createdByUserId  String?
+  createdAt        DateTime @default(now())
+  order            Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdBy        User?    @relation("CustomerFeedbackActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+}
+
+model ComplaintCase {
+  id               String          @id @default(cuid())
+  orderId          String?
+  category         ComplaintCategory
+  priority         ComplaintPriority @default(MEDIUM)
+  status           ComplaintStatus @default(OPEN)
+  description      String
+  assignedToUserId String?
+  resolvedByUserId String?
+  resolutionNotes  String?
+  resolvedAt       DateTime?
+  createdByUserId  String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  order            Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  assignedTo       User?           @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  resolvedBy       User?           @relation("ComplaintResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  createdBy        User?           @relation("ComplaintActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([assignedToUserId, status])
+}
+
+model ReportExportAudit {
+  id               String   @id @default(cuid())
+  actorUserId      String
+  report           String
+  format           String
+  filters          Json
+  createdAt        DateTime @default(now())
+  actor            User     @relation("ReportExportActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([actorUserId, createdAt])
 }
 
 model Category {
@@ -67,62 +423,85 @@ model Product {
   id   String @id @default(cuid())
   name String
 
-  description           String?
-  imageUrl              String?
-  pronunciationAudioUrl String?
-  isActive              Boolean               @default(true)
-  isPopular             Boolean               @default(false)
-  price                 Decimal
-  cost                  Decimal?
-  categoryId            String
-  trackStock            Boolean               @default(false)
-  stockQty              Int                   @default(0)
-  lowStockThreshold     Int                   @default(5)
-  inventoryAlertStatus  InventoryAlertStatus  @default(OK)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  modifiers             Modifier[]
-  orderItems            OrderItem[]
-  supplierCatalogItems  SupplierCatalogItem[]
-  category              Category              @relation(fields: [categoryId], references: [id])
+  description                 String?
+  imageUrl                    String?
+  pronunciationAudioUrl       String?
+  isActive                    Boolean               @default(true)
+  isPopular                   Boolean               @default(false)
+  price                       Decimal
+  cost                        Decimal?              @db.Decimal(14, 6)
+  categoryId                  String
+  trackStock                  Boolean               @default(false)
+  stockQty                    Decimal               @default(0) @db.Decimal(18, 6)
+  lowStockThreshold           Decimal               @default(5) @db.Decimal(18, 6)
+  canonicalUnit               CanonicalUnit         @default(PIECE)
+  quantityCoverage            InventoryDataCoverage @default(COMPLETE)
+  standardCostUpdatedAt       DateTime?
+  standardCostUpdatedByUserId String?
+  inventoryAlertStatus        InventoryAlertStatus  @default(OK)
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+  modifiers                   Modifier[]
+  orderItems                  OrderItem[]
+  supplierCatalogItems        SupplierCatalogItem[]
+  category                    Category              @relation(fields: [categoryId], references: [id])
+  standardCostUpdatedBy       User?                 @relation("ProductStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
+  recipeVersions              RecipeVersion[]
+  stockEvents                 StockEvent[]
+  inventoryCountLines         InventoryCountLine[]
 
   @@index([categoryId, isActive])
   @@index([trackStock, inventoryAlertStatus])
   @@index([price, name])
+  @@index([standardCostUpdatedByUserId])
 }
 
 model InventorySupply {
-  id                   String                @id @default(cuid())
-  name                 String
-  unit                 String                @default("unit")
-  stockQty             Int                   @default(0)
-  lowStockThreshold    Int                   @default(5)
-  inventoryAlertStatus InventoryAlertStatus  @default(OK)
-  isActive             Boolean               @default(true)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  movements            InventoryMovement[]
-  supplierCatalogItems SupplierCatalogItem[]
+  id                          String                    @id @default(cuid())
+  name                        String
+  unit                        String                    @default("unit")
+  stockQty                    Decimal                   @default(0) @db.Decimal(18, 6)
+  lowStockThreshold           Decimal                   @default(5) @db.Decimal(18, 6)
+  canonicalUnit               CanonicalUnit?
+  quantityCoverage            InventoryDataCoverage     @default(LEGACY_INCOMPLETE)
+  standardUnitCost            Decimal?                  @db.Decimal(14, 6)
+  standardCostUpdatedAt       DateTime?
+  standardCostUpdatedByUserId String?
+  inventoryAlertStatus        InventoryAlertStatus      @default(OK)
+  isActive                    Boolean                   @default(true)
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
+  movements                   InventoryMovement[]
+  supplierCatalogItems        SupplierCatalogItem[]
+  standardCostUpdatedBy       User?                     @relation("SupplyStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
+  purchaseUnitConversions     InventoryUnitConversion[]
+  recipeIngredients           RecipeIngredient[]
+  stockEvents                 StockEvent[]
+  inventoryCountLines         InventoryCountLine[]
 
   @@unique([name, unit])
   @@index([isActive, inventoryAlertStatus])
+  @@index([standardCostUpdatedByUserId])
 }
 
 /// Supply-only inventory history.
 /// Product stock still lives on Product, but product changes are no longer written here
 /// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
 model InventoryMovement {
-  id             String           @id @default(cuid())
-  supplyId       String?
-  itemName       String
-  itemType       String
-  delta          Int
-  quantityBefore Int
-  quantityAfter  Int
-  reason         String
-  note           String?
-  createdAt      DateTime         @default(now())
-  supply         InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
+  id                       String                @id @default(cuid())
+  supplyId                 String?
+  itemName                 String
+  itemType                 String
+  delta                    Decimal               @db.Decimal(18, 6)
+  quantityBefore           Decimal               @db.Decimal(18, 6)
+  quantityAfter            Decimal               @db.Decimal(18, 6)
+  canonicalUnit            CanonicalUnit?
+  dataCoverage             InventoryDataCoverage @default(LEGACY_INCOMPLETE)
+  standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
+  reason                   String
+  note                     String?
+  createdAt                DateTime              @default(now())
+  supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
   @@index([supplyId, createdAt])
   @@index([createdAt])
@@ -179,6 +558,7 @@ model Order {
   tableId            String?
   cashierId          String?
   waiterId           String?
+  customerId         String?
   notes              String?
   total              Decimal
   createdAt          DateTime            @default(now())
@@ -186,38 +566,200 @@ model Order {
   closedAt           DateTime?
   cashier            User?               @relation("Cashier", fields: [cashierId], references: [id])
   waiter             User?               @relation("WaiterOrders", fields: [waiterId], references: [id])
+  customer           User?               @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: SetNull)
   table              Table?              @relation(fields: [tableId], references: [id])
   orderItems         OrderItem[]
   payments           Payment[]
   kitchenTicketState KitchenTicketState?
+  salesAdjustments   SalesAdjustment[]
+  feedback           CustomerFeedback[]
+  complaints         ComplaintCase[]
 
   @@index([status])
   @@index([createdAt])
   @@index([cashierId, createdAt])
   @@index([waiterId, createdAt])
   @@index([tableId, createdAt])
+  @@index([customerId, closedAt])
+  @@index([status, closedAt])
 }
 
 model OrderItem {
-  id             String              @id @default(cuid())
-  orderId        String
-  productId      String
-  productName    String
-  qty            Int
-  unitPrice      Decimal
-  lineTotal      Decimal
-  createdAt      DateTime            @default(now())
-  assignedUserId String?
-  station        Station?
-  assignedUser   User?               @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
-  order          Order               @relation(fields: [orderId], references: [id])
-  product        Product             @relation(fields: [productId], references: [id])
-  modifiers      OrderItemModifier[]
+  id                   String                @id @default(cuid())
+  orderId              String
+  productId            String
+  productName          String
+  qty                  Int
+  unitPrice            Decimal
+  lineTotal            Decimal
+  unitCostSnapshot     Decimal?              @db.Decimal(14, 6)
+  costSnapshotSource   CostSnapshotSource?
+  recipeVersionId      String?
+  createdAt            DateTime              @default(now())
+  assignedUserId       String?
+  station              Station?
+  assignedUser         User?                 @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
+  order                Order                 @relation(fields: [orderId], references: [id])
+  product              Product               @relation(fields: [productId], references: [id])
+  recipeVersion        RecipeVersion?        @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  modifiers            OrderItemModifier[]
+  salesAdjustments     SalesAdjustment[]
+  kitchenQualityEvents KitchenQualityEvent[]
 
   @@index([orderId])
   @@index([productId])
   @@index([station])
   @@index([assignedUserId])
+  @@index([recipeVersionId])
+}
+
+model InventoryUnitConversion {
+  id                String          @id @default(cuid())
+  supplyId          String
+  purchaseUnit      String
+  canonicalQuantity Decimal         @db.Decimal(18, 6)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  supply            InventorySupply @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+
+  @@unique([supplyId, purchaseUnit])
+  @@index([supplyId, isActive])
+}
+
+model RecipeVersion {
+  id              String                @id @default(cuid())
+  productId       String
+  version         Int
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  yieldQuantity   Decimal               @default(1) @db.Decimal(18, 6)
+  standardCost    Decimal?              @db.Decimal(14, 6)
+  costCoverage    InventoryDataCoverage @default(MISSING_COST)
+  isActive        Boolean               @default(true)
+  createdByUserId String
+  createdAt       DateTime              @default(now())
+  product         Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy       User                  @relation("RecipeVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  ingredients     RecipeIngredient[]
+  orderItems      OrderItem[]
+
+  @@unique([productId, version])
+  @@index([productId, effectiveFrom, effectiveTo])
+}
+
+model RecipeIngredient {
+  id                       String          @id @default(cuid())
+  recipeVersionId          String
+  supplyId                 String
+  quantity                 Decimal         @db.Decimal(18, 6)
+  standardUnitCostSnapshot Decimal?        @db.Decimal(14, 6)
+  createdAt                DateTime        @default(now())
+  recipeVersion            RecipeVersion   @relation(fields: [recipeVersionId], references: [id], onDelete: Cascade)
+  supply                   InventorySupply @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+
+  @@unique([recipeVersionId, supplyId])
+  @@index([supplyId])
+}
+
+model StockEvent {
+  id                       String                @id @default(cuid())
+  productId                String?
+  supplyId                 String?
+  type                     StockEventType
+  quantityDelta            Decimal               @db.Decimal(18, 6)
+  quantityBefore           Decimal               @db.Decimal(18, 6)
+  quantityAfter            Decimal               @db.Decimal(18, 6)
+  canonicalUnit            CanonicalUnit
+  standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
+  dataCoverage             InventoryDataCoverage @default(COMPLETE)
+  reason                   String
+  actorUserId              String?
+  approvedByUserId         String?
+  sourceType               String?
+  sourceId                 String?
+  occurredAt               DateTime              @default(now())
+  createdAt                DateTime              @default(now())
+  product                  Product?              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+  actor                    User?                 @relation("StockEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  approvedBy               User?                 @relation("StockEventApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  inventoryCountLine       InventoryCountLine?
+
+  @@index([productId, occurredAt])
+  @@index([supplyId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([sourceType, sourceId])
+}
+
+model InventoryCountSession {
+  id                String               @id @default(cuid())
+  businessDate      DateTime             @db.Date
+  status            InventoryCountStatus @default(DRAFT)
+  reason            String?
+  createdByUserId   String
+  submittedByUserId String?
+  approvedByUserId  String?
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  createdBy         User                 @relation("InventoryCountCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  submittedBy       User?                @relation("InventoryCountSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  approvedBy        User?                @relation("InventoryCountApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  lines             InventoryCountLine[]
+
+  @@index([businessDate, status])
+}
+
+model InventoryCountLine {
+  id                       String                @id @default(cuid())
+  sessionId                String
+  productId                String?
+  supplyId                 String?
+  canonicalUnit            CanonicalUnit
+  expectedQuantity         Decimal               @db.Decimal(18, 6)
+  physicalQuantity         Decimal               @db.Decimal(18, 6)
+  varianceQuantity         Decimal               @db.Decimal(18, 6)
+  standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
+  dataCoverage             InventoryDataCoverage @default(COMPLETE)
+  stockEventId             String?               @unique
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  session                  InventoryCountSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product                  Product?              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+  stockEvent               StockEvent?           @relation(fields: [stockEventId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, productId])
+  @@unique([sessionId, supplyId])
+  @@index([sessionId])
+  @@index([productId])
+  @@index([supplyId])
+}
+
+model SalesAdjustment {
+  id               String              @id @default(cuid())
+  orderId          String
+  orderItemId      String?
+  type             SalesAdjustmentType
+  amount           Decimal             @db.Decimal(12, 2)
+  quantity         Decimal?            @db.Decimal(12, 3)
+  reason           String
+  actorUserId      String
+  approvedByUserId String
+  metadata         Json?
+  createdAt        DateTime            @default(now())
+  order            Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderItem        OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  actor            User                @relation("SalesAdjustmentActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  approvedBy       User                @relation("SalesAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@index([orderItemId, createdAt])
+  @@index([type, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([approvedByUserId, createdAt])
 }
 
 /// Durable kitchen workflow state for an order. The order and its ticket state
@@ -233,6 +775,8 @@ model KitchenTicketState {
   order               Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   claimedByWaiter     User?                       @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
   stationStates       KitchenTicketStationState[]
+  transitions         KitchenTransitionEvent[]
+  qualityEvents       KitchenQualityEvent[]
 
   @@index([pickupStatus, updatedAt])
   @@index([claimedByWaiterId])
@@ -249,6 +793,151 @@ model KitchenTicketStationState {
 
   @@id([orderId, station])
   @@index([station, status])
+}
+
+model KitchenPreparationTarget {
+  id              String   @id @default(cuid())
+  station         Station  @unique
+  targetMinutes   Int
+  updatedByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  updatedBy       User     @relation("KitchenTargetUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([updatedByUserId])
+}
+
+model KitchenTransitionEvent {
+  id                    String                      @id @default(cuid())
+  orderId               String
+  station               Station?
+  type                  KitchenTransitionType
+  fromStationStatus     KitchenStationTicketStatus?
+  toStationStatus       KitchenStationTicketStatus?
+  fromPickupStatus      KitchenPickupStatus?
+  toPickupStatus        KitchenPickupStatus?
+  targetMinutesSnapshot Int?
+  actorUserId           String?
+  occurredAt            DateTime                    @default(now())
+  createdAt             DateTime                    @default(now())
+  ticket                KitchenTicketState          @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  actor                 User?                       @relation("KitchenTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, station, occurredAt])
+  @@index([type, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model KitchenQualityEvent {
+  id          String                  @id @default(cuid())
+  orderId     String
+  orderItemId String?
+  station     Station?
+  type        KitchenQualityEventType
+  reason      String
+  actorUserId String
+  occurredAt  DateTime                @default(now())
+  createdAt   DateTime                @default(now())
+  ticket      KitchenTicketState      @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+  orderItem   OrderItem?              @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  actor       User                    @relation("KitchenQualityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([station, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
+
+model OperationalIncident {
+  id               String                  @id @default(cuid())
+  type             OperationalIncidentType
+  severity         IncidentSeverity
+  status           IncidentStatus          @default(OPEN)
+  title            String
+  description      String
+  station          Station?
+  reportedByUserId String
+  assignedToUserId String?
+  startedAt        DateTime                @default(now())
+  resolvedAt       DateTime?
+  resolutionNotes  String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  reportedBy       User                    @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  assignedTo       User?                   @relation("IncidentAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  @@index([type, status, startedAt])
+  @@index([severity, status])
+  @@index([assignedToUserId, status])
+}
+
+model CleaningChecklistTemplate {
+  id        String                  @id @default(cuid())
+  name      String
+  station   Station?
+  schedule  String
+  isActive  Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  tasks     CleaningChecklistTask[]
+  runs      CleaningChecklistRun[]
+
+  @@index([station, isActive])
+}
+
+model CleaningChecklistTask {
+  id         String                     @id @default(cuid())
+  templateId String
+  label      String
+  sortOrder  Int                        @default(0)
+  isRequired Boolean                    @default(true)
+  createdAt  DateTime                   @default(now())
+  template   CleaningChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  runTasks   CleaningChecklistRunTask[]
+
+  @@index([templateId, sortOrder])
+}
+
+model CleaningChecklistRun {
+  id                String                     @id @default(cuid())
+  templateId        String
+  station           Station?
+  scheduledFor      DateTime
+  status            CleaningRunStatus          @default(PENDING)
+  assignedToUserId  String?
+  completedByUserId String?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  evidenceNote      String?
+  evidenceUrl       String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  template          CleaningChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  assignedTo        User?                      @relation("CleaningRunAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  completedBy       User?                      @relation("CleaningRunCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  tasks             CleaningChecklistRunTask[]
+
+  @@index([status, scheduledFor])
+  @@index([assignedToUserId, status])
+  @@index([station, scheduledFor])
+}
+
+model CleaningChecklistRunTask {
+  id                String                @id @default(cuid())
+  runId             String
+  taskId            String
+  completed         Boolean               @default(false)
+  completedAt       DateTime?
+  completedByUserId String?
+  evidenceText      String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  run               CleaningChecklistRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  task              CleaningChecklistTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  completedBy       User?                 @relation("CleaningTaskCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([runId, taskId])
+  @@index([completedByUserId, completedAt])
 }
 
 model OrderItemModifier {
@@ -317,20 +1006,24 @@ model WaiterBalanceInitialization {
 }
 
 model Supplier {
-  id             String                  @id @default(cuid())
+  id             String                      @id @default(cuid())
   name           String
-  slug           String                  @unique
+  slug           String                      @unique
   contactName    String?
   phone          String?
   email          String?
   notes          String?
-  isActive       Boolean                 @default(true)
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
+  isActive       Boolean                     @default(true)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
   bills          SupplierBill[]
   catalogItems   SupplierCatalogItem[]
   purchaseOrders SupplierPurchaseOrder[]
   invoices       SupplierInvoice[]
+  payments       SupplierPayment[]
+  recurrences    SupplierInvoiceRecurrence[]
+  orderSchedules SupplierOrderSchedule[]
+  orderRuns      SupplierOrderRun[]
 
   @@index([isActive, name])
 }
@@ -351,7 +1044,7 @@ model SupplierBill {
   supplier        Supplier                     @relation(fields: [supplierId], references: [id])
   invoice         SupplierInvoice              @relation(fields: [invoiceId], references: [id])
   settledBy       User?                        @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
-  payments        SupplierPayment[]
+  allocations     SupplierPaymentAllocation[]
   installments    SupplierInvoiceInstallment[]
 
   @@index([supplierId, createdAt])
@@ -361,22 +1054,42 @@ model SupplierBill {
 
 model SupplierPayment {
   id               String                      @id @default(cuid())
-  billId           String
-  installmentId    String?
+  supplierId       String
   amount           Decimal
   paymentMethod    String?
   notes            String?
   recordedByUserId String
   paidAt           DateTime                    @default(now())
   createdAt        DateTime                    @default(now())
-  bill             SupplierBill                @relation(fields: [billId], references: [id], onDelete: Cascade)
-  installment      SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  supplier         Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   recordedBy       User                        @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  allocations      SupplierPaymentAllocation[]
   dailyCashPayment DailyCashSupplierPayment?
 
-  @@index([billId, paidAt])
-  @@index([installmentId])
+  @@index([supplierId, paidAt])
   @@index([recordedByUserId, paidAt])
+}
+
+/// Applies part of one physical supplier payment to an invoice bill or installment.
+/// Any payment amount not represented by allocations is available supplier credit.
+model SupplierPaymentAllocation {
+  id                String                      @id @default(cuid())
+  supplierPaymentId String
+  billId            String
+  installmentId     String?
+  amount            Decimal                     @db.Decimal(14, 2)
+  appliedByUserId   String
+  allocatedAt       DateTime                    @default(now())
+  createdAt         DateTime                    @default(now())
+  supplierPayment   SupplierPayment             @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
+  bill              SupplierBill                @relation(fields: [billId], references: [id], onDelete: Restrict)
+  installment       SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+  appliedBy         User                        @relation("SupplierPaymentAllocationAppliedBy", fields: [appliedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([supplierPaymentId])
+  @@index([billId, allocatedAt])
+  @@index([installmentId])
+  @@index([appliedByUserId, allocatedAt])
 }
 
 /// A versioned combined salary amount. DailyCashDay stores the resolved amount so
@@ -425,6 +1138,7 @@ model DailyCashDay {
   manualExpenses                     DailyCashManualExpense[]
   supplierPayments                   DailyCashSupplierPayment[]
   supplyPayments                     DailyCashSupplyPayment[]
+  savingsDeposits                    DailyCashSavingsDeposit[]
 
   @@index([salaryRateId])
   @@index([salaryPaidByUserId])
@@ -487,21 +1201,39 @@ model DailyCashSupplyPayment {
   @@index([recordedByUserId, createdAt])
 }
 
+/// An auditable transfer of remaining Daily Cash revenue into the business's
+/// deposit-only savings account.
+model DailyCashSavingsDeposit {
+  id               String       @id @default(cuid())
+  dailyCashDayId   String
+  amount           Decimal      @db.Decimal(14, 2)
+  note             String?
+  recordedByUserId String
+  createdAt        DateTime     @default(now())
+  dailyCashDay     DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
+  recordedBy       User         @relation("DailyCashSavingsDepositRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dailyCashDayId, createdAt])
+  @@index([recordedByUserId, createdAt])
+}
+
 model SupplierCatalogItem {
-  id                 String                      @id @default(cuid())
+  id                 String                          @id @default(cuid())
   supplierId         String
   productId          String?
   inventorySupplyId  String?
-  unit               String                      @default("unit")
-  unitPrice          Decimal                     @db.Decimal(12, 2)
-  isActive           Boolean                     @default(true)
-  createdAt          DateTime                    @default(now())
-  updatedAt          DateTime                    @updatedAt
-  supplier           Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  product            Product?                    @relation(fields: [productId], references: [id], onDelete: Restrict)
-  inventorySupply    InventorySupply?            @relation(fields: [inventorySupplyId], references: [id], onDelete: Restrict)
+  unit               String                          @default("unit")
+  unitPrice          Decimal                         @db.Decimal(12, 2)
+  isActive           Boolean                         @default(true)
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+  supplier           Supplier                        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product            Product?                        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  inventorySupply    InventorySupply?                @relation(fields: [inventorySupplyId], references: [id], onDelete: Restrict)
   purchaseOrderItems SupplierPurchaseOrderItem[]
   invoiceItems       SupplierInvoiceItem[]
+  recurrenceItems    SupplierInvoiceRecurrenceItem[]
+  orderResponseItems SupplierOrderResponseItem[]
 
   @@unique([supplierId, productId])
   @@unique([supplierId, inventorySupplyId])
@@ -523,10 +1255,13 @@ model SupplierPurchaseOrder {
   cancelledAt          DateTime?
   createdAt            DateTime                    @default(now())
   updatedAt            DateTime                    @updatedAt
+  emergencyPurchase    Boolean                     @default(false)
   supplier             Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   createdBy            User                        @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   items                SupplierPurchaseOrderItem[]
   invoices             SupplierInvoice[]
+  receiving            SupplierReceiving?
+  scheduledRun         SupplierOrderRun?
 
   @@index([supplierId, status, expectedDeliveryDate])
   @@index([status, expectedDeliveryDate])
@@ -545,15 +1280,165 @@ model SupplierPurchaseOrderItem {
   createdAt             DateTime              @default(now())
   purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   supplierCatalogItem   SupplierCatalogItem   @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict)
+  receivingItems        SupplierReceivingItem[]
 
   @@unique([purchaseOrderId, supplierCatalogItemId])
   @@index([supplierCatalogItemId])
+}
+
+model SchedulerLease {
+  key        String   @id
+  ownerToken String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model SupplierOrderSchedule {
+  id                      String                           @id @default(cuid())
+  name                    String
+  supplierId              String
+  timeZone                String                           @default("Africa/Nairobi")
+  firstInviteAt           DateTime
+  firstSupplierSendAt     DateTime
+  nextInviteAt            DateTime?
+  nextSupplierSendAt      DateTime?
+  reminderIntervalMinutes Int
+  recurrenceUnit          SupplierOrderRecurrenceUnit?
+  recurrenceInterval      Int                              @default(1)
+  endAt                   DateTime?
+  deliveryLeadDays        Int                              @default(1)
+  isActive                Boolean                          @default(true)
+  deletedAt               DateTime?
+  createdByUserId         String
+  createdAt               DateTime                         @default(now())
+  updatedAt               DateTime                         @updatedAt
+  supplier                Supplier                         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy               User                             @relation("SupplierOrderScheduleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  recipients              SupplierOrderScheduleRecipient[]
+  runs                    SupplierOrderRun[]
+
+  @@index([isActive, nextInviteAt])
+  @@index([supplierId, isActive])
+  @@index([createdByUserId, createdAt])
+}
+
+model SupplierOrderScheduleRecipient {
+  id         String                @id @default(cuid())
+  scheduleId String
+  userId     String
+  createdAt  DateTime              @default(now())
+  schedule   SupplierOrderSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleId, userId])
+  @@index([userId])
+}
+
+model SupplierOrderRun {
+  id                      String                          @id @default(cuid())
+  scheduleId              String
+  sequence                Int
+  supplierId              String
+  supplierName            String
+  supplierPhone           String
+  timeZone                String
+  inviteAt                DateTime
+  supplierSendAt          DateTime
+  reminderIntervalMinutes Int
+  deliveryLeadDays        Int
+  status                  SupplierOrderRunStatus          @default(SCHEDULED)
+  purchaseOrderId         String?                         @unique
+  failureReason           String?
+  finalizedAt             DateTime?
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  schedule                SupplierOrderSchedule           @relation(fields: [scheduleId], references: [id], onDelete: Restrict)
+  supplier                Supplier                        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder           SupplierPurchaseOrder?          @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  recipients              SupplierOrderRunRecipient[]
+  deliveries              SupplierOrderWhatsAppDelivery[]
+
+  @@unique([scheduleId, sequence])
+  @@index([status, inviteAt])
+  @@index([status, supplierSendAt])
+  @@index([supplierId, createdAt])
+}
+
+model SupplierOrderRunRecipient {
+  id             String                          @id @default(cuid())
+  runId          String
+  userId         String
+  employeeName   String
+  phone          String
+  tokenHash      String                          @unique
+  status         SupplierOrderRecipientStatus    @default(PENDING)
+  invitedAt      DateTime?
+  lastReminderAt DateTime?
+  reminderCount  Int                             @default(0)
+  respondedAt    DateTime?
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
+  run            SupplierOrderRun                @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user           User                            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  responseItems  SupplierOrderResponseItem[]
+  deliveries     SupplierOrderWhatsAppDelivery[]
+
+  @@unique([runId, userId])
+  @@index([runId, status])
+  @@index([userId, createdAt])
+}
+
+model SupplierOrderResponseItem {
+  id                    String                    @id @default(cuid())
+  recipientId           String
+  supplierCatalogItemId String
+  quantity              Decimal                   @db.Decimal(12, 3)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  recipient             SupplierOrderRunRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  supplierCatalogItem   SupplierCatalogItem       @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict)
+
+  @@unique([recipientId, supplierCatalogItemId])
+  @@index([supplierCatalogItemId])
+}
+
+model SupplierOrderWhatsAppDelivery {
+  id                     String                           @id @default(cuid())
+  runId                  String
+  recipientId            String?
+  dedupeKey              String                           @unique
+  type                   SupplierOrderWhatsAppMessageType
+  recipientPhone         String
+  provider               WhatsAppProvider                 @default(TWILIO)
+  status                 WhatsAppDeliveryStatus           @default(PENDING)
+  providerMessageId      String?                          @unique
+  providerMediaReference String?
+  attempts               Int                              @default(0)
+  lastAttemptAt          DateTime?
+  acceptedAt             DateTime?
+  deliveredAt            DateTime?
+  readAt                 DateTime?
+  failedAt               DateTime?
+  errorMessage           String?
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+  run                    SupplierOrderRun                 @relation(fields: [runId], references: [id], onDelete: Cascade)
+  recipient              SupplierOrderRunRecipient?       @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([runId, type, status])
+  @@index([recipientId, createdAt])
+  @@index([status, lastAttemptAt])
 }
 
 model SupplierInvoice {
   id                       String                       @id @default(cuid())
   supplierId               String
   purchaseOrderId          String?
+  recurrenceScheduleId     String?
+  recurrenceScheduledFor   DateTime?                    @db.Date
   source                   SupplierInvoiceSource
   status                   SupplierInvoiceStatus        @default(DRAFT)
   invoiceNumber            Int                          @unique @default(autoincrement())
@@ -581,6 +1466,8 @@ model SupplierInvoice {
   updatedAt                DateTime                     @updatedAt
   supplier                 Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   purchaseOrder            SupplierPurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  templateRecurrence       SupplierInvoiceRecurrence?   @relation("SupplierInvoiceRecurrenceTemplate")
+  generatedByRecurrence    SupplierInvoiceRecurrence?   @relation("SupplierInvoiceRecurrenceGenerated", fields: [recurrenceScheduleId], references: [id], onDelete: SetNull)
   createdBy                User?                        @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   finalizedBy              User?                        @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
   voidedBy                 User?                        @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
@@ -588,28 +1475,77 @@ model SupplierInvoice {
   installments             SupplierInvoiceInstallment[]
   bill                     SupplierBill?
 
+  @@unique([recurrenceScheduleId, recurrenceScheduledFor])
   @@index([supplierId, status, dueDate])
   @@index([purchaseOrderId, status])
+  @@index([recurrenceScheduleId, status])
   @@index([source, status, createdAt])
   @@index([createdByUserId, createdAt])
+}
+
+model SupplierInvoiceRecurrence {
+  id                String                          @id @default(cuid())
+  supplierId        String
+  sourceInvoiceId   String                          @unique
+  unit              SupplierInvoiceRecurrenceUnit
+  interval          Int
+  nextRunDate       DateTime                        @db.Date
+  anchorDay         Int?
+  dueOffsetDays     Int
+  invoiceNotes      String?
+  isActive          Boolean                         @default(true)
+  lastGeneratedAt   DateTime?
+  lastError         String?
+  lastErrorAt       DateTime?
+  pausedAt          DateTime?
+  createdByUserId   String
+  pausedByUserId    String?
+  createdAt         DateTime                        @default(now())
+  updatedAt         DateTime                        @updatedAt
+  supplier          Supplier                        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  sourceInvoice     SupplierInvoice                 @relation("SupplierInvoiceRecurrenceTemplate", fields: [sourceInvoiceId], references: [id], onDelete: Restrict)
+  createdBy         User                            @relation("SupplierInvoiceRecurrenceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  pausedBy          User?                           @relation("SupplierInvoiceRecurrencePausedBy", fields: [pausedByUserId], references: [id], onDelete: SetNull)
+  items             SupplierInvoiceRecurrenceItem[]
+  generatedInvoices SupplierInvoice[]               @relation("SupplierInvoiceRecurrenceGenerated")
+
+  @@index([isActive, nextRunDate])
+  @@index([supplierId, isActive])
+  @@index([createdByUserId, createdAt])
+}
+
+model SupplierInvoiceRecurrenceItem {
+  id                    String                    @id @default(cuid())
+  recurrenceId          String
+  supplierCatalogItemId String
+  sequence              Int
+  quantity              Decimal                   @db.Decimal(12, 3)
+  notes                 String?
+  createdAt             DateTime                  @default(now())
+  recurrence            SupplierInvoiceRecurrence @relation(fields: [recurrenceId], references: [id], onDelete: Cascade)
+  supplierCatalogItem   SupplierCatalogItem       @relation(fields: [supplierCatalogItemId], references: [id], onDelete: Restrict, map: "SupplierInvoiceRecurrenceItem_catalogItemId_fkey")
+
+  @@unique([recurrenceId, supplierCatalogItemId], map: "SupplierInvoiceRecurrenceItem_recurrence_catalog_key")
+  @@unique([recurrenceId, sequence], map: "SupplierInvoiceRecurrenceItem_recurrence_sequence_key")
+  @@index([supplierCatalogItemId])
 }
 
 /// A dated portion of a supplier invoice. Existing invoices without rows here
 /// keep their legacy single-due-date behaviour until explicitly split.
 model SupplierInvoiceInstallment {
-  id         String                @id @default(cuid())
-  invoiceId  String
-  billId     String?
-  sequence   Int
-  amount     Decimal               @db.Decimal(14, 2)
-  paidAmount Decimal               @default(0) @db.Decimal(14, 2)
-  status     SupplierPaymentStatus @default(UNPAID)
-  dueDate    DateTime              @db.Date
-  createdAt  DateTime              @default(now())
-  updatedAt  DateTime              @updatedAt
-  invoice    SupplierInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  bill       SupplierBill?         @relation(fields: [billId], references: [id], onDelete: Cascade)
-  payments   SupplierPayment[]
+  id          String                      @id @default(cuid())
+  invoiceId   String
+  billId      String?
+  sequence    Int
+  amount      Decimal                     @db.Decimal(14, 2)
+  paidAmount  Decimal                     @default(0) @db.Decimal(14, 2)
+  status      SupplierPaymentStatus       @default(UNPAID)
+  dueDate     DateTime                    @db.Date
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+  invoice     SupplierInvoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  bill        SupplierBill?               @relation(fields: [billId], references: [id], onDelete: Cascade)
+  allocations SupplierPaymentAllocation[]
 
   @@unique([invoiceId, sequence])
   @@index([invoiceId, dueDate])
@@ -639,7 +1575,7 @@ model SupplyCatalogItem {
   id               String           @id @default(cuid())
   name             String
   unit             String
-  defaultUnitPrice Decimal          @db.Decimal(12, 2)
+  defaultUnitPrice Decimal          @db.Decimal(14, 4)
   isActive         Boolean          @default(true)
   createdByUserId  String
   createdAt        DateTime         @default(now())
@@ -679,7 +1615,7 @@ model SupplyPurchase {
   itemName        String
   unit            String             @default("unit")
   quantity        Decimal            @db.Decimal(12, 3)
-  unitPrice       Decimal            @db.Decimal(12, 2)
+  unitPrice       Decimal            @db.Decimal(14, 4)
   createdByUserId String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -690,6 +1626,39 @@ model SupplyPurchase {
   @@index([purchaseDate])
   @@index([catalogItemId])
   @@index([createdByUserId, purchaseDate])
+}
+
+enum CanonicalUnit {
+  GRAM
+  MILLILITRE
+  PIECE
+}
+
+enum InventoryDataCoverage {
+  COMPLETE
+  LEGACY_INCOMPLETE
+  MISSING_COST
+}
+
+enum StockEventType {
+  RECEIPT
+  SALE_USAGE
+  RECIPE_USAGE
+  MANUAL_USAGE
+  WASTE
+  SPOILAGE
+  DAMAGE
+  STAFF_CONSUMPTION
+  COMPLIMENTARY_USAGE
+  COUNT_VARIANCE
+  ADJUSTMENT
+}
+
+enum InventoryCountStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
 }
 
 enum UserRole {
@@ -715,6 +1684,19 @@ enum OrderStatus {
   OPEN
   PAID
   CANCELLED
+}
+
+enum CostSnapshotSource {
+  PRODUCT_STANDARD
+  RECIPE_STANDARD
+}
+
+enum SalesAdjustmentType {
+  DISCOUNT
+  REFUND
+  VOID
+  COMPLIMENTARY
+  STAFF_MEAL
 }
 
 enum PaymentMethod {
@@ -750,6 +1732,49 @@ enum KitchenPickupStatus {
   DELIVERED
 }
 
+enum KitchenTransitionType {
+  STATION_CREATED
+  STATION_STARTED
+  STATION_COMPLETED
+  STATION_REOPENED
+  PICKUP_READY
+  PICKUP_REOPENED
+  PICKUP_CLAIMED
+  PICKUP_DELIVERED
+}
+
+enum KitchenQualityEventType {
+  LATE
+  REMAKE
+  WRONG_ORDER
+  WAITER_MISTAKE
+}
+
+enum OperationalIncidentType {
+  EQUIPMENT
+  POS
+  INTERNET
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+enum CleaningRunStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+}
+
 enum SupplierPaymentStatus {
   UNPAID
   PARTIAL
@@ -762,6 +1787,47 @@ enum SupplierPurchaseOrderStatus {
   CANCELLED
 }
 
+enum SupplierOrderRecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
+}
+
+enum SupplierOrderRunStatus {
+  SCHEDULED
+  COLLECTING
+  FINALIZING
+  SENT
+  SKIPPED
+  FAILED
+  CANCELLED
+}
+
+enum SupplierOrderRecipientStatus {
+  PENDING
+  RESPONDED
+  NO_ORDER
+}
+
+enum SupplierOrderWhatsAppMessageType {
+  INVITATION
+  REMINDER
+  SUPPLIER_ORDER
+}
+
+enum WhatsAppProvider {
+  META
+  TWILIO
+}
+
+enum WhatsAppDeliveryStatus {
+  PENDING
+  ACCEPTED
+  DELIVERED
+  READ
+  FAILED
+}
+
 enum SupplierInvoiceStatus {
   DRAFT
   FINALIZED
@@ -771,5 +1837,73 @@ enum SupplierInvoiceStatus {
 enum SupplierInvoiceSource {
   PURCHASE_ORDER
   MANUAL
+  RECURRING
   LEGACY_UPLOAD
+}
+
+enum CompensationType {
+  DAILY
+  MONTHLY
+}
+enum EmploymentStatus {
+  ACTIVE
+  SUSPENDED
+  ENDED
+}
+enum ScheduledShiftStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+enum ClockEventType {
+  IN
+  OUT
+}
+enum AttendanceStatus {
+  PENDING
+  PRESENT
+  ABSENT
+  REJECTED
+}
+enum PayrollAdjustmentType {
+  BONUS
+  ADVANCE
+  ABSENCE_DEDUCTION
+  CORRECTION
+  OVERTIME
+}
+enum PayrollRunStatus {
+  DRAFT
+  APPROVED
+  FINALIZED
+  VOIDED
+}
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  VOIDED
+}
+enum ComplaintCategory {
+  SERVICE
+  FOOD
+  PAYMENT
+  OTHER
+}
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupplierInvoiceRecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
 }

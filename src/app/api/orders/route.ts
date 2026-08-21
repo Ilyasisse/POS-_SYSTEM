@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
@@ -39,6 +40,7 @@ type PreparedLine = {
   assignedBaristaName: string | null;
   unitPrice: number;
   lineTotal: number;
+  costSnapshot: ReturnType<typeof snapshotInventoryCost>;
   modifiers: PreparedModifier[];
 };
 
@@ -151,6 +153,11 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          cost: true,
+          recipeVersions: {
+            where: { isActive: true },
+            select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
+          },
           category: {
             select: {
               station: true,
@@ -293,6 +300,10 @@ export async function POST(request: Request) {
         assignedBaristaName,
         unitPrice,
         lineTotal,
+        costSnapshot: snapshotInventoryCost(
+          selectEffectiveRecipe(product.recipeVersions, new Date()),
+          product.cost,
+        ),
         modifiers: selectedModifiers,
       });
 
@@ -334,6 +345,7 @@ export async function POST(request: Request) {
           qty: line.qty,
           unitPrice: toDecimal(line.unitPrice),
           lineTotal: toDecimal(line.lineTotal),
+          ...line.costSnapshot,
           station: line.station,
           assignedUserId: line.assignedBaristaId,
         })),
@@ -358,6 +370,7 @@ export async function POST(request: Request) {
       await createKitchenTicketState(tx, {
         orderId: order.id,
         lines: preparedLines,
+        actorUserId: currentUser.id,
       });
 
       await tx.payment.create({
@@ -376,8 +389,8 @@ export async function POST(request: Request) {
           productId: line.productId,
           qty: line.qty,
         })),
-        // Product sale notes are intentionally not recorded in InventoryMovement;
-        // that table is now supply-only, while product deductions still update Product stock.
+        order.id,
+        currentUser.id,
       );
 
       return { order, savedOrderItems, inventoryAlerts };

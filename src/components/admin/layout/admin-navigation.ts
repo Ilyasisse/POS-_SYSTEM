@@ -15,6 +15,8 @@ import {
   WalletCards,
   ShoppingBasket,
   ShoppingCart,
+  Wrench,
+  MessageCircle,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -141,6 +143,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.SUPPLIER_MANAGE,
   },
   {
+    key: "supplier-order-schedules",
+    href: "/admin/supplier-order-schedules",
+    label: "WhatsApp ordering",
+    icon: MessageCircle,
+    permission: PERMISSIONS.SUPPLIER_MANAGE,
+  },
+  {
     key: "supplier-invoices",
     href: "/admin/supplier-invoices",
     label: "Supplier invoices",
@@ -160,6 +169,20 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Reports",
     icon: ChartNoAxesCombined,
     permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "business-intelligence",
+    href: "/admin/business-intelligence",
+    label: "Business intelligence",
+    icon: ChartNoAxesCombined,
+    permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "operations",
+    href: "/admin/operations",
+    label: "Operations",
+    icon: Wrench,
+    permission: PERMISSIONS.ADMIN_ACCESS,
   },
   {
     key: "supplier-bills",

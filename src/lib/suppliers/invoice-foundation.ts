@@ -159,6 +159,14 @@ export function validateSupplierInvoiceDraftCreationMetadata(
         throw new Error("Manual supplier invoices require a creator.");
       }
       break;
+    case "RECURRING":
+      if (purchaseOrderId) {
+        throw new Error("Recurring supplier invoices cannot reference a purchase order.");
+      }
+      if (!createdByUserId) {
+        throw new Error("Recurring supplier invoices require a creator.");
+      }
+      break;
     case "LEGACY_UPLOAD":
       if (purchaseOrderId) {
         throw new Error(

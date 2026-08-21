@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,6 +13,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableCell, TableHead } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { createManualSupplierInvoiceDraftAction } from "../actions";
+import RecurringInvoiceFields from "./RecurringInvoiceFields";
 
 type SupplierOption = { id: string; name: string };
 type CatalogItem = { id: string; name: string; unit: string; unitPrice: string };
@@ -58,19 +59,46 @@ function InvoiceDetailsFields({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="supplierReference">Supplier reference</Label>
-        <Input id="supplierReference" name="supplierReference" maxLength={200} placeholder="Optional supplier invoice number" disabled={pending} />
+        <Input
+          id="supplierReference"
+          name="supplierReference"
+          maxLength={200}
+          placeholder="Optional supplier invoice number"
+          disabled={pending}
+        />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="invoiceDate">Invoice date</Label>
-        <Input id="invoiceDate" name="invoiceDate" type="date" defaultValue={todayDateKey} required disabled={pending} />
+        <Input
+          id="invoiceDate"
+          name="invoiceDate"
+          type="date"
+          defaultValue={todayDateKey}
+          required
+          disabled={pending}
+        />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="dueDate">Due date</Label>
-        <Input id="dueDate" name="dueDate" type="date" defaultValue={defaultDueDateKey} required disabled={pending} />
+        <Input
+          id="dueDate"
+          name="dueDate"
+          type="date"
+          defaultValue={defaultDueDateKey}
+          required
+          disabled={pending}
+        />
       </div>
       <div className="grid gap-2 md:col-span-2 lg:col-span-4">
         <Label htmlFor="notes">Invoice notes</Label>
-        <Textarea id="notes" name="notes" maxLength={2000} rows={3} placeholder="Optional notes for this invoice" disabled={pending} />
+        <Textarea
+          id="notes"
+          name="notes"
+          maxLength={2000}
+          rows={3}
+          placeholder="Optional notes for this invoice"
+          disabled={pending}
+        />
       </div>
     </Card>
   );
@@ -90,14 +118,14 @@ export default function ManualSupplierInvoiceBuilder({
   defaultDueDateKey: string;
 }) {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
   const nextKey = useRef(2);
   const [rows, setRows] = useState<InvoiceRow[]>([
     { key: 1, catalogItemId: "", quantity: "1", unitPrice: "", notes: "" },
   ]);
   const [message, setMessage] = useState("");
   const [hasError, setHasError] = useState(false);
-  const [pending, startTransition] = useTransition();
+  const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
+  const [pending, setPending] = useState(false);
   const catalogById = useMemo(
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
@@ -114,6 +142,25 @@ export default function ManualSupplierInvoiceBuilder({
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
+  }
+
+  async function handleSubmit(data: FormData) {
+    setMessage("");
+    setPending(true);
+
+    try {
+      const result = await createManualSupplierInvoiceDraftAction(data);
+      setHasError(false);
+      setMessage(result.message);
+      router.push(result.redirectTo);
+    } catch (error) {
+      setHasError(true);
+      setMessage(
+        error instanceof Error ? error.message : "Invoice draft could not be created.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   if (!selectedSupplier) {
@@ -219,28 +266,8 @@ export default function ManualSupplierInvoiceBuilder({
       </Card>
 
       <form
-        ref={formRef}
         className="space-y-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const form = formRef.current;
-          if (!form) return;
-          const data = new FormData(form);
-          setMessage("");
-          startTransition(async () => {
-            try {
-              const result = await createManualSupplierInvoiceDraftAction(data);
-              setHasError(false);
-              setMessage(result.message);
-              router.push(result.redirectTo);
-            } catch (error) {
-              setHasError(true);
-              setMessage(
-                error instanceof Error ? error.message : "Invoice draft could not be created.",
-              );
-            }
-          });
-        }}
+        action={handleSubmit}
       >
         <Input type="hidden" name="supplierId" value={selectedSupplier.id} />
 
@@ -248,6 +275,14 @@ export default function ManualSupplierInvoiceBuilder({
           todayDateKey={todayDateKey}
           defaultDueDateKey={defaultDueDateKey}
           pending={pending}
+        />
+
+        <RecurringInvoiceFields
+          enabled={recurrenceEnabled}
+          pending={pending}
+          todayDateKey={todayDateKey}
+          defaultNextRunDate={defaultDueDateKey}
+          onEnabledChange={setRecurrenceEnabled}
         />
 
         <Card className="overflow-hidden p-0">

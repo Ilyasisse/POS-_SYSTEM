@@ -5,19 +5,24 @@ import type {
 } from "@/lib/kitchen/kitchen-socket";
 import { kitchenStatusColor } from "./kitchen-utils";
 import { translateKitchenTicketStatus } from "@/lib/ui/ui-text";
+import { formatPreparationDuration } from "@/lib/kitchen/kitchen-metrics";
 
 type KitchenTicketCardProps = {
   ticket: KitchenTicket;
   onUpdateStatus: (id: string, status: KitchenTicketStatus) => void;
   canUpdateStatus?: boolean;
+  onRecordQuality: (id: string, type: "LATE" | "REMAKE" | "WRONG_ORDER" | "WAITER_MISTAKE", reason: string) => void;
 };
 
 export default function KitchenTicketCard({
   ticket,
   onUpdateStatus,
   canUpdateStatus = true,
+  onRecordQuality,
 }: KitchenTicketCardProps) {
   const items = Array.isArray(ticket.items) ? ticket.items : [];
+  const station = items[0]?.station;
+  const metric = station ? ticket.stationMetrics[station] : null;
 
   return (
     <article className="rounded-2xl border border-slate-700 bg-slate-800/70 p-4 shadow-lg shadow-black/25">
@@ -42,6 +47,15 @@ export default function KitchenTicketCard({
           {ticket.waiterName ? (
             <p className="mt-1 text-md font-semibold text-amber-300">
               Waiter: {ticket.waiterName}
+            </p>
+          ) : null}
+          {metric ? (
+            <p
+              className={`mt-1 text-sm font-semibold ${metric.isLate ? "text-red-300" : "text-cyan-300"}`}
+            >
+              Prep: {formatPreparationDuration(metric.preparationSeconds)}
+              {metric.targetMinutes ? ` / ${metric.targetMinutes}m target` : ""}
+              {metric.isLate ? " · LATE" : ""}
             </p>
           ) : null}
         </div>
@@ -96,7 +110,8 @@ export default function KitchenTicketCard({
       ) : null}
 
       {canUpdateStatus ? (
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 space-y-3">
+        <div className="grid grid-cols-2 gap-2">
           {ticket.status === "new" ? (
             <Button
               type="button"
@@ -122,6 +137,23 @@ export default function KitchenTicketCard({
           >
             Dhammaay
           </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 border-t border-slate-700 pt-3">
+          {(["LATE", "REMAKE", "WRONG_ORDER", "WAITER_MISTAKE"] as const).map((type) => (
+            <Button
+              key={type}
+              type="button"
+              variant="outline"
+              className="min-h-9 border-slate-600 bg-transparent text-xs text-slate-200"
+              onClick={() => {
+                const reason = window.prompt(`Reason for ${type.replaceAll("_", " ").toLowerCase()}:`);
+                if (reason?.trim()) onRecordQuality(ticket.id, type, reason);
+              }}
+            >
+              {type.replaceAll("_", " ")}
+            </Button>
+          ))}
+        </div>
         </div>
       ) : (
         <p className="mt-4 text-xs text-slate-400">

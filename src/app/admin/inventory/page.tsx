@@ -15,6 +15,7 @@ import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
+import { canonicalUnitLabel } from "@/lib/inventory/inventory-domain";
 import {
   adjustSupplyInventory,
   createSupply,
@@ -34,6 +35,8 @@ type InventorySupplyRow = {
   name: string;
   stockQty: number;
   unit: string;
+  canonicalUnit: "GRAM" | "MILLILITRE" | "PIECE" | null;
+  quantityCoverage: "COMPLETE" | "LEGACY_INCOMPLETE" | "MISSING_COST";
   lowStockThreshold: number;
   status: InventoryStatus;
 };
@@ -179,6 +182,7 @@ function CreateSupplyForm() {
           name="stockQty"
           type="number"
           min="0"
+          step="0.001"
           placeholder="Stock"
           className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
         />
@@ -187,6 +191,7 @@ function CreateSupplyForm() {
           name="lowStockThreshold"
           type="number"
           min="0"
+          step="0.001"
           placeholder="Low"
           className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
         />
@@ -274,7 +279,10 @@ function InventorySupplyTableRow({
       <TableCell className="font-bold text-slate-400">{rowNumber}</TableCell>
       <TableCell className="font-black text-slate-950">{supply.name}</TableCell>
       <TableCell>{supply.stockQty}</TableCell>
-      <TableCell>{supply.unit}</TableCell>
+      <TableCell>
+        {canonicalUnitLabel(supply.canonicalUnit)}
+        {supply.quantityCoverage !== "COMPLETE" ? " (mapping required)" : ""}
+      </TableCell>
       <TableCell>
         <ToneBadge tone={getTone(supply.status)}>
           {supply.status === "OK" ? "In Stock" : supply.status}
@@ -288,6 +296,7 @@ function InventorySupplyTableRow({
             aria-label={`Stock quantity for ${supply.name}`}
             type="number"
             min="0"
+            step="0.001"
             defaultValue={supply.stockQty}
             className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
           />
@@ -296,6 +305,7 @@ function InventorySupplyTableRow({
             aria-label={`Low stock threshold for ${supply.name}`}
             type="number"
             min="0"
+            step="0.001"
             defaultValue={supply.lowStockThreshold}
             className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
           />
@@ -435,7 +445,9 @@ export default async function AdminInventoryPage({
 
   const enrichedSupplies = supplies.map((supply) => ({
     ...supply,
-    status: getInventoryAlertStatus(supply.stockQty, supply.lowStockThreshold),
+    stockQty: Number(supply.stockQty),
+    lowStockThreshold: Number(supply.lowStockThreshold),
+    status: getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
   }));
   const visibleSupplies = enrichedSupplies.filter((supply) => {
     const matchesSearch = !q || supply.name.toLowerCase().includes(q);
@@ -468,7 +480,7 @@ export default async function AdminInventoryPage({
         searchQuery={params?.q ?? ""}
         statusFilter={statusFilter}
       />
-      <RecentInventoryActivity movements={movements} />
+      <RecentInventoryActivity movements={movements.map((movement) => ({ ...movement, delta: Number(movement.delta) }))} />
     </AdminPage>
   );
 }

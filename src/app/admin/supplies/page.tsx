@@ -45,6 +45,13 @@ const quantityFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 3,
 });
 
+const unitPriceFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 function displayDate(dateKey: string) {
   const date = supplyDateKeyToDatabaseDate(dateKey);
   return date ? dateFormatter.format(date) : dateKey;
@@ -59,6 +66,10 @@ function shiftDate(dateKey: string, amount: number) {
 
 function formatQuantity(value: number) {
   return quantityFormatter.format(value);
+}
+
+function formatUnitPrice(value: number) {
+  return unitPriceFormatter.format(value);
 }
 
 function statusNotice(status: string | undefined) {
@@ -327,7 +338,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
                     </TableCell>
                     <TableCell>{entry.unit}</TableCell>
                     <TableCell className="tabular-nums">
-                      {formatMoney(Number(entry.unitPrice))}
+                      {formatUnitPrice(Number(entry.unitPrice))}
                     </TableCell>
                     <TableCell className="font-semibold tabular-nums">
                       {formatMoney(Number(lineTotal))}

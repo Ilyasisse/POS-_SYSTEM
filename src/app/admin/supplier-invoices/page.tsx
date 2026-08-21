@@ -55,6 +55,9 @@ export default async function SupplierInvoicesPage({
       include: {
         supplier: { select: { name: true } },
         purchaseOrder: { select: { orderNumber: true } },
+        generatedByRecurrence: {
+          select: { sourceInvoice: { select: { id: true } } },
+        },
         bill: {
           select: { status: true, totalAmount: true, paidAmount: true, dueDate: true },
         },
@@ -198,6 +201,15 @@ export default async function SupplierInvoicesPage({
                   <TableCell>
                     {invoice.purchaseOrder
                       ? `PO #${invoice.purchaseOrder.orderNumber}`
+                      : invoice.generatedByRecurrence
+                        ? (
+                            <Link
+                              href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
+                              className="text-primary hover:underline"
+                            >
+                              Recurring template
+                            </Link>
+                          )
                       : invoice.source === "MANUAL"
                         ? "Not linked"
                         : "Legacy"}
