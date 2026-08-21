@@ -53,6 +53,14 @@ model User {
   customerOrders                      Order[]                          @relation("CustomerOrders")
   salesAdjustmentsCreated             SalesAdjustment[]                @relation("SalesAdjustmentActor")
   salesAdjustmentsApproved            SalesAdjustment[]                @relation("SalesAdjustmentApprover")
+  productCostsChanged                 Product[]                        @relation("ProductStandardCostChangedBy")
+  supplyCostsChanged                  InventorySupply[]                @relation("SupplyStandardCostChangedBy")
+  recipeVersionsCreated               RecipeVersion[]                  @relation("RecipeVersionCreatedBy")
+  stockEventsCreated                  StockEvent[]                     @relation("StockEventActor")
+  stockEventsApproved                 StockEvent[]                     @relation("StockEventApprover")
+  inventoryCountsCreated              InventoryCountSession[]          @relation("InventoryCountCreatedBy")
+  inventoryCountsSubmitted            InventoryCountSession[]          @relation("InventoryCountSubmittedBy")
+  inventoryCountsApproved             InventoryCountSession[]          @relation("InventoryCountApprovedBy")
 
   @@index([role, isActive])
   @@index([station])
@@ -113,62 +121,85 @@ model Product {
   id   String @id @default(cuid())
   name String
 
-  description           String?
-  imageUrl              String?
-  pronunciationAudioUrl String?
-  isActive              Boolean               @default(true)
-  isPopular             Boolean               @default(false)
-  price                 Decimal
-  cost                  Decimal?
-  categoryId            String
-  trackStock            Boolean               @default(false)
-  stockQty              Int                   @default(0)
-  lowStockThreshold     Int                   @default(5)
-  inventoryAlertStatus  InventoryAlertStatus  @default(OK)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  modifiers             Modifier[]
-  orderItems            OrderItem[]
-  supplierCatalogItems  SupplierCatalogItem[]
-  category              Category              @relation(fields: [categoryId], references: [id])
+  description                 String?
+  imageUrl                    String?
+  pronunciationAudioUrl       String?
+  isActive                    Boolean               @default(true)
+  isPopular                   Boolean               @default(false)
+  price                       Decimal
+  cost                        Decimal?              @db.Decimal(14, 6)
+  categoryId                  String
+  trackStock                  Boolean               @default(false)
+  stockQty                    Decimal               @default(0) @db.Decimal(18, 6)
+  lowStockThreshold           Decimal               @default(5) @db.Decimal(18, 6)
+  canonicalUnit               CanonicalUnit         @default(PIECE)
+  quantityCoverage            InventoryDataCoverage @default(COMPLETE)
+  standardCostUpdatedAt       DateTime?
+  standardCostUpdatedByUserId String?
+  inventoryAlertStatus        InventoryAlertStatus  @default(OK)
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+  modifiers                   Modifier[]
+  orderItems                  OrderItem[]
+  supplierCatalogItems        SupplierCatalogItem[]
+  category                    Category              @relation(fields: [categoryId], references: [id])
+  standardCostUpdatedBy       User?                 @relation("ProductStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
+  recipeVersions              RecipeVersion[]
+  stockEvents                 StockEvent[]
+  inventoryCountLines         InventoryCountLine[]
 
   @@index([categoryId, isActive])
   @@index([trackStock, inventoryAlertStatus])
   @@index([price, name])
+  @@index([standardCostUpdatedByUserId])
 }
 
 model InventorySupply {
-  id                   String                @id @default(cuid())
-  name                 String
-  unit                 String                @default("unit")
-  stockQty             Int                   @default(0)
-  lowStockThreshold    Int                   @default(5)
-  inventoryAlertStatus InventoryAlertStatus  @default(OK)
-  isActive             Boolean               @default(true)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  movements            InventoryMovement[]
-  supplierCatalogItems SupplierCatalogItem[]
+  id                          String                    @id @default(cuid())
+  name                        String
+  unit                        String                    @default("unit")
+  stockQty                    Decimal                   @default(0) @db.Decimal(18, 6)
+  lowStockThreshold           Decimal                   @default(5) @db.Decimal(18, 6)
+  canonicalUnit               CanonicalUnit?
+  quantityCoverage            InventoryDataCoverage     @default(LEGACY_INCOMPLETE)
+  standardUnitCost            Decimal?                  @db.Decimal(14, 6)
+  standardCostUpdatedAt       DateTime?
+  standardCostUpdatedByUserId String?
+  inventoryAlertStatus        InventoryAlertStatus      @default(OK)
+  isActive                    Boolean                   @default(true)
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
+  movements                   InventoryMovement[]
+  supplierCatalogItems        SupplierCatalogItem[]
+  standardCostUpdatedBy       User?                     @relation("SupplyStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
+  purchaseUnitConversions     InventoryUnitConversion[]
+  recipeIngredients           RecipeIngredient[]
+  stockEvents                 StockEvent[]
+  inventoryCountLines         InventoryCountLine[]
 
   @@unique([name, unit])
   @@index([isActive, inventoryAlertStatus])
+  @@index([standardCostUpdatedByUserId])
 }
 
 /// Supply-only inventory history.
 /// Product stock still lives on Product, but product changes are no longer written here
 /// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
 model InventoryMovement {
-  id             String           @id @default(cuid())
-  supplyId       String?
-  itemName       String
-  itemType       String
-  delta          Int
-  quantityBefore Int
-  quantityAfter  Int
-  reason         String
-  note           String?
-  createdAt      DateTime         @default(now())
-  supply         InventorySupply? @relation(fields: [supplyId], references: [id], onDelete: SetNull)
+  id                       String                @id @default(cuid())
+  supplyId                 String?
+  itemName                 String
+  itemType                 String
+  delta                    Decimal               @db.Decimal(18, 6)
+  quantityBefore           Decimal               @db.Decimal(18, 6)
+  quantityAfter            Decimal               @db.Decimal(18, 6)
+  canonicalUnit            CanonicalUnit?
+  dataCoverage             InventoryDataCoverage @default(LEGACY_INCOMPLETE)
+  standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
+  reason                   String
+  note                     String?
+  createdAt                DateTime              @default(now())
+  supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
   @@index([supplyId, createdAt])
   @@index([createdAt])
@@ -257,7 +288,7 @@ model OrderItem {
   qty                Int
   unitPrice          Decimal
   lineTotal          Decimal
-  unitCostSnapshot   Decimal?
+  unitCostSnapshot   Decimal?            @db.Decimal(14, 6)
   costSnapshotSource CostSnapshotSource?
   recipeVersionId    String?
   createdAt          DateTime            @default(now())
@@ -266,6 +297,7 @@ model OrderItem {
   assignedUser       User?               @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
   order              Order               @relation(fields: [orderId], references: [id])
   product            Product             @relation(fields: [productId], references: [id])
+  recipeVersion      RecipeVersion?      @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
   modifiers          OrderItemModifier[]
   salesAdjustments   SalesAdjustment[]
 
@@ -273,6 +305,132 @@ model OrderItem {
   @@index([productId])
   @@index([station])
   @@index([assignedUserId])
+  @@index([recipeVersionId])
+}
+
+model InventoryUnitConversion {
+  id                String          @id @default(cuid())
+  supplyId          String
+  purchaseUnit      String
+  canonicalQuantity Decimal         @db.Decimal(18, 6)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  supply            InventorySupply @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+
+  @@unique([supplyId, purchaseUnit])
+  @@index([supplyId, isActive])
+}
+
+model RecipeVersion {
+  id              String                @id @default(cuid())
+  productId       String
+  version         Int
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  yieldQuantity   Decimal               @default(1) @db.Decimal(18, 6)
+  standardCost    Decimal?              @db.Decimal(14, 6)
+  costCoverage    InventoryDataCoverage @default(MISSING_COST)
+  isActive        Boolean               @default(true)
+  createdByUserId String
+  createdAt       DateTime              @default(now())
+  product         Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy       User                  @relation("RecipeVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  ingredients     RecipeIngredient[]
+  orderItems      OrderItem[]
+
+  @@unique([productId, version])
+  @@index([productId, effectiveFrom, effectiveTo])
+}
+
+model RecipeIngredient {
+  id                       String          @id @default(cuid())
+  recipeVersionId          String
+  supplyId                 String
+  quantity                 Decimal         @db.Decimal(18, 6)
+  standardUnitCostSnapshot Decimal?        @db.Decimal(14, 6)
+  createdAt                DateTime        @default(now())
+  recipeVersion            RecipeVersion   @relation(fields: [recipeVersionId], references: [id], onDelete: Cascade)
+  supply                   InventorySupply @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+
+  @@unique([recipeVersionId, supplyId])
+  @@index([supplyId])
+}
+
+model StockEvent {
+  id                       String                @id @default(cuid())
+  productId                String?
+  supplyId                 String?
+  type                     StockEventType
+  quantityDelta            Decimal               @db.Decimal(18, 6)
+  quantityBefore           Decimal               @db.Decimal(18, 6)
+  quantityAfter            Decimal               @db.Decimal(18, 6)
+  canonicalUnit            CanonicalUnit
+  standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
+  dataCoverage             InventoryDataCoverage @default(COMPLETE)
+  reason                   String
+  actorUserId              String?
+  approvedByUserId         String?
+  sourceType               String?
+  sourceId                 String?
+  occurredAt               DateTime              @default(now())
+  createdAt                DateTime              @default(now())
+  product                  Product?              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+  actor                    User?                 @relation("StockEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  approvedBy               User?                 @relation("StockEventApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  inventoryCountLine       InventoryCountLine?
+
+  @@index([productId, occurredAt])
+  @@index([supplyId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([sourceType, sourceId])
+}
+
+model InventoryCountSession {
+  id                String               @id @default(cuid())
+  businessDate      DateTime             @db.Date
+  status            InventoryCountStatus @default(DRAFT)
+  reason            String?
+  createdByUserId   String
+  submittedByUserId String?
+  approvedByUserId  String?
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  createdBy         User                 @relation("InventoryCountCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  submittedBy       User?                @relation("InventoryCountSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  approvedBy        User?                @relation("InventoryCountApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  lines             InventoryCountLine[]
+
+  @@index([businessDate, status])
+}
+
+model InventoryCountLine {
+  id                       String                @id @default(cuid())
+  sessionId                String
+  productId                String?
+  supplyId                 String?
+  canonicalUnit            CanonicalUnit
+  expectedQuantity         Decimal               @db.Decimal(18, 6)
+  physicalQuantity         Decimal               @db.Decimal(18, 6)
+  varianceQuantity         Decimal               @db.Decimal(18, 6)
+  standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
+  dataCoverage             InventoryDataCoverage @default(COMPLETE)
+  stockEventId             String?               @unique
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  session                  InventoryCountSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product                  Product?              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: Restrict)
+  stockEvent               StockEvent?           @relation(fields: [stockEventId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, productId])
+  @@unique([sessionId, supplyId])
+  @@index([sessionId])
+  @@index([productId])
+  @@index([supplyId])
 }
 
 model SalesAdjustment {
@@ -996,6 +1154,39 @@ model SupplyPurchase {
   @@index([purchaseDate])
   @@index([catalogItemId])
   @@index([createdByUserId, purchaseDate])
+}
+
+enum CanonicalUnit {
+  GRAM
+  MILLILITRE
+  PIECE
+}
+
+enum InventoryDataCoverage {
+  COMPLETE
+  LEGACY_INCOMPLETE
+  MISSING_COST
+}
+
+enum StockEventType {
+  RECEIPT
+  SALE_USAGE
+  RECIPE_USAGE
+  MANUAL_USAGE
+  WASTE
+  SPOILAGE
+  DAMAGE
+  STAFF_CONSUMPTION
+  COMPLIMENTARY_USAGE
+  COUNT_VARIANCE
+  ADJUSTMENT
+}
+
+enum InventoryCountStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
 }
 
 enum UserRole {

@@ -158,7 +158,7 @@ export default async function AdminProductsPage({
                     <StatusBadge active={product.isActive} />
                   </TableCell>
                   <TableCell>
-                    {product.trackStock ? product.stockQty : "-"}
+                    {product.trackStock ? product.stockQty.toString() : "-"}
                   </TableCell>
                   <TableCell>
                     <RowActions editHref={`/admin/products/${product.id}`} />

@@ -242,7 +242,10 @@ export default async function AdminPage() {
       <Status
         recentOrders={recentOrders}
         recentProducts={recentProducts}
-        recentMovements={recentMovements}
+        recentMovements={recentMovements.map((movement) => ({
+          ...movement,
+          quantityAfter: Number(movement.quantityAfter),
+        }))}
         chartPoints={chartPoints}
         totalSales={totalSales}
         totalOrder={totalOrders}

@@ -12,6 +12,7 @@
     "test:reports": "tsx --test tests/unit/reporting-foundation.test.ts",
     "test:sales-integrity": "tsx --test tests/unit/sales-integrity.test.ts",
     "test:sales-reports": "tsx --test tests/unit/sales-reporting.test.ts",
+    "test:inventory-costing": "tsx --test tests/unit/inventory-costing.test.ts",
     "waiter-balances:shift-date": "tsx scripts/shift-waiter-settlements.ts",
     "test:suppliers": "tsx --test tests/unit/suppliers.test.ts",
     "test:supplier-ordering": "tsx --test tests/unit/supplier-order-scheduling.test.ts"
