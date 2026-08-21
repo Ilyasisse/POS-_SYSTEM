@@ -4,15 +4,42 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { businessDateKeyToDatabaseDate } from "@/lib/waiter/waiter-balance-calculations";
 import { recordSupplierPaymentInTransaction, revertSupplierPayment } from "@/lib/suppliers/bill-service";
-import { assertDailyCashBusinessDate, isDailyCashLocked } from "./business-date";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
+import {
+  assertDailyCashBusinessDate,
+  getDailyCashWaiterBalanceDateKey,
+  isDailyCashLocked,
+} from "./business-date";
 import { dailyCashFingerprint } from "./fingerprint";
 import { calculateDailyCashSummary, fundingFor, roundMoney } from "./money";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "./paid-breakdown";
 import { resolveDailySalaryRate } from "./salary-rates";
+import { summarizeDailyCashShiftCash } from "./shift-cash";
 import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } from "./supplier-obligations";
 import type { DailyCashActionResult, DailyCashStatus } from "./types";
 
 type Tx = Prisma.TransactionClient;
+type TransactionQuery = () => PromiseLike<unknown>;
+type TransactionQueryResults<Queries extends readonly TransactionQuery[]> = {
+  [Index in keyof Queries]: Awaited<ReturnType<Queries[Index]>>;
+};
+
+const DAILY_CASH_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  maxWait: 5_000,
+  timeout: 15_000,
+} as const;
+
+async function runTransactionQueriesSequentially<
+  Queries extends readonly TransactionQuery[],
+>(queries: Queries): Promise<TransactionQueryResults<Queries>> {
+  const results: unknown[] = [];
+  for (const query of queries) {
+    results.push(await query());
+  }
+  return results as TransactionQueryResults<Queries>;
+}
+
 const number = (value: { toString(): string } | number | null | undefined) => Number(value?.toString() ?? 0);
 
 async function materializeDay(tx: Tx, dateKey: string) {
@@ -30,15 +57,19 @@ async function materializeDay(tx: Tx, dateKey: string) {
         include: {
           supplierPayment: {
             include: {
-              bill: {
-                include: {
-                  supplier: { select: { name: true } },
-                  invoice: { select: { invoiceNumber: true } },
+              supplier: { select: { name: true } },
+              allocations: {
+                select: {
+                  bill: { select: { invoice: { select: { invoiceNumber: true } } } },
                 },
               },
             },
           },
         },
+        orderBy: { createdAt: "asc" },
+      },
+      supplyPayments: {
+        include: { supplyDay: { select: { purchaseDate: true } } },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -49,23 +80,112 @@ async function currentState(tx: Tx, dateKey: string) {
   const day = await materializeDay(tx, dateKey);
   if (!day) return null;
   const businessDate = businessDateKeyToDatabaseDate(dateKey);
-  const [shifts, activeWaiters, bills] = await Promise.all([
-    tx.shift.findMany({ where: { businessDate }, select: { id: true, userId: true, reportedSales: true } }),
-    tx.user.findMany({ where: { role: "WAITER", isActive: true }, select: { id: true, fullName: true } }),
-    tx.supplierBill.findMany({
-      where: { status: { in: ["UNPAID", "PARTIAL"] }, invoice: { status: "FINALIZED" } },
-      include: { supplier: { select: { name: true } }, invoice: { select: { invoiceNumber: true } }, installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] } },
-    }),
-  ]);
-  const revenue = roundMoney(shifts.reduce((sum, shift) => sum + number(shift.reportedSales), 0));
-  const settled = new Set(shifts.filter((shift) => shift.reportedSales !== null).map((shift) => shift.userId));
-  const missingWaiters = activeWaiters.filter((waiter) => !settled.has(waiter.id));
+  const waiterBalanceDateKey = getDailyCashWaiterBalanceDateKey(dateKey);
+  const waiterBalanceDate = businessDateKeyToDatabaseDate(
+    waiterBalanceDateKey,
+  );
+  // Interactive transactions use one pg client, so these independent reads
+  // must be issued sequentially even though they would normally be parallel.
+  const [shifts, activeWaiters, bills, suppliers, supplyDays] =
+    await runTransactionQueriesSequentially([
+      () =>
+        tx.shift.findMany({
+          where: { businessDate: waiterBalanceDate },
+          select: { id: true, userId: true, closingAmount: true },
+        }),
+      () =>
+        tx.user.findMany({
+          where: { role: "WAITER", isActive: true },
+          select: { id: true, fullName: true },
+        }),
+      () =>
+        tx.supplierBill.findMany({
+          where: {
+            status: { in: ["UNPAID", "PARTIAL"] },
+            invoice: { status: "FINALIZED" },
+          },
+          include: {
+            supplier: { select: { name: true } },
+            invoice: { select: { invoiceNumber: true } },
+            installments: {
+              orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+            },
+          },
+        }),
+      () =>
+        tx.supplier.findMany({
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            payments: {
+              select: {
+                amount: true,
+                allocations: { select: { amount: true } },
+              },
+            },
+          },
+          orderBy: { name: "asc" },
+        }),
+      () =>
+        tx.supplyDay.findMany({
+          where: {
+            closedAt: { not: null },
+            purchaseDate: { lt: businessDate },
+          },
+          include: {
+            payments: {
+              where: {
+                dailyCashDay: { businessDate: { lte: businessDate } },
+              },
+              select: { amount: true },
+            },
+          },
+          orderBy: { purchaseDate: "asc" },
+        }),
+    ] as const);
+  const shiftCash = summarizeDailyCashShiftCash(
+    shifts.map((shift) => ({
+      id: shift.id,
+      userId: shift.userId,
+      closingAmount:
+        shift.closingAmount === null ? null : number(shift.closingAmount),
+    })),
+    activeWaiters,
+  );
+  const { endDayCash, missingWaiters } = shiftCash;
   const obligations = selectDailyCashObligations(bills);
+  const supplierAccounts = suppliers.map((supplier) => ({
+    id: supplier.id,
+    name: supplier.name,
+    credit: roundMoney(
+      supplier.payments.reduce(
+        (sum, payment) =>
+          sum +
+          number(payment.amount) -
+          payment.allocations.reduce(
+            (allocationSum, allocation) =>
+              allocationSum + number(allocation.amount),
+            0,
+          ),
+        0,
+      ),
+    ),
+  }));
+  const supplyObligations = [];
+  for (const row of supplyDays) {
+    const originalTotal = number(row.closedTotal);
+    const paidAmount = roundMoney(row.payments.reduce((sum, payment) => sum + number(payment.amount), 0));
+    const dueDate = new Date(row.purchaseDate);
+    dueDate.setUTCDate(dueDate.getUTCDate() + 1);
+    const amount = roundMoney(originalTotal - paidAmount);
+    if (amount > 0) supplyObligations.push({ supplyDayId: row.id, purchaseDate: row.purchaseDate, dueDate, originalTotal, paidAmount, amount });
+  }
   const salaryPaid = day.salaryPaidAt !== null || number(day.salaryAmount) === 0;
-  const paidRevenueFunded = number(day.salaryRevenueFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0);
-  const paidSavingsFunded = number(day.salarySavingsFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0);
-  const unpaidRequired = (salaryPaid ? 0 : number(day.salaryAmount)) + obligations.reduce((sum, row) => sum + row.amount, 0);
-  const summary = calculateDailyCashSummary({ revenue, paidRevenueFunded, paidSavingsFunded, unpaidRequired });
+  const paidRevenueFunded = number(day.salaryRevenueFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplyPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0);
+  const paidSavingsFunded = number(day.salarySavingsFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplyPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0);
+  const unpaidRequired = (salaryPaid ? 0 : number(day.salaryAmount)) + obligations.reduce((sum, row) => sum + row.amount, 0) + supplyObligations.reduce((sum, row) => sum + row.amount, 0);
+  const summary = calculateDailyCashSummary({ revenue: endDayCash, paidRevenueFunded, paidSavingsFunded, unpaidRequired });
   const paidBreakdownRows = buildDailyCashPaidBreakdown({
     dayId: day.id,
     salary: {
@@ -85,32 +205,60 @@ async function currentState(tx: Tx, dateKey: string) {
     })),
     supplierPayments: day.supplierPayments.map((row) => ({
       id: row.id,
-      supplierName: row.supplierPayment.bill.supplier.name,
-      invoiceNumber: row.supplierPayment.bill.invoice.invoiceNumber,
+      supplierName: row.supplierPayment.supplier.name,
+      invoiceNumber: (() => {
+        const invoiceNumbers = [
+          ...new Set(
+            row.supplierPayment.allocations.map(
+              (allocation) =>
+                formatSupplierInvoiceNumber(
+                  allocation.bill.invoice.invoiceNumber,
+                ),
+            ),
+          ),
+        ];
+        if (!invoiceNumbers.length) return "Advance / future credit";
+        if (invoiceNumbers.length === 1) return invoiceNumbers[0];
+        return `${invoiceNumbers.length} invoices`;
+      })(),
       amount: number(row.amount),
       revenueFunded: number(row.revenueFunded),
       savingsFunded: number(row.savingsFunded),
       paidAt: row.supplierPayment.paidAt,
     })),
+    supplyPayments: day.supplyPayments.map((row) => ({
+      id: row.id,
+      purchaseDate: row.supplyDay.purchaseDate,
+      amount: number(row.amount),
+      revenueFunded: number(row.revenueFunded),
+      savingsFunded: number(row.savingsFunded),
+      paidAt: row.createdAt,
+    })),
   });
-  const paidBreakdownTotals = calculatePaidBreakdownTotals(revenue, paidBreakdownRows);
+  const paidBreakdownTotals = calculatePaidBreakdownTotals(endDayCash, paidBreakdownRows);
   const fingerprint = dailyCashFingerprint({
     dateKey,
-    shifts: shifts.filter((shift) => shift.reportedSales !== null).map((shift) => [shift.id, shift.userId, number(shift.reportedSales)]).sort(),
+    waiterBalanceDateKey,
+    shifts: shiftCash.fingerprintRows,
     missing: missingWaiters.map((waiter) => waiter.id).sort(),
     salary: [number(day.salaryAmount), day.salaryOverridden, day.salaryPaidAt?.toISOString() ?? null, number(day.salaryRevenueFunded), number(day.salarySavingsFunded)],
     manual: day.manualExpenses.map((row) => [row.id, row.description, row.note, number(row.amount), number(row.revenueFunded), number(row.savingsFunded)]),
     payments: day.supplierPayments.map((row) => [row.id, row.supplierPaymentId, number(row.amount), number(row.revenueFunded), number(row.savingsFunded)]),
+    supplyPayments: day.supplyPayments.map((row) => [row.id, row.supplyDayId, number(row.amount), number(row.revenueFunded), number(row.savingsFunded)]),
+    supplyObligations: supplyObligations.map((row) => [row.supplyDayId, row.purchaseDate.toISOString(), row.originalTotal, row.paidAmount, row.amount]),
     obligations: obligations.map((row) => [row.billId, row.installmentId, row.dueDate.toISOString(), row.amount]),
   });
   const locked = isDailyCashLocked(dateKey);
   const status: DailyCashStatus = locked ? "LOCKED" : !day.finalizedAt ? "OPEN" : day.finalizationFingerprint === fingerprint ? "FINALIZED" : "NEEDS_REVIEW";
-  return { day, revenue, missingWaiters, obligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
+  return { day, waiterBalanceDateKey, endDayCash, missingWaiters, obligations, supplierAccounts, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
 }
 
 export async function getDailyCash(dateKey: string, now = new Date()) {
   const valid = assertDailyCashBusinessDate(dateKey, now);
-  return prisma.$transaction((tx) => currentState(tx, valid), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  return prisma.$transaction(
+    (tx) => currentState(tx, valid),
+    DAILY_CASH_TRANSACTION_OPTIONS,
+  );
 }
 
 async function mutate<T>(dateKey: string, now: Date, fn: (tx: Tx, state: NonNullable<Awaited<ReturnType<typeof currentState>>>) => Promise<T>) {
@@ -120,7 +268,7 @@ async function mutate<T>(dateKey: string, now: Date, fn: (tx: Tx, state: NonNull
     const state = await currentState(tx, valid);
     if (!state) throw new Error("Set a salary rate before using Daily Cash.");
     return fn(tx, state);
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }, DAILY_CASH_TRANSACTION_OPTIONS);
 }
 
 export async function createDailySalaryRate(input: { amount: number; effectiveDate: string; userId: string }) {
@@ -198,21 +346,56 @@ export async function undoDailyCashSupplierPayment(input: { dateKey: string; id:
   });
 }
 
-export async function payDailyCashObligation(input: { dateKey: string; billId: string; installmentId?: string | null; amount: number; userId: string; confirmSavings: boolean }): Promise<DailyCashActionResult> {
+export async function payDailyCashObligation(input: { dateKey: string; billId: string; installmentId?: string | null; amount: number; userId: string; confirmSavings: boolean; allowOverpayment: boolean }): Promise<DailyCashActionResult> {
   return mutate(input.dateKey, new Date(), async (tx, state) => {
     const obligation = state.obligations.find((row) => row.billId === input.billId && row.installmentId === (input.installmentId || null));
     if (!obligation) return { ok: false, code: "STALE_OBLIGATION", message: "This supplier obligation is no longer available." };
-    const amount = validateSupplierObligationPaymentAmount(input.amount, obligation.amount);
+    const amount = validateSupplierObligationPaymentAmount(input.amount, obligation.amount, input.allowOverpayment);
     const funding = fundingFor(amount, state.summary.cashAvailableNow);
     if (funding.savingsFunded > 0 && !input.confirmSavings) return { ok: false, code: "SAVINGS_CONFIRMATION_REQUIRED", savingsAmount: funding.savingsFunded.toFixed(2) };
-    const result = await recordSupplierPaymentInTransaction(tx, { billId: obligation.billId, installmentId: obligation.installmentId, recordedByUserId: input.userId, amount, paymentMethod: "DAILY_CASH" });
+    const result = await recordSupplierPaymentInTransaction(tx, { supplierId: obligation.supplierId, preferredBillId: obligation.billId, preferredInstallmentId: obligation.installmentId, recordedByUserId: input.userId, amount, paymentMethod: "DAILY_CASH", allowOverpayment: input.allowOverpayment });
     await tx.dailyCashSupplierPayment.create({ data: { dailyCashDayId: state.day.id, supplierPaymentId: result.payment.id, amount, revenueFunded: funding.revenueFunded, savingsFunded: funding.savingsFunded, recordedByUserId: input.userId } });
     return { ok: true };
   });
 }
 
+export async function payDailyCashSupplierAdvance(input: { dateKey: string; supplierId: string; amount: number; userId: string; confirmSavings: boolean }): Promise<DailyCashActionResult> {
+  return mutate(input.dateKey, new Date(), async (tx, state) => {
+    const amount = roundMoney(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { ok: false, code: "VALIDATION_ERROR", message: "Enter a payment amount greater than zero." };
+    }
+    const funding = fundingFor(amount, state.summary.cashAvailableNow);
+    if (funding.savingsFunded > 0 && !input.confirmSavings) {
+      return { ok: false, code: "SAVINGS_CONFIRMATION_REQUIRED", savingsAmount: funding.savingsFunded.toFixed(2) };
+    }
+    const result = await recordSupplierPaymentInTransaction(tx, { supplierId: input.supplierId, recordedByUserId: input.userId, amount, paymentMethod: "DAILY_CASH", allowOverpayment: true });
+    await tx.dailyCashSupplierPayment.create({ data: { dailyCashDayId: state.day.id, supplierPaymentId: result.payment.id, amount, revenueFunded: funding.revenueFunded, savingsFunded: funding.savingsFunded, recordedByUserId: input.userId } });
+    return { ok: true };
+  });
+}
+
+export async function payDailyCashSupply(input: { dateKey: string; supplyDayId: string; amount: number; userId: string; confirmSavings: boolean }): Promise<DailyCashActionResult> {
+  return mutate(input.dateKey, new Date(), async (tx, state) => {
+    const obligation = state.supplyObligations.find((row) => row.supplyDayId === input.supplyDayId);
+    if (!obligation) return { ok: false, code: "STALE_OBLIGATION", message: "This supply balance is no longer available." };
+    const amount = validateSupplierObligationPaymentAmount(input.amount, obligation.amount);
+    const funding = fundingFor(amount, state.summary.cashAvailableNow);
+    if (funding.savingsFunded > 0 && !input.confirmSavings) return { ok: false, code: "SAVINGS_CONFIRMATION_REQUIRED", savingsAmount: funding.savingsFunded.toFixed(2) };
+    await tx.dailyCashSupplyPayment.create({ data: { dailyCashDayId: state.day.id, supplyDayId: obligation.supplyDayId, amount, revenueFunded: funding.revenueFunded, savingsFunded: funding.savingsFunded, recordedByUserId: input.userId } });
+    return { ok: true };
+  });
+}
+
+export async function undoDailyCashSupplyPayment(input: { dateKey: string; id: string }) {
+  return mutate(input.dateKey, new Date(), async (tx, state) => {
+    const result = await tx.dailyCashSupplyPayment.deleteMany({ where: { id: input.id, dailyCashDayId: state.day.id } });
+    if (result.count !== 1) throw new Error("Supply payment not found.");
+  });
+}
+
 export async function finalizeDailyCash(input: { dateKey: string; userId: string }) {
   return mutate(input.dateKey, new Date(), async (tx, state) => {
-    await tx.dailyCashDay.update({ where: { id: state.day.id }, data: { finalizedAt: new Date(), finalizedByUserId: input.userId, finalizationFingerprint: state.fingerprint, finalizedRevenue: state.revenue, finalizedPaidExpenses: state.paidRevenueFunded + state.paidSavingsFunded, finalizedUnpaidRequired: state.unpaidRequired, finalizedRemainingCash: state.summary.projectedRemaining, finalizedSavingsUsed: state.summary.savingsUsed, finalizedAdditionalSavingsRequired: state.summary.additionalSavingsRequired } });
+    await tx.dailyCashDay.update({ where: { id: state.day.id }, data: { finalizedAt: new Date(), finalizedByUserId: input.userId, finalizationFingerprint: state.fingerprint, finalizedRevenue: state.endDayCash, finalizedPaidExpenses: state.paidRevenueFunded + state.paidSavingsFunded, finalizedUnpaidRequired: state.unpaidRequired, finalizedRemainingCash: state.summary.projectedRemaining, finalizedSavingsUsed: state.summary.savingsUsed, finalizedAdditionalSavingsRequired: state.summary.additionalSavingsRequired } });
   });
 }

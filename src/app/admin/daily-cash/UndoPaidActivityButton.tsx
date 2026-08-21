@@ -21,6 +21,7 @@ const consequences: Record<DailyCashPaidBreakdownRow["type"], string> = {
   SALARY: "The combined salary will become unpaid and its cash will be restored.",
   MANUAL: "The one-time expense will be removed and its cash will be restored.",
   SUPPLIER: "The supplier payment will be removed, its cash restored, and the invoice or installment balance recalculated.",
+  SUPPLY: "The supply payment will be removed, its cash restored, and the remaining supply balance recalculated.",
 };
 
 export default function UndoPaidActivityButton({

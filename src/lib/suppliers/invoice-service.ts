@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { recordSupplierInvoiceReceipts } from "@/lib/inventory/stock-ledger";
+import { applyAvailableSupplierCreditToBillInTransaction } from "@/lib/suppliers/bill-service";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
   getSupplierInvoiceVoidEffect,
@@ -12,6 +13,8 @@ import {
   validateSupplierInvoiceDraftCreationMetadata,
   validateSupplierInvoiceDraftInput,
 } from "@/lib/suppliers/invoice-foundation";
+import type { SupplierInvoiceRecurrenceInput } from "@/lib/suppliers/invoice-recurrence";
+import { createSupplierInvoiceRecurrenceInTransaction } from "@/lib/suppliers/invoice-recurrence-service";
 
 const SERIALIZABLE = Prisma.TransactionIsolationLevel.Serializable;
 
@@ -19,6 +22,7 @@ export type CreateSupplierInvoiceDraftInput =
   SupplierInvoiceDraftCreationMetadataInput & {
     submittedAt?: Date;
     legacyInventoryUpdatedAt?: Date | null;
+    recurrence?: SupplierInvoiceRecurrenceInput | null;
     draft: SupplierInvoiceDraftInput;
   };
 
@@ -94,7 +98,7 @@ function itemCreateData(
 
 function draftUpdateData(draft: ValidatedSupplierInvoiceDraft) {
   return {
-    invoiceNumber: draft.invoiceNumber,
+    supplierReference: draft.supplierReference,
     invoiceDate: draft.invoiceDate,
     dueDate: draft.dueDate,
     notes: draft.notes,
@@ -135,7 +139,8 @@ async function insertSupplierInvoiceDraft(
   draft: ValidatedSupplierInvoiceDraft,
 ) {
   await assertCatalogOwnership(tx, metadata.supplierId, draft, {
-    requireAvailableNewItems: input.source === "MANUAL",
+    requireAvailableNewItems:
+      input.source === "MANUAL" || input.source === "RECURRING",
   });
   return tx.supplierInvoice.create({
     data: {
@@ -161,8 +166,17 @@ async function insertSupplierInvoiceDraft(
           notes: line.notes,
         })),
       },
+      installments: draft.installments
+        ? {
+            create: draft.installments.map((installment, index) => ({
+              sequence: index + 1,
+              amount: installment.amount,
+              dueDate: installment.dueDate,
+            })),
+          }
+        : undefined,
     },
-    include: { items: true, bill: true },
+    include: { items: true, installments: true, bill: true },
   });
 }
 
@@ -171,7 +185,8 @@ export async function createSupplierInvoiceDraft(
 ) {
   const metadata = validateSupplierInvoiceDraftCreationMetadata(input);
   const draft = validateSupplierInvoiceDraftInput(input.draft, {
-    allowCustomLines: input.source !== "MANUAL",
+    allowCustomLines:
+      input.source !== "MANUAL" && input.source !== "RECURRING",
   });
 
   try {
@@ -190,7 +205,10 @@ export async function createSupplierInvoiceDraft(
             : null,
         ]);
         if (!supplier) throw new Error("Supplier not found.");
-        if (input.source === "MANUAL" && !supplier.isActive) {
+        if (
+          (input.source === "MANUAL" || input.source === "RECURRING") &&
+          !supplier.isActive
+        ) {
           throw new Error("Choose an active supplier.");
         }
         if (
@@ -204,7 +222,21 @@ export async function createSupplierInvoiceDraft(
           );
         }
 
-        return insertSupplierInvoiceDraft(tx, input, metadata, draft);
+        const invoice = await insertSupplierInvoiceDraft(
+          tx,
+          input,
+          metadata,
+          draft,
+        );
+        if (input.recurrence) {
+          await createSupplierInvoiceRecurrenceInTransaction(tx, {
+            invoiceId: invoice.id,
+            createdByUserId: metadata.createdByUserId as string,
+            recurrence: input.recurrence,
+            now: input.submittedAt,
+          });
+        }
+        return invoice;
       },
       { isolationLevel: SERIALIZABLE },
     );
@@ -359,10 +391,12 @@ export async function saveSupplierInvoiceDraft(
       }
 
       const draft = validateSupplierInvoiceDraftInput(input, {
-        allowCustomLines: invoice.source !== "MANUAL",
+        allowCustomLines:
+          invoice.source !== "MANUAL" && invoice.source !== "RECURRING",
       });
       await assertCatalogOwnership(tx, invoice.supplierId, draft, {
-        requireAvailableNewItems: invoice.source === "MANUAL",
+        requireAvailableNewItems:
+          invoice.source === "MANUAL" || invoice.source === "RECURRING",
         existingCatalogItemIds: new Set(
           invoice.items.flatMap((item) =>
             item.supplierCatalogItemId ? [item.supplierCatalogItemId] : [],
@@ -381,10 +415,23 @@ export async function saveSupplierInvoiceDraft(
       await tx.supplierInvoiceItem.createMany({
         data: itemCreateData(id, draft),
       });
+      await tx.supplierInvoiceInstallment.deleteMany({
+        where: { invoiceId: id },
+      });
+      if (draft.installments?.length) {
+        await tx.supplierInvoiceInstallment.createMany({
+          data: draft.installments.map((installment, index) => ({
+            invoiceId: id,
+            sequence: index + 1,
+            amount: installment.amount,
+            dueDate: installment.dueDate,
+          })),
+        });
+      }
 
       return tx.supplierInvoice.findUniqueOrThrow({
         where: { id },
-        include: { items: true, bill: true },
+        include: { items: true, installments: true, bill: true },
       });
     },
     { isolationLevel: SERIALIZABLE },
@@ -420,10 +467,12 @@ export async function finalizeSupplierInvoice(
       }
 
       const draft = validateSupplierInvoiceDraftInput(input, {
-        allowCustomLines: invoice.source !== "MANUAL",
+        allowCustomLines:
+          invoice.source !== "MANUAL" && invoice.source !== "RECURRING",
       });
       await assertCatalogOwnership(tx, invoice.supplierId, draft, {
-        requireAvailableNewItems: invoice.source === "MANUAL",
+        requireAvailableNewItems:
+          invoice.source === "MANUAL" || invoice.source === "RECURRING",
         existingCatalogItemIds: new Set(
           invoice.items.flatMap((item) =>
             item.supplierCatalogItemId ? [item.supplierCatalogItemId] : [],
@@ -456,6 +505,16 @@ export async function finalizeSupplierInvoice(
         id,
         userId,
       );
+      await tx.supplierInvoiceInstallment.deleteMany({
+        where: { invoiceId: id },
+      });
+      const billDueDate = draft.installments?.length
+        ? draft.installments.reduce((earliest, installment) =>
+            installment.dueDate < earliest
+              ? installment.dueDate
+              : earliest,
+          draft.installments[0].dueDate)
+        : draft.dueDate;
       const bill = await tx.supplierBill.create({
         data: {
           supplierId: invoice.supplierId,
@@ -463,16 +522,35 @@ export async function finalizeSupplierInvoice(
           totalAmount: draft.totalAmount,
           paidAmount: 0,
           status: "UNPAID",
-          dueDate: draft.dueDate,
+          dueDate: billDueDate,
         },
       });
+      if (draft.installments?.length) {
+        await tx.supplierInvoiceInstallment.createMany({
+          data: draft.installments.map((installment, index) => ({
+            invoiceId: id,
+            billId: bill.id,
+            sequence: index + 1,
+            amount: installment.amount,
+            dueDate: installment.dueDate,
+          })),
+        });
+      }
+      const creditApplied =
+        await applyAvailableSupplierCreditToBillInTransaction(tx, {
+          supplierId: invoice.supplierId,
+          billId: bill.id,
+          appliedByUserId: userId,
+        });
 
       return {
         invoiceId: id,
+        supplierId: invoice.supplierId,
         purchaseOrderId: invoice.purchaseOrderId,
         billId: bill.id,
         finalizedAt,
         inventoryReceipts,
+        creditApplied,
       };
     },
     { isolationLevel: SERIALIZABLE },
@@ -529,6 +607,15 @@ export async function voidSupplierInvoiceDraft(
           throw new Error("The linked purchase order could not be reopened.");
         }
       }
+
+      await tx.supplierInvoiceRecurrence.updateMany({
+        where: { sourceInvoiceId: id, isActive: true },
+        data: {
+          isActive: false,
+          pausedAt: voidedAt,
+          pausedByUserId: userId,
+        },
+      });
 
       return {
         invoiceId: id,
