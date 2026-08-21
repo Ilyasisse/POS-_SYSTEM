@@ -84,6 +84,9 @@ export default async function SupplierPurchaseOrdersPage({
           <Button asChild variant="outline">
             <Link href="/admin/supplier-invoices">View invoices</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-order-schedules">WhatsApp schedules</Link>
+          </Button>
         </>
       }
     >

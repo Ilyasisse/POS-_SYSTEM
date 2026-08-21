@@ -61,6 +61,7 @@ export const SUPPLIER_INVOICE_SOURCE_LABELS: Record<
 > = {
   PURCHASE_ORDER: "Purchase order",
   MANUAL: "Manual invoice",
+  RECURRING: "Recurring draft",
   LEGACY_UPLOAD: "Legacy upload",
 };
 

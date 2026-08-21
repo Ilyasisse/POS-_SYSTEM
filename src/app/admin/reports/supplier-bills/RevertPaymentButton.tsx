@@ -70,8 +70,9 @@ export default function RevertPaymentButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Revert this {amount} payment?</AlertDialogTitle>
           <AlertDialogDescription>
-            This permanently deletes the selected payment and recalculates the
-            supplier bill balance. This action cannot be undone.
+            This permanently deletes the full supplier payment, removes its
+            invoice allocations, and recalculates every affected balance. Any
+            invoice paid by this payment may reopen. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {message ? (

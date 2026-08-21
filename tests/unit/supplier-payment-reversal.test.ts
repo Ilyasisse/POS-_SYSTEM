@@ -11,7 +11,7 @@ test("returns a bill to unpaid after its only payment is removed", () => {
   const state = calculateSupplierPaymentState({
     totalAmount: "100.00",
     dueDate,
-    payments: [],
+    allocations: [],
     installments: [],
   });
 
@@ -26,12 +26,12 @@ test("keeps a bill partially paid when another payment remains", () => {
   const state = calculateSupplierPaymentState({
     totalAmount: "100.00",
     dueDate,
-    payments: [
+    allocations: [
       {
         amount: "40.00",
         installmentId: null,
-        paidAt: new Date("2026-08-04T08:00:00.000Z"),
-        recordedByUserId: "user-1",
+        allocatedAt: new Date("2026-08-04T08:00:00.000Z"),
+        appliedByUserId: "user-1",
       },
     ],
     installments: [],
@@ -48,12 +48,12 @@ test("recalculates installments and restores the earliest outstanding due date",
   const state = calculateSupplierPaymentState({
     totalAmount: "100.00",
     dueDate: secondDueDate,
-    payments: [
+    allocations: [
       {
         amount: "70.00",
         installmentId: "installment-2",
-        paidAt: new Date("2026-08-04T08:00:00.000Z"),
-        recordedByUserId: "user-1",
+        allocatedAt: new Date("2026-08-04T08:00:00.000Z"),
+        appliedByUserId: "user-1",
       },
     ],
     installments: [
@@ -77,21 +77,18 @@ test("recalculates installments and restores the earliest outstanding due date",
   );
 });
 
-test("blocks unsafe legacy and Daily Cash reversals", () => {
+test("blocks unsafe scheduled and Daily Cash reversals", () => {
   assert.match(
     getSupplierPaymentReversalError({
-      installmentId: null,
-      hasInstallments: true,
+      legacyAllocationAfterSchedule: true,
       dailyCashLinked: false,
       dailyCashLocked: false,
       canManageDailyCash: true,
     }) || "",
-    /legacy payment/,
+    /installment schedule/,
   );
   assert.match(
     getSupplierPaymentReversalError({
-      installmentId: "installment-1",
-      hasInstallments: true,
       dailyCashLinked: true,
       dailyCashLocked: false,
       canManageDailyCash: false,
@@ -100,8 +97,6 @@ test("blocks unsafe legacy and Daily Cash reversals", () => {
   );
   assert.match(
     getSupplierPaymentReversalError({
-      installmentId: "installment-1",
-      hasInstallments: true,
       dailyCashLinked: true,
       dailyCashLocked: true,
       canManageDailyCash: true,

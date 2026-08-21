@@ -97,6 +97,7 @@ const quickAccessNEW = [
 ];
 type DashboardProps = {
   lowStockSupplies: number;
+  whatsappFailedRuns: number;
   todayOrders: {
     id: string;
     status: string;
@@ -106,6 +107,7 @@ type DashboardProps = {
 
 export default function Dashboard({
   lowStockSupplies,
+  whatsappFailedRuns,
   todayOrders,
 }: DashboardProps) {
   const openTodayOrders = todayOrders.filter(
@@ -153,8 +155,11 @@ export default function Dashboard({
         <NotificationCard
           icon={MessageCircle}
           title="WhatsApp Alerts"
-          // REVIEW: Replace with live WhatsApp inbox data when that integration exposes status/messages.
-          description="Connected and ready"
+          description={
+            whatsappFailedRuns > 0
+              ? `${whatsappFailedRuns} failed supplier order runs`
+              : "Scheduled supplier ordering ready"
+          }
           time={notificationTime}
           tone="green"
         />

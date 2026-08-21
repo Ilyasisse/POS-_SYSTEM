@@ -5,9 +5,11 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import {
   getSupplierInvoiceDisplayStatus,
   SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS,
+  SUPPLIER_INVOICE_SOURCE_LABELS,
 } from "@/lib/suppliers/invoice-status";
 import PrintButton from "./PrintButton";
 
@@ -45,6 +47,9 @@ export default async function PrintableSupplierInvoicePage({
     },
   });
   if (!invoice) notFound();
+  const formattedInvoiceNumber = formatSupplierInvoiceNumber(
+    invoice.invoiceNumber,
+  );
   const displayStatus = getSupplierInvoiceDisplayStatus(invoice);
   const effectiveDueDate = invoice.bill?.dueDate ?? invoice.dueDate;
   const remainingBalance = invoice.bill
@@ -86,7 +91,7 @@ export default async function PrintableSupplierInvoicePage({
           </div>
           <div className="text-right">
             <div className="text-2xl font-semibold">
-              {invoice.invoiceNumber || "No invoice number"}
+              {formattedInvoiceNumber}
             </div>
             <div
               className={`text-sm font-bold ${displayStatus === "DRAFT" ? "text-amber-700" : "text-muted-foreground"}`}
@@ -123,13 +128,17 @@ export default async function PrintableSupplierInvoicePage({
               </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">Purchase order</dt>
+              <dt className="text-muted-foreground">Source</dt>
               <dd className="font-medium">
                 {invoice.purchaseOrder
                   ? `PO #${invoice.purchaseOrder.orderNumber}`
-                  : invoice.source === "MANUAL"
-                    ? "Manual invoice"
-                    : "Legacy invoice"}
+                  : SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Supplier reference</dt>
+              <dd className="font-medium">
+                {invoice.supplierReference || "--"}
               </dd>
             </div>
             <div>

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { recordSupplierPayment } from "@/lib/suppliers/bill-service";
 import { parseSupplierCatalogItemInput } from "@/lib/suppliers/purchase-orders";
 
 type CatalogStatus =
@@ -147,4 +148,23 @@ export async function updateSupplierCatalogItem(formData: FormData) {
 
   refreshCatalog(supplierId);
   redirectToCatalog(supplierId, "updated");
+}
+
+export async function recordSupplierAdvance(formData: FormData) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const supplierId = text(formData, "supplierId");
+  const result = await recordSupplierPayment({
+    supplierId,
+    recordedByUserId: user.id,
+    amount: Number(formData.get("amount")),
+    paymentMethod: text(formData, "paymentMethod"),
+    notes: text(formData, "notes"),
+    allowOverpayment: true,
+  });
+  refreshCatalog(supplierId);
+  revalidatePath("/admin/reports/supplier-bills");
+  revalidatePath("/admin/supplier-invoices");
+  for (const invoiceId of result.invoiceIds) {
+    revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
+  }
 }

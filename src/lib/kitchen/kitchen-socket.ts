@@ -416,19 +416,6 @@ export function filterKitchenTicketByStation(
   };
 }
 
-export function filterKitchenTicketsByStation(
-  tickets: KitchenTicket[],
-  stationOrFilter?: string | KitchenTicketFilter | null,
-  userId?: string | null,
-  role?: KitchenViewerRole | null,
-): KitchenTicket[] {
-  return tickets
-    .map((ticket) =>
-      filterKitchenTicketByStation(ticket, stationOrFilter, userId, role),
-    )
-    .filter((ticket): ticket is KitchenTicket => ticket !== null);
-}
-
 export function stationFromPathSegment(
   station?: string | null,
 ): KitchenStation | undefined {
