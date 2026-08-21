@@ -69,6 +69,7 @@ model User {
   cleaningRunsCompleted               CleaningChecklistRun[]        @relation("CleaningRunCompletedBy")
   cleaningTasksCompleted              CleaningChecklistRunTask[]    @relation("CleaningTaskCompletedBy")
   dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]      @relation("DailyCashSupplyPaymentRecordedBy")
+  dailyCashSavingsDepositsRecorded    DailyCashSavingsDeposit[]     @relation("DailyCashSavingsDepositRecordedBy")
   employmentProfile                   EmploymentProfile?
   scheduledShifts                     ScheduledShift[]             @relation("ScheduledShiftWorker")
   scheduledShiftsCreated              ScheduledShift[]             @relation("ScheduledShiftCreator")
@@ -1137,6 +1138,7 @@ model DailyCashDay {
   manualExpenses                     DailyCashManualExpense[]
   supplierPayments                   DailyCashSupplierPayment[]
   supplyPayments                     DailyCashSupplyPayment[]
+  savingsDeposits                    DailyCashSavingsDeposit[]
 
   @@index([salaryRateId])
   @@index([salaryPaidByUserId])
@@ -1196,6 +1198,22 @@ model DailyCashSupplyPayment {
 
   @@index([dailyCashDayId, createdAt])
   @@index([supplyDayId, createdAt])
+  @@index([recordedByUserId, createdAt])
+}
+
+/// An auditable transfer of remaining Daily Cash revenue into the business's
+/// deposit-only savings account.
+model DailyCashSavingsDeposit {
+  id               String       @id @default(cuid())
+  dailyCashDayId   String
+  amount           Decimal      @db.Decimal(14, 2)
+  note             String?
+  recordedByUserId String
+  createdAt        DateTime     @default(now())
+  dailyCashDay     DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
+  recordedBy       User         @relation("DailyCashSavingsDepositRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([dailyCashDayId, createdAt])
   @@index([recordedByUserId, createdAt])
 }
 
