@@ -9,6 +9,7 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
+import { snapshotProductCost } from "@/lib/sales/adjustments";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -42,6 +43,7 @@ type PreparedLine = {
   assignedBaristaName: string | null;
   unitPrice: number;
   lineTotal: number;
+  unitCost: Prisma.Decimal | null;
   modifiers: SelectedModifierLine[];
 };
 
@@ -137,6 +139,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          cost: true,
           category: {
             select: {
               station: true,
@@ -284,6 +287,7 @@ export async function POST(request: Request) {
         assignedBaristaName,
         unitPrice,
         lineTotal,
+        unitCost: product.cost,
         modifiers: selectedModifiers,
       });
 
@@ -312,6 +316,10 @@ export async function POST(request: Request) {
             status: "OPEN",
             notes: orderNote || null,
             total: toDecimal(calculatedTotal),
+            customerId:
+              authorization.user.role === "CUSTOMER"
+                ? authorization.user.id
+                : null,
           },
         });
 
@@ -324,6 +332,7 @@ export async function POST(request: Request) {
             qty: line.qty,
             unitPrice: toDecimal(line.unitPrice),
             lineTotal: toDecimal(line.lineTotal),
+            ...snapshotProductCost(line.unitCost),
             station: line.station,
             assignedUserId: line.assignedBaristaId,
           })),

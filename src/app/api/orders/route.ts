@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
+import { snapshotProductCost } from "@/lib/sales/adjustments";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
@@ -39,6 +40,7 @@ type PreparedLine = {
   assignedBaristaName: string | null;
   unitPrice: number;
   lineTotal: number;
+  unitCost: Prisma.Decimal | null;
   modifiers: PreparedModifier[];
 };
 
@@ -151,6 +153,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          cost: true,
           category: {
             select: {
               station: true,
@@ -293,6 +296,7 @@ export async function POST(request: Request) {
         assignedBaristaName,
         unitPrice,
         lineTotal,
+        unitCost: product.cost,
         modifiers: selectedModifiers,
       });
 
@@ -334,6 +338,7 @@ export async function POST(request: Request) {
           qty: line.qty,
           unitPrice: toDecimal(line.unitPrice),
           lineTotal: toDecimal(line.lineTotal),
+          ...snapshotProductCost(line.unitCost),
           station: line.station,
           assignedUserId: line.assignedBaristaId,
         })),
