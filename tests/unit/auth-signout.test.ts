@@ -79,6 +79,9 @@ test("expires project auth cookies without touching unrelated cookies", () => {
   for (const cookie of expired) {
     assert.equal(cookie.value, "");
     assert.equal(cookie.path, "/");
+    assert.equal(cookie.httpOnly, true);
+    assert.equal(cookie.secure, true);
+    assert.equal(cookie.sameSite, "lax");
     assert.equal(cookie.maxAge, 0);
     assert.equal(cookie.expires.getTime(), 0);
   }

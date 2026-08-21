@@ -8,118 +8,266 @@ import {
   calculateSupplierPaymentState,
   getSupplierPaymentReversalError,
 } from "./payment-reversal";
+import {
+  planSupplierPaymentAllocations,
+  type SupplierAllocationTarget,
+} from "./payment-allocation";
+
+type Tx = Prisma.TransactionClient;
+
+function positivePaymentAmount(amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Payment amount must be positive.");
+  }
+  const decimal = new Prisma.Decimal(amount);
+  if (!decimal.equals(decimal.toDecimalPlaces(2))) {
+    throw new Error("Payment amount must have at most two decimal places.");
+  }
+  return decimal;
+}
+
+async function getSupplierAllocationTargets(tx: Tx, supplierId: string) {
+  const bills = await tx.supplierBill.findMany({
+    where: {
+      supplierId,
+      status: { in: ["UNPAID", "PARTIAL"] },
+      invoice: { status: "FINALIZED" },
+    },
+    include: {
+      installments: {
+        orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+      },
+    },
+    orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+  });
+  const targets: SupplierAllocationTarget[] = [];
+  for (const bill of bills) {
+    if (bill.installments.length) {
+      for (const installment of bill.installments) {
+        if (installment.status === "PAID") continue;
+        targets.push({
+          billId: bill.id,
+          invoiceId: bill.invoiceId,
+          installmentId: installment.id,
+          dueDate: installment.dueDate,
+          sequence: installment.sequence,
+          billCreatedAt: bill.createdAt,
+          remainingAmount: installment.amount.sub(installment.paidAmount),
+        });
+      }
+      continue;
+    }
+    targets.push({
+      billId: bill.id,
+      invoiceId: bill.invoiceId,
+      installmentId: null,
+      dueDate: bill.dueDate,
+      sequence: 0,
+      billCreatedAt: bill.createdAt,
+      remainingAmount: bill.totalAmount.sub(bill.paidAmount),
+    });
+  }
+  return targets;
+}
+
+async function recalculateSupplierBills(tx: Tx, billIds: readonly string[]) {
+  const ids = [...new Set(billIds.filter(Boolean))];
+  if (!ids.length) return [];
+  const bills = await tx.supplierBill.findMany({
+    where: { id: { in: ids } },
+    include: {
+      allocations: {
+        select: {
+          amount: true,
+          installmentId: true,
+          allocatedAt: true,
+          appliedByUserId: true,
+        },
+      },
+      installments: {
+        orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+      },
+    },
+  });
+  await Promise.all(
+    bills.flatMap((bill) => {
+      const nextState = calculateSupplierPaymentState({
+        totalAmount: bill.totalAmount,
+        dueDate: bill.dueDate,
+        allocations: bill.allocations,
+        installments: bill.installments,
+      });
+      return [
+        tx.supplierBill.update({
+          where: { id: bill.id },
+          data: nextState.bill,
+        }),
+        ...nextState.installments.map((installment) =>
+          tx.supplierInvoiceInstallment.update({
+            where: { id: installment.id },
+            data: {
+              paidAmount: installment.paidAmount,
+              status: installment.status,
+            },
+          }),
+        ),
+      ];
+    }),
+  );
+  return bills.map((bill) => bill.invoiceId);
+}
 
 export async function recordSupplierPaymentInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: Tx,
   input: {
-    billId: string;
+    supplierId: string;
     recordedByUserId: string;
     amount: number;
     paymentMethod?: string;
     notes?: string;
-    installmentId?: string | null;
+    preferredBillId?: string | null;
+    preferredInstallmentId?: string | null;
+    allowOverpayment?: boolean;
   },
 ) {
-  const { billId, recordedByUserId, amount, paymentMethod, notes, installmentId } = input;
-  if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("Payment amount must be positive.");
+  const supplierId = input.supplierId.trim();
+  const recordedByUserId = input.recordedByUserId.trim();
+  if (!supplierId) throw new Error("Supplier is required.");
+  if (!recordedByUserId) throw new Error("Payment recorder is required.");
+  const paymentAmount = positivePaymentAmount(input.amount);
+  const supplier = await tx.supplier.findUnique({
+    where: { id: supplierId },
+    select: { id: true },
+  });
+  if (!supplier) throw new Error("Supplier not found.");
+
+  const preferredBillId = input.preferredBillId?.trim() || null;
+  const preferredInstallmentId =
+    input.preferredInstallmentId?.trim() || null;
+  const targets = await getSupplierAllocationTargets(tx, supplierId);
+  const preferredTarget = preferredInstallmentId
+    ? targets.find(
+        (target) =>
+          target.billId === preferredBillId &&
+          target.installmentId === preferredInstallmentId,
+      )
+    : preferredBillId
+      ? targets.find((target) => target.billId === preferredBillId)
+      : null;
+  if (preferredBillId && !preferredTarget) {
+    throw new Error("This supplier obligation is no longer outstanding.");
+  }
+  if (
+    preferredTarget &&
+    paymentAmount.gt(preferredTarget.remainingAmount) &&
+    !input.allowOverpayment
+  ) {
+    throw new Error(
+      "Confirm that the extra amount may pay other invoices or become supplier credit.",
+    );
   }
 
-      const bill = await tx.supplierBill.findUnique({
-        where: { id: billId },
-        include: { installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] } },
-      });
-      if (!bill) throw new Error("Supplier bill not found.");
-
-      const selectedInstallmentId = installmentId?.trim() || null;
-      if (bill.installments.length && !selectedInstallmentId) {
-        throw new Error("Choose the installment this payment is for.");
-      }
-      if (!bill.installments.length && selectedInstallmentId) {
-        throw new Error("This supplier bill does not have an installment schedule.");
-      }
-
-      const paymentAmount = new Prisma.Decimal(amount);
-      const nextPaid = bill.paidAmount.add(paymentAmount);
-      if (nextPaid.greaterThan(bill.totalAmount)) {
-        throw new Error("Payment exceeds the remaining balance.");
-      }
-      const isPaid = nextPaid.equals(bill.totalAmount);
-      const installment = selectedInstallmentId
-        ? bill.installments.find((row) => row.id === selectedInstallmentId)
-        : null;
-      if (selectedInstallmentId && !installment) {
-        throw new Error("Installment not found for this supplier bill.");
-      }
-      if (
-        installment &&
-        installment.paidAmount.add(paymentAmount).greaterThan(installment.amount)
-      ) {
-        throw new Error("Payment exceeds the remaining installment balance.");
-      }
-
-      const payment = await tx.supplierPayment.create({
-        data: {
-          billId,
-          installmentId: selectedInstallmentId,
-          amount: paymentAmount,
-          paymentMethod: paymentMethod?.trim() || null,
-          notes: notes?.trim() || null,
-          recordedByUserId,
-        },
-      });
-
-      if (installment) {
-        const installmentPaid = installment.paidAmount.add(paymentAmount);
-        await tx.supplierInvoiceInstallment.update({
-          where: { id: installment.id },
-          data: {
-            paidAmount: installmentPaid,
-            status: installmentPaid.equals(installment.amount)
-              ? "PAID"
-              : "PARTIAL",
-          },
-        });
-      }
-
-      const unpaidDates: Date[] = [];
-      for (const row of bill.installments) {
-        const paidAfterPayment = row.id === installment?.id
-          ? row.paidAmount.add(paymentAmount)
-          : row.paidAmount;
-        if (!paidAfterPayment.equals(row.amount)) unpaidDates.push(row.dueDate);
-      }
-      unpaidDates.sort((first, second) => first.getTime() - second.getTime());
-      const nextDueDate = unpaidDates[0] ?? bill.dueDate;
-
-      await tx.supplierBill.update({
-        where: { id: billId },
-        data: {
-          paidAmount: nextPaid,
-          status: isPaid ? "PAID" : "PARTIAL",
-          dueDate: nextDueDate,
-          settledAt: isPaid ? payment.paidAt : null,
-          settledByUserId: isPaid ? recordedByUserId : null,
-        },
-      });
-
-      return { payment, invoiceId: bill.invoiceId };
+  const plan = planSupplierPaymentAllocations({
+    amount: paymentAmount,
+    targets,
+    preferredBillId,
+    preferredInstallmentId,
+  });
+  const payment = await tx.supplierPayment.create({
+    data: {
+      supplierId,
+      amount: plan.paymentAmount,
+      paymentMethod: input.paymentMethod?.trim() || null,
+      notes: input.notes?.trim() || null,
+      recordedByUserId,
+    },
+  });
+  if (plan.allocations.length) {
+    await tx.supplierPaymentAllocation.createMany({
+      data: plan.allocations.map((allocation) => ({
+        supplierPaymentId: payment.id,
+        billId: allocation.billId,
+        installmentId: allocation.installmentId,
+        amount: allocation.amount,
+        appliedByUserId: recordedByUserId,
+      })),
+    });
+  }
+  const invoiceIds = await recalculateSupplierBills(
+    tx,
+    plan.allocations.map((allocation) => allocation.billId),
+  );
+  return {
+    payment,
+    allocations: plan.allocations,
+    unallocatedAmount: plan.unallocatedAmount,
+    invoiceIds,
+  };
 }
 
 export async function recordSupplierPayment(
-  billId: string,
-  recordedByUserId: string,
-  amount: number,
-  paymentMethod?: string,
-  notes?: string,
-  installmentId?: string | null,
+  input: Parameters<typeof recordSupplierPaymentInTransaction>[1],
 ) {
   return prisma.$transaction(
-    (tx) => recordSupplierPaymentInTransaction(tx, {
-      billId, recordedByUserId, amount, paymentMethod, notes, installmentId,
-    }),
+    (tx) => recordSupplierPaymentInTransaction(tx, input),
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+}
+
+export async function applyAvailableSupplierCreditToBillInTransaction(
+  tx: Tx,
+  input: { supplierId: string; billId: string; appliedByUserId: string },
+) {
+  const targets = (await getSupplierAllocationTargets(tx, input.supplierId))
+    .filter((target) => target.billId === input.billId);
+  if (!targets.length) return new Prisma.Decimal(0);
+  const payments = await tx.supplierPayment.findMany({
+    where: { supplierId: input.supplierId },
+    select: { id: true, amount: true, allocations: { select: { amount: true } } },
+    orderBy: [{ paidAt: "asc" }, { id: "asc" }],
+  });
+  let applied = new Prisma.Decimal(0);
+  const mutableTargets = targets.map((target) => ({ ...target }));
+  const allocationRows: Prisma.SupplierPaymentAllocationCreateManyInput[] = [];
+  for (const payment of payments) {
+    const used = payment.allocations.reduce(
+      (sum, allocation) => sum.add(allocation.amount),
+      new Prisma.Decimal(0),
+    );
+    const available = payment.amount.sub(used);
+    if (available.lte(0)) continue;
+    const plan = planSupplierPaymentAllocations({
+      amount: available,
+      targets: mutableTargets,
+      preferredBillId: input.billId,
+    });
+    if (!plan.allocations.length) break;
+    allocationRows.push(
+      ...plan.allocations.map((allocation) => ({
+        supplierPaymentId: payment.id,
+        billId: allocation.billId,
+        installmentId: allocation.installmentId,
+        amount: allocation.amount,
+        appliedByUserId: input.appliedByUserId,
+      })),
+    );
+    for (const allocation of plan.allocations) {
+      const target = mutableTargets.find(
+        (row) =>
+          row.billId === allocation.billId &&
+          row.installmentId === allocation.installmentId,
+      );
+      if (target) {
+        target.remainingAmount = target.remainingAmount.sub(allocation.amount);
+      }
+      applied = applied.add(allocation.amount);
+    }
+  }
+  if (allocationRows.length) {
+    await tx.supplierPaymentAllocation.createMany({ data: allocationRows });
+  }
+  await recalculateSupplierBills(tx, [input.billId]);
+  return applied;
 }
 
 export async function revertSupplierPayment(
@@ -135,10 +283,15 @@ export async function revertSupplierPayment(
       const payment = await tx.supplierPayment.findUnique({
         where: { id },
         include: {
-          bill: {
-            include: {
-              installments: {
-                orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+          allocations: {
+            select: {
+              billId: true,
+              installmentId: true,
+              bill: {
+                select: {
+                  invoiceId: true,
+                  _count: { select: { installments: true } },
+                },
               },
             },
           },
@@ -154,8 +307,11 @@ export async function revertSupplierPayment(
       const dailyCashBusinessDate =
         payment.dailyCashPayment?.dailyCashDay.businessDate;
       const reversalError = getSupplierPaymentReversalError({
-        installmentId: payment.installmentId,
-        hasInstallments: payment.bill.installments.length > 0,
+        legacyAllocationAfterSchedule: payment.allocations.some(
+          (allocation) =>
+            !allocation.installmentId &&
+            allocation.bill._count.installments > 0,
+        ),
         dailyCashLinked: Boolean(payment.dailyCashPayment),
         dailyCashLocked: dailyCashBusinessDate
           ? isDailyCashLocked(formatBusinessDateKey(dailyCashBusinessDate), now)
@@ -170,41 +326,14 @@ export async function revertSupplierPayment(
         });
       }
       await tx.supplierPayment.delete({ where: { id } });
-
-      const remainingPayments = await tx.supplierPayment.findMany({
-        where: { billId: payment.billId },
-        select: {
-          amount: true,
-          installmentId: true,
-          paidAt: true,
-          recordedByUserId: true,
-        },
-      });
-      const nextState = calculateSupplierPaymentState({
-        totalAmount: payment.bill.totalAmount,
-        dueDate: payment.bill.dueDate,
-        payments: remainingPayments,
-        installments: payment.bill.installments,
-      });
-
-      await Promise.all([
-        tx.supplierBill.update({
-          where: { id: payment.billId },
-          data: nextState.bill,
-        }),
-        ...nextState.installments.map((installment) =>
-          tx.supplierInvoiceInstallment.update({
-            where: { id: installment.id },
-            data: {
-              paidAmount: installment.paidAmount,
-              status: installment.status,
-            },
-          }),
-        ),
-      ]);
+      const invoiceIds = await recalculateSupplierBills(
+        tx,
+        payment.allocations.map((allocation) => allocation.billId),
+      );
 
       return {
-        invoiceId: payment.bill.invoiceId,
+        supplierId: payment.supplierId,
+        invoiceIds,
         dailyCashBusinessDate: dailyCashBusinessDate
           ? formatBusinessDateKey(dailyCashBusinessDate)
           : null,

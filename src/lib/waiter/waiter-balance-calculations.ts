@@ -110,8 +110,10 @@ export function assertLedgerBusinessDate(
   if (parsed < WAITER_BALANCE_LEDGER_START_DATE) {
     throw new Error("Waiter balances begin on July 1, 2026.");
   }
-  if (parsed > getCurrentBusinessDateKey(now)) {
-    throw new Error("Future business days cannot be edited.");
+  if (parsed > getLatestCompletedBusinessDateKey(now)) {
+    throw new Error(
+      "Waiter balances can only be entered after the POS business day closes.",
+    );
   }
 
   return parsed;

@@ -56,18 +56,29 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
       `/api/kitchen/tickets${params.size > 0 ? `?${params.toString()}` : ""}`,
       { cache: "no-store" },
     );
+
+    if (sequence !== requestSequence.current) return;
+
+    if (!response.ok) {
+      const errorPayload = (await response
+        .json()
+        .catch(() => null)) as TicketResponse | null;
+      setStatusMessage(
+        errorPayload &&
+          "error" in errorPayload &&
+          typeof errorPayload.error === "string"
+          ? errorPayload.error
+          : "Unable to load kitchen tickets.",
+      );
+      return;
+    }
+
     const payload = (await response
       .json()
       .catch(() => null)) as TicketResponse | null;
 
-    if (sequence !== requestSequence.current) return;
-
-    if (!response.ok || !payload || !("tickets" in payload)) {
-      setStatusMessage(
-        payload && "error" in payload && typeof payload.error === "string"
-          ? payload.error
-          : "Unable to load kitchen tickets.",
-      );
+    if (!payload || !("tickets" in payload)) {
+      setStatusMessage("Unable to load kitchen tickets.");
       return;
     }
 
@@ -183,8 +194,8 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
           : currentTicket?.claimedByWaiterName;
 
       setTickets((current) =>
-        current
-          .map((ticket) =>
+        current.reduce<KitchenTicket[]>((nextTickets, ticket) => {
+          const nextTicket =
             ticket.id === id
               ? setKitchenTicketPickupStatus(
                   ticket,
@@ -192,9 +203,13 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
                   claimedByWaiterId,
                   claimedByWaiterName,
                 )
-              : ticket,
-          )
-          .filter((ticket) => ticket.pickupStatus !== "delivered"),
+              : ticket;
+
+          if (nextTicket.pickupStatus !== "delivered") {
+            nextTickets.push(nextTicket);
+          }
+          return nextTickets;
+        }, []),
       );
 
       const response = await fetch(

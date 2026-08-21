@@ -14,6 +14,13 @@ import {
   saveSupplierInvoiceDraft,
   voidSupplierInvoiceDraft,
 } from "@/lib/suppliers/invoice-service";
+import type { SupplierInvoiceRecurrenceInput } from "@/lib/suppliers/invoice-recurrence";
+import {
+  createSupplierInvoiceRecurrence,
+  pauseSupplierInvoiceRecurrence,
+  resumeSupplierInvoiceRecurrence,
+  updateSupplierInvoiceRecurrence,
+} from "@/lib/suppliers/invoice-recurrence-service";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -21,6 +28,16 @@ function text(formData: FormData, key: string) {
 
 function values(formData: FormData, key: string) {
   return formData.getAll(key).map((value) => String(value));
+}
+
+function recurrenceFromFormData(
+  formData: FormData,
+): SupplierInvoiceRecurrenceInput {
+  return {
+    interval: text(formData, "recurrenceInterval"),
+    unit: text(formData, "recurrenceUnit"),
+    nextRunDate: text(formData, "recurrenceNextRunDate"),
+  };
 }
 
 function draftFromFormData(formData: FormData): SupplierInvoiceDraftInput {
@@ -74,7 +91,7 @@ function draftFromFormData(formData: FormData): SupplierInvoiceDraftInput {
   }
 
   return {
-    invoiceNumber: text(formData, "invoiceNumber"),
+    supplierReference: text(formData, "supplierReference"),
     invoiceDate: text(formData, "invoiceDate"),
     dueDate: text(formData, "dueDate"),
     notes: text(formData, "notes"),
@@ -121,7 +138,7 @@ async function manualDraftFromFormData(
   const catalogById = new Map(catalogItems.map((item) => [item.id, item]));
 
   return {
-    invoiceNumber: text(formData, "invoiceNumber"),
+    supplierReference: text(formData, "supplierReference"),
     invoiceDate: text(formData, "invoiceDate"),
     dueDate: text(formData, "dueDate"),
     notes: text(formData, "notes"),
@@ -157,6 +174,7 @@ function refreshInvoicePages(
   revalidatePath(`/print/supplier-invoices/${invoiceId}`);
   revalidatePath("/admin/supplier-purchase-orders");
   revalidatePath("/admin/reports/supplier-bills");
+  revalidatePath("/admin/suppliers");
   revalidatePath("/admin");
   if (purchaseOrderId) {
     revalidatePath(`/admin/supplier-purchase-orders/${purchaseOrderId}`);
@@ -172,6 +190,10 @@ export async function createManualSupplierInvoiceDraftAction(formData: FormData)
     supplierId,
     source: "MANUAL",
     createdByUserId: user.id,
+    recurrence:
+      formData.get("recurrenceEnabled") === "on"
+        ? recurrenceFromFormData(formData)
+        : null,
     draft: await manualDraftFromFormData(formData, supplierId),
   });
   refreshInvoicePages(invoice.id);
@@ -179,6 +201,60 @@ export async function createManualSupplierInvoiceDraftAction(formData: FormData)
     message: "Invoice draft created.",
     redirectTo: `/admin/supplier-invoices/${encodeURIComponent(invoice.id)}?invoiceStatus=created`,
   };
+}
+
+export async function createSupplierInvoiceRecurrenceAction(
+  formData: FormData,
+) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const invoiceId = text(formData, "invoiceId");
+  await createSupplierInvoiceRecurrence({
+    invoiceId,
+    createdByUserId: user.id,
+    recurrence: recurrenceFromFormData(formData),
+  });
+  refreshInvoicePages(invoiceId);
+  return { message: "Recurring schedule created." };
+}
+
+export async function updateSupplierInvoiceRecurrenceAction(
+  formData: FormData,
+) {
+  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const invoiceId = text(formData, "invoiceId");
+  await updateSupplierInvoiceRecurrence({
+    recurrenceId: text(formData, "recurrenceId"),
+    recurrence: recurrenceFromFormData(formData),
+  });
+  refreshInvoicePages(invoiceId);
+  return { message: "Recurring schedule updated." };
+}
+
+export async function pauseSupplierInvoiceRecurrenceAction(
+  formData: FormData,
+) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const invoiceId = text(formData, "invoiceId");
+  await pauseSupplierInvoiceRecurrence({
+    recurrenceId: text(formData, "recurrenceId"),
+    pausedByUserId: user.id,
+  });
+  refreshInvoicePages(invoiceId);
+  return { message: "Recurring schedule paused." };
+}
+
+export async function resumeSupplierInvoiceRecurrenceAction(
+  formData: FormData,
+) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const invoiceId = text(formData, "invoiceId");
+  await resumeSupplierInvoiceRecurrence({
+    recurrenceId: text(formData, "recurrenceId"),
+    resumedByUserId: user.id,
+    recurrence: recurrenceFromFormData(formData),
+  });
+  refreshInvoicePages(invoiceId);
+  return { message: "Recurring schedule resumed." };
 }
 
 export async function saveSupplierInvoiceDraftAction(formData: FormData) {
@@ -201,8 +277,11 @@ export async function finalizeSupplierInvoiceAction(formData: FormData) {
     draftFromFormData(formData),
   );
   refreshInvoicePages(invoiceId, result.purchaseOrderId);
+  revalidatePath(`/admin/suppliers/${result.supplierId}`);
   return {
-    message: "Invoice approved and supplier bill created.",
+    message: result.creditApplied.gt(0)
+      ? `Invoice approved and ${result.creditApplied.toFixed(2)} of supplier credit applied.`
+      : "Invoice approved and supplier bill created.",
     redirectTo: `/admin/supplier-invoices/${encodeURIComponent(result.invoiceId)}?invoiceStatus=approved`,
   };
 }

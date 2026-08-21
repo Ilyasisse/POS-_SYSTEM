@@ -42,6 +42,7 @@ export default async function AdminPage() {
     weekOrders,
     // Supply stock alerts for internal inventory.
     lowStockSupplies,
+    whatsappFailedRuns,
     // Latest orders used by Recent Activity.
     recentOrders,
     // Recently updated products used by Recent Activity.
@@ -97,6 +98,9 @@ export default async function AdminPage() {
           in: ["LOW", "OUT"],
         },
       },
+    }),
+    prisma.supplierOrderRun.count({
+      where: { status: "FAILED" },
     }),
     prisma.order.findMany({
       take: 3,
@@ -231,6 +235,7 @@ export default async function AdminPage() {
 
       <Dashboard
         lowStockSupplies={lowStockSupplies}
+        whatsappFailedRuns={whatsappFailedRuns}
         todayOrders={todayOrders}
       />
 

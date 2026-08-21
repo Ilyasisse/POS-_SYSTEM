@@ -58,7 +58,7 @@ export async function getWaiterBalanceAdminRows(
         select: { openingBalance: true, createdAt: true },
       },
     },
-    orderBy: { fullName: "asc" },
+    orderBy: { fullName: "desc" },
   });
   const waiterIds = waiters.map((waiter) => waiter.id);
 
@@ -196,10 +196,6 @@ export async function getWaiterBalanceAdminRows(
   });
 }
 
-export async function getWaiterInitializationRows(includeInactive = false) {
-  return getWaiterInitializationRowsWithInactive(includeInactive);
-}
-
 export async function getWaiterInitializationRowsWithInactive(
   includeInactive = false,
 ) {
@@ -219,6 +215,6 @@ export async function getWaiterInitializationRowsWithInactive(
         },
       },
     },
-    orderBy: { fullName: "asc" },
+    orderBy: { fullName: "desc" },
   });
 }

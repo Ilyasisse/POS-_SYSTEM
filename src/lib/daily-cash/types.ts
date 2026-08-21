@@ -8,16 +8,32 @@ export type DailyCashActionResult =
 
 export type SupplierObligation = {
   billId: string;
+  supplierId: string;
   installmentId: string | null;
   supplierName: string;
-  invoiceNumber: string | null;
+  invoiceNumber: string;
   dueDate: Date;
+  amount: number;
+};
+
+export type DailyCashSupplierAccount = {
+  id: string;
+  name: string;
+  credit: number;
+};
+
+export type SupplyDayObligation = {
+  supplyDayId: string;
+  purchaseDate: Date;
+  dueDate: Date;
+  originalTotal: number;
+  paidAmount: number;
   amount: number;
 };
 
 export type DailyCashPaidBreakdownRow = {
   id: string;
-  type: "SALARY" | "SUPPLIER" | "MANUAL";
+  type: "SALARY" | "SUPPLIER" | "SUPPLY" | "MANUAL";
   description: string;
   paidAt: Date;
   amount: number;
