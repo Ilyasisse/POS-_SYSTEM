@@ -28,6 +28,9 @@ export type DeletedOrderItemSnapshot = {
     qty: number;
     unitPrice: number;
     lineTotal: number;
+    unitCostSnapshot?: number | null;
+    costSnapshotSource?: "PRODUCT_STANDARD" | "RECIPE_STANDARD" | null;
+    recipeVersionId?: string | null;
     createdAt: string;
     assignedUserId: string | null;
     station: string | null;

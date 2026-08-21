@@ -1,6 +1,8 @@
 import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import { decimalQuantity } from "@/lib/inventory/inventory-domain";
+import { appendStockEvent, deductSaleInventory } from "@/lib/inventory/stock-ledger";
 
 export type InventorySaleLine = {
   productId: string;
@@ -24,8 +26,8 @@ export type InventoryAlertSendResult = {
 };
 
 type InventoryTrackedItem = {
-  stockQty: number;
-  lowStockThreshold: number;
+  stockQty: number | Prisma.Decimal;
+  lowStockThreshold: number | Prisma.Decimal;
   inventoryAlertStatus: InventoryAlertStatus;
 };
 
@@ -40,13 +42,13 @@ type DailySupplyDigestItem = {
 };
 
 /**
- * Converts a number-like quantity into a non-negative whole number.
+ * Converts a number-like quantity into a non-negative decimal number.
  *
  * @param value - The quantity value to normalize.
  * @returns A safe whole-number quantity.
  */
-function toValidQuantity(value: number) {
-  return Math.max(0, Math.floor(Number(value) || 0));
+function toValidQuantity(value: number | Prisma.Decimal) {
+  return Number(decimalQuantity(value));
 }
 
 
@@ -320,8 +322,8 @@ export async function sendDailyInventorySupplyDigest() {
     lowStockThreshold: toValidQuantity(supply.lowStockThreshold),
     previousInventoryAlertStatus: supply.inventoryAlertStatus,
     inventoryAlertStatus: getInventoryAlertStatus(
-      supply.stockQty,
-      supply.lowStockThreshold,
+      Number(supply.stockQty),
+      Number(supply.lowStockThreshold),
     ),
   }));
 
@@ -387,73 +389,44 @@ export async function sendDailyInventorySupplyDigest() {
 export async function deductProductInventoryForSale(
   tx: Prisma.TransactionClient,
   lines: InventorySaleLine[],
+  sourceOrderId: string | null = null,
+  actorUserId?: string | null,
 ) {
-  // Product sale inventory now updates only Product stock and alert status.
-  // Movement history is intentionally supply-only because InventoryMovement no
-  // longer has productId in Supabase or the Prisma schema.
-  const quantityByProductId = new Map<string, number>();
-
-  for (const line of lines) {
-    const qty = Math.max(1, Math.floor(Number(line.qty) || 1));
-    quantityByProductId.set(
-      line.productId,
-      (quantityByProductId.get(line.productId) ?? 0) + qty,
-    );
-  }
-
-  const productIds = [...quantityByProductId.keys()];
-
-  if (productIds.length === 0) {
-    return [];
-  }
-
-  const products = await tx.product.findMany({
-    where: {
-      id: { in: productIds },
-      trackStock: true,
-    },
-    select: {
-      id: true,
-      name: true,
-      stockQty: true,
-      lowStockThreshold: true,
-      inventoryAlertStatus: true,
-    },
-  });
-
+  const events = await deductSaleInventory(tx, lines, sourceOrderId, actorUserId);
+  const productIds = [...new Set(events.flatMap((event) => event.productId ? [event.productId] : []))];
+  const supplyIds = [...new Set(events.flatMap((event) => event.supplyId ? [event.supplyId] : []))];
+  const [products, supplies] = await Promise.all([
+    tx.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, name: true, stockQty: true, lowStockThreshold: true, inventoryAlertStatus: true },
+    }),
+    tx.inventorySupply.findMany({
+      where: { id: { in: supplyIds } },
+      select: { id: true, name: true, stockQty: true, lowStockThreshold: true, inventoryAlertStatus: true },
+    }),
+  ]);
   const alerts: InventoryAlert[] = [];
-
-  await Promise.all(products.map((product) => {
-    const soldQty = quantityByProductId.get(product.id) ?? 0;
-    const quantityBefore = toValidQuantity(product.stockQty);
-    const quantityAfter = Math.max(quantityBefore - soldQty, 0);
-    const delta = quantityAfter - quantityBefore;
-    const lowStockThreshold = toValidQuantity(product.lowStockThreshold);
+  const statusUpdates = [
+    ...products.map((product) => ({ ...product, itemType: "Product" as const })),
+    ...supplies.map((supply) => ({ ...supply, itemType: "Supply" as const })),
+  ].map((item) => {
+    const stockQty = Number(item.stockQty);
+    const lowStockThreshold = Number(item.lowStockThreshold);
     const { status, alert } = buildInventoryAlert(
-      product,
-      product.name,
-      "Product",
-      quantityAfter,
+      item,
+      item.name,
+      item.itemType,
+      stockQty,
       lowStockThreshold,
-      delta,
+      -1,
     );
-
-    const updateProduct = tx.product.update({
-      where: { id: product.id },
-      data: {
-        stockQty: quantityAfter,
-        lowStockThreshold,
-        inventoryAlertStatus: status,
-      },
-    });
-
-    if (alert) {
-      alerts.push(alert);
+    if (alert) alerts.push(alert);
+    if (item.itemType === "Product") {
+      return tx.product.update({ where: { id: item.id }, data: { inventoryAlertStatus: status } });
     }
-
-    return updateProduct;
-  }));
-
+    return tx.inventorySupply.update({ where: { id: item.id }, data: { inventoryAlertStatus: status } });
+  });
+  await Promise.all(statusUpdates);
   return alerts;
 }
 
@@ -469,8 +442,10 @@ export async function deductProductInventoryForSale(
 export async function setProductInventoryLevel(
   tx: Prisma.TransactionClient,
   productId: string,
-  nextStockQty: number,
-  nextLowStockThreshold: number,
+  nextStockQty: number | Prisma.Decimal,
+  nextLowStockThreshold: number | Prisma.Decimal,
+  actorUserId?: string | null,
+  reason = "Administrator inventory adjustment",
 ) {
   // Admin product adjustments keep their stock/alert behavior but no longer
   // write InventoryMovement rows. This prevents Prisma from touching the deleted
@@ -490,9 +465,11 @@ export async function setProductInventoryLevel(
     throw new Error("Product not found.");
   }
 
-  const quantityBefore = toValidQuantity(product.stockQty);
-  const quantityAfter = toValidQuantity(nextStockQty);
-  const delta = quantityAfter - quantityBefore;
+  const quantityBeforeDecimal = decimalQuantity(product.stockQty);
+  const quantityAfterDecimal = decimalQuantity(nextStockQty);
+  const quantityAfter = Number(quantityAfterDecimal);
+  const deltaDecimal = quantityAfterDecimal.sub(quantityBeforeDecimal);
+  const delta = Number(deltaDecimal);
   const lowStockThreshold = toValidQuantity(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     product,
@@ -503,15 +480,18 @@ export async function setProductInventoryLevel(
     delta,
   );
 
-  await tx.product.update({
-    where: { id: product.id },
-    data: {
-      trackStock: true,
-      stockQty: quantityAfter,
-      lowStockThreshold,
-      inventoryAlertStatus: status,
-    },
-  });
+  await tx.product.update({ where: { id: product.id }, data: { trackStock: true, lowStockThreshold, inventoryAlertStatus: status } });
+  if (!deltaDecimal.isZero()) {
+    await appendStockEvent(tx, {
+      productId: product.id,
+      type: "ADJUSTMENT",
+      quantityDelta: deltaDecimal,
+      reason,
+      actorUserId,
+      sourceType: "InventoryAdmin",
+      sourceId: product.id,
+    });
+  }
 
   return alert ? [alert] : [];
 }
@@ -530,10 +510,11 @@ export async function setProductInventoryLevel(
 export async function setSupplyInventoryLevel(
   tx: Prisma.TransactionClient,
   supplyId: string,
-  nextStockQty: number,
-  nextLowStockThreshold: number,
+  nextStockQty: number | Prisma.Decimal,
+  nextLowStockThreshold: number | Prisma.Decimal,
   reason: string,
   note?: string,
+  actorUserId?: string | null,
 ) {
   const supply = await tx.inventorySupply.findUnique({
     where: { id: supplyId },
@@ -544,6 +525,9 @@ export async function setSupplyInventoryLevel(
       stockQty: true,
       lowStockThreshold: true,
       inventoryAlertStatus: true,
+      canonicalUnit: true,
+      quantityCoverage: true,
+      standardUnitCost: true,
     },
   });
 
@@ -551,9 +535,12 @@ export async function setSupplyInventoryLevel(
     throw new Error("Supply not found.");
   }
 
-  const quantityBefore = toValidQuantity(supply.stockQty);
-  const quantityAfter = toValidQuantity(nextStockQty);
-  const delta = quantityAfter - quantityBefore;
+  const quantityBeforeDecimal = decimalQuantity(supply.stockQty);
+  const quantityAfterDecimal = decimalQuantity(nextStockQty);
+  const quantityBefore = Number(quantityBeforeDecimal);
+  const quantityAfter = Number(quantityAfterDecimal);
+  const deltaDecimal = quantityAfterDecimal.sub(quantityBeforeDecimal);
+  const delta = Number(deltaDecimal);
   const lowStockThreshold = toValidQuantity(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     supply,
@@ -579,18 +566,18 @@ export async function setSupplyInventoryLevel(
         }
       : null);
 
-  await tx.inventorySupply.update({
-    where: { id: supply.id },
-    data: {
-      stockQty: quantityAfter,
-      lowStockThreshold,
-      inventoryAlertStatus: status,
-    },
-  });
+  await tx.inventorySupply.update({ where: { id: supply.id }, data: { lowStockThreshold, inventoryAlertStatus: status } });
 
   if (delta !== 0) {
-    // Supply movements are still recorded here because InventoryMovement is now
-    // the audit trail for InventorySupply usage/restocks only.
+    await appendStockEvent(tx, {
+      supplyId: supply.id,
+      type: reason === "TAKEN" ? "MANUAL_USAGE" : "ADJUSTMENT",
+      quantityDelta: deltaDecimal,
+      reason: note || reason,
+      actorUserId,
+      sourceType: "InventoryAdmin",
+      sourceId: supply.id,
+    });
     await tx.inventoryMovement.create({
       data: {
         supplyId: supply.id,
@@ -599,6 +586,9 @@ export async function setSupplyInventoryLevel(
         delta,
         quantityBefore,
         quantityAfter,
+        canonicalUnit: supply.canonicalUnit,
+        dataCoverage: supply.quantityCoverage,
+        standardUnitCostSnapshot: supply.standardUnitCost,
         reason,
         note: note || null,
       },

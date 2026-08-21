@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { recordSupplierInvoiceReceipts } from "@/lib/inventory/stock-ledger";
 import { applyAvailableSupplierCreditToBillInTransaction } from "@/lib/suppliers/bill-service";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
@@ -499,6 +500,11 @@ export async function finalizeSupplierInvoice(
       await tx.supplierInvoiceItem.createMany({
         data: itemCreateData(id, draft),
       });
+      const inventoryReceipts = await recordSupplierInvoiceReceipts(
+        tx,
+        id,
+        userId,
+      );
       await tx.supplierInvoiceInstallment.deleteMany({
         where: { invoiceId: id },
       });
@@ -543,6 +549,7 @@ export async function finalizeSupplierInvoice(
         purchaseOrderId: invoice.purchaseOrderId,
         billId: bill.id,
         finalizedAt,
+        inventoryReceipts,
         creditApplied,
       };
     },

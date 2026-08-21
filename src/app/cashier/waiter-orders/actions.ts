@@ -127,6 +127,9 @@ export async function deleteWaiterOrderItem(formData: FormData) {
           qty: true,
           unitPrice: true,
           lineTotal: true,
+          unitCostSnapshot: true,
+          costSnapshotSource: true,
+          recipeVersionId: true,
           createdAt: true,
           assignedUserId: true,
           station: true,
@@ -186,6 +189,12 @@ export async function deleteWaiterOrderItem(formData: FormData) {
       qty: 1,
       unitPrice: deletedUnitPrice,
       lineTotal: deletedUnitPrice,
+      unitCostSnapshot:
+        selectedItem.unitCostSnapshot == null
+          ? null
+          : Number(selectedItem.unitCostSnapshot),
+      costSnapshotSource: selectedItem.costSnapshotSource,
+      recipeVersionId: selectedItem.recipeVersionId,
       createdAt: selectedItem.createdAt.toISOString(),
       assignedUserId: selectedItem.assignedUserId,
       station: selectedItem.station,
@@ -390,6 +399,12 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           qty: snapshot.item.qty,
           unitPrice: toDecimal(snapshot.item.unitPrice),
           lineTotal: toDecimal(snapshot.item.lineTotal),
+          unitCostSnapshot:
+            snapshot.item.unitCostSnapshot == null
+              ? null
+              : toDecimal(snapshot.item.unitCostSnapshot),
+          costSnapshotSource: snapshot.item.costSnapshotSource ?? null,
+          recipeVersionId: snapshot.item.recipeVersionId ?? null,
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
@@ -458,6 +473,12 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           qty: snapshot.item.qty,
           unitPrice: toDecimal(snapshot.item.unitPrice),
           lineTotal: toDecimal(snapshot.item.lineTotal),
+          unitCostSnapshot:
+            snapshot.item.unitCostSnapshot == null
+              ? null
+              : toDecimal(snapshot.item.unitCostSnapshot),
+          costSnapshotSource: snapshot.item.costSnapshotSource ?? null,
+          recipeVersionId: snapshot.item.recipeVersionId ?? null,
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
