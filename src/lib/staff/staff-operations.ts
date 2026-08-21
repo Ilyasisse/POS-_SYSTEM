@@ -7,7 +7,8 @@ import { formatBusinessDate } from "@/lib/reports/reporting-calendar";
 import { publishReportInvalidation } from "@/lib/reports/report-realtime";
 
 const SERIALIZABLE = Prisma.TransactionIsolationLevel.Serializable;
-const auditValue = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+const serializeAuditValue = (value: unknown) => JSON.stringify(value);
+const auditValue = (value: unknown) => JSON.parse(serializeAuditValue(value)) as Prisma.InputJsonValue;
 const businessDate = (instant: Date) => new Date(`${formatBusinessDate(instant)}T00:00:00.000Z`);
 
 async function invalidate(domain: "attendance" | "payroll", entityType: string, entityId: string) {
@@ -20,12 +21,14 @@ export async function saveEmploymentProfile(input: { userId: string; compensatio
   if ((dailyRate && dailyRate.lte(0)) || (monthlySalary && monthlySalary.lte(0))) throw new Error("Compensation must be greater than zero.");
   if (input.effectiveTo && input.effectiveTo < input.effectiveFrom) throw new Error("Effective end date must be after the start date.");
   const profile = await prisma.$transaction(async (tx) => {
-    const previous = await tx.employmentProfile.findUnique({ where: { userId: input.userId } });
-    const saved = await tx.employmentProfile.upsert({
-      where: { userId: input.userId },
-      create: { userId: input.userId, compensationType: input.compensationType, dailyRate, monthlySalary, effectiveFrom: input.effectiveFrom, effectiveTo: input.effectiveTo ?? null, status: input.status },
-      update: { compensationType: input.compensationType, dailyRate, monthlySalary, effectiveFrom: input.effectiveFrom, effectiveTo: input.effectiveTo ?? null, status: input.status },
-    });
+    const { previous, saved } = await tx.employmentProfile.findUnique({ where: { userId: input.userId } }).then(async (previous) => ({
+      previous,
+      saved: await tx.employmentProfile.upsert({
+        where: { userId: input.userId },
+        create: { userId: input.userId, compensationType: input.compensationType, dailyRate, monthlySalary, effectiveFrom: input.effectiveFrom, effectiveTo: input.effectiveTo ?? null, status: input.status },
+        update: { compensationType: input.compensationType, dailyRate, monthlySalary, effectiveFrom: input.effectiveFrom, effectiveTo: input.effectiveTo ?? null, status: input.status },
+      }),
+    }));
     await tx.auditLog.create({ data: { actorUserId: input.actorUserId, action: previous ? "employment.profile.updated" : "employment.profile.created", entityType: "EmploymentProfile", entityId: saved.id, previousValue: previous ? auditValue(previous) : undefined, newValue: auditValue(saved), relatedEntityType: "User", relatedEntityId: input.userId } });
     return saved;
   });
@@ -36,8 +39,10 @@ export async function saveEmploymentProfile(input: { userId: string; compensatio
 export async function saveAttendancePolicy(input: { shiftMinutes: number; graceMinutes: number; overtimeThresholdMinutes: number; actorUserId: string }) {
   if (input.shiftMinutes < 1 || input.graceMinutes < 0 || input.overtimeThresholdMinutes < 1) throw new Error("Attendance policy values are invalid.");
   const policy = await prisma.$transaction(async (tx) => {
-    const previous = await tx.attendancePolicy.findUnique({ where: { id: "default" } });
-    const saved = await tx.attendancePolicy.upsert({ where: { id: "default" }, create: { id: "default", shiftMinutes: input.shiftMinutes, graceMinutes: input.graceMinutes, overtimeThresholdMinutes: input.overtimeThresholdMinutes }, update: { shiftMinutes: input.shiftMinutes, graceMinutes: input.graceMinutes, overtimeThresholdMinutes: input.overtimeThresholdMinutes } });
+    const { previous, saved } = await tx.attendancePolicy.findUnique({ where: { id: "default" } }).then(async (previous) => ({
+      previous,
+      saved: await tx.attendancePolicy.upsert({ where: { id: "default" }, create: { id: "default", shiftMinutes: input.shiftMinutes, graceMinutes: input.graceMinutes, overtimeThresholdMinutes: input.overtimeThresholdMinutes }, update: { shiftMinutes: input.shiftMinutes, graceMinutes: input.graceMinutes, overtimeThresholdMinutes: input.overtimeThresholdMinutes } }),
+    }));
     await tx.auditLog.create({ data: { actorUserId: input.actorUserId, action: "attendance.policy.updated", entityType: "AttendancePolicy", entityId: saved.id, previousValue: previous ? auditValue(previous) : undefined, newValue: auditValue(saved) } });
     return saved;
   });

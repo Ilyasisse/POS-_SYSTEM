@@ -41,8 +41,11 @@ export async function getStaffReport(range: ReportRange) {
 }
 
 export async function getCustomerReport(range: ReportRange) {
-  const orders = await prisma.order.findMany({ where: { status: "PAID", closedAt: dateWhere(range), customerId: { not: null } }, select: { customerId: true, total: true, closedAt: true } });
-  const [feedback, complaints] = await Promise.all([prisma.customerFeedback.aggregate({ where: { createdAt: dateWhere(range), rating: { not: null } }, _avg: { rating: true }, _count: true }), prisma.complaintCase.groupBy({ by: ["status"], where: { createdAt: dateWhere(range) }, _count: true })]);
+  const [orders, feedback, complaints] = await Promise.all([
+    prisma.order.findMany({ where: { status: "PAID", closedAt: dateWhere(range), customerId: { not: null } }, select: { customerId: true, total: true, closedAt: true } }),
+    prisma.customerFeedback.aggregate({ where: { createdAt: dateWhere(range), rating: { not: null } }, _avg: { rating: true }, _count: true }),
+    prisma.complaintCase.groupBy({ by: ["status"], where: { createdAt: dateWhere(range) }, _count: true }),
+  ]);
   const customers = new Map<string, { visits: number; spend: Prisma.Decimal }>(); for (const order of orders) { const key = order.customerId!; const row = customers.get(key) ?? { visits: 0, spend: zero() }; row.visits++; row.spend = row.spend.plus(order.total); customers.set(key, row); }
   return { period: range, coverage: { identifiedOrdersOnly: true, ...coverage(null, range) }, identifiedCustomers: customers.size, repeatCustomers: [...customers.values()].filter((x) => x.visits > 1).length, lifetimeSpendInPeriod: orders.reduce((sum, x) => sum.plus(x.total), zero()).toFixed(2), averageRating: feedback._avg.rating, ratings: feedback._count, complaints: complaints.map((x) => ({ status: x.status, count: x._count })) };
 }

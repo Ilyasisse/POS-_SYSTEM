@@ -24,7 +24,18 @@ export async function buildPayrollRun(input: { periodStart: Date; periodEnd: Dat
     return { workerId: profile.userId, compensationType: profile.compensationType, ...calculated, attendanceDays: workerAttendance.length, overtimeMinutes: approvedOvertimeMinutes, snapshot: { employee: profile.user.fullName, profile: { dailyRate: profile.dailyRate?.toFixed(2) ?? null, monthlySalary: profile.monthlySalary?.toFixed(2) ?? null }, adjustmentIds: workerAdjustments.map((row) => row.id) } };
   });
   return prisma.$transaction(async (tx) => {
-    for (const line of lines) await assertNoFinalizedPayroll(line.workerId, input.periodStart, input.periodEnd);
+    const existing = await tx.payrollLine.findFirst({
+      where: {
+        workerId: { in: lines.map((line) => line.workerId) },
+        payrollRun: {
+          status: "FINALIZED",
+          periodStart: { lte: input.periodEnd },
+          periodEnd: { gte: input.periodStart },
+        },
+      },
+      select: { id: true },
+    });
+    if (existing) throw new Error("A finalized payroll already covers this worker and period.");
     return tx.payrollRun.create({ data: { periodStart: input.periodStart, periodEnd: input.periodEnd, createdByUserId: input.actorUserId, lines: { create: lines.map((line) => ({ ...line, basePay: line.basePay, overtimePay: line.overtimePay, additions: line.additions, deductions: line.deductions, netPay: line.netPay })) } }, include: { lines: true } });
   });
 }

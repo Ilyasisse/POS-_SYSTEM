@@ -9,7 +9,7 @@ import { reportQuerySchema } from "@/lib/reports/validation";
 const reports = new Set<ExportReport>(["sales", "inventory", "staff", "kitchen", "customers", "suppliers", "finance", "operations"]);
 const formats = new Set<ExportFormat>(["csv", "xlsx", "pdf", "print"]);
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const authorization = await authorizeApi(PERMISSIONS.REPORT_EXPORT); if (!authorization.ok) return authorization.response;
   const url = new URL(request.url); const report = url.searchParams.get("report"); const format = url.searchParams.get("format");
   if (!report || !formats.has(format as ExportFormat) || !reports.has(report as ExportReport)) return NextResponse.json({ error: "report and format=csv|xlsx|pdf|print are required." }, { status: 400 });
