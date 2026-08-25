@@ -494,15 +494,28 @@ test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => 
     "ops/supabase/supplier-order-cron-activate.sql",
     "utf8",
   );
+  assert.match(activation, /BEGIN;/);
   assert.match(activation, /supplier-order-scheduler-every-minute/);
-  assert.match(activation, /'\* \* \* \* \*'/);
+  assert.match(activation, /supplier-order-scheduler-every-30-minutes/);
+  assert.match(activation, /'\*\/30 \* \* \* \*'/);
+  assert.doesNotMatch(activation, /'\* \* \* \* \*'/);
   assert.match(activation, /active := true/);
+  assert.match(activation, /COMMIT;/);
 
   const disabling = readFileSync(
     "ops/supabase/supplier-order-cron-disable.sql",
     "utf8",
   );
   assert.match(disabling, /active := false/);
+  assert.match(disabling, /supplier-order-scheduler-every-30-minutes/);
+  assert.match(disabling, /supplier-order-scheduler-every-minute/);
+
+  const workflow = readFileSync(
+    ".github/workflows/supplier-order-scheduler.yml",
+    "utf8",
+  );
+  assert.match(workflow, /cron: "\*\/30 \* \* \* \*"/);
+  assert.doesNotMatch(workflow, /cron: "\*\/5 \* \* \* \*"/);
 });
 
 test("soft-deletes supplier-order schedules while preserving their audit history", () => {

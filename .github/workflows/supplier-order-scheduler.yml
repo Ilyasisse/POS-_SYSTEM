@@ -2,7 +2,7 @@ name: Supplier order scheduler
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -19,8 +19,8 @@ jobs:
     steps:
       # Previous Vercel Pro cron:
       # path: /api/cron/supplier-order-schedules
-      # schedule: "* * * * *"
-      # It invoked the supplier-order processor every minute for invitations,
+      # schedule: "*/30 * * * *"
+      # It invokes the supplier-order processor every 30 minutes for invitations,
       # reminders, finalization, and retryable WhatsApp deliveries.
       - name: Invoke supplier-order scheduler
         env:
