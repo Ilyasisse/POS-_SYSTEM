@@ -143,6 +143,7 @@ function ExpandedNavigationMenu({
                       >
                         <Link
                           href={item.href}
+                          prefetch={false}
                           aria-current={active ? "page" : undefined}
                           onClick={() => {
                             setOpenGroupKey(node.key);
@@ -189,6 +190,7 @@ function ExpandedNavigationMenu({
             >
               <Link
                 href={item.href}
+                prefetch={false}
                 aria-current={active ? "page" : undefined}
                 onClick={() => {
                   setOpenGroupKey(null);
@@ -280,6 +282,7 @@ export default function StaffSidebar({
                         >
                           <Link
                             href={item.href}
+                            prefetch={false}
                             aria-current={active ? "page" : undefined}
                             onClick={() => {
                               setCompactOpenGroupKey(null);
@@ -333,6 +336,7 @@ export default function StaffSidebar({
                             <DropdownMenuItem key={item.key} asChild>
                               <Link
                                 href={item.href}
+                                prefetch={false}
                                 onClick={() => {
                                   setCompactOpenGroupKey(null);
                                   handleNavigate();
@@ -432,7 +436,11 @@ export default function StaffSidebar({
                 <DropdownMenuSeparator />
                 {hasAdminAccess ? (
                   <DropdownMenuItem asChild>
-                    <Link href="/admin/profile" onClick={handleNavigate}>
+                    <Link
+                      href="/admin/profile"
+                      prefetch={false}
+                      onClick={handleNavigate}
+                    >
                       <UserRound aria-hidden="true" />
                       Profile
                     </Link>
