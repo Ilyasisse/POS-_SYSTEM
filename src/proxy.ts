@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-/** Refreshes Supabase cookies for protected staff routes and Realtime clients. */
+/** Validates Supabase JWTs and refreshes cookies for protected staff routes. */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
@@ -29,7 +29,9 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  // getClaims() verifies the JWT without the per-request Auth user lookup when
+  // the project uses asymmetric signing keys, while preserving SSR refreshes.
+  await supabase.auth.getClaims();
   return response;
 }
 
