@@ -13,6 +13,7 @@ import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
+import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
 import { payOpenTableOrdersFromCashier } from "./actions";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 
@@ -105,6 +106,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         orderBy: { createdAt: "desc" },
         include: {
           cashier: { select: { fullName: true } },
+          tableCheck: { select: { checkNumber: true } },
           orderItems: {
             select: {
               id: true,
@@ -118,14 +120,27 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     },
   });
 
-  const openOrders = tables.flatMap((table) =>
-    table.orders.map((order) => ({
-      ...order,
-      tableName: table.name,
-    })),
+  const openChecksByTable = new Map(
+    tables.map((table) => [
+      table.id,
+      groupCashierOpenOrders(
+        table.orders.map((order) => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          tableCheckId: order.tableCheckId,
+          tableCheckRound: order.tableCheckRound,
+          tableCheck: order.tableCheck,
+          total: Number(order.total),
+          createdAt: order.createdAt,
+          cashierName: order.cashier?.fullName ?? null,
+          items: order.orderItems,
+        })),
+      ),
+    ]),
   );
-  const openOrderTotal = openOrders.reduce(
-    (sum, order) => sum + Number(order.total),
+  const openChecks = Array.from(openChecksByTable.values()).flat();
+  const openOrderTotal = openChecks.reduce(
+    (sum, check) => sum + check.total,
     0,
   );
 
@@ -170,7 +185,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         </div>
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Open orders</p>
-          <h2 className="mt-2 text-2xl font-bold">{openOrders.length}</h2>
+          <h2 className="mt-2 text-2xl font-bold">{openChecks.length}</h2>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Open order total</p>
@@ -193,8 +208,9 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </div>
         ) : (
           tables.map((table) => {
-            const tableTotal = table.orders.reduce(
-              (sum, order) => sum + Number(order.total),
+            const tableChecks = openChecksByTable.get(table.id) ?? [];
+            const tableTotal = tableChecks.reduce(
+              (sum, check) => sum + check.total,
               0,
             );
 
@@ -220,7 +236,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                 <div className="mb-4 rounded-xl bg-muted/50 px-3 py-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Open orders</span>
-                    <span className="font-semibold">{table.orders.length}</span>
+                    <span className="font-semibold">{tableChecks.length}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Table total</span>
@@ -262,33 +278,38 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                 </div>
 
                 <div className="space-y-3">
-                  {table.orders.map((order) => (
+                  {tableChecks.map((check) => (
                     <div
-                      key={order.id}
+                      key={check.key}
                       className="rounded-xl border border-border px-3 py-3"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            Order #{order.orderNumber}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDateTime(order.createdAt)}
-                            {order.cashier?.fullName
-                              ? ` by ${order.cashier.fullName}`
-                              : ""}
-                          </p>
-                        </div>
+                        <p className="font-semibold text-foreground">
+                          Order #{check.orderNumber}
+                        </p>
                         <p className="font-bold text-foreground">
-                          {formatMoney(Number(order.total))}
+                          {formatMoney(check.total)}
                         </p>
                       </div>
 
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {order.orderItems
-                          .map((item) => `${item.qty}x ${item.productName}`)
-                          .join(", ")}
-                      </p>
+                      <div className="mt-2 space-y-2">
+                        {check.rounds.map((round) => (
+                          <div
+                            key={round.id}
+                            className="rounded-lg bg-muted/50 px-2.5 py-2"
+                          >
+                            <p className="text-xs font-semibold text-muted-foreground">
+                              Round {round.tableCheckRound ?? 1} · {formatDateTime(round.createdAt)}
+                              {round.cashierName ? ` by ${round.cashierName}` : ""}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {round.items
+                                .map((item) => `${item.qty}x ${item.productName}`)
+                                .join(", ")}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>

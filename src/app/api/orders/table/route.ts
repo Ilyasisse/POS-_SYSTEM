@@ -10,6 +10,7 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
+import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
 
 type TableOrderItemModifierInput = {
   modifierId: string;
@@ -321,20 +322,106 @@ export async function POST(request: Request) {
 
     const result = await prisma.$transaction(
       async (tx) => {
-        const createdOrder = await tx.order.create({
-          data: {
-            type: "DINE_IN",
+        await tx.$queryRaw<Array<{ id: string }>>(
+          Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${table.id} FOR UPDATE`,
+        );
+
+        const latestOpenOrder = await tx.order.findFirst({
+          where: {
+            tableId: table.id,
             status: "OPEN",
-            notes: body.notes?.trim() || null,
-            total: toDecimal(calculatedTotal),
-            table: {
-              connect: { id: table.id },
-            },
-            cashier: {
-              connect: { id: currentUser.id },
+            type: "DINE_IN",
+          },
+          orderBy: [{ createdAt: "desc" }, { orderNumber: "desc" }],
+          select: {
+            id: true,
+            orderNumber: true,
+            tableCheckId: true,
+            tableCheckRound: true,
+            tableCheck: {
+              select: {
+                id: true,
+                checkNumber: true,
+              },
             },
           },
         });
+
+        let tableCheckId = latestOpenOrder?.tableCheck?.id ?? null;
+        let roundNumber = 1;
+
+        if (latestOpenOrder && latestOpenOrder.tableCheck) {
+          const roundAggregate = await tx.order.aggregate({
+            where: { tableCheckId: latestOpenOrder.tableCheck.id },
+            _max: { tableCheckRound: true },
+          });
+          roundNumber = (roundAggregate._max.tableCheckRound ?? 1) + 1;
+        } else if (latestOpenOrder) {
+          const legacyCheck = await tx.tableCheck.create({
+            data: {
+              checkNumber: latestOpenOrder.orderNumber,
+              tableId: table.id,
+            },
+          });
+          tableCheckId = legacyCheck.id;
+          roundNumber = 2;
+
+          await tx.order.update({
+            where: { id: latestOpenOrder.id },
+            data: {
+              tableCheckId: legacyCheck.id,
+              tableCheckRound: 1,
+            },
+          });
+        }
+
+        let createdOrder;
+
+        if (tableCheckId) {
+          createdOrder = await tx.order.create({
+            data: {
+              type: "DINE_IN",
+              status: "OPEN",
+              notes: body.notes?.trim() || null,
+              total: toDecimal(calculatedTotal),
+              tableId: table.id,
+              tableCheckId,
+              tableCheckRound: roundNumber,
+              cashierId: currentUser.id,
+            },
+            include: {
+              tableCheck: { select: { checkNumber: true } },
+            },
+          });
+        } else {
+          const firstOrder = await tx.order.create({
+            data: {
+              type: "DINE_IN",
+              status: "OPEN",
+              notes: body.notes?.trim() || null,
+              total: toDecimal(calculatedTotal),
+              tableId: table.id,
+              cashierId: currentUser.id,
+            },
+          });
+          const tableCheck = await tx.tableCheck.create({
+            data: {
+              checkNumber: firstOrder.orderNumber,
+              tableId: table.id,
+            },
+          });
+
+          createdOrder = await tx.order.update({
+            where: { id: firstOrder.id },
+            data: {
+              tableCheckId: tableCheck.id,
+              tableCheckRound: 1,
+            },
+            include: {
+              tableCheck: { select: { checkNumber: true } },
+            },
+          });
+        }
 
         await tx.orderItem.createMany({
           data: preparedLines.map((line, index) => ({
@@ -373,17 +460,31 @@ export async function POST(request: Request) {
           actorUserId: currentUser.id,
         });
 
-        const inventoryAlerts = await deductProductInventoryForSale(
-          tx,
-          preparedLines.map((line) => ({
-            productId: line.productId,
-            qty: line.qty,
-          })),
-          createdOrder.id,
-          currentUser.id,
-        );
+        const [inventoryAlerts, checkTotal] = await Promise.all([
+          deductProductInventoryForSale(
+            tx,
+            preparedLines.map((line) => ({
+              productId: line.productId,
+              qty: line.qty,
+            })),
+            createdOrder.id,
+            currentUser.id,
+          ),
+          tx.order.aggregate({
+            where: {
+              tableCheckId: createdOrder.tableCheckId,
+              status: "OPEN",
+            },
+            _sum: { total: true },
+          }),
+        ]);
 
-        return { order: createdOrder, inventoryAlerts };
+        return {
+          order: createdOrder,
+          appendedToExisting: Boolean(latestOpenOrder),
+          checkTotal: Number(checkTotal._sum.total ?? 0),
+          inventoryAlerts,
+        };
       },
       { timeout: 15000, maxWait: 5000 },
     );
@@ -391,13 +492,16 @@ export async function POST(request: Request) {
     await sendInventoryAlerts(result.inventoryAlerts);
 
     const order = result.order;
+    const identity = resolveTableCheckIdentity(order);
     return NextResponse.json({
       success: true,
       order: {
         id: order.id,
-        orderNumber: order.orderNumber,
+        ...identity,
+        appended: result.appendedToExisting,
         tableName: table.name,
         total: calculatedTotal,
+        checkTotal: result.checkTotal,
         createdAt: order.createdAt.toISOString(),
       },
     });

@@ -26,6 +26,11 @@ export type PaymentWebhookOrder = {
   orderNumber: number;
   status: "OPEN" | "PAID" | "CANCELLED";
   total: unknown;
+  tableCheckId?: string | null;
+  rounds?: Array<{
+    id: string;
+    total: unknown;
+  }>;
 };
 
 export type PaymentWebhookExistingPayment = {
