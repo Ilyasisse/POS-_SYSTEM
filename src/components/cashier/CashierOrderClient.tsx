@@ -491,9 +491,13 @@ export default function CashierOrderClient({
       }
 
       clearCart();
+      const orderNumber = data.order?.orderNumber ?? "";
+      const roundNumber = data.order?.roundNumber ?? 1;
       dispatchOrderState({
         type: "orderSent",
-        message: `Order #${data.order?.orderNumber ?? ""} sent to ${data.order?.tableName ?? "table"}. Payment stays open.`,
+        message: data.order?.appended
+          ? `Round ${roundNumber} added to Order #${orderNumber} for ${data.order?.tableName ?? "table"}. Payment stays open.`
+          : `Order #${orderNumber} sent to ${data.order?.tableName ?? "table"}. Payment stays open.`,
       });
       router.push("/cashier");
     } catch (error) {

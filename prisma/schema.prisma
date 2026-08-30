@@ -540,14 +540,30 @@ model Modifier {
 }
 
 model Table {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id          String       @id @default(cuid())
+  name        String       @unique
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  orders      Order[]
+  tableChecks TableCheck[]
 
   @@index([isActive])
+}
+
+/// Customer-facing table bill. Each kitchen submission remains a separate
+/// Order round so completed food never reappears on a later kitchen ticket.
+model TableCheck {
+  id          String    @id @default(cuid())
+  checkNumber Int       @unique
+  tableId     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  closedAt    DateTime?
+  table       Table     @relation(fields: [tableId], references: [id])
+  orders      Order[]
+
+  @@index([tableId, closedAt, createdAt])
 }
 
 model Order {
@@ -556,6 +572,8 @@ model Order {
   type               OrderType           @default(DINE_IN)
   status             OrderStatus         @default(OPEN)
   tableId            String?
+  tableCheckId       String?
+  tableCheckRound    Int?
   cashierId          String?
   waiterId           String?
   customerId         String?
@@ -568,6 +586,7 @@ model Order {
   waiter             User?               @relation("WaiterOrders", fields: [waiterId], references: [id])
   customer           User?               @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: SetNull)
   table              Table?              @relation(fields: [tableId], references: [id])
+  tableCheck         TableCheck?          @relation(fields: [tableCheckId], references: [id], onDelete: SetNull)
   orderItems         OrderItem[]
   payments           Payment[]
   kitchenTicketState KitchenTicketState?
@@ -580,6 +599,8 @@ model Order {
   @@index([cashierId, createdAt])
   @@index([waiterId, createdAt])
   @@index([tableId, createdAt])
+  @@unique([tableCheckId, tableCheckRound])
+  @@index([tableCheckId, createdAt])
   @@index([customerId, closedAt])
   @@index([status, closedAt])
 }

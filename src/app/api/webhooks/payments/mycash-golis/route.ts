@@ -10,6 +10,7 @@ import {
   type PaymentWebhookOrder,
   type PaymentWebhookStore,
 } from "@/lib/payments/mycash-golis-webhook";
+import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,47 @@ function isPaymentReferenceDuplicateError(error: unknown) {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === "P2002"
   );
+}
+
+async function findTableCheckForWebhook(tableCheckId: string) {
+  const check = await prisma.tableCheck.findUnique({
+    where: { id: tableCheckId },
+    select: {
+      id: true,
+      checkNumber: true,
+      orders: {
+        select: {
+          id: true,
+          status: true,
+          total: true,
+        },
+        orderBy: [{ tableCheckRound: "asc" }, { createdAt: "asc" }],
+      },
+    },
+  });
+
+  if (!check || check.orders.length === 0) return null;
+
+  const openRounds = check.orders.filter((order) => order.status === "OPEN");
+  const payableRounds = openRounds.length > 0 ? openRounds : check.orders;
+  const status =
+    openRounds.length > 0
+      ? "OPEN"
+      : check.orders.every((order) => order.status === "PAID")
+        ? "PAID"
+        : "CANCELLED";
+
+  return {
+    id: payableRounds[0]?.id ?? check.orders[0]!.id,
+    orderNumber: check.checkNumber,
+    status,
+    total: payableRounds.reduce((sum, order) => sum + Number(order.total), 0),
+    tableCheckId: check.id,
+    rounds: payableRounds.map((order) => ({
+      id: order.id,
+      total: order.total,
+    })),
+  } satisfies PaymentWebhookOrder;
 }
 
 function buildPaymentWebhookStore(): PaymentWebhookStore {
@@ -51,10 +93,36 @@ function buildPaymentWebhookStore(): PaymentWebhookStore {
       });
     },
     async findOrder(event: MycashGolisWebhookEvent) {
+      if (event.orderId) {
+        const order = await prisma.order.findUnique({
+          where: { id: event.orderId },
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            total: true,
+            tableCheckId: true,
+          },
+        });
+
+        if (order?.tableCheckId) {
+          return findTableCheckForWebhook(order.tableCheckId);
+        }
+
+        return order;
+      }
+
+      const tableCheck = await prisma.tableCheck.findUnique({
+        where: { checkNumber: event.orderNumber ?? 0 },
+        select: { id: true },
+      });
+
+      if (tableCheck) {
+        return findTableCheckForWebhook(tableCheck.id);
+      }
+
       return prisma.order.findUnique({
-        where: event.orderId
-          ? { id: event.orderId }
-          : { orderNumber: event.orderNumber ?? 0 },
+        where: { orderNumber: event.orderNumber ?? 0 },
         select: {
           id: true,
           orderNumber: true,
@@ -71,25 +139,35 @@ function buildPaymentWebhookStore(): PaymentWebhookStore {
     }) {
       await prisma.$transaction(
         async (tx) => {
-          await tx.payment.create({
-            data: {
-              orderId: input.order.id,
+          const rounds = input.order.rounds?.length
+            ? input.order.rounds
+            : [{ id: input.order.id, total: input.order.total }];
+
+          await tx.payment.createMany({
+            data: rounds.map((round, index) => ({
+              orderId: round.id,
               cashierId: input.cashier.id,
               cashierName: input.cashier.fullName,
               method: input.event.provider,
-              amountPaid: toDecimal(input.event.amount),
-              reference: input.event.reference,
+              amountPaid: toDecimal(Number(round.total)),
+              reference: index === 0 ? input.event.reference : null,
               createdAt: input.paidAt,
-            },
+            })),
           });
 
-          await tx.order.update({
-            where: { id: input.order.id },
+          await tx.order.updateMany({
+            where: { id: { in: rounds.map((round) => round.id) } },
             data: {
               status: "PAID",
               closedAt: input.paidAt,
             },
           });
+
+          await closeSettledTableChecks(
+            tx,
+            [input.order.tableCheckId],
+            input.paidAt,
+          );
         },
         { timeout: 15000, maxWait: 5000 },
       );

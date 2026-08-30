@@ -47,6 +47,8 @@ export type KitchenTicket = {
   id: string;
   orderId: string;
   orderNumber: number;
+  ticketNumber: number;
+  roundNumber: number;
   createdAt: string;
   status: KitchenTicketStatus;
   stationStatuses: KitchenTicketStationStatuses;
@@ -340,13 +342,22 @@ export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket
 
   const orderId = ticket.orderId ?? ticket.id;
   const orderNumber = Number(ticket.orderNumber ?? ticket.receiptNo);
+  const ticketNumber = Number(ticket.ticketNumber ?? orderNumber);
+  const roundNumber = Number(ticket.roundNumber ?? 1);
   const normalizedItems = Array.isArray(ticket.items)
     ? ticket.items
         .map(normalizeKitchenTicketItem)
         .filter((item): item is KitchenTicketItem => item !== null)
     : [];
 
-  if (!ticket.id || !orderId || !Number.isFinite(orderNumber)) {
+  if (
+    !ticket.id ||
+    !orderId ||
+    !Number.isFinite(orderNumber) ||
+    !Number.isFinite(ticketNumber) ||
+    !Number.isInteger(roundNumber) ||
+    roundNumber < 1
+  ) {
     return null;
   }
 
@@ -364,6 +375,8 @@ export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket
     id: String(ticket.id),
     orderId: String(orderId),
     orderNumber: Number(orderNumber),
+    ticketNumber,
+    roundNumber,
     createdAt: String(ticket.createdAt ?? new Date().toISOString()),
     status: "new",
     stationStatuses,

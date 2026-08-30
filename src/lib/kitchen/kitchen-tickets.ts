@@ -20,6 +20,7 @@ import {
   getEffectiveStation,
   type PermissionUser,
 } from "@/lib/auth/permissions";
+import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
 import { calculateKitchenPreparationMetric } from "@/lib/kitchen/kitchen-metrics";
 
 type KitchenStateTransaction = Prisma.TransactionClient;
@@ -109,6 +110,7 @@ type KitchenStateRecord = Prisma.KitchenTicketStateGetPayload<{
     order: {
       include: {
         table: true;
+        tableCheck: true;
         cashier: true;
         waiter: true;
         orderItems: {
@@ -123,6 +125,7 @@ type KitchenStateRecord = Prisma.KitchenTicketStateGetPayload<{
 }>;
 
 function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
+  const identity = resolveTableCheckIdentity(state.order);
   const items = state.order.orderItems
     .filter((item): item is typeof item & { station: Station } => item.station !== null)
     .map((item) => ({
@@ -166,7 +169,7 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
   const ticket = {
     id: state.orderId,
     orderId: state.orderId,
-    orderNumber: state.order.orderNumber,
+    ...identity,
     createdAt: state.order.createdAt.toISOString(),
     status: "new" as KitchenTicketStatus,
     stationStatuses,
@@ -243,6 +246,7 @@ export async function getKitchenTicketSnapshot(
       order: {
         include: {
           table: true,
+          tableCheck: true,
           cashier: true,
           waiter: true,
           orderItems: {
