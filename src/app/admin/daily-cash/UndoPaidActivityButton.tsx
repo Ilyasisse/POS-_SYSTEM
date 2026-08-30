@@ -14,6 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import type { DailyCashPaidBreakdownRow } from "@/lib/daily-cash/types";
 import { undoPaidActivityAction } from "./actions";
 
@@ -33,19 +34,23 @@ export default function UndoPaidActivityButton({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   function confirmUndo(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
-    setMessage("");
     startTransition(async () => {
       try {
         await undoPaidActivityAction({ date, type: row.type, rowId: row.id });
         setOpen(false);
+        toast({ tone: "success", description: "Payment undone." });
         router.refresh();
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Could not undo this payment.");
+        toast({
+          tone: "error",
+          description:
+            error instanceof Error ? error.message : "Could not undo this payment.",
+        });
       }
     });
   }
@@ -58,7 +63,6 @@ export default function UndoPaidActivityButton({
         <AlertDialogDescription>{consequences[row.type]}</AlertDialogDescription>
       </AlertDialogHeader>
       <p className="text-sm font-medium">{row.description}</p>
-      {message ? <p role="alert" className="text-sm font-semibold text-red-700">{message}</p> : null}
       <AlertDialogFooter>
         <AlertDialogCancel type="button" disabled={pending}>Cancel</AlertDialogCancel>
         <AlertDialogAction type="button" variant="destructive" disabled={pending} onClick={confirmUndo}>

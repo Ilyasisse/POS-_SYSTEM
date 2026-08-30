@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminPage, Button, Card, ToneBadge } from "@/components/admin/shared";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToastOnMount } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -455,21 +455,25 @@ export default async function SupplierInvoiceDetailPage({
       }
     >
       {query?.invoiceStatus === "approved" ? (
-        <Alert>
-          <AlertTitle>Invoice approved</AlertTitle>
-          <AlertDescription>
-            The invoice is now read-only, its supplier bill was created, and
-            payment is pending.
-          </AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone="success"
+          title="Invoice approved"
+          description="The invoice is now read-only, its supplier bill was created, and payment is pending."
+        />
       ) : null}
       {query?.invoiceStatus === "created" ? (
-        <Alert>
-          <AlertTitle>Invoice draft created</AlertTitle>
-          <AlertDescription>
-            Review the invoice details, then save or finalize it when ready.
-          </AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone="success"
+          title="Invoice draft created"
+          description="Review the invoice details, then save or finalize it when ready."
+        />
+      ) : null}
+      {query?.invoiceStatus === "voided" ? (
+        <ToastOnMount
+          tone="success"
+          title="Invoice voided"
+          description="The invoice draft was voided."
+        />
       ) : null}
 
       <InvoiceSummaryCards

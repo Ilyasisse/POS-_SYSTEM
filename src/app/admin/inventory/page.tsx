@@ -12,6 +12,7 @@ import {
   ToneBadge,
 } from "@/components/admin/shared";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+import { ToastOnMount, type ToastTone } from "@/components/ui/toast";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
@@ -102,24 +103,30 @@ function formatDateTime(date: Date) {
   });
 }
 
-function getInventoryEmailMessage(value?: string) {
-  if (value === "sent") return "Inventory email sent.";
-  if (value === "failed") return "Inventory email failed.";
-  if (value === "skipped") return "Inventory email skipped.";
-  if (value === "none") return "No inventory email needed.";
+function getInventoryEmailMessage(
+  value?: string,
+): { tone: ToastTone; message: string } | null {
+  if (value === "sent")
+    return { tone: "success", message: "Inventory email sent." };
+  if (value === "failed")
+    return { tone: "error", message: "Inventory email failed." };
+  if (value === "skipped")
+    return { tone: "warning", message: "Inventory email skipped." };
+  if (value === "none")
+    return { tone: "info", message: "No inventory email needed." };
   return null;
 }
 
-function InventoryNotice({ notice }: { notice: string | null }) {
+function InventoryNotice({
+  notice,
+}: {
+  notice: { tone: ToastTone; message: string } | null;
+}) {
   if (!notice) {
     return null;
   }
 
-  return (
-    <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
-      {notice}
-    </div>
-  );
+  return <ToastOnMount tone={notice.tone} description={notice.message} />;
 }
 
 function InventorySummary({

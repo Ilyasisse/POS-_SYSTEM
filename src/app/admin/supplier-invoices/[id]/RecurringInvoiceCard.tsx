@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { useToast } from "@/components/ui/toast";
 import {
   createSupplierInvoiceRecurrenceAction,
   pauseSupplierInvoiceRecurrenceAction,
@@ -46,8 +47,7 @@ export default function RecurringInvoiceCard({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState("");
-  const [hasError, setHasError] = useState(false);
+  const { toast } = useToast();
 
   if (!recurrence && !eligible) return null;
 
@@ -55,20 +55,19 @@ export default function RecurringInvoiceCard({
     const formData = submittedFormData ??
       (formRef.current ? new FormData(formRef.current) : null);
     if (!formData) return;
-    setMessage("");
     startTransition(async () => {
       try {
         const result = await action(formData);
-        setHasError(false);
-        setMessage(result.message);
+        toast({ tone: "success", description: result.message });
         router.refresh();
       } catch (error) {
-        setHasError(true);
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : "The recurring schedule could not be updated.",
-        );
+        toast({
+          tone: "error",
+          description:
+            error instanceof Error
+              ? error.message
+              : "The recurring schedule could not be updated.",
+        });
       }
     });
   }
@@ -174,12 +173,6 @@ export default function RecurringInvoiceCard({
                 : "Not yet"}
             </p>
           </div>
-        ) : null}
-
-        {message ? (
-          <Alert variant={hasError ? "destructive" : "default"}>
-            <AlertDescription>{message}</AlertDescription>
-          </Alert>
         ) : null}
 
         <div className="flex flex-wrap gap-2">

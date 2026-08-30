@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableCell, TableHead } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import { createManualSupplierInvoiceDraftAction } from "../actions";
 import RecurringInvoiceFields from "./RecurringInvoiceFields";
 
@@ -122,10 +122,9 @@ export default function ManualSupplierInvoiceBuilder({
   const [rows, setRows] = useState<InvoiceRow[]>([
     { key: 1, catalogItemId: "", quantity: "1", unitPrice: "", notes: "" },
   ]);
-  const [message, setMessage] = useState("");
-  const [hasError, setHasError] = useState(false);
   const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
   const [pending, setPending] = useState(false);
+  const { toast } = useToast();
   const catalogById = useMemo(
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
@@ -145,19 +144,19 @@ export default function ManualSupplierInvoiceBuilder({
   }
 
   async function handleSubmit(data: FormData) {
-    setMessage("");
     setPending(true);
 
     try {
       const result = await createManualSupplierInvoiceDraftAction(data);
-      setHasError(false);
-      setMessage(result.message);
       router.push(result.redirectTo);
     } catch (error) {
-      setHasError(true);
-      setMessage(
-        error instanceof Error ? error.message : "Invoice draft could not be created.",
-      );
+      toast({
+        tone: "error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Invoice draft could not be created.",
+      });
     } finally {
       setPending(false);
     }
@@ -379,12 +378,6 @@ export default function ManualSupplierInvoiceBuilder({
             </div>
           </div>
         </Card>
-
-        {message ? (
-          <Alert variant={hasError ? "destructive" : "default"}>
-            <AlertDescription>{message}</AlertDescription>
-          </Alert>
-        ) : null}
 
         <div className="flex justify-end">
           <Button type="submit" disabled={pending}>{pending ? "Creating..." : "Create invoice draft"}</Button>
