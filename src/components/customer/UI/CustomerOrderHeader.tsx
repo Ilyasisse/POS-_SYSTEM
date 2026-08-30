@@ -9,6 +9,10 @@ type CustomerOrderHeaderProps = {
   cartCount: number;
   onReset: () => void;
   onOpenCart: () => void;
+  title?: string;
+  subtitle?: string;
+  resetLabel?: string;
+  cartLabel?: string;
 };
 
 export default function CustomerOrderHeader({
@@ -16,6 +20,10 @@ export default function CustomerOrderHeader({
   cartCount,
   onReset,
   onOpenCart,
+  title = "Mash Allah Cafe",
+  subtitle,
+  resetLabel = "Start Over",
+  cartLabel = "Cart",
 }: CustomerOrderHeaderProps) {
   return (
     <header
@@ -38,8 +46,13 @@ export default function CustomerOrderHeader({
               className="mt-1 text-xl text-foreground sm:text-3xl"
               style={{ fontFamily: displayFont }}
             >
-              Mash Allah Cafe
+              {title}
             </h1>
+            {subtitle ? (
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                {subtitle}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -50,7 +63,7 @@ export default function CustomerOrderHeader({
             onClick={onReset}
             className="rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-muted"
           >
-            Start Over
+            {resetLabel}
           </Button>
 
           <Button
@@ -58,7 +71,7 @@ export default function CustomerOrderHeader({
             onClick={onOpenCart}
             className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
           >
-            Cart {formatCurrency(cartSubtotal)} ({cartCount})
+            {cartLabel} {formatCurrency(cartSubtotal)} ({cartCount})
           </Button>
         </div>
       </div>

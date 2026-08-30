@@ -1,10 +1,5 @@
 ﻿"use server";
 
-import { Button } from "@/components/ui/button";
-
-import { NativeSelect } from "@/components/ui/native-select";
-
-import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -13,12 +8,13 @@ import {
   formatCashierBusinessDayRange,
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
-import { payOpenTableOrdersFromCashier } from "./actions";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
+import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
 
 type CashierPageProps = {
   searchParams?: Promise<{
     paymentStatus?: string;
+    orderStatus?: string;
   }>;
 };
 
@@ -84,10 +80,6 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         some: {
           status: "OPEN",
           type: "DINE_IN",
-          createdAt: {
-            gte: businessDayStart,
-            lt: businessDayEnd,
-          },
         },
       },
     },
@@ -97,10 +89,6 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         where: {
           status: "OPEN",
           type: "DINE_IN",
-          createdAt: {
-            gte: businessDayStart,
-            lt: businessDayEnd,
-          },
         },
         orderBy: { createdAt: "desc" },
         include: {
@@ -112,6 +100,9 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
               qty: true,
             },
             orderBy: { createdAt: "asc" },
+          },
+          payments: {
+            select: { amountPaid: true },
           },
         },
       },
@@ -125,7 +116,16 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     })),
   );
   const openOrderTotal = openOrders.reduce(
-    (sum, order) => sum + Number(order.total),
+    (sum, order) =>
+      sum +
+      Math.max(
+        0,
+        Number(order.total) -
+          order.payments.reduce(
+            (paid, payment) => paid + Number(payment.amountPaid),
+            0,
+          ),
+      ),
     0,
   );
 
@@ -163,6 +163,10 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         </div>
       ) : null}
 
+      {/*
+      
+      BRING BACK IF YOU WANT Occupied tables,Open order,Open order total
+
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Occupied tables</p>
@@ -178,7 +182,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
             {formatMoney(openOrderTotal)}
           </h2>
         </div>
-      </div>
+      </div> */}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tables.length === 0 ? (
@@ -194,7 +198,16 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         ) : (
           tables.map((table) => {
             const tableTotal = table.orders.reduce(
-              (sum, order) => sum + Number(order.total),
+              (sum, order) =>
+                sum +
+                Math.max(
+                  0,
+                  Number(order.total) -
+                    order.payments.reduce(
+                      (paid, payment) => paid + Number(payment.amountPaid),
+                      0,
+                    ),
+                ),
               0,
             );
 
@@ -205,10 +218,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
               >
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-muted-foreground">
-                      Table
-                    </p>
-                    <h2 className="text-2xl font-bold text-foreground">
+                    <h2 className="text-3xl font-bold text-foreground">
                       {table.name}
                     </h2>
                   </div>
@@ -228,37 +238,6 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                       {formatMoney(tableTotal)}
                     </span>
                   </div>
-                </div>
-
-                <div className="mb-4 grid gap-2">
-                  <Link
-                    href={`/cashier/order?tableId=${encodeURIComponent(table.id)}`}
-                    className="block rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
-                  >
-                    Add order
-                  </Link>
-                  <form
-                    action={payOpenTableOrdersFromCashier}
-                    className="grid gap-2 sm:grid-cols-[1fr_auto]"
-                  >
-                    <Input type="hidden" name="tableId" value={table.id} />
-                    <NativeSelect
-                      name="paymentMethod"
-                      defaultValue="GOLIS"
-                      className="min-h-11 rounded-xl border border-border px-3 py-2 outline-none focus:border-blue-500"
-                    >
-                      <option value="GOLIS">GOLIS</option>
-                      <option value="MYCASH">MYCASH</option>
-                      <option value="Dahabshiil">Dahabshiil</option>
-                      <option value="OTHER">OTHER</option>
-                    </NativeSelect>
-                    <Button
-                      type="submit"
-                      className="min-h-11 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800"
-                    >
-                      Pay {formatMoney(tableTotal)}
-                    </Button>
-                  </form>
                 </div>
 
                 <div className="space-y-3">
@@ -291,6 +270,19 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                       </p>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4 grid gap-2">
+                  <Link
+                    href={`/cashier/order?tableId=${encodeURIComponent(table.id)}`}
+                    className="block rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    Add order
+                  </Link>
+                  <CashierPaymentDialog
+                    tableId={table.id}
+                    tableName={table.name}
+                    amountDue={tableTotal}
+                  />
                 </div>
               </article>
             );

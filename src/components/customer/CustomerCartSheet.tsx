@@ -35,6 +35,8 @@ type CustomerCartSheetProps = {
   onRemove: (cartKey: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
+  mode?: "customer" | "cashier";
+  tableName?: string;
 };
 
 export default function CustomerCartSheet({
@@ -56,7 +58,10 @@ export default function CustomerCartSheet({
   onRemove,
   onClearCart,
   onCheckout,
+  mode = "customer",
+  tableName,
 }: CustomerCartSheetProps) {
+  const isCashier = mode === "cashier";
   return (
     <Sheet open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <SheetContent
@@ -75,7 +80,7 @@ export default function CustomerCartSheet({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-[0.3em] text-amber-200/90">
-                  Your order
+                  {isCashier ? "Kitchen order" : "Your order"}
                 </p>
                 <h2
                   className="mt-3 text-3xl sm:text-4xl"
@@ -84,7 +89,7 @@ export default function CustomerCartSheet({
                       '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
                   }}
                 >
-                  Cart
+                  {isCashier ? tableName || "Selected table" : "Cart"}
                 </h2>
                 <p className="mt-1 text-sm text-white/70">
                   {cartCount} item{cartCount === 1 ? "" : "s"}
@@ -120,9 +125,11 @@ export default function CustomerCartSheet({
             ) : (
               <div className="rounded-[1.5rem] border border-border bg-card p-4 shadow-[0_20px_45px_rgba(55,36,20,0.05)]">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                  Checkout details
+                  {isCashier ? "Order details" : "Checkout details"}
                 </p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {!isCashier ? (
+                    <>
                   <Input
                     aria-label="Name for the order"
                     value={customerName}
@@ -141,6 +148,8 @@ export default function CustomerCartSheet({
                     placeholder="Phone number (optional)"
                     className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
                   />
+                    </>
+                  ) : null}
                   <div className="md:col-span-2">
                     <Textarea
                       aria-label="Special requests or notes"
@@ -252,7 +261,13 @@ export default function CustomerCartSheet({
                 disabled={isSubmitting || cart.length === 0}
                 className="rounded-full bg-stone-950 px-6 py-4 text-base font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
-                {isSubmitting ? "Placing order..." : "Checkout"}
+                {isSubmitting
+                  ? isCashier
+                    ? "Sending to kitchen…"
+                    : "Placing order…"
+                  : isCashier
+                    ? "Send to kitchen"
+                    : "Checkout"}
               </Button>
 
               <Button
