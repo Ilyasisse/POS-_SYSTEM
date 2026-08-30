@@ -19,7 +19,10 @@ import {
   parseBusinessDateKey,
   shiftBusinessDateKey,
 } from "../../src/lib/waiter/waiter-balance-calculations";
-import { getCashierBusinessDayRange } from "../../src/lib/cashier/cashier-business-day";
+import {
+  formatCashierBusinessDayRange,
+  getCashierBusinessDayRange,
+} from "../../src/lib/cashier/cashier-business-day";
 import { buildActiveWaiterShiftWhere } from "../../src/lib/waiter/waiter-shift-gate";
 
 test("records a new shortage from sales and the end-day amount", () => {
@@ -61,7 +64,7 @@ test("accepts only real ISO calendar dates", () => {
 });
 
 test("blocks dates before activation and before the POS day has closed", () => {
-  const now = new Date(2026, 6, 3, 12, 0, 0);
+  const now = new Date("2026-07-03T09:00:00.000Z");
 
   assert.throws(
     () => assertLedgerBusinessDate("2026-06-30", now),
@@ -79,21 +82,21 @@ test("opens a waiter balance at the 5 AM POS close boundary", () => {
     () =>
       assertLedgerBusinessDate(
         "2026-08-09",
-        new Date(2026, 7, 10, 4, 59, 59),
+        new Date("2026-08-10T01:59:59.000Z"),
       ),
     /after the POS business day closes/,
   );
   assert.equal(
     assertLedgerBusinessDate(
       "2026-08-09",
-      new Date(2026, 7, 10, 5, 0, 0),
+      new Date("2026-08-10T02:00:00.000Z"),
     ),
     "2026-08-09",
   );
   assert.equal(
     assertLedgerBusinessDate(
       "2026-08-09",
-      new Date(2026, 7, 10, 7, 0, 0),
+      new Date("2026-08-10T04:00:00.000Z"),
     ),
     "2026-08-09",
   );
@@ -102,44 +105,42 @@ test("opens a waiter balance at the 5 AM POS close boundary", () => {
 test("uses the established 7 AM to 5 AM POS business-day window", () => {
   const { start, end } = getBusinessDayRangeForKey("2026-07-01");
 
-  assert.equal(start.getFullYear(), 2026);
-  assert.equal(start.getMonth(), 6);
-  assert.equal(start.getDate(), 1);
-  assert.equal(start.getHours(), 7);
-  assert.equal(end.getDate(), 2);
-  assert.equal(end.getHours(), 5);
+  assert.equal(start.toISOString(), "2026-07-01T04:00:00.000Z");
+  assert.equal(end.toISOString(), "2026-07-02T02:00:00.000Z");
+  assert.equal(
+    formatCashierBusinessDayRange(start, end),
+    "Jul 1 7:00 AM to Jul 2 5:00 AM",
+  );
 });
 
 test("keeps the most recently completed POS window during the 5 AM to 7 AM gap", () => {
   const { start, end } = getCashierBusinessDayRange(
-    new Date(2026, 6, 23, 6, 59, 59),
+    new Date("2026-07-23T03:59:59.000Z"),
   );
 
-  assert.equal(start.getDate(), 22);
-  assert.equal(start.getHours(), 7);
-  assert.equal(end.getDate(), 23);
-  assert.equal(end.getHours(), 5);
+  assert.equal(start.toISOString(), "2026-07-22T04:00:00.000Z");
+  assert.equal(end.toISOString(), "2026-07-23T02:00:00.000Z");
 });
 
 test("derives the latest completed waiter-balance date across POS boundaries", () => {
   const cases = [
     {
-      now: new Date(2026, 6, 23, 4, 59, 59),
+      now: new Date("2026-07-23T01:59:59.000Z"),
       current: "2026-07-22",
       latestCompleted: "2026-07-21",
     },
     {
-      now: new Date(2026, 6, 23, 5, 0, 0),
+      now: new Date("2026-07-23T02:00:00.000Z"),
       current: "2026-07-22",
       latestCompleted: "2026-07-22",
     },
     {
-      now: new Date(2026, 6, 23, 6, 59, 59),
+      now: new Date("2026-07-23T03:59:59.000Z"),
       current: "2026-07-22",
       latestCompleted: "2026-07-22",
     },
     {
-      now: new Date(2026, 6, 23, 7, 0, 0),
+      now: new Date("2026-07-23T04:00:00.000Z"),
       current: "2026-07-23",
       latestCompleted: "2026-07-22",
     },
@@ -151,6 +152,14 @@ test("derives the latest completed waiter-balance date across POS boundaries", (
   }
 });
 
+test("unlocks August 10 and activates August 11 at 7:04 AM Nairobi time", () => {
+  const now = new Date("2026-08-11T04:04:00.000Z");
+
+  assert.equal(getCurrentBusinessDateKey(now), "2026-08-11");
+  assert.equal(getLatestCompletedBusinessDateKey(now), "2026-08-10");
+  assert.equal(assertLedgerBusinessDate("2026-08-10", now), "2026-08-10");
+});
+
 test("shifts ISO business dates with calendar-safe UTC arithmetic", () => {
   assert.equal(shiftBusinessDateKey("2026-03-01", -1), "2026-02-28");
   assert.equal(shiftBusinessDateKey("2027-01-01", -1), "2026-12-31");
@@ -160,14 +169,20 @@ test("shifts ISO business dates with calendar-safe UTC arithmetic", () => {
 
 test("clamps the default waiter-balance date to ledger activation", () => {
   assert.equal(
-    getDefaultWaiterBalanceDateKey(new Date(2026, 6, 1, 7, 0, 0)),
+    getDefaultWaiterBalanceDateKey(new Date("2026-07-01T04:00:00.000Z")),
     "2026-07-01",
   );
 });
 
 test("activates at the start of the July 1 POS business day", () => {
-  assert.equal(isLedgerActive(new Date(2026, 6, 1, 6, 59, 59)), false);
-  assert.equal(isLedgerActive(new Date(2026, 6, 1, 7, 0, 0)), true);
+  assert.equal(
+    isLedgerActive(new Date("2026-07-01T03:59:59.000Z")),
+    false,
+  );
+  assert.equal(
+    isLedgerActive(new Date("2026-07-01T04:00:00.000Z")),
+    true,
+  );
 });
 
 test("strictly parses currency form input", () => {
@@ -204,7 +219,7 @@ test("strictly parses currency form input", () => {
 test("uses business date for active waiter ordering gate after ledger activation", () => {
   const where = buildActiveWaiterShiftWhere(
     "waiter-1",
-    new Date(2026, 6, 1, 12, 0, 0),
+    new Date("2026-07-01T09:00:00.000Z"),
   );
 
   assert.equal(where.userId, "waiter-1");
@@ -221,7 +236,7 @@ test("uses business date for active waiter ordering gate after ledger activation
 test("uses openedAt range for active waiter ordering gate before ledger activation", () => {
   const where = buildActiveWaiterShiftWhere(
     "waiter-1",
-    new Date(2026, 5, 30, 12, 0, 0),
+    new Date("2026-06-30T09:00:00.000Z"),
   );
 
   assert.equal(where.userId, "waiter-1");

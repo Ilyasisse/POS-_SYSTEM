@@ -11,7 +11,7 @@ import {
   isDailyCashLocked,
 } from "./business-date";
 import { dailyCashFingerprint } from "./fingerprint";
-import { calculateDailyCashSummary, fundingFor, roundMoney } from "./money";
+import { calculateDailyCashSummary, fundingFor, roundMoney, validateSavingsDepositAmount } from "./money";
 import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "./paid-breakdown";
 import { resolveDailySalaryRate } from "./salary-rates";
 import { summarizeDailyCashShiftCash } from "./shift-cash";
@@ -72,6 +72,10 @@ async function materializeDay(tx: Tx, dateKey: string) {
         include: { supplyDay: { select: { purchaseDate: true } } },
         orderBy: { createdAt: "asc" },
       },
+      savingsDeposits: {
+        include: { recordedBy: { select: { fullName: true } } },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 }
@@ -86,7 +90,7 @@ async function currentState(tx: Tx, dateKey: string) {
   );
   // Interactive transactions use one pg client, so these independent reads
   // must be issued sequentially even though they would normally be parallel.
-  const [shifts, activeWaiters, bills, suppliers, supplyDays] =
+  const [shifts, activeWaiters, bills, suppliers, supplyDays, savingsAggregate] =
     await runTransactionQueriesSequentially([
       () =>
         tx.shift.findMany({
@@ -143,6 +147,8 @@ async function currentState(tx: Tx, dateKey: string) {
           },
           orderBy: { purchaseDate: "asc" },
         }),
+      () =>
+        tx.dailyCashSavingsDeposit.aggregate({ _sum: { amount: true } }),
     ] as const);
   const shiftCash = summarizeDailyCashShiftCash(
     shifts.map((shift) => ({
@@ -181,11 +187,29 @@ async function currentState(tx: Tx, dateKey: string) {
     const amount = roundMoney(originalTotal - paidAmount);
     if (amount > 0) supplyObligations.push({ supplyDayId: row.id, purchaseDate: row.purchaseDate, dueDate, originalTotal, paidAmount, amount });
   }
+  const savingsDeposits = day.savingsDeposits.map((deposit) => ({
+    id: deposit.id,
+    amount: number(deposit.amount),
+    note: deposit.note,
+    recordedByName: deposit.recordedBy.fullName,
+    recordedByUserId: deposit.recordedByUserId,
+    createdAt: deposit.createdAt,
+  }));
+  const dailySavingsDeposited = roundMoney(
+    savingsDeposits.reduce((sum, deposit) => sum + deposit.amount, 0),
+  );
+  const savingsAccountBalance = roundMoney(number(savingsAggregate._sum.amount));
   const salaryPaid = day.salaryPaidAt !== null || number(day.salaryAmount) === 0;
   const paidRevenueFunded = number(day.salaryRevenueFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0) + day.supplyPayments.reduce((sum, row) => sum + number(row.revenueFunded), 0);
   const paidSavingsFunded = number(day.salarySavingsFunded) + day.manualExpenses.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplierPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0) + day.supplyPayments.reduce((sum, row) => sum + number(row.savingsFunded), 0);
   const unpaidRequired = (salaryPaid ? 0 : number(day.salaryAmount)) + obligations.reduce((sum, row) => sum + row.amount, 0) + supplyObligations.reduce((sum, row) => sum + row.amount, 0);
-  const summary = calculateDailyCashSummary({ revenue: endDayCash, paidRevenueFunded, paidSavingsFunded, unpaidRequired });
+  const summary = calculateDailyCashSummary({
+    revenue: endDayCash,
+    paidRevenueFunded,
+    paidSavingsFunded,
+    unpaidRequired,
+    savingsDeposited: dailySavingsDeposited,
+  });
   const paidBreakdownRows = buildDailyCashPaidBreakdown({
     dayId: day.id,
     salary: {
@@ -246,11 +270,12 @@ async function currentState(tx: Tx, dateKey: string) {
     payments: day.supplierPayments.map((row) => [row.id, row.supplierPaymentId, number(row.amount), number(row.revenueFunded), number(row.savingsFunded)]),
     supplyPayments: day.supplyPayments.map((row) => [row.id, row.supplyDayId, number(row.amount), number(row.revenueFunded), number(row.savingsFunded)]),
     supplyObligations: supplyObligations.map((row) => [row.supplyDayId, row.purchaseDate.toISOString(), row.originalTotal, row.paidAmount, row.amount]),
+    savingsDeposits: savingsDeposits.map((row) => [row.id, row.amount, row.note, row.recordedByUserId, row.createdAt.toISOString()]),
     obligations: obligations.map((row) => [row.billId, row.installmentId, row.dueDate.toISOString(), row.amount]),
   });
   const locked = isDailyCashLocked(dateKey);
   const status: DailyCashStatus = locked ? "LOCKED" : !day.finalizedAt ? "OPEN" : day.finalizationFingerprint === fingerprint ? "FINALIZED" : "NEEDS_REVIEW";
-  return { day, waiterBalanceDateKey, endDayCash, missingWaiters, obligations, supplierAccounts, supplyObligations, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
+  return { day, waiterBalanceDateKey, endDayCash, missingWaiters, obligations, supplierAccounts, supplyObligations, savingsDeposits, dailySavingsDeposited, savingsAccountBalance, salaryPaid, paidRevenueFunded, paidSavingsFunded, unpaidRequired, summary, paidBreakdownRows, paidBreakdownTotals, fingerprint, status, locked };
 }
 
 export async function getDailyCash(dateKey: string, now = new Date()) {
@@ -391,6 +416,44 @@ export async function undoDailyCashSupplyPayment(input: { dateKey: string; id: s
   return mutate(input.dateKey, new Date(), async (tx, state) => {
     const result = await tx.dailyCashSupplyPayment.deleteMany({ where: { id: input.id, dailyCashDayId: state.day.id } });
     if (result.count !== 1) throw new Error("Supply payment not found.");
+  });
+}
+
+export async function createDailyCashSavingsDeposit(input: {
+  dateKey: string;
+  amount: number;
+  note?: string;
+  userId: string;
+}): Promise<DailyCashActionResult> {
+  return mutate(input.dateKey, new Date(), async (tx, state) => {
+    let amount: number;
+    try {
+      amount = validateSavingsDepositAmount(
+        input.amount,
+        state.summary.projectedRemaining,
+      );
+    } catch (error) {
+      return {
+        ok: false,
+        code: "VALIDATION_ERROR",
+        message: error instanceof Error ? error.message : "Invalid savings amount.",
+      };
+    }
+    const note = input.note?.trim() || null;
+    if (note && note.length > 500) {
+      return { ok: false, code: "VALIDATION_ERROR", message: "Savings notes cannot exceed 500 characters." };
+    }
+    await tx.dailyCashSavingsDeposit.create({
+      data: { dailyCashDayId: state.day.id, amount, note, recordedByUserId: input.userId },
+    });
+    return { ok: true };
+  });
+}
+
+export async function undoDailyCashSavingsDeposit(input: { dateKey: string; id: string }) {
+  return mutate(input.dateKey, new Date(), async (tx, state) => {
+    const result = await tx.dailyCashSavingsDeposit.deleteMany({ where: { id: input.id, dailyCashDayId: state.day.id } });
+    if (result.count !== 1) throw new Error("Savings transfer not found.");
   });
 }
 

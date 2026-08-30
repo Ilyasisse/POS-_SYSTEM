@@ -1,8 +1,7 @@
-﻿import { Button } from "@/components/ui/button";
+﻿import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   AdminPage,
   SearchToolbar,
-  NativeSelect,
   MetricCard,
   Table,
   DataTableCard,
@@ -11,6 +10,10 @@ import {
   StatusBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
+import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
+import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 type StaffPageProps = {
   searchParams?: Promise<{
@@ -27,8 +30,6 @@ function formatRole(role: string) {
 export default async function StaffPage({ searchParams }: StaffPageProps) {
   const params = await searchParams;
   const q = params?.q?.trim().toLowerCase() ?? "";
-  const role = params?.role ?? "all";
-  const status = params?.status ?? "all";
   const userRows = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
     include: {
@@ -41,11 +42,19 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
       },
     },
   });
-  const staff = userRows.filter((member) => {
-    if (member.role === "CUSTOMER") {
-      return false;
-    }
-
+  const allStaff = userRows.filter((member) => member.role !== "CUSTOMER");
+  const roles = Array.from(
+    new Set(allStaff.map((member) => member.role)),
+  ).toSorted();
+  const requestedRole = params?.role as (typeof roles)[number] | undefined;
+  const role =
+    requestedRole && roles.includes(requestedRole) ? requestedRole : "all";
+  const status = normalizeFilterChoice(
+    params?.status,
+    ["all", "active", "inactive"] as const,
+    "all",
+  );
+  const staff = allStaff.filter((member) => {
     const matchesSearch =
       !q ||
       member.fullName.toLowerCase().includes(q) ||
@@ -57,21 +66,33 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const allStaff = userRows.filter((member) => member.role !== "CUSTOMER");
   const activeStaff = allStaff.filter((member) => member.isActive).length;
   const kitchenStaff = allStaff.filter((member) =>
     ["COOK", "BARISTA", "Cabitaan"].includes(member.role),
   ).length;
-  const roles = Array.from(
-    new Set(allStaff.map((member) => member.role)),
-  ).toSorted();
-
   return (
     <AdminPage title="Staff" description="Manage staff members and their roles">
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Total Staff" value={allStaff.length} />
         <MetricCard label="Active Accounts" value={activeStaff} />
         <MetricCard label="Kitchen Team" value={kitchenStaff} />
+      </section>
+
+      <section aria-label="Staff administration" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Employment", "Compensation profiles and effective dates", "/admin/staff/employment"],
+          ["Schedules", "Plan station shifts and prevent conflicts", "/admin/staff/schedules"],
+          ["Attendance", "Approve attendance, lateness and overtime", "/admin/staff/attendance"],
+          ["Payroll", "Preview, approve and finalize payroll", "/admin/staff/payroll"],
+        ].map(([title, description, href]) => (
+          <Card className="p-5" key={href}>
+            <h2 className="font-bold">{title}</h2>
+            <p className="mt-1 min-h-10 text-sm text-slate-500">{description}</p>
+            <Button asChild variant="outline" className="mt-4">
+              <Link href={href}>Open {title}</Link>
+            </Button>
+          </Card>
+        ))}
       </section>
 
       <DataTableCard
@@ -84,26 +105,24 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         <SearchToolbar
           placeholder="Search staff..."
           defaultValue={params?.q ?? ""}
+          hasActiveFilters={Boolean(
+            q || role !== "all" || status !== "all",
+          )}
+          clearHref="/admin/staff"
         >
-          <NativeSelect name="role" defaultValue={role}>
+          <AutoSubmitSelect name="role" defaultValue={role}>
             <option value="all">Role All</option>
             {roles.map((item) => (
               <option key={item} value={item}>
                 {formatRole(item)}
               </option>
             ))}
-          </NativeSelect>
-          <NativeSelect name="status" defaultValue={status}>
+          </AutoSubmitSelect>
+          <AutoSubmitSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </NativeSelect>
-          <Button
-            type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
-          >
-            Filter
-          </Button>
+          </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
           <thead>

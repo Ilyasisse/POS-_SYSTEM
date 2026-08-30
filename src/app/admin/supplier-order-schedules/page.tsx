@@ -12,6 +12,7 @@ import {
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const dateTime = new Intl.DateTimeFormat("en-US", {
   timeZone: "Africa/Nairobi",
@@ -19,9 +20,15 @@ const dateTime = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-export default async function SupplierOrderSchedulesPage() {
+export default async function SupplierOrderSchedulesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ status?: string }>;
+}) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const query = (await searchParams) ?? {};
   const schedules = await prisma.supplierOrderSchedule.findMany({
+    where: { deletedAt: null },
     include: {
       supplier: { select: { name: true } },
       _count: { select: { recipients: true, runs: true } },
@@ -46,6 +53,14 @@ export default async function SupplierOrderSchedulesPage() {
         </>
       }
     >
+      {query.status === "deleted" ? (
+        <Alert>
+          <AlertTitle>Schedule deleted</AlertTitle>
+          <AlertDescription>
+            Future processing was stopped. Existing purchase orders and WhatsApp history were preserved.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Schedules" value={schedules.length} />
         <MetricCard label="Active" value={active} />

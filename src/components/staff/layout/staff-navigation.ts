@@ -11,6 +11,7 @@ import {
   Users,
   UtensilsCrossed,
   ChefHat,
+  ChartNoAxesCombined,
   Coffee,
 } from "lucide-react";
 import type { Station } from "@prisma/client";
@@ -31,6 +32,7 @@ export type StaffNavigationGroupKey =
   | "catalog"
   | "admin-operations"
   | "suppliers"
+  | "reports"
   | "administration"
   | "role-workspaces"
   | "kitchen";
@@ -78,7 +80,7 @@ const navigationGroups: readonly {
     key: "admin-operations",
     label: "Operations",
     icon: ClipboardList,
-    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash"],
+    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash", "operations"],
   },
   {
     key: "suppliers",
@@ -91,6 +93,12 @@ const navigationGroups: readonly {
       "supplier-invoices",
       "supplier-bills",
     ],
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    icon: ChartNoAxesCombined,
+    itemKeys: ["reports", "business-intelligence"],
   },
   {
     key: "administration",

@@ -1,5 +1,4 @@
-﻿import { Button } from "@/components/ui/button";
-import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+﻿import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   AdminPage,
   SearchToolbar,
@@ -11,6 +10,7 @@ import {
   ToneBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
+import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 
 type AdminOrdersPageProps = {
   searchParams?: Promise<{
@@ -19,6 +19,9 @@ type AdminOrdersPageProps = {
     date?: string;
   }>;
 };
+
+const ORDER_STATUS_FILTERS = ["all", "OPEN", "PAID", "CANCELLED"] as const;
+const ORDER_DATE_FILTERS = ["today", "all"] as const;
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -46,8 +49,16 @@ export default async function AdminOrdersPage({
 }: AdminOrdersPageProps) {
   const params = await searchParams;
   const q = params?.q?.trim() ?? "";
-  const status = params?.status ?? "all";
-  const date = params?.date ?? "today";
+  const status = normalizeFilterChoice(
+    params?.status,
+    ORDER_STATUS_FILTERS,
+    "all",
+  );
+  const date = normalizeFilterChoice(
+    params?.date,
+    ORDER_DATE_FILTERS,
+    "today",
+  );
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const startDate = date === "today" ? startOfToday : undefined;
@@ -141,7 +152,14 @@ export default async function AdminOrdersPage({
           </p>
         }
       >
-        <SearchToolbar placeholder="Search orders..." defaultValue={q}>
+        <SearchToolbar
+          placeholder="Search orders..."
+          defaultValue={q}
+          hasActiveFilters={Boolean(
+            q || status !== "all" || date !== "today",
+          )}
+          clearHref="/admin/orders"
+        >
           <AutoSubmitSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="OPEN">Preparing</option>

@@ -1,11 +1,10 @@
-﻿import { Button } from "@/components/ui/button";
+﻿import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   PaginationBar,
   AdminPage,
   PrimaryLink,
   RowActions,
   SearchToolbar,
-  NativeSelect,
   Table,
   DataTableCard,
   TableCell,
@@ -13,6 +12,7 @@ import {
   StatusBadge,
 } from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
+import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 
@@ -33,7 +33,11 @@ export default async function AdminProductsPage({
   const pageSize = 10;
   const q = params.q?.trim() ?? "";
   const category = params.category ?? "all";
-  const status = params.status ?? "all";
+  const status = normalizeFilterChoice(
+    params.status,
+    ["all", "active", "inactive"] as const,
+    "all",
+  );
   const where = {
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
     ...(category !== "all" ? { categoryId: category } : {}),
@@ -86,26 +90,27 @@ export default async function AdminProductsPage({
           />
         }
       >
-        <SearchToolbar placeholder="Search products..." defaultValue={q}>
-          <NativeSelect name="category" defaultValue={category}>
+        <SearchToolbar
+          placeholder="Search products..."
+          defaultValue={q}
+          hasActiveFilters={Boolean(
+            q || category !== "all" || status !== "all",
+          )}
+          clearHref="/admin/products"
+        >
+          <AutoSubmitSelect name="category" defaultValue={category}>
             <option value="all">Category All</option>
             {categories.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
-          </NativeSelect>
-          <NativeSelect name="status" defaultValue={status}>
+          </AutoSubmitSelect>
+          <AutoSubmitSelect name="status" defaultValue={status}>
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
-          </NativeSelect>
-          <Button
-            type="submit"
-            className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-white"
-          >
-            Filter
-          </Button>
+          </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
           <thead>
@@ -158,7 +163,7 @@ export default async function AdminProductsPage({
                     <StatusBadge active={product.isActive} />
                   </TableCell>
                   <TableCell>
-                    {product.trackStock ? product.stockQty : "-"}
+                    {product.trackStock ? product.stockQty.toString() : "-"}
                   </TableCell>
                   <TableCell>
                     <RowActions editHref={`/admin/products/${product.id}`} />

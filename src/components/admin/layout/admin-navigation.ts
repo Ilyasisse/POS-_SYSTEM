@@ -15,6 +15,7 @@ import {
   WalletCards,
   ShoppingBasket,
   ShoppingCart,
+  Wrench,
   MessageCircle,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
@@ -168,6 +169,20 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Reports",
     icon: ChartNoAxesCombined,
     permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "business-intelligence",
+    href: "/admin/business-intelligence",
+    label: "Business intelligence",
+    icon: ChartNoAxesCombined,
+    permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "operations",
+    href: "/admin/operations",
+    label: "Operations",
+    icon: Wrench,
+    permission: PERMISSIONS.ADMIN_ACCESS,
   },
   {
     key: "supplier-bills",

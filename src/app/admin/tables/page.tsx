@@ -122,14 +122,9 @@ export default async function TablePage({ searchParams }: TablePageProps) {
           <SearchToolbar
             placeholder="Search tables..."
             defaultValue={params?.q ?? ""}
-          >
-            <Button
-              type="submit"
-              className="h-10 rounded-lg border border-slate-200 px-4 text-sm font-bold text-slate-600 hover:bg-slate-50"
-            >
-              Filter
-            </Button>
-          </SearchToolbar>
+            hasActiveFilters={Boolean(q)}
+            clearHref="/admin/tables"
+          />
           <Table>
             <thead>
               <tr>

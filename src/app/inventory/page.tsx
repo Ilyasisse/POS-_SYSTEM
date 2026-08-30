@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
+import { canonicalUnitLabel } from "@/lib/inventory/inventory-domain";
 import { prisma } from "@/lib/prisma";
 import { takeSupplyInventory } from "./actions";
 
@@ -131,8 +132,7 @@ export default async function InventoryPage({
 }: InventoryPageProps) {
   const todayStart = getEatDayStart();
 
-  // currentUser is not being used but is need to User Premission
-  const [currentUser, params, [supplies, takenTodayMovements]] =
+  const [, params, [supplies, takenTodayMovements]] =
     await Promise.all([
       requirePermission(PERMISSIONS.INVENTORY_VIEW, {
         stations: ["CABITAAN"],
@@ -171,7 +171,7 @@ export default async function InventoryPage({
     (accumulator, supply) => {
       addStatus(
         accumulator,
-        getInventoryAlertStatus(supply.stockQty, supply.lowStockThreshold),
+    getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
       );
       return accumulator;
     },
@@ -264,8 +264,8 @@ export default async function InventoryPage({
               ) : (
                 supplies.map((supply) => {
                   const status = getInventoryAlertStatus(
-                    supply.stockQty,
-                    supply.lowStockThreshold,
+                Number(supply.stockQty),
+                Number(supply.lowStockThreshold),
                   );
                   const isOut = status === "OUT";
 
@@ -280,7 +280,8 @@ export default async function InventoryPage({
                             {supply.name}
                           </h3>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {supply.stockQty} {supply.unit} on hand
+                        {supply.stockQty.toString()} {canonicalUnitLabel(supply.canonicalUnit)} on hand
+                        {supply.quantityCoverage !== "COMPLETE" ? " · unit mapping required" : ""}
                           </p>
                         </div>
                         <span
@@ -308,9 +309,9 @@ export default async function InventoryPage({
                             id={`quantity-${supply.id}`}
                             name="quantity"
                             type="number"
-                            inputMode="numeric"
-                            min="1"
-                            step="1"
+                        inputMode="decimal"
+                        min="0.001"
+                        step="0.001"
                             placeholder="0"
                             disabled={isOut}
                             required
@@ -381,7 +382,7 @@ export default async function InventoryPage({
                         </p>
                       </div>
                       <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                        {movement.delta}
+                        {movement.delta.toString()}
                       </span>
                     </div>
                     {movement.note ? (

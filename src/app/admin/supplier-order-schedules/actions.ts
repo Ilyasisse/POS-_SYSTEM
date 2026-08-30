@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { executeExclusiveSupplierOrderSchedulerOperation } from "@/lib/supplier-orders/scheduler-execution";
 import {
   isValidTimeZone,
   normalizeE164Phone,
@@ -128,7 +129,11 @@ export async function updateSupplierOrderSchedule(formData: FormData) {
   const id = text(formData, "id");
   const input = await scheduleInput(formData);
   await prisma.$transaction(async (tx) => {
-    await tx.supplierOrderSchedule.update({ where: { id }, data: input.data });
+    const updated = await tx.supplierOrderSchedule.updateMany({
+      where: { id, deletedAt: null },
+      data: input.data,
+    });
+    if (updated.count !== 1) throw new Error("Schedule not found.");
     await tx.supplierOrderScheduleRecipient.deleteMany({ where: { scheduleId: id } });
     await tx.supplierOrderScheduleRecipient.createMany({
       data: input.employeeIds.map((userId) => ({ scheduleId: id, userId })),
@@ -142,18 +147,19 @@ export async function updateSupplierOrderSchedule(formData: FormData) {
 export async function toggleSupplierOrderSchedule(formData: FormData) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const id = text(formData, "id");
-  const schedule = await prisma.supplierOrderSchedule.findUnique({
-    where: { id },
+  const schedule = await prisma.supplierOrderSchedule.findFirst({
+    where: { id, deletedAt: null },
     select: { isActive: true, nextInviteAt: true },
   });
   if (!schedule) throw new Error("Schedule not found.");
   if (!schedule.isActive && !schedule.nextInviteAt) {
     throw new Error("This completed one-time schedule cannot be resumed; edit it with new dates instead.");
   }
-  await prisma.supplierOrderSchedule.update({
-    where: { id },
+  const updated = await prisma.supplierOrderSchedule.updateMany({
+    where: { id, deletedAt: null, isActive: schedule.isActive },
     data: { isActive: !schedule.isActive },
   });
+  if (updated.count !== 1) throw new Error("Schedule not found.");
   revalidatePath("/admin/supplier-order-schedules");
   revalidatePath(`/admin/supplier-order-schedules/${id}`);
 }
@@ -162,22 +168,78 @@ export async function retrySupplierOrderRun(formData: FormData) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const runId = text(formData, "runId");
   const run = await prisma.supplierOrderRun.findFirst({
-    where: { id: runId, status: "FAILED" },
+    where: {
+      id: runId,
+      status: "FAILED",
+      schedule: { deletedAt: null },
+    },
     select: { id: true, scheduleId: true, purchaseOrderId: true },
   });
   if (!run) throw new Error("Only a failed run can be retried.");
-  await prisma.$transaction([
-    prisma.supplierOrderRun.update({
-      where: { id: run.id },
+  await prisma.$transaction(async (tx) => {
+    const retried = await tx.supplierOrderRun.updateMany({
+      where: {
+        id: run.id,
+        status: "FAILED",
+        schedule: { deletedAt: null },
+      },
       data: {
         status: run.purchaseOrderId ? "FINALIZING" : "COLLECTING",
         failureReason: null,
       },
-    }),
-    prisma.supplierOrderWhatsAppDelivery.updateMany({
+    });
+    if (retried.count !== 1) {
+      throw new Error("Only a failed run on an active schedule can be retried.");
+    }
+    await tx.supplierOrderWhatsAppDelivery.updateMany({
       where: { runId: run.id, status: "FAILED" },
       data: { status: "PENDING", attempts: 0, lastAttemptAt: null, failedAt: null, errorMessage: null },
-    }),
-  ]);
+    });
+  });
   revalidatePath(`/admin/supplier-order-schedules/${run.scheduleId}`);
+}
+
+export async function deleteSupplierOrderSchedule(formData: FormData) {
+  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const id = text(formData, "id");
+  if (!id) throw new Error("Schedule id is required.");
+
+  const execution = await executeExclusiveSupplierOrderSchedulerOperation(
+    async () => {
+      const deletedAt = new Date();
+      await prisma.$transaction(async (tx) => {
+        const deleted = await tx.supplierOrderSchedule.updateMany({
+          where: { id, deletedAt: null },
+          data: {
+            deletedAt,
+            isActive: false,
+            nextInviteAt: null,
+            nextSupplierSendAt: null,
+          },
+        });
+        if (deleted.count !== 1) throw new Error("Schedule not found.");
+
+        await tx.supplierOrderRun.updateMany({
+          where: {
+            scheduleId: id,
+            status: { in: ["SCHEDULED", "COLLECTING", "FINALIZING"] },
+          },
+          data: {
+            status: "CANCELLED",
+            finalizedAt: deletedAt,
+            failureReason: "Schedule deleted by an administrator.",
+          },
+        });
+      });
+    },
+  );
+  if (execution.alreadyRunning) {
+    throw new Error(
+      "The supplier-order scheduler is processing. Try deleting again in a moment.",
+    );
+  }
+
+  revalidatePath("/admin/supplier-order-schedules");
+  revalidatePath(`/admin/supplier-order-schedules/${id}`);
+  redirect("/admin/supplier-order-schedules?status=deleted");
 }

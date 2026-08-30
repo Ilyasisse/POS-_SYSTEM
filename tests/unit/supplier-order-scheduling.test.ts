@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { PDFDocument } from "pdf-lib";
 import twilio from "twilio";
@@ -22,6 +23,13 @@ import {
   parseEmployeeResponse,
   zonedDateTimeToUtc,
 } from "../../src/lib/supplier-orders/scheduling";
+import {
+  executeWithSupplierOrderSchedulerLease,
+  SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS,
+  SUPPLIER_ORDER_SCHEDULER_LEASE_KEY,
+  type SchedulerLeaseClaim,
+  type SchedulerLeaseOperations,
+} from "../../src/lib/supplier-orders/scheduler-lease";
 import {
   extractTwilioStatusUpdate,
   isWhatsAppEnabled,
@@ -340,4 +348,249 @@ test("generates valid one-page and multi-page purchase-order PDFs", async () => 
     })),
   });
   assert.ok((await PDFDocument.load(multiPage)).getPageCount() > 1);
+});
+
+function inMemorySchedulerLease(clock: { now: number }) {
+  let current:
+    | { key: string; ownerToken: string; expiresAt: number }
+    | undefined;
+  const operations: SchedulerLeaseOperations = {
+    async tryAcquire(claim: SchedulerLeaseClaim) {
+      if (
+        current?.key === claim.key &&
+        current.expiresAt > clock.now
+      ) {
+        return false;
+      }
+      current = {
+        key: claim.key,
+        ownerToken: claim.ownerToken,
+        expiresAt: clock.now + claim.leaseDurationMs,
+      };
+      return true;
+    },
+    async release({ key, ownerToken }) {
+      if (current?.key === key && current.ownerToken === ownerToken) {
+        current = undefined;
+      }
+    },
+  };
+  return { operations, current: () => current };
+}
+
+test("allows only one concurrent supplier-order scheduler execution", async () => {
+  const clock = { now: 1_000 };
+  const lease = inMemorySchedulerLease(clock);
+  let startFirst!: () => void;
+  let finishFirst!: () => void;
+  const started = new Promise<void>((resolve) => {
+    startFirst = resolve;
+  });
+  const blocker = new Promise<void>((resolve) => {
+    finishFirst = resolve;
+  });
+  let processed = 0;
+
+  const first = executeWithSupplierOrderSchedulerLease({
+    lease: lease.operations,
+    createOwnerToken: () => "owner-one",
+    process: async () => {
+      processed += 1;
+      startFirst();
+      await blocker;
+      return "first-result";
+    },
+  });
+  await started;
+
+  const overlapping = await executeWithSupplierOrderSchedulerLease({
+    lease: lease.operations,
+    createOwnerToken: () => "owner-two",
+    process: async () => {
+      processed += 1;
+      return "duplicate-result";
+    },
+  });
+  assert.deepEqual(overlapping, { alreadyRunning: true });
+  assert.equal(processed, 1);
+
+  finishFirst();
+  assert.deepEqual(await first, {
+    alreadyRunning: false,
+    result: "first-result",
+  });
+  assert.equal(lease.current(), undefined);
+});
+
+test("recovers expired leases and releases only the current owner", async () => {
+  const clock = { now: 5_000 };
+  const lease = inMemorySchedulerLease(clock);
+  const staleClaim = {
+    key: SUPPLIER_ORDER_SCHEDULER_LEASE_KEY,
+    ownerToken: "stale-owner",
+    leaseDurationMs: SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS,
+  };
+  assert.equal(await lease.operations.tryAcquire(staleClaim), true);
+  assert.equal(
+    await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "blocked" }),
+    false,
+  );
+
+  clock.now += SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS;
+  assert.equal(
+    await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "new-owner" }),
+    true,
+  );
+  await lease.operations.release({
+    key: staleClaim.key,
+    ownerToken: "stale-owner",
+  });
+  assert.equal(lease.current()?.ownerToken, "new-owner");
+  await lease.operations.release({
+    key: staleClaim.key,
+    ownerToken: "new-owner",
+  });
+  assert.equal(lease.current(), undefined);
+});
+
+test("releases the supplier-order scheduler lease after processor failure", async () => {
+  const lease = inMemorySchedulerLease({ now: 10_000 });
+  await assert.rejects(
+    executeWithSupplierOrderSchedulerLease({
+      lease: lease.operations,
+      createOwnerToken: () => "failing-owner",
+      process: async () => {
+        throw new Error("processor failed");
+      },
+    }),
+    /processor failed/,
+  );
+  assert.equal(lease.current(), undefined);
+});
+
+test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => {
+  assert.equal(SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS, 180_000);
+
+  const route = readFileSync(
+    "src/app/api/cron/supplier-order-schedules/route.ts",
+    "utf8",
+  );
+  assert.match(route, /export const maxDuration = 120;/);
+
+  const setup = readFileSync(
+    "ops/supabase/supplier-order-cron-setup.sql",
+    "utf8",
+  );
+  assert.match(setup, /timeout_milliseconds := 135000/);
+  assert.match(setup, /SECURITY INVOKER/);
+  assert.match(setup, /SET search_path = ''/);
+  assert.match(setup, /FROM vault\.decrypted_secrets/);
+  assert.match(setup, /SELECT net\.http_get/);
+  assert.match(setup, /REVOKE ALL ON SCHEMA private FROM PUBLIC/);
+  assert.match(setup, /REVOKE ALL ON FUNCTION[\s\S]+FROM authenticated/);
+  assert.doesNotMatch(setup, /cron\.schedule/);
+
+  const activation = readFileSync(
+    "ops/supabase/supplier-order-cron-activate.sql",
+    "utf8",
+  );
+  assert.match(activation, /BEGIN;/);
+  assert.match(activation, /supplier-order-scheduler-every-minute/);
+  assert.match(activation, /supplier-order-scheduler-every-30-minutes/);
+  assert.match(activation, /'\*\/30 \* \* \* \*'/);
+  assert.doesNotMatch(activation, /'\* \* \* \* \*'/);
+  assert.match(activation, /active := true/);
+  assert.match(activation, /COMMIT;/);
+
+  const disabling = readFileSync(
+    "ops/supabase/supplier-order-cron-disable.sql",
+    "utf8",
+  );
+  assert.match(disabling, /active := false/);
+  assert.match(disabling, /supplier-order-scheduler-every-30-minutes/);
+  assert.match(disabling, /supplier-order-scheduler-every-minute/);
+
+  const workflow = readFileSync(
+    ".github/workflows/supplier-order-scheduler.yml",
+    "utf8",
+  );
+  assert.match(workflow, /cron: "\*\/30 \* \* \* \*"/);
+  assert.doesNotMatch(workflow, /cron: "\*\/5 \* \* \* \*"/);
+});
+
+test("soft-deletes supplier-order schedules while preserving their audit history", () => {
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  assert.match(
+    schema,
+    /model SupplierOrderSchedule \{[\s\S]*deletedAt\s+DateTime\?/,
+  );
+
+  const migration = readFileSync(
+    "prisma/migrations/20260818_supplier_order_schedule_soft_delete/migration.sql",
+    "utf8",
+  );
+  assert.match(migration, /ADD COLUMN "deletedAt" TIMESTAMP\(3\)/);
+
+  const actions = readFileSync(
+    "src/app/admin/supplier-order-schedules/actions.ts",
+    "utf8",
+  );
+  assert.match(
+    actions,
+    /deleteSupplierOrderSchedule[\s\S]*requirePermission\(PERMISSIONS\.SUPPLIER_MANAGE\)/,
+  );
+  assert.match(
+    actions,
+    /deleteSupplierOrderSchedule[\s\S]*executeExclusiveSupplierOrderSchedulerOperation/,
+  );
+  assert.match(
+    actions,
+    /deletedAt,[\s\S]*isActive: false,[\s\S]*nextInviteAt: null,[\s\S]*nextSupplierSendAt: null/,
+  );
+  assert.match(
+    actions,
+    /status: \{ in: \["SCHEDULED", "COLLECTING", "FINALIZING"\] \}[\s\S]*status: "CANCELLED"/,
+  );
+  assert.doesNotMatch(actions, /supplierOrderSchedule\.delete\(/);
+  assert.doesNotMatch(actions, /supplierOrderRun\.delete/);
+  assert.doesNotMatch(actions, /supplierPurchaseOrder\.delete/);
+  assert.doesNotMatch(actions, /supplierOrderWhatsAppDelivery\.delete/);
+
+  const service = readFileSync(
+    "src/lib/supplier-orders/service.ts",
+    "utf8",
+  );
+  assert.ok(
+    service.match(/deletedAt: null/g)?.length >= 6,
+    "every scheduler stage and the transactional claim must exclude deleted schedules",
+  );
+
+  const listPage = readFileSync(
+    "src/app/admin/supplier-order-schedules/page.tsx",
+    "utf8",
+  );
+  assert.match(listPage, /where: \{ deletedAt: null \}/);
+  assert.match(listPage, /Schedule deleted/);
+
+  const detailPage = readFileSync(
+    "src/app/admin/supplier-order-schedules/\[id\]/page.tsx",
+    "utf8",
+  );
+  assert.match(detailPage, /where: \{ id, deletedAt: null \}/);
+  assert.match(detailPage, /DeleteScheduleButton/);
+
+  const deleteButton = readFileSync(
+    "src/app/admin/supplier-order-schedules/\[id\]/DeleteScheduleButton.tsx",
+    "utf8",
+  );
+  assert.match(deleteButton, /AlertDialog/);
+  assert.match(deleteButton, /variant="destructive"/);
+  assert.match(deleteButton, /Existing purchase orders/);
+
+  const requests = readFileSync(
+    "src/lib/supplier-orders/requests.ts",
+    "utf8",
+  );
+  assert.match(requests, /recipient\.run\.schedule\.deletedAt === null/);
+  assert.match(requests, /recipient\.run\.schedule\.deletedAt !== null/);
 });
