@@ -1,6 +1,8 @@
-﻿import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+﻿import Link from "next/link";
+import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   AdminPage,
+  Button,
   SearchToolbar,
   MetricCard,
   Table,
@@ -183,12 +185,13 @@ export default async function AdminOrdersPage({
               <TableHead>Status</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Items</TableHead>
+              <TableHead>Actions</TableHead>
             </tr>
           </thead>
           <tbody>
             {recentOrders.length === 0 ? (
               <tr>
-                <TableCell colSpan={8} className="py-10 text-center">
+                <TableCell colSpan={9} className="py-10 text-center">
                   No orders found.
                 </TableCell>
               </tr>
@@ -219,6 +222,11 @@ export default async function AdminOrdersPage({
                   </TableCell>
                   <TableCell>{formatDateTime(order.createdAt)}</TableCell>
                   <TableCell>{order._count.orderItems}</TableCell>
+                  <TableCell>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/orders/${order.id}`}>Review</Link>
+                    </Button>
+                  </TableCell>
                 </tr>
               ))
             )}
