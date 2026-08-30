@@ -3,6 +3,10 @@ import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
+import {
+  closeSettledTableChecks,
+  resolveTableCheckIdentity,
+} from "@/lib/cashier/table-checks";
 
 type PayOrderBody = {
   orderId?: string;
@@ -78,6 +82,9 @@ export async function POST(request: Request) {
       select: {
         id: true,
         orderNumber: true,
+        tableCheckId: true,
+        tableCheckRound: true,
+        tableCheck: { select: { checkNumber: true } },
         status: true,
         total: true,
       },
@@ -94,6 +101,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const closedAt = new Date();
     await prisma.$transaction(async (tx) => {
       await tx.payment.create({
         data: {
@@ -111,16 +119,20 @@ export async function POST(request: Request) {
         },
         data: {
           status: "PAID",
-          closedAt: new Date(),
+          closedAt,
         },
       });
+
+      await closeSettledTableChecks(tx, [order.tableCheckId], closedAt);
     });
+
+    const identity = resolveTableCheckIdentity(order);
 
     return NextResponse.json({
       success: true,
       order: {
         id: order.id,
-        orderNumber: order.orderNumber,
+        ...identity,
         total: Number(order.total),
         status: "PAID",
       },

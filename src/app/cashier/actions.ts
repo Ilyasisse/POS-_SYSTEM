@@ -6,6 +6,7 @@ import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
 
 function isPaymentMethod(value: string): value is PaymentMethod {
   return (
@@ -40,45 +41,61 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
   let paymentStatus = "payment_saved";
 
   try {
-    const orders = await prisma.order.findMany({
-      where: {
-        tableId,
-        status: "OPEN",
-        type: "DINE_IN",
-      },
-      select: {
-        id: true,
-        total: true,
-      },
-    });
+    const paidOrderCount = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${tableId} FOR UPDATE`,
+      );
 
-    if (orders.length === 0) {
-      paymentStatus = "order_not_open";
-    } else {
-      await prisma.$transaction(async (tx) => {
-        await tx.payment.createMany({
-          data: orders.map((order) => ({
-            orderId: order.id,
-            cashierId: currentUser.id,
-            cashierName: currentUser.fullName,
-            method: paymentMethod,
-            amountPaid: toDecimal(Number(order.total)),
-          })),
-        });
-
-        await tx.order.updateMany({
-          where: {
-            id: {
-              in: orders.map((order) => order.id),
-            },
-          },
-          data: {
-            status: "PAID",
-            closedAt: new Date(),
-          },
-        });
+      const orders = await tx.order.findMany({
+        where: {
+          tableId,
+          status: "OPEN",
+          type: "DINE_IN",
+        },
+        select: {
+          id: true,
+          total: true,
+          tableCheckId: true,
+        },
       });
 
+      if (orders.length === 0) return 0;
+
+      const closedAt = new Date();
+      await tx.payment.createMany({
+        data: orders.map((order) => ({
+          orderId: order.id,
+          cashierId: currentUser.id,
+          cashierName: currentUser.fullName,
+          method: paymentMethod,
+          amountPaid: toDecimal(Number(order.total)),
+        })),
+      });
+
+      await tx.order.updateMany({
+        where: {
+          id: {
+            in: orders.map((order) => order.id),
+          },
+        },
+        data: {
+          status: "PAID",
+          closedAt,
+        },
+      });
+
+      await closeSettledTableChecks(
+        tx,
+        orders.map((order) => order.tableCheckId),
+        closedAt,
+      );
+
+      return orders.length;
+    });
+
+    if (paidOrderCount === 0) {
+      paymentStatus = "order_not_open";
+    } else {
       refreshCashierTableViews();
     }
   } catch (error) {

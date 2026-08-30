@@ -1,5 +1,6 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
@@ -91,6 +92,11 @@ export async function matchPaymentRequest(input: {
     if (remainingCents > 0) throw new Error("Payment exceeds the remaining table balance.");
     const matched = await tx.paymentRequest.update({ where: { id: request.id }, data: {
       status: "MATCHED", providerReference: input.reference, rawMessage: input.rawMessage, matchedAt: paidAt } });
+    await closeSettledTableChecks(
+      tx,
+      orders.map((order) => order.tableCheckId),
+      paidAt,
+    );
     const openOrderCount = await tx.order.count({ where: {
       tableId: request.tableId, type: "DINE_IN", status: "OPEN",
     } });

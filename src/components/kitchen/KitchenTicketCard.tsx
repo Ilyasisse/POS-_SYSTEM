@@ -29,7 +29,7 @@ export default function KitchenTicketCard({
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-md font-semibold text-slate-300">
-            Ticket #{ticket.orderNumber}
+            Order #{ticket.orderNumber} · Round {ticket.roundNumber}
           </p>
           <p className="text-sm text-slate-400">
             {new Date(ticket.createdAt).toLocaleTimeString("en-US")}
