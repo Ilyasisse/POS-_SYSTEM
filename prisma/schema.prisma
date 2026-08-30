@@ -21,6 +21,8 @@ model User {
   assignedItems                       OrderItem[]                      @relation("AssignedOrderItems")
   claimedKitchenTickets               KitchenTicketState[]             @relation("KitchenTicketClaimant")
   payments                            Payment[]
+  paymentRequests                     PaymentRequest[]              @relation("PaymentRequestCashier")
+  paymentDeferrals                    PaymentDeferral[]             @relation("PaymentDeferralCashier")
   shifts                              Shift[]                       @relation("WaiterShifts")
   shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
   waiterBalanceInitialization         WaiterBalanceInitialization?  @relation("WaiterBalanceOwner")
@@ -540,13 +542,15 @@ model Modifier {
 }
 
 model Table {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  orders      Order[]
-  tableChecks TableCheck[]
+  id               String            @id @default(cuid())
+  name             String            @unique
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  orders           Order[]
+  tableChecks      TableCheck[]
+  paymentRequests  PaymentRequest[]
+  paymentDeferrals PaymentDeferral[]
 
   @@index([isActive])
 }
@@ -983,14 +987,64 @@ model Payment {
   method      PaymentMethod
   amountPaid  Decimal
   reference   String?
+  payerName   String?
+  payerPhone  String?
+  paymentRequestId String?
   createdAt   DateTime      @default(now())
   cashier     User          @relation(fields: [cashierId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id])
+  paymentRequest PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
 
   @@unique([method, reference])
   @@index([createdAt])
   @@index([orderId])
   @@index([cashierId, createdAt])
+  @@index([paymentRequestId])
+}
+
+model PaymentRequest {
+  id                String               @id @default(cuid())
+  batchKey          String
+  lineIndex         Int
+  tableId           String
+  cashierId         String
+  cashierName       String
+  method            PaymentMethod
+  payerName         String
+  payerPhone        String
+  expectedAmount    Decimal
+  status            PaymentRequestStatus @default(PENDING)
+  providerReference String?
+  rawMessage        String?
+  createdAt         DateTime             @default(now())
+  matchedAt         DateTime?
+  expiresAt         DateTime
+  table             Table                @relation(fields: [tableId], references: [id])
+  cashier           User                 @relation("PaymentRequestCashier", fields: [cashierId], references: [id])
+  payments          Payment[]
+
+  @@unique([batchKey, lineIndex])
+  @@unique([method, providerReference])
+  @@index([tableId, status, createdAt])
+  @@index([cashierId, createdAt])
+}
+
+model PaymentDeferral {
+  id              String   @id @default(cuid())
+  batchKey        String   @unique
+  tableId         String
+  cashierId       String
+  cashierName     String
+  amountDue       Decimal
+  amountPaid      Decimal
+  remainingAmount Decimal
+  createdAt       DateTime @default(now())
+  resolvedAt      DateTime?
+  table           Table    @relation(fields: [tableId], references: [id])
+  cashier         User     @relation("PaymentDeferralCashier", fields: [cashierId], references: [id])
+
+  @@index([resolvedAt, createdAt])
+  @@index([tableId, resolvedAt])
 }
 
 model Shift {
@@ -1725,6 +1779,13 @@ enum PaymentMethod {
   GOLIS
   Dahabshiil
   OTHER
+}
+
+enum PaymentRequestStatus {
+  PENDING
+  MATCHED
+  CANCELLED
+  EXPIRED
 }
 
 enum InventoryAlertStatus {

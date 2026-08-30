@@ -630,7 +630,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
     businessDayEnd,
   );
 
-  const [currentUser, params, [waiters, openTableOrders]] = await Promise.all([
+  const [currentUser, params, [waiters, openTableOrders, paymentDeferrals]] = await Promise.all([
     requirePermission(PERMISSIONS.DASHBOARD_VIEW),
     searchParams,
     Promise.all([
@@ -697,6 +697,11 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
             orderBy: { createdAt: "asc" },
           },
         },
+      }),
+      prisma.paymentDeferral.findMany({
+        where: { resolvedAt: null },
+        orderBy: { createdAt: "desc" },
+        include: { table: { select: { name: true } } },
       }),
     ]),
   ]);
@@ -771,6 +776,12 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
   );
   const currentTime = new Date().getTime();
   const alerts: Alert[] = [
+    ...paymentDeferrals.map((deferral) => ({
+      id: `payment-deferral-${deferral.id}`,
+      tone: "danger" as const,
+      title: `${deferral.table.name} has a pay-later balance`,
+      message: `${deferral.cashierName} deferred ${formatMoney(Number(deferral.remainingAmount))}. The table owed ${formatMoney(Number(deferral.amountDue))} and payment requests covered ${formatMoney(Number(deferral.amountPaid))}.`,
+    })),
     ...openTableOrders.flatMap((order) =>
       currentTime - order.createdAt.getTime() > 60 * 60 * 1000
         ? [
