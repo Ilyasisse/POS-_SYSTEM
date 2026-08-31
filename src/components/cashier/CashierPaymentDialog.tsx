@@ -18,12 +18,14 @@ type Line = {
   payerName: string;
   payerPhone: string;
   amount: string;
+  method: string;
 };
 type RequestLine = {
   id: string;
   payerName: string;
   payerPhone: string;
   amount: number;
+  method: string;
   status: string;
   reference?: string | null;
 };
@@ -39,13 +41,13 @@ export default function CashierPaymentDialog({
   amountDue: number;
 }) {
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState("");
   const [lines, setLines] = useState<Line[]>([
     {
       id: crypto.randomUUID(),
       payerName: "",
       payerPhone: "",
       amount: amountDue.toFixed(2),
+      method: "",
     },
   ]);
   const [payLater, setPayLater] = useState(false);
@@ -91,8 +93,8 @@ export default function CashierPaymentDialog({
 
   async function startChecks() {
     setError("");
-    if (!method) {
-      setError("Select a payment method first.");
+    if (lines.some((line) => !line.method)) {
+      setError("Select a payment method for every payer.");
       return;
     }
     const key = crypto.randomUUID();
@@ -104,12 +106,12 @@ export default function CashierPaymentDialog({
         body: JSON.stringify({
           batchKey: key,
           tableId,
-          method,
           payLater,
           lines: lines.map((line) => ({
             payerName: line.payerName,
             payerPhone: line.payerPhone,
             amount: Number(line.amount),
+            method: line.method,
           })),
         }),
       });
@@ -142,35 +144,32 @@ export default function CashierPaymentDialog({
             Payment for {tableName}
           </DialogTitle>
           <DialogDescription>
-            Select a method, then enter each payer. The phone callback confirms
-            every row separately.
+            Enter each payer and payment provider. Every row is confirmed
+            separately, so customers can use different methods on one bill.
           </DialogDescription>
         </DialogHeader>
 
         {!batchKey ? (
           <div className="space-y-5">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">
-                Payment method
-              </span>
-              <NativeSelect
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="w-full rounded-xl"
-              >
-                <option value="">Select payment method</option>
-                <option value="GOLIS">GOLIS</option>
-                <option value="MYCASH">MYCASH</option>
-                <option value="Dahabshiil">Dahabshiil</option>
-                <option value="OTHER">OTHER</option>
-              </NativeSelect>
-            </label>
             <div className="space-y-3">
               {lines.map((line, index) => (
                 <div
                   key={line.id}
-                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[1fr_1fr_7rem_auto]"
+                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"
                 >
+                  <NativeSelect
+                    aria-label={`Payer ${index + 1} payment method`}
+                    value={line.method}
+                    onChange={(event) =>
+                      updateLine(line.id, "method", event.target.value)
+                    }
+                  >
+                    <option value="">Method</option>
+                    <option value="GOLIS">GOLIS</option>
+                    <option value="MYCASH">MYCASH</option>
+                    <option value="Dahabshiil">Dahabshiil</option>
+                    <option value="OTHER">OTHER</option>
+                  </NativeSelect>
                   <Input
                     aria-label={`Payer ${index + 1} name`}
                     placeholder="Name"
@@ -223,6 +222,7 @@ export default function CashierPaymentDialog({
                     payerName: "",
                     payerPhone: "",
                     amount: remaining ? remaining.toFixed(2) : "",
+                    method: current.at(-1)?.method ?? "",
                   },
                 ])
               }
@@ -297,7 +297,7 @@ export default function CashierPaymentDialog({
                     {request.payerName} · {request.payerPhone}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {request.id} · {money(request.amount)}
+                    {request.method} · {money(request.amount)}
                   </p>
                 </div>
                 <span
