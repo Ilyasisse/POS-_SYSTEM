@@ -7,6 +7,7 @@ import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import { getActiveWaiterOrderingShift } from "@/lib/waiter/waiter-shifts";
+import { validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
@@ -173,6 +174,23 @@ export async function POST(request: Request) {
             where: { isActive: true },
             select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -185,6 +203,7 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
@@ -250,6 +269,12 @@ export async function POST(request: Request) {
       }
 
       const uniqueModifierIds = Array.from(incomingModifierMap.keys());
+
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: uniqueModifierIds,
+      });
 
       const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map(
         (modifierId) => {
