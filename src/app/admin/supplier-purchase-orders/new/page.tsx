@@ -1,6 +1,6 @@
 import { AdminPage, Button } from "@/components/admin/shared";
 import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToastOnMount } from "@/components/ui/toast";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
@@ -99,10 +99,11 @@ export default async function NewSupplierPurchaseOrderPage({
       }
     >
       {message ? (
-        <Alert variant="destructive">
-          <AlertTitle>Purchase order not created</AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone="error"
+          title="Purchase order not created"
+          description={message}
+        />
       ) : null}
       <PurchaseOrderBuilder
         suppliers={suppliers}

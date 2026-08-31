@@ -14,6 +14,7 @@ import {
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { createActiveTableFromAdmin } from "./actions";
+import { ToastOnMount } from "@/components/ui/toast";
 
 type TablePageProps = {
   searchParams?: Promise<{
@@ -32,21 +33,28 @@ function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
 function getTableStatusMessage(tableStatus?: string) {
   switch (tableStatus) {
     case "table_created":
-      return "The table has been added and is active.";
+      return { tone: "success" as const, message: "The table has been added and is active." };
     case "invalid_table":
-      return "Enter a valid table name, section, and capacity from 1 to 50.";
+      return {
+        tone: "error" as const,
+        message: "Enter a valid table name, section, and capacity from 1 to 50.",
+      };
     case "duplicate_table":
-      return "A table with that name already exists.";
+      return { tone: "error" as const, message: "A table with that name already exists." };
     case "table_create_failed":
-      return "The table could not be created.";
+      return { tone: "error" as const, message: "The table could not be created." };
     case "table_updated":
-      return "The table details were updated.";
+      return { tone: "success" as const, message: "The table details were updated." };
     case "occupied_table":
-      return "An occupied table cannot be hidden. Settle or transfer its open orders first.";
+      return {
+        tone: "warning" as const,
+        message:
+          "An occupied table cannot be hidden. Settle or transfer its open orders first.",
+      };
     case "table_not_found":
-      return "The table no longer exists.";
+      return { tone: "error" as const, message: "The table no longer exists." };
     case "table_update_failed":
-      return "The table could not be updated.";
+      return { tone: "error" as const, message: "The table could not be updated." };
     default:
       return null;
   }
@@ -95,9 +103,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       description="Manage dine-in tables and their status"
     >
       {notice ? (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
-          {notice}
-        </div>
+        <ToastOnMount tone={notice.tone} description={notice.message} />
       ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">

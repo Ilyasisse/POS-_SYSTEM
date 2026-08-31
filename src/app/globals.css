@@ -157,6 +157,43 @@
 }
 
 @layer utilities {
+  @keyframes toast-enter {
+    from {
+      opacity: 0;
+      transform: translateX(calc(100% + 1rem));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes toast-exit {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(calc(100% + 1rem));
+    }
+  }
+
+  .toast-enter {
+    animation: toast-enter 240ms ease-out both;
+  }
+
+  .toast-exit {
+    animation: toast-exit 220ms ease-in both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toast-enter,
+    .toast-exit {
+      animation-duration: 1ms;
+    }
+  }
+
   .dark [data-surface-tone="light"] [class*="bg-white"] {
     background-color: color-mix(in oklab, var(--card) 92%, transparent);
   }

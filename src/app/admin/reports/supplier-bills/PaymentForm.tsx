@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -22,22 +23,24 @@ export default function PaymentForm({
   installmentId?: string;
 }) {
   const [pending, startTransition] = useTransition();
-  const [message, setMessage] = useState("");
   const [amount, setAmount] = useState(() => remaining.toFixed(2));
   const router = useRouter();
+  const { toast } = useToast();
   const includesExtra = Number(amount) > remaining;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    setMessage("");
     startTransition(async () => {
       try {
         await recordPaymentAction(data);
-        setMessage("Payment recorded.");
+        toast({ tone: "success", description: "Payment recorded." });
         router.refresh();
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Payment failed.");
+        toast({
+          tone: "error",
+          description: error instanceof Error ? error.message : "Payment failed.",
+        });
       }
     });
   }
@@ -98,9 +101,6 @@ export default function PaymentForm({
       >
         {pending ? "Recordingâ€¦" : remaining > 0 ? "Record payment" : "Paid"}
       </Button>
-      {message ? (
-        <span className="text-md font-semibold text-red-600">{message}</span>
-      ) : null}
     </form>
   );
 }

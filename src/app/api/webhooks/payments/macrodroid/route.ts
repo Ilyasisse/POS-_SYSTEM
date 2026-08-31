@@ -1,51 +1,74 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import type { PaymentMethod } from "@prisma/client";
-import { matchPaymentRequest } from "@/lib/payments/cashier-payment-requests";
+import {
+  isExpectedMacrodroidSender,
+  isMacrodroidAuthorized,
+} from "@/lib/payments/macrodroid-auth";
+import { ingestMobileMoneyReceipt } from "@/lib/payments/mobile-money-receipts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorized(request: Request) {
-  const secret = process.env.MACRODROID_PAYMENT_WEBHOOK_SECRET?.trim();
-  const supplied =
-    request.headers
-      .get("authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim() || request.headers.get("x-webhook-secret")?.trim();
-  if (!secret || !supplied) return false;
-  const left = Buffer.from(secret);
-  const right = Buffer.from(supplied);
-  return left.length === right.length && timingSafeEqual(left, right);
-}
-
 export async function POST(request: Request) {
-  if (!authorized(request))
+  if (!isMacrodroidAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
   try {
-    const body = await request.json();
-    const result = await matchPaymentRequest({
-      paymentRequestId: String(body.paymentRequestId ?? "").trim() || undefined,
-      payerPhone: String(body.payerPhone ?? "").trim() || undefined,
-      provider: String(body.provider ?? "").trim() as PaymentMethod,
-      reference: String(body.reference ?? "").trim(),
-      amount: Number(body.amount),
-      sender: String(body.sender ?? ""),
-      rawMessage: String(body.message ?? ""),
-      paidAt: body.receivedAt ? new Date(String(body.receivedAt)) : undefined,
+    const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+    let sender = request.headers.get("x-sms-sender")?.trim() ?? "";
+    let rawMessage = "";
+    let receivedAt: Date | undefined;
+
+    if (contentType.includes("application/json")) {
+      const body = (await request.json()) as Record<string, unknown>;
+      sender ||= String(body.sender ?? "").trim();
+      rawMessage = String(body.message ?? "");
+      if (body.receivedAt) {
+        const candidate = new Date(String(body.receivedAt));
+        if (!Number.isNaN(candidate.getTime())) receivedAt = candidate;
+      }
+    } else {
+      rawMessage = await request.text();
+    }
+
+    if (!isExpectedMacrodroidSender(sender)) {
+      return NextResponse.json(
+        { error: "The SMS sender is not allowed." },
+        { status: 400 },
+      );
+    }
+    if (!rawMessage.trim() || rawMessage.length > 4096) {
+      return NextResponse.json(
+        { error: "The SMS body must contain between 1 and 4096 characters." },
+        { status: 400 },
+      );
+    }
+
+    const result = await ingestMobileMoneyReceipt({
+      sender,
+      rawMessage,
+      receivedAt,
     });
-    return NextResponse.json({
-      ok: true,
-      duplicate: result.duplicate,
-      paymentRequestId: result.request.id,
-    });
-  } catch (error) {
+    const status = result.duplicate
+      ? 200
+      : result.receipt.status === "NEEDS_REVIEW"
+        ? 202
+        : 201;
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Payment callback failed.",
+        ok: true,
+        duplicate: result.duplicate,
+        receiptId: result.receipt.id,
+        status: result.receipt.status,
       },
-      { status: 400 },
+      { status },
+    );
+  } catch (error) {
+    console.error("MacroDroid payment receipt error:", error);
+    return NextResponse.json(
+      { error: "Payment receipt could not be stored." },
+      { status: 500 },
     );
   }
 }

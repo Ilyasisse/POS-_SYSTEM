@@ -14,6 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { revertSupplierPaymentAction } from "./actions";
 
 export default function RevertPaymentButton({
@@ -27,8 +28,8 @@ export default function RevertPaymentButton({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   if (disabledReason) {
     return (
@@ -45,16 +46,18 @@ export default function RevertPaymentButton({
 
   function confirmRevert(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
-    setMessage("");
     startTransition(async () => {
       try {
         await revertSupplierPaymentAction(paymentId);
         setOpen(false);
+        toast({ tone: "success", description: "Payment reverted." });
         router.refresh();
       } catch (error) {
-        setMessage(
-          error instanceof Error ? error.message : "Could not revert payment.",
-        );
+        toast({
+          tone: "error",
+          description:
+            error instanceof Error ? error.message : "Could not revert payment.",
+        });
       }
     });
   }
@@ -75,11 +78,6 @@ export default function RevertPaymentButton({
             invoice paid by this payment may reopen. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {message ? (
-          <p role="alert" className="text-sm font-semibold text-red-700">
-            {message}
-          </p>
-        ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel type="button" disabled={pending}>
             Cancel
