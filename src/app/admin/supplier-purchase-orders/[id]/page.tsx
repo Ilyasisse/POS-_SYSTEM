@@ -10,7 +10,7 @@ import {
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToastOnMount } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -129,14 +129,15 @@ export default async function SupplierPurchaseOrderDetailPage({
       }
     >
       {notice ? (
-        <Alert variant={notice.tone === "error" ? "destructive" : "default"}>
-          <AlertTitle>
-            {notice.tone === "error"
+        <ToastOnMount
+          tone={notice.tone as "success" | "error"}
+          title={
+            notice.tone === "error"
               ? "Status not changed"
-              : "Purchase order updated"}
-          </AlertTitle>
-          <AlertDescription>{notice.message}</AlertDescription>
-        </Alert>
+              : "Purchase order updated"
+          }
+          description={notice.message}
+        />
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">

@@ -13,7 +13,7 @@ import {
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToastOnMount } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
@@ -363,14 +363,11 @@ export default async function SupplierCatalogPage({
       }
     >
       {notice ? (
-        <Alert variant={notice.tone === "error" ? "destructive" : "default"}>
-          <AlertTitle>
-            {notice.tone === "error"
-              ? "Catalog not changed"
-              : "Catalog updated"}
-          </AlertTitle>
-          <AlertDescription>{notice.message}</AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone={notice.tone as "success" | "error"}
+          title={notice.tone === "error" ? "Catalog not changed" : "Catalog updated"}
+          description={notice.message}
+        />
       ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">

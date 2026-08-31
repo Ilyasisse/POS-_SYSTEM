@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { CheckCircle2, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 
 type Item = { id: string; name: string; unit: string };
 
@@ -23,13 +24,12 @@ export default function SupplierOrderRequestForm({
   const [selected, setSelected] = useState<Record<string, string>>(initialSelected);
   const [status, setStatus] = useState(initialStatus);
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const latestRequestId = useRef(0);
+  const { toast } = useToast();
 
   async function submit(noOrder: boolean) {
     const requestId = ++latestRequestId.current;
     setPending(true);
-    setMessage(null);
     const chosen: { catalogItemId: string; quantity: string }[] = [];
     for (const [catalogItemId, quantity] of Object.entries(selected)) {
       if (Number(quantity) > 0) chosen.push({ catalogItemId, quantity });
@@ -48,14 +48,19 @@ export default function SupplierOrderRequestForm({
       if (requestId !== latestRequestId.current) return;
       setStatus(noOrder ? "NO_ORDER" : "RESPONDED");
       if (noOrder) setSelected({});
-      setMessage(
-        noOrder
+      toast({
+        tone: "success",
+        description: noOrder
           ? "Confirmed: no order is needed. You can change this before the deadline."
           : "Your latest item quantities have been saved.",
-      );
+      });
     } catch (error) {
       if (requestId === latestRequestId.current) {
-        setMessage(error instanceof Error ? error.message : "Unable to save your order.");
+        toast({
+          tone: "error",
+          description:
+            error instanceof Error ? error.message : "Unable to save your order.",
+        });
       }
     } finally {
       if (requestId === latestRequestId.current) setPending(false);
@@ -105,12 +110,6 @@ export default function SupplierOrderRequestForm({
           ))}
         </div>
       </div>
-
-      {message ? (
-        <p className="rounded-xl border bg-white p-3 text-sm font-medium text-slate-700" role="status">
-          {message}
-        </p>
-      ) : null}
 
       {editable ? (
         <div className="grid gap-3 sm:grid-cols-2">

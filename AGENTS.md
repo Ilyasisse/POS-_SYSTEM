@@ -37,3 +37,10 @@ These instructions apply to every agent working anywhere in this repository.
 - Treat the primary checkout and every other registered worktree as user-owned state.
 - Do not stage, commit, move, or modify unrelated files.
 - Before finishing, verify `git status`, `git diff --check`, and `git worktree list` so the task contains only intended changes and no stale registrations.
+
+## User feedback
+
+- Use the global toast API in `src/components/ui/toast.tsx` for transient action results and route status messages.
+- Success toasts dismiss automatically. Error and warning toasts stay visible until the user dismisses them.
+- Keep field validation beside the affected field and keep persistent operational state in the page. Do not replace either with a toast.
+- Give actionable warnings a concise resolution action when there is a clear next step.

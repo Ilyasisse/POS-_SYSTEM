@@ -12,7 +12,7 @@ import {
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToastOnMount } from "@/components/ui/toast";
 
 const dateTime = new Intl.DateTimeFormat("en-US", {
   timeZone: "Africa/Nairobi",
@@ -54,12 +54,11 @@ export default async function SupplierOrderSchedulesPage({
       }
     >
       {query.status === "deleted" ? (
-        <Alert>
-          <AlertTitle>Schedule deleted</AlertTitle>
-          <AlertDescription>
-            Future processing was stopped. Existing purchase orders and WhatsApp history were preserved.
-          </AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone="success"
+          title="Schedule deleted"
+          description="Future processing was stopped. Existing purchase orders and WhatsApp history were preserved."
+        />
       ) : null}
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Schedules" value={schedules.length} />

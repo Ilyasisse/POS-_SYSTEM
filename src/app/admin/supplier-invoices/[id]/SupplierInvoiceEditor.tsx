@@ -3,12 +3,12 @@
 import { type FormEvent, useRef, useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 import {
   finalizeSupplierInvoiceAction,
   saveSupplierInvoiceDraftAction,
@@ -496,22 +496,6 @@ function InvoiceItemRow({
   );
 }
 
-function InvoiceStatusMessage({
-  message,
-  hasError,
-}: {
-  message: string;
-  hasError: boolean;
-}) {
-  if (!message) return null;
-
-  return (
-    <Alert variant={hasError ? "destructive" : "default"}>
-      <AlertDescription role="status">{message}</AlertDescription>
-    </Alert>
-  );
-}
-
 type InvoiceActionsSectionProps = {
   pending: boolean;
   hasPurchaseOrder: boolean;
@@ -612,9 +596,8 @@ export default function SupplierInvoiceEditor({
         ],
   );
   const [selectedCatalogId, setSelectedCatalogId] = useState("");
-  const [message, setMessage] = useState("");
-  const [hasError, setHasError] = useState(false);
   const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
   const editable = invoice.status === "DRAFT";
   const selectedCatalogIds = new Set(
     lines.flatMap((line) =>
@@ -705,22 +688,21 @@ export default function SupplierInvoiceEditor({
     const form = formRef.current;
     if (!form || (confirmation && !window.confirm(confirmation))) return;
     const data = new FormData(form);
-    setMessage("");
     startTransition(async () => {
       try {
         const result = await action(data);
-        setHasError(false);
-        setMessage(result.message);
         if (result.redirectTo) {
           router.push(result.redirectTo);
         } else {
+          toast({ tone: "success", description: result.message });
           router.refresh();
         }
       } catch (error) {
-        setHasError(true);
-        setMessage(
-          error instanceof Error ? error.message : "Invoice update failed.",
-        );
+        toast({
+          tone: "error",
+          description:
+            error instanceof Error ? error.message : "Invoice update failed.",
+        });
       }
     });
   }
@@ -768,8 +750,6 @@ export default function SupplierInvoiceEditor({
         onLineChange={updateLine}
         onRemoveLine={removeLine}
       />
-
-      <InvoiceStatusMessage message={message} hasError={hasError} />
 
       {editable ? (
         <InvoiceActionsSection
