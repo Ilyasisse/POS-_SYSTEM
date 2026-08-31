@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { availableForSaleWhere } from "@/lib/products/availability";
 
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: {
         isPopular: true,
+        isActive: true,
+        ...availableForSaleWhere(),
       },
       include: {
         category: true,
