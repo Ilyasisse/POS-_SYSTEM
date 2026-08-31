@@ -74,7 +74,7 @@ const navigationGroups: readonly {
     key: "catalog",
     label: "Catalog",
     icon: Layers3,
-    itemKeys: ["categories", "products", "modifiers", "modifier-groups"],
+    itemKeys: ["categories", "products", "menu-availability", "modifiers", "modifier-groups"],
   },
   {
     key: "admin-operations",

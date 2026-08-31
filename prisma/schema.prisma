@@ -431,6 +431,8 @@ model Product {
   pronunciationAudioUrl       String?
   isActive                    Boolean               @default(true)
   isPopular                   Boolean               @default(false)
+  availabilityStartMinute     Int?
+  availabilityEndMinute       Int?
   price                       Decimal
   cost                        Decimal?              @db.Decimal(14, 6)
   categoryId                  String
@@ -454,6 +456,7 @@ model Product {
   inventoryCountLines         InventoryCountLine[]
 
   @@index([categoryId, isActive])
+  @@index([isActive, availabilityStartMinute, availabilityEndMinute])
   @@index([trackStock, inventoryAlertStatus])
   @@index([price, name])
   @@index([standardCostUpdatedByUserId])

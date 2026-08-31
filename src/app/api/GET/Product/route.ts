@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: {
         isPopular: true,
+        isActive: true,
       },
       include: {
         category: true,
@@ -23,7 +25,8 @@ export async function GET() {
       },
     });
 
-    const formattedProducts = products.map((product) => {
+    const now = new Date();
+    const formattedProducts = products.filter((product) => isProductAvailableAt(product, now)).map((product) => {
       type ModifierGroup = {
         id: string;
         name: string;
