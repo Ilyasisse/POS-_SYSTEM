@@ -90,16 +90,25 @@ export async function GET(request: Request) {
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },
+    include: { payments: { select: { amountPaid: true } } },
   });
   return NextResponse.json({
     ok: true,
-    requests: requests.map((item) => ({
-      id: item.id,
-      payerName: item.payerName,
-      payerPhone: item.payerPhone,
-      amount: Number(item.expectedAmount),
-      status: item.status,
-      reference: item.providerReference,
-    })),
+    requests: requests.map((item) => {
+      const paidAmount = item.payments.reduce(
+        (sum, payment) => sum + Number(payment.amountPaid),
+        0,
+      );
+      return {
+        id: item.id,
+        payerName: item.payerName,
+        payerPhone: item.payerPhone,
+        amount: Number(item.expectedAmount),
+        paidAmount,
+        remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
+        status: item.status,
+        reference: item.providerReference,
+      };
+    }),
   });
 }

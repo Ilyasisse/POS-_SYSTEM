@@ -106,6 +106,34 @@ export function getCashierBusinessDayRange(now: Date = new Date()) {
   return { start, end };
 }
 
+export function getPaymentReceiptBusinessDayRange(now: Date = new Date()) {
+  const current = getBusinessDayDateParts(now);
+  const businessDate = new Date(
+    Date.UTC(current.year, current.month - 1, current.day),
+  );
+
+  if (current.hour < 7) {
+    businessDate.setUTCDate(businessDate.getUTCDate() - 1);
+  }
+
+  const startDate = {
+    year: businessDate.getUTCFullYear(),
+    month: businessDate.getUTCMonth() + 1,
+    day: businessDate.getUTCDate(),
+  };
+  businessDate.setUTCDate(businessDate.getUTCDate() + 1);
+  const endDate = {
+    year: businessDate.getUTCFullYear(),
+    month: businessDate.getUTCMonth() + 1,
+    day: businessDate.getUTCDate(),
+  };
+
+  return {
+    start: businessDateAtHour(startDate, 7),
+    end: businessDateAtHour(endDate, 7),
+  };
+}
+
 export function formatCashierBusinessDayRange(start: Date, end: Date) {
   return `${businessDayDateFormatter.format(start)} ${businessDayTimeFormatter.format(start)} to ${businessDayDateFormatter.format(end)} ${businessDayTimeFormatter.format(end)}`;
 }
