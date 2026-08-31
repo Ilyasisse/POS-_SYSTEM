@@ -454,7 +454,10 @@ export default async function AdminInventoryPage({
     ...supply,
     stockQty: Number(supply.stockQty),
     lowStockThreshold: Number(supply.lowStockThreshold),
-    status: getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
+    status: getInventoryAlertStatus(
+      Number(supply.stockQty),
+      Number(supply.lowStockThreshold),
+    ),
   }));
   const visibleSupplies = enrichedSupplies.filter((supply) => {
     const matchesSearch = !q || supply.name.toLowerCase().includes(q);
@@ -487,7 +490,12 @@ export default async function AdminInventoryPage({
         searchQuery={params?.q ?? ""}
         statusFilter={statusFilter}
       />
-      <RecentInventoryActivity movements={movements.map((movement) => ({ ...movement, delta: Number(movement.delta) }))} />
+      <RecentInventoryActivity
+        movements={movements.map((movement) => ({
+          ...movement,
+          delta: Number(movement.delta),
+        }))}
+      />
     </AdminPage>
   );
 }
