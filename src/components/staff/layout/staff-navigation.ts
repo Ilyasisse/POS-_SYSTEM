@@ -80,7 +80,7 @@ const navigationGroups: readonly {
     key: "admin-operations",
     label: "Operations",
     icon: ClipboardList,
-    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash", "operations"],
+    itemKeys: ["inventory", "supplies", "tables", "reservations", "orders", "waiter-balances", "daily-cash", "operations"],
   },
   {
     key: "suppliers",

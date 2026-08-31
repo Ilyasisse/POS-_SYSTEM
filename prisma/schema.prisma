@@ -96,6 +96,7 @@ model User {
   complaintsResolved                  ComplaintCase[]              @relation("ComplaintResolver")
   complaintsRecorded                  ComplaintCase[]              @relation("ComplaintActor")
   reportExports                       ReportExportAudit[]          @relation("ReportExportActor")
+  reservationsCreated                 Reservation[]                @relation("ReservationCreator")
 
   @@index([role, isActive])
   @@index([station])
@@ -552,8 +553,32 @@ model Table {
   tableChecks      TableCheck[]
   paymentRequests  PaymentRequest[]
   paymentDeferrals PaymentDeferral[]
+  reservations     Reservation[]
 
   @@index([isActive])
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  guestName       String
+  phone           String?
+  partySize       Int
+  scheduledAt     DateTime?
+  status          ReservationStatus @default(BOOKED)
+  tableId         String?
+  notes           String?
+  createdByUserId String
+  seatedAt        DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  table           Table?            @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  createdBy       User              @relation("ReservationCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([status, scheduledAt])
+  @@index([tableId, status])
+  @@index([phone, createdAt])
+  @@index([createdByUserId, createdAt])
 }
 
 /// Customer-facing table bill. Each kitchen submission remains a separate
@@ -2045,6 +2070,15 @@ enum ComplaintStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum ReservationStatus {
+  BOOKED
+  WAITING
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
 }
 
 enum SupplierInvoiceRecurrenceUnit {
