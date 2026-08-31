@@ -59,6 +59,22 @@ function getPaymentStatusMessage(paymentStatus?: string) {
   }
 }
 
+function getOrderStatusMessage(orderStatus?: string) {
+  if (orderStatus === "takeaway_paid") {
+    return {
+      tone: "success" as const,
+      message: "The takeaway order was paid and sent to the kitchen.",
+    };
+  }
+  if (orderStatus === "sent") {
+    return {
+      tone: "success" as const,
+      message: "The table order was sent to the kitchen.",
+    };
+  }
+  return null;
+}
+
 export default async function CashierPage({ searchParams }: CashierPageProps) {
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
@@ -73,6 +89,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     searchParams,
   ]);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
+  const orderNotice = getOrderStatusMessage(params?.orderStatus);
 
   const tables = await prisma.table.findMany({
     where: {
@@ -151,12 +168,20 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </p>
         </div>
 
-        <Link
-          href="/cashier/order"
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          New table order
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/cashier/takeaway"
+            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            New takeaway
+          </Link>
+          <Link
+            href="/cashier/order"
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            New table order
+          </Link>
+        </div>
       </div>
 
       {paymentNotice ? (
@@ -168,6 +193,12 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           }`}
         >
           {paymentNotice.message}
+        </div>
+      ) : null}
+
+      {orderNotice ? (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {orderNotice.message}
         </div>
       ) : null}
 
