@@ -11,6 +11,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import type { StaffShellProps } from "./StaffShell";
+import PaymentGatewayBanner from "./PaymentGatewayBanner";
 import StaffSidebar from "./StaffSidebar";
 
 type StaffShellClientProps = StaffShellProps & {
@@ -91,6 +92,8 @@ export default function StaffShellClient({
               </div>
             ) : null}
         </header>
+
+        <PaymentGatewayBanner />
 
         <div className="min-h-[calc(100vh-4rem)]">{children}</div>
       </SidebarInset>

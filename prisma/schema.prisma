@@ -23,6 +23,7 @@ model User {
   payments                            Payment[]
   paymentRequests                     PaymentRequest[]              @relation("PaymentRequestCashier")
   paymentDeferrals                    PaymentDeferral[]             @relation("PaymentDeferralCashier")
+  mobileMoneyReceiptsAssigned         MobileMoneyReceipt[]          @relation("MobileMoneyReceiptAssignee")
   shifts                              Shift[]                       @relation("WaiterShifts")
   shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
   waiterBalanceInitialization         WaiterBalanceInitialization?  @relation("WaiterBalanceOwner")
@@ -990,16 +991,19 @@ model Payment {
   payerName   String?
   payerPhone  String?
   paymentRequestId String?
+  mobileMoneyReceiptId String?
   createdAt   DateTime      @default(now())
   cashier     User          @relation(fields: [cashierId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id])
   paymentRequest PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
+  mobileMoneyReceipt MobileMoneyReceipt? @relation(fields: [mobileMoneyReceiptId], references: [id], onDelete: SetNull)
 
   @@unique([method, reference])
   @@index([createdAt])
   @@index([orderId])
   @@index([cashierId, createdAt])
   @@index([paymentRequestId])
+  @@index([mobileMoneyReceiptId])
 }
 
 model PaymentRequest {
@@ -1022,11 +1026,56 @@ model PaymentRequest {
   table             Table                @relation(fields: [tableId], references: [id])
   cashier           User                 @relation("PaymentRequestCashier", fields: [cashierId], references: [id])
   payments          Payment[]
+  mobileMoneyReceipts MobileMoneyReceipt[]
 
   @@unique([batchKey, lineIndex])
   @@unique([method, providerReference])
   @@index([tableId, status, createdAt])
   @@index([cashierId, createdAt])
+}
+
+model MobileMoneyReceipt {
+  id                       String                   @id @default(cuid())
+  sender                   String
+  providerLabel            String?
+  method                   PaymentMethod            @default(GOLIS)
+  providerReference        String?
+  direction                MobileMoneyDirection
+  status                   MobileMoneyReceiptStatus
+  amount                   Decimal?                 @db.Decimal(14, 2)
+  currency                 String                   @default("USD")
+  counterpartyLabel        String?
+  counterpartyIdentifiers  Json?
+  transactionAt            DateTime?
+  providerBalance          Decimal?                 @db.Decimal(14, 2)
+  rawMessage               String
+  fingerprint              String                   @unique
+  parseError               String?
+  receivedAt               DateTime                 @default(now())
+  assignedPaymentRequestId String?
+  assignedByUserId         String?
+  assignedByName           String?
+  assignedAt               DateTime?
+  paymentRequest           PaymentRequest?          @relation(fields: [assignedPaymentRequestId], references: [id], onDelete: Restrict)
+  assignedBy               User?                    @relation("MobileMoneyReceiptAssignee", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+  payments                 Payment[]
+
+  @@unique([method, providerReference])
+  @@index([status, direction, transactionAt])
+  @@index([assignedPaymentRequestId])
+  @@index([assignedByUserId, assignedAt])
+  @@index([receivedAt])
+}
+
+model PaymentGatewayStatus {
+  id              String   @id @default("macrodroid-898")
+  sender          String
+  lastHeartbeatAt DateTime
+  lastReceiptAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([lastHeartbeatAt])
 }
 
 model PaymentDeferral {
@@ -1783,9 +1832,23 @@ enum PaymentMethod {
 
 enum PaymentRequestStatus {
   PENDING
+  PARTIALLY_MATCHED
   MATCHED
   CANCELLED
   EXPIRED
+}
+
+enum MobileMoneyDirection {
+  INCOMING
+  OUTGOING
+  UNKNOWN
+}
+
+enum MobileMoneyReceiptStatus {
+  AVAILABLE
+  ASSIGNED
+  OUTGOING
+  NEEDS_REVIEW
 }
 
 enum InventoryAlertStatus {
