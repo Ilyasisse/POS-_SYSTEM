@@ -98,7 +98,7 @@ const navigationGroups: readonly {
     key: "reports",
     label: "Reports",
     icon: ChartNoAxesCombined,
-    itemKeys: ["reports", "business-intelligence"],
+    itemKeys: ["reports", "business-intelligence", "customers"],
   },
   {
     key: "administration",
