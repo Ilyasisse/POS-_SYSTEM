@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { attendanceOutcome, calculatePayrollLine, money } from "@/lib/payroll/payroll-formulas";
 import { formatBusinessDate } from "@/lib/reports/reporting-calendar";
 import { publishReportInvalidation } from "@/lib/reports/report-realtime";
+import {
+  assertClockTransition,
+  calculateCompletedBreakMinutes,
+} from "@/lib/staff/clock-events";
 
 const SERIALIZABLE = Prisma.TransactionIsolationLevel.Serializable;
 const serializeAuditValue = (value: unknown) => JSON.stringify(value);
@@ -77,8 +81,11 @@ export async function cancelScheduledShift(input: { shiftId: string; actorUserId
 
 export async function recordClockEvent(input: { workerId: string; type: ClockEventType; note?: string | null }) {
   const event = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${input.workerId} FOR UPDATE`,
+    );
     const last = await tx.clockEvent.findFirst({ where: { workerId: input.workerId }, orderBy: { occurredAt: "desc" } });
-    if (last?.type === input.type) throw new Error(input.type === "IN" ? "You are already clocked in." : "You are already clocked out.");
+    assertClockTransition(last?.type ?? null, input.type);
     const created = await tx.clockEvent.create({ data: { workerId: input.workerId, type: input.type, note: input.note?.trim() || null } });
     await tx.auditLog.create({ data: { actorUserId: input.workerId, action: `attendance.clock.${input.type.toLowerCase()}`, entityType: "ClockEvent", entityId: created.id, newValue: auditValue(created), relatedEntityType: "User", relatedEntityId: input.workerId } });
     return created;
@@ -95,10 +102,14 @@ export async function approveAttendance(input: { shiftId: string; status: Attend
     const events = await tx.clockEvent.findMany({ where: { workerId: shift.workerId, occurredAt: { gte: new Date(shift.startsAt.getTime() - 6 * 3_600_000), lte: new Date(shift.endsAt.getTime() + 12 * 3_600_000) } }, orderBy: { occurredAt: "asc" } });
     const clockIn = events.find((event) => event.type === "IN")?.occurredAt ?? null;
     const clockOut = events.find((event) => event.type === "OUT" && (!clockIn || event.occurredAt > clockIn))?.occurredAt ?? null;
-    const outcome = input.status === "PRESENT" ? attendanceOutcome({ scheduledStart: shift.startsAt, clockIn, clockOut, graceMinutes: policy.graceMinutes, overtimeThresholdMinutes: policy.overtimeThresholdMinutes }) : { workedMinutes: 0, lateMinutes: 0, overtimeMinutes: 0 };
+    const shiftEvents = events.filter(
+      (event) => (!clockIn || event.occurredAt >= clockIn) && (!clockOut || event.occurredAt <= clockOut),
+    );
+    const breakMinutes = input.status === "PRESENT" ? calculateCompletedBreakMinutes(shiftEvents) : 0;
+    const outcome = input.status === "PRESENT" ? attendanceOutcome({ scheduledStart: shift.startsAt, clockIn, clockOut, breakMinutes, graceMinutes: policy.graceMinutes, overtimeThresholdMinutes: policy.overtimeThresholdMinutes }) : { workedMinutes: 0, lateMinutes: 0, overtimeMinutes: 0 };
     const approvedOvertimeMinutes = Math.max(0, Math.min(input.approvedOvertimeMinutes ?? outcome.overtimeMinutes, outcome.overtimeMinutes));
     const existing = await tx.attendanceRecord.findFirst({ where: { OR: [{ scheduledShiftId: shift.id }, { workerId: shift.workerId, businessDate: businessDate(shift.startsAt) }] } });
-    const data = { workerId: shift.workerId, scheduledShiftId: shift.id, businessDate: businessDate(shift.startsAt), status: input.status, clockInAt: clockIn, clockOutAt: clockOut, workedMinutes: outcome.workedMinutes, lateMinutes: outcome.lateMinutes, approvedOvertimeMinutes, absenceReason: input.status === "ABSENT" ? input.absenceReason?.trim() || "Not recorded" : null, approvedByUserId: input.actorUserId, approvedAt: new Date() };
+    const data = { workerId: shift.workerId, scheduledShiftId: shift.id, businessDate: businessDate(shift.startsAt), status: input.status, clockInAt: clockIn, clockOutAt: clockOut, workedMinutes: outcome.workedMinutes, breakMinutes, lateMinutes: outcome.lateMinutes, approvedOvertimeMinutes, absenceReason: input.status === "ABSENT" ? input.absenceReason?.trim() || "Not recorded" : null, approvedByUserId: input.actorUserId, approvedAt: new Date() };
     const saved = existing ? await tx.attendanceRecord.update({ where: { id: existing.id }, data }) : await tx.attendanceRecord.create({ data });
     await tx.scheduledShift.update({ where: { id: shift.id }, data: { status: "COMPLETED" } });
     await tx.auditLog.create({ data: { actorUserId: input.actorUserId, action: "attendance.record.approved", entityType: "AttendanceRecord", entityId: saved.id, previousValue: existing ? auditValue(existing) : undefined, newValue: auditValue(saved), relatedEntityType: "ScheduledShift", relatedEntityId: shift.id } });

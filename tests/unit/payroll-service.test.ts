@@ -12,3 +12,9 @@ test("daily and monthly payroll formulas preserve additions and deductions", () 
   const monthly = calculatePayrollLine({ compensationType: "MONTHLY", monthlySalary: "300", approvedAttendanceDays: 0, approvedOvertimeMinutes: 60, additions: "0", deductions: "10" });
   assert.equal(daily.netPay.toFixed(2), "58.00"); assert.equal(monthly.netPay.toFixed(2), "291.25");
 });
+
+test("attendance subtracts completed break time before overtime", () => {
+  const outcome = attendanceOutcome({ scheduledStart: new Date("2026-08-10T07:00:00+03:00"), clockIn: new Date("2026-08-10T07:00:00+03:00"), clockOut: new Date("2026-08-10T16:00:00+03:00"), breakMinutes: 45, graceMinutes: 10, overtimeThresholdMinutes: 480 });
+  assert.equal(outcome.workedMinutes, 495);
+  assert.equal(outcome.overtimeMinutes, 15);
+});
