@@ -10,6 +10,7 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
+import { isPosPaymentMethod } from "@/lib/payments/payment-methods";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -53,17 +54,6 @@ type SavedOrderItemForTicket = {
   assignedUserName: string | null;
   modifiers: PreparedModifier[];
 };
-
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
-
-function isPaymentMethod(value: string): value is PaymentMethod {
-  return PAYMENT_METHODS.has(value as PaymentMethod);
-}
 
 function toDecimal(value: number) {
   return new Prisma.Decimal(value);
@@ -113,7 +103,7 @@ export async function POST(request: Request) {
 
     if (
       typeof body.paymentMethod !== "string" ||
-      !isPaymentMethod(body.paymentMethod)
+      !isPosPaymentMethod(body.paymentMethod)
     ) {
       return NextResponse.json(
         { error: "Payment method is invalid." },

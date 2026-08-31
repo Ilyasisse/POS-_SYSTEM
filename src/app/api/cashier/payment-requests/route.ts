@@ -4,13 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createPaymentRequestBatch } from "@/lib/payments/cashier-payment-requests";
-
-const METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+import { isReceiptMatchPaymentMethod } from "@/lib/payments/payment-methods";
 
 async function currentCashier() {
   const supabase = await createClient();
@@ -34,7 +28,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const method = String(body.method ?? "") as PaymentMethod;
-    if (!METHODS.has(method))
+    if (!isReceiptMatchPaymentMethod(method))
       return NextResponse.json(
         { error: "Select a payment method." },
         { status: 400 },
