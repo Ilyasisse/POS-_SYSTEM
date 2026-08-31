@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Sheet,
   SheetContent,
@@ -37,6 +38,9 @@ type CustomerCartSheetProps = {
   onCheckout: () => void;
   mode?: "customer" | "cashier";
   tableName?: string;
+  paymentMethod?: string;
+  checkoutLabel?: string;
+  onPaymentMethodChange?: (value: string) => void;
 };
 
 export default function CustomerCartSheet({
@@ -60,6 +64,9 @@ export default function CustomerCartSheet({
   onCheckout,
   mode = "customer",
   tableName,
+  paymentMethod,
+  checkoutLabel,
+  onPaymentMethodChange,
 }: CustomerCartSheetProps) {
   const isCashier = mode === "cashier";
   return (
@@ -252,6 +259,21 @@ export default function CustomerCartSheet({
                 <span>Total</span>
                 <span>{formatCurrency(cartSubtotal)}</span>
               </div>
+              {isCashier && onPaymentMethodChange ? (
+                <label className="grid gap-1.5 text-sm font-medium">
+                  Payment method
+                  <NativeSelect
+                    value={paymentMethod ?? ""}
+                    onChange={(event) => onPaymentMethodChange(event.target.value)}
+                  >
+                    <option value="">Select payment method</option>
+                    <option value="GOLIS">GOLIS</option>
+                    <option value="MYCASH">MYCASH</option>
+                    <option value="Dahabshiil">Dahabshiil</option>
+                    <option value="OTHER">OTHER</option>
+                  </NativeSelect>
+                </label>
+              ) : null}
             </div>
 
             <div className="mt-5 grid gap-3">
@@ -265,9 +287,8 @@ export default function CustomerCartSheet({
                   ? isCashier
                     ? "Sending to kitchen…"
                     : "Placing order…"
-                  : isCashier
-                    ? "Send to kitchen"
-                    : "Checkout"}
+                  : (checkoutLabel ??
+                    (isCashier ? "Send to kitchen" : "Checkout"))}
               </Button>
 
               <Button
