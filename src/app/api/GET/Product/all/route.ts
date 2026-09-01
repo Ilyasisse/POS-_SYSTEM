@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 
 export const revalidate = 300; // cache for 5 minutes
 
@@ -21,6 +22,8 @@ export async function GET() {
         imageUrl: true,
         pronunciationAudioUrl: true,
         isPopular: true,
+        availabilityStartMinute: true,
+        availabilityEndMinute: true,
 
         category: {
           select: {
@@ -54,7 +57,8 @@ export async function GET() {
       },
     });
 
-    const formattedProducts = products.map((product) => {
+    const now = new Date();
+    const formattedProducts = products.filter((product) => isProductAvailableAt(product, now)).map((product) => {
       type ModifierGroup = {
         id: string;
         name: string;
