@@ -53,6 +53,19 @@ test("supplier routes stay together and include invoices and bills", () => {
   );
 });
 
+test("customer profiles are grouped with reporting", () => {
+  const items = getVisibleStaffNavigationItems(user("ADMIN"), "admin");
+  const reports = getStaffNavigationNodesFromItems(items).find(
+    (node) => node.type === "group" && node.key === "reports",
+  );
+
+  assert.ok(reports && reports.type === "group");
+  assert.deepEqual(
+    reports.items.map((item) => item.key),
+    ["reports", "business-intelligence", "customers"],
+  );
+});
+
 test("permission filtering removes inaccessible groups and children", () => {
   const cashierItems = getVisibleStaffNavigationItems(user("CASHIER"));
   const nodes = getStaffNavigationNodesFromItems(cashierItems);
