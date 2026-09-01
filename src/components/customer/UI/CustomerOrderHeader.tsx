@@ -3,6 +3,7 @@ import Image from "next/image";
 import { displayFont } from "../customer-order-styles";
 import { formatCurrency } from "../customer-order-utils";
 import { ModeToggle } from "@/components/mode-toggle";
+import Link from "next/link";
 
 type CustomerOrderHeaderProps = {
   cartSubtotal: number;
@@ -13,6 +14,7 @@ type CustomerOrderHeaderProps = {
   subtitle?: string;
   resetLabel?: string;
   cartLabel?: string;
+  historyHref?: string;
 };
 
 export default function CustomerOrderHeader({
@@ -24,6 +26,7 @@ export default function CustomerOrderHeader({
   subtitle,
   resetLabel = "Start Over",
   cartLabel = "Cart",
+  historyHref,
 }: CustomerOrderHeaderProps) {
   return (
     <header
@@ -58,6 +61,11 @@ export default function CustomerOrderHeader({
 
         <div className="flex w-full flex-wrap items-center justify-end gap-3 lg:w-auto">
           <ModeToggle />
+          {historyHref ? (
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href={historyHref}>My orders</Link>
+            </Button>
+          ) : null}
           <Button
             type="button"
             onClick={onReset}

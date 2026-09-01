@@ -421,6 +421,7 @@ export default function CustomerOrderPage() {
 
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <CustomerOrderHeader
+          historyHref="/customer/orders"
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
           onReset={resetKiosk}
