@@ -1,11 +1,14 @@
 {
   "name": "cafe-pos",
-  "version": "0.6.7",
+  "version": "0.8.7",
   "private": true,
   "scripts": {
+    "prisma:generate": "prisma generate",
+    "predev": "npm run prisma:generate",
     "dev": "next dev",
+    "predev:next": "npm run prisma:generate",
     "dev:next": "next dev -H 0.0.0.0",
-    "build": "prisma generate && next build",
+    "build": "npm run prisma:generate && next build",
     "start": "next start",
     "lint": "eslint",
     "doctor": "npx react-doctor@latest",
