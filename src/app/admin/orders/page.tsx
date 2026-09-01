@@ -11,12 +11,15 @@ import {
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
+import { ToastOnMount } from "@/components/ui/toast";
+import { emailReceiptFromAdmin } from "./actions";
 
 type AdminOrdersPageProps = {
   searchParams?: Promise<{
     q?: string;
     status?: string;
     date?: string;
+    receiptStatus?: string;
   }>;
 };
 
@@ -103,6 +106,11 @@ export default async function AdminOrdersPage({
             fullName: true,
           },
         },
+        customer: {
+          select: {
+            email: true,
+          },
+        },
         _count: {
           select: {
             orderItems: true,
@@ -136,6 +144,30 @@ export default async function AdminOrdersPage({
 
   return (
     <AdminPage title="Orders" description="Track and manage customer orders">
+      {params?.receiptStatus === "sent" ? (
+        <ToastOnMount
+          tone="success"
+          description="Receipt email accepted for delivery."
+        />
+      ) : null}
+      {params?.receiptStatus === "configuration_missing" ? (
+        <ToastOnMount
+          tone="error"
+          description="Receipt email is not configured. Add RESEND_API_KEY and RECEIPT_EMAIL_FROM."
+        />
+      ) : null}
+      {params?.receiptStatus === "invalid_email" ? (
+        <ToastOnMount
+          tone="error"
+          description="Enter a valid receipt email address."
+        />
+      ) : null}
+      {params?.receiptStatus === "failed" ? (
+        <ToastOnMount
+          tone="error"
+          description="The receipt could not be emailed. The failed attempt was logged."
+        />
+      ) : null}
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Orders Today" value={ordersToday.length} />
         <MetricCard
@@ -183,12 +215,13 @@ export default async function AdminOrdersPage({
               <TableHead>Status</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Items</TableHead>
+              <TableHead>Email receipt</TableHead>
             </tr>
           </thead>
           <tbody>
             {recentOrders.length === 0 ? (
               <tr>
-                <TableCell colSpan={8} className="py-10 text-center">
+                <TableCell colSpan={9} className="py-10 text-center">
                   No orders found.
                 </TableCell>
               </tr>
@@ -219,6 +252,36 @@ export default async function AdminOrdersPage({
                   </TableCell>
                   <TableCell>{formatDateTime(order.createdAt)}</TableCell>
                   <TableCell>{order._count.orderItems}</TableCell>
+                  <TableCell>
+                    {order.status === "PAID" ? (
+                      <form
+                        action={emailReceiptFromAdmin}
+                        className="flex min-w-64 gap-2"
+                      >
+                        <input type="hidden" name="orderId" value={order.id} />
+                        <input
+                          aria-label={`Receipt email for order ${order.orderNumber}`}
+                          name="recipient"
+                          type="email"
+                          required
+                          maxLength={254}
+                          defaultValue={order.customer?.email ?? ""}
+                          placeholder="customer@example.com"
+                          className="h-9 min-w-0 flex-1 rounded-md border border-slate-200 px-2 text-sm"
+                        />
+                        <button
+                          type="submit"
+                          className="h-9 rounded-md bg-slate-900 px-3 text-xs font-bold text-white hover:bg-slate-700"
+                        >
+                          Send
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="text-xs text-slate-400">
+                        Available after payment
+                      </span>
+                    )}
+                  </TableCell>
                 </tr>
               ))
             )}
