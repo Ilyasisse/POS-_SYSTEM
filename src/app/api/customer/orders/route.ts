@@ -10,6 +10,7 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import { validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -144,6 +145,23 @@ export async function POST(request: Request) {
             where: { isActive: true },
             select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -156,6 +174,7 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
@@ -250,6 +269,14 @@ export async function POST(request: Request) {
           qty: Math.max(1, Number(incomingModifier.qty) || 1),
         });
       }
+
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: [...handledModifierIds].filter(
+          (modifierId) => !modifierId.startsWith("placeholder__"),
+        ),
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
