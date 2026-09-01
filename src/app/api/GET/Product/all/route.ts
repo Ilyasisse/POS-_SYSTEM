@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { availableForSaleWhere } from "@/lib/products/availability";
 
 export const revalidate = 300; // cache for 5 minutes
 
@@ -8,6 +9,7 @@ export async function GET() {
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
+        ...availableForSaleWhere(),
       },
       select: {
         id: true,
