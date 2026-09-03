@@ -113,7 +113,7 @@ function getModifierSelectionErrors(
 
 function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
   return (
-    <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white md:min-h-[22rem] lg:h-full lg:min-h-0">
+    <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white md:min-h-[22rem] lg:h-full lg:min-h-[32rem] lg:self-stretch">
       <Image
         src={getProductImage(product)}
         alt={product.name}
