@@ -486,7 +486,7 @@ export default function CustomerModifierModal({
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem] lg:overflow-hidden"
+        className="max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Customize {product.name}</DialogTitle>
