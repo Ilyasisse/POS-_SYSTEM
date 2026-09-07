@@ -10,6 +10,10 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import {
+  describeOnlineOrderingHours,
+  isOnlineOrderingOpen,
+} from "@/lib/customer/online-ordering-hours";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -94,6 +98,32 @@ export async function POST(request: Request) {
   try {
     const authorization = await authorizeApi(PERMISSIONS.CUSTOMER_ORDER);
     if (!authorization.ok) return authorization.response;
+
+    const cafeSetting = await prisma.cafeSetting.findUnique({
+      where: { id: "default" },
+      select: {
+        onlineOrderingEnabled: true,
+        onlineOrderStartMinute: true,
+        onlineOrderEndMinute: true,
+        timezone: true,
+      },
+    });
+    const onlineOrderingSchedule = {
+      enabled: cafeSetting?.onlineOrderingEnabled ?? true,
+      startMinute: cafeSetting?.onlineOrderStartMinute ?? 0,
+      endMinute: cafeSetting?.onlineOrderEndMinute ?? 0,
+      timezone: cafeSetting?.timezone ?? "Africa/Nairobi",
+    };
+
+    if (!isOnlineOrderingOpen(onlineOrderingSchedule)) {
+      return NextResponse.json(
+        {
+          error: describeOnlineOrderingHours(onlineOrderingSchedule),
+          code: "ONLINE_ORDERING_CLOSED",
+        },
+        { status: 409 },
+      );
+    }
 
     const body = (await request.json()) as CustomerOrderBody;
     const customerName = String(body.customerName ?? "").trim();
