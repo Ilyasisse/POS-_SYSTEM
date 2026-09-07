@@ -583,6 +583,8 @@ model Order {
   waiterId           String?
   customerId         String?
   notes              String?
+  deliveryAddress    String?
+  deliveryPhone      String?
   total              Decimal
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt

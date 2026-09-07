@@ -10,6 +10,10 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import {
+  buildCustomerOrderNote,
+  validateCustomerFulfillment,
+} from "@/lib/customer/customer-order-fulfillment";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -30,6 +34,8 @@ type CustomerOrderItemInput = {
 type CustomerOrderBody = {
   customerName?: string;
   customerPhone?: string;
+  fulfillmentType?: string;
+  deliveryAddress?: string;
   notes?: string;
   items: CustomerOrderItemInput[];
 };
@@ -76,36 +82,27 @@ function isPlaceholderModifier(
   return modifierId.startsWith("placeholder__") || explicitPlaceholder;
 }
 
-function buildCustomerOrderNote(
-  customerName: string,
-  customerPhone?: string,
-  notes?: string,
-) {
-  const sections = [
-    `Customer: ${customerName}`,
-    customerPhone ? `Phone: ${customerPhone}` : null,
-    notes ? `Note: ${notes}` : null,
-  ].filter((value): value is string => Boolean(value));
-
-  return sections.join(" | ");
-}
-
 export async function POST(request: Request) {
   try {
     const authorization = await authorizeApi(PERMISSIONS.CUSTOMER_ORDER);
     if (!authorization.ok) return authorization.response;
 
     const body = (await request.json()) as CustomerOrderBody;
-    const customerName = String(body.customerName ?? "").trim();
-    const customerPhone = String(body.customerPhone ?? "").trim();
-    const notes = String(body.notes ?? "").trim();
+    const fulfillment = validateCustomerFulfillment(body);
 
-    if (customerName.length < 2) {
+    if (!fulfillment.ok) {
       return NextResponse.json(
-        { error: "Customer name is required." },
+        { error: fulfillment.error },
         { status: 400 },
       );
     }
+
+    const {
+      fulfillmentType,
+      customerName,
+      customerPhone,
+      deliveryAddress,
+    } = fulfillment.value;
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
       return NextResponse.json({ error: "No items provided." }, { status: 400 });
@@ -313,15 +310,18 @@ export async function POST(request: Request) {
       modifiers: line.modifiers,
     }));
 
-    const orderNote = buildCustomerOrderNote(customerName, customerPhone, notes);
+    const orderNote = buildCustomerOrderNote(fulfillment.value);
 
     const result = await prisma.$transaction(
       async (tx) => {
         const createdOrder = await tx.order.create({
           data: {
-            type: "TAKEOUT",
+            type: fulfillmentType,
             status: "OPEN",
             notes: orderNote || null,
+            deliveryAddress,
+            deliveryPhone:
+              fulfillmentType === "DELIVERY" ? customerPhone : null,
             total: toDecimal(calculatedTotal),
             customerId:
               authorization.user.role === "CUSTOMER"
@@ -397,6 +397,7 @@ export async function POST(request: Request) {
       order: {
         id: order.id,
         orderNumber: order.orderNumber,
+        type: order.type,
         total: calculatedTotal,
         createdAt: order.createdAt.toISOString(),
       },
