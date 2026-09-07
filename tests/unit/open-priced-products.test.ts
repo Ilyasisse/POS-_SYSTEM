@@ -56,7 +56,9 @@ test("customer self-ordering hides and rejects open-priced products", () => {
 
 test("cart identity includes the entered price for open-priced products", () => {
   const cart = source("src/hooks/waiter/useWaiterCart.ts");
+  const orderTypes = source("src/types/order.types.ts");
   assert.match(cart, /product\.isOpenPrice/);
   assert.match(cart, /Number\(product\.price \?\? 0\)\.toFixed\(2\)/);
   assert.match(cart, /FIXED_PRICE/);
+  assert.match(orderTypes, /isOpenPrice\?: boolean/);
 });
