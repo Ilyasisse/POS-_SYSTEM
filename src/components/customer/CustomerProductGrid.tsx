@@ -95,7 +95,9 @@ function ProductCard({
             </h3>
           </div>
           <div className="rounded-full border border-white/15 bg-black/25 px-3 py-2 text-sm font-semibold backdrop-blur-sm sm:px-4">
-            {formatCurrency(Number(product.price))}
+            {product.isOpenPrice && !product.openPriceEntered
+              ? "Set price"
+              : formatCurrency(Number(product.price))}
           </div>
         </div>
       </div>

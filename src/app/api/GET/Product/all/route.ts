@@ -21,6 +21,7 @@ export async function GET() {
         imageUrl: true,
         pronunciationAudioUrl: true,
         isPopular: true,
+        isOpenPrice: true,
 
         category: {
           select: {
@@ -109,6 +110,7 @@ export async function GET() {
         trackStock: !!product.trackStock,
         stockQty: product.stockQty ?? 0,
         isPopular: !!product.isPopular,
+        isOpenPrice: !!product.isOpenPrice,
         category: product.category
           ? {
               id: product.category.id,
