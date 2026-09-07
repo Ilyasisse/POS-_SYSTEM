@@ -13,6 +13,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToastOnMount } from "@/components/ui/toast";
 import {
   Table,
   TableBody,
@@ -349,11 +350,11 @@ export default async function WaiterBalancesPage({
       />
 
       {notice ? (
-        <Alert variant={notice.destructive ? "destructive" : "default"}>
-          <AlertCircle aria-hidden="true" />
-          <AlertTitle>{notice.title}</AlertTitle>
-          <AlertDescription>{notice.description}</AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone={notice.destructive ? "error" : "success"}
+          title={notice.title}
+          description={notice.description}
+        />
       ) : null}
 
       {invalidDateRequested ? (
