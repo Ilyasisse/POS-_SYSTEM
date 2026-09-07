@@ -10,7 +10,7 @@ import {
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToastOnMount } from "@/components/ui/toast";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
@@ -102,12 +102,11 @@ export default async function SupplierOrderScheduleDetailPage({
       }
     >
       {query.status ? (
-        <Alert>
-          <AlertTitle>Schedule saved</AlertTitle>
-          <AlertDescription>
-            Existing runs were left unchanged; the updated settings apply to future runs.
-          </AlertDescription>
-        </Alert>
+        <ToastOnMount
+          tone="success"
+          title="Schedule saved"
+          description="Existing runs were left unchanged; the updated settings apply to future runs."
+        />
       ) : null}
 
       <section>

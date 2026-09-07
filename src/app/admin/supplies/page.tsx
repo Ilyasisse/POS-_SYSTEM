@@ -13,6 +13,7 @@ import {
 } from "@/components/admin/shared";
 import AutoSubmitInput from "@/components/AutoSubmitInput";
 import { Label } from "@/components/ui/label";
+import { ToastOnMount } from "@/components/ui/toast";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
@@ -233,16 +234,10 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
       description="Record the items bought each day and review the day’s total spending."
     >
       {notice ? (
-        <div
-          role={notice.tone === "error" ? "alert" : "status"}
-          className={
-            notice.tone === "error"
-              ? "rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive"
-              : "rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"
-          }
-        >
-          {notice.message}
-        </div>
+        <ToastOnMount
+          tone={notice.tone as "success" | "error"}
+          description={notice.message}
+        />
       ) : null}
 
       <SupplyDateControls selectedDate={selectedDate} today={today} />
