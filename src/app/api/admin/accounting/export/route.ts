@@ -9,15 +9,15 @@ import { reportQuerySchema } from "@/lib/reports/validation";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const authorization = await authorizeApi(PERMISSIONS.REPORT_FINANCIAL_VIEW);
   if (!authorization.ok) return authorization.response;
 
-  const url = new URL(request.url);
+  const formData = await request.formData();
   const parsed = reportQuerySchema.safeParse({
     preset: "custom",
-    from: url.searchParams.get("from") ?? undefined,
-    to: url.searchParams.get("to") ?? undefined,
+    from: formData.get("from") ?? undefined,
+    to: formData.get("to") ?? undefined,
   });
   if (!parsed.success || !parsed.data.from || !parsed.data.to) {
     return NextResponse.json({ error: "Valid from and to dates are required." }, { status: 400 });

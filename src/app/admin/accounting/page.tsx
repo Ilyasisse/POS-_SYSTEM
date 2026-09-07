@@ -18,7 +18,7 @@ export default async function AccountingExportPage() {
         <p className="mt-2 text-sm text-slate-600">
           Includes sale payments, approved expenses, supplier payments, supplier advances, and owner withdrawals. Every entry balances debits and credits.
         </p>
-        <form action="/api/admin/accounting/export" method="get" className="mt-6 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <form action="/api/admin/accounting/export" method="post" className="mt-6 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="grid gap-1 text-sm font-semibold">
             From
             <Input type="date" name="from" defaultValue={today} required />

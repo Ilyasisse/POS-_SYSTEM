@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildAccountingJournal, toAccountingJournalCsv } from "../../src/lib/accounting/accounting-journal-domain";
 
@@ -36,4 +37,13 @@ test("uses the Nairobi calendar date for timestamped activity", () => {
     ownerWithdrawals: [],
   });
   assert.ok(rows.every((row) => row.date === "2026-09-02"));
+});
+
+test("uses POST for the audited journal download", () => {
+  const route = readFileSync("src/app/api/admin/accounting/export/route.ts", "utf8");
+  const page = readFileSync("src/app/admin/accounting/page.tsx", "utf8");
+
+  assert.match(route, /export async function POST\(request: Request\)/);
+  assert.doesNotMatch(route, /export async function GET/);
+  assert.match(page, /method="post"/);
 });
