@@ -24,6 +24,8 @@ type CustomerOrderOverlaysProps = {
   onRemove: (cartKey: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
+  autoAssignBarista?: boolean;
+  tableName?: string;
 };
 
 export default function CustomerOrderOverlays({
@@ -42,6 +44,8 @@ export default function CustomerOrderOverlays({
   onRemove,
   onClearCart,
   onCheckout,
+  autoAssignBarista = false,
+  tableName,
 }: CustomerOrderOverlaysProps) {
   return (
     <>
@@ -51,6 +55,7 @@ export default function CustomerOrderOverlays({
         baristas={baristas}
         onClose={onCloseModifier}
         onConfirm={onConfirmModifier}
+        autoAssignBarista={autoAssignBarista}
       />
 
       <CustomerCartSheet
@@ -72,6 +77,7 @@ export default function CustomerOrderOverlays({
         onRemove={onRemove}
         onClearCart={onClearCart}
         onCheckout={onCheckout}
+        tableName={tableName}
       />
     </>
   );

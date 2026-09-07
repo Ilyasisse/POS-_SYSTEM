@@ -37,6 +37,7 @@ type CustomerModifierModalProps = {
     selectedModifiers: SelectedModifiersMap,
     assignedBaristaId: string | null,
   ) => void;
+  autoAssignBarista?: boolean;
 };
 
 type ModifierErrors = Record<string, string>;
@@ -72,6 +73,7 @@ type CustomerModifierContentProps = {
   defaultBaristaId: string;
   onClose: () => void;
   onConfirm: CustomerModifierModalProps["onConfirm"];
+  autoAssignBarista: boolean;
 };
 
 function getMinSelect(group: ModifierGroup) {
@@ -334,6 +336,7 @@ function CustomerModifierContent({
   defaultBaristaId,
   onClose,
   onConfirm,
+  autoAssignBarista,
 }: CustomerModifierContentProps) {
   const [selected, setSelected] = useState<SelectedModifiersMap>({});
   const [selectedBaristaId, setSelectedBaristaId] = useState(defaultBaristaId);
@@ -363,7 +366,9 @@ function CustomerModifierContent({
   );
 
   const hasBaristaRequirement =
-    product.category?.station === "BARISTA" && !selectedBaristaId;
+    product.category?.station === "BARISTA" &&
+    !autoAssignBarista &&
+    !selectedBaristaId;
   const disabled = Object.keys(errors).length > 0 || hasBaristaRequirement;
 
   function toggleOption(group: ModifierGroup, optionId: string) {
@@ -438,7 +443,7 @@ function CustomerModifierContent({
             onToggleOption={toggleOption}
           />
 
-          {product.category?.station === "BARISTA" ? (
+          {product.category?.station === "BARISTA" && !autoAssignBarista ? (
             <BaristaAssignment
               baristas={baristas}
               selectedBaristaId={selectedBaristaId}
@@ -466,6 +471,7 @@ export default function CustomerModifierModal({
   baristas,
   onClose,
   onConfirm,
+  autoAssignBarista = false,
 }: CustomerModifierModalProps) {
   if (!product) {
     return null;
@@ -492,6 +498,7 @@ export default function CustomerModifierModal({
           defaultBaristaId={defaultBaristaId}
           onClose={onClose}
           onConfirm={onConfirm}
+          autoAssignBarista={autoAssignBarista}
         />
       </DialogContent>
     </Dialog>
