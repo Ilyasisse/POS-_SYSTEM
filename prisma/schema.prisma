@@ -109,6 +109,9 @@ model CafeSetting {
   businessDayStartMinute Int      @default(420)
   businessDayEndMinute   Int      @default(300)
   weekStartDay           Int      @default(6)
+  onlineOrderingEnabled  Boolean  @default(true)
+  onlineOrderStartMinute Int      @default(0)
+  onlineOrderEndMinute   Int      @default(0)
   updatedByUserId        String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
