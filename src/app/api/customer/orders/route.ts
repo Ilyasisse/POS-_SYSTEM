@@ -139,6 +139,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          isOpenPrice: true,
           cost: true,
           recipeVersions: {
             where: { isActive: true },
@@ -201,6 +202,13 @@ export async function POST(request: Request) {
       if (!product) {
         return NextResponse.json(
           { error: `Product not found or inactive: ${item.productId}` },
+          { status: 400 },
+        );
+      }
+
+      if (product.isOpenPrice) {
+        return NextResponse.json(
+          { error: `${product.name} must be priced by a cashier.` },
           { status: 400 },
         );
       }

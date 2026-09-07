@@ -226,10 +226,12 @@ export default function CustomerOrderPage() {
   );
   const kioskProducts = useMemo(
     () =>
-      productsAll.map((product) => ({
-        ...product,
-        price: Number(product.price) || 0,
-      })),
+      productsAll
+        .filter((product) => !product.isOpenPrice)
+        .map((product) => ({
+          ...product,
+          price: Number(product.price) || 0,
+        })),
     [productsAll],
   );
 

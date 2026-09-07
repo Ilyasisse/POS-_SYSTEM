@@ -158,7 +158,16 @@ export default async function AdminProductsPage({
                     {product.name}
                   </TableCell>
                   <TableCell>{product.category?.name ?? "-"}</TableCell>
-                  <TableCell>${Number(product.price).toFixed(2)}</TableCell>
+                  <TableCell>
+                    <span className="block">
+                      ${Number(product.price).toFixed(2)}
+                    </span>
+                    {product.isOpenPrice ? (
+                      <span className="text-xs font-semibold text-amber-700">
+                        Cashier priced
+                      </span>
+                    ) : null}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge active={product.isActive} />
                   </TableCell>

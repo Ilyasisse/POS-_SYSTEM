@@ -47,6 +47,27 @@ export default async function NewProductPage() {
               />
             </div>
 
+            <label
+              htmlFor="new-product-open-price"
+              className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
+            >
+              <Input
+                id="new-product-open-price"
+                name="isOpenPrice"
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0"
+              />
+              <span>
+                <strong className="block text-sm text-amber-950">
+                  Cashier enters the price
+                </strong>
+                <span className="mt-1 block text-xs text-amber-800">
+                  Use the listed price as a reference. Customer self-ordering
+                  will hide this product.
+                </span>
+              </span>
+            </label>
+
             <div>
               <label
                 htmlFor="new-product-price"

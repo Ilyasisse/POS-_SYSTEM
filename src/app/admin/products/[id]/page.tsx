@@ -84,6 +84,28 @@ export default async function ProductDetailsPage({
               />
             </div>
 
+            <label
+              htmlFor="product-open-price"
+              className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4"
+            >
+              <Input
+                id="product-open-price"
+                name="isOpenPrice"
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0"
+                defaultChecked={product.isOpenPrice}
+              />
+              <span>
+                <strong className="block text-sm text-amber-950">
+                  Cashier enters the price
+                </strong>
+                <span className="mt-1 block text-xs text-amber-800">
+                  Customer self-ordering hides this product. Fixed-price
+                  products never accept a client-supplied override.
+                </span>
+              </span>
+            </label>
+
             <div>
               <label
                 htmlFor="product-price"

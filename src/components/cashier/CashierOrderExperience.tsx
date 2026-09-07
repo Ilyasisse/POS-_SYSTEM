@@ -19,6 +19,7 @@ import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
 import CustomerCartSheet from "@/components/customer/CustomerCartSheet";
+import OpenPriceDialog from "@/components/cashier/OpenPriceDialog";
 import {
   bodyFont,
   displayFont,
@@ -37,6 +38,7 @@ type State = {
   searchTerm: string;
   orderNote: string;
   selectedProduct: Product | null;
+  openPriceProduct: Product | null;
   modifierOpen: boolean;
   cartOpen: boolean;
   submitting: boolean;
@@ -50,6 +52,8 @@ type Action =
   | { type: "note"; value: string }
   | { type: "modifierOpen"; product: Product }
   | { type: "modifierClose" }
+  | { type: "openPriceOpen"; product: Product }
+  | { type: "openPriceClose" }
   | { type: "cartOpen" }
   | { type: "cartClose" }
   | { type: "cleared" }
@@ -72,6 +76,10 @@ function reducer(state: State, action: Action): State {
       return { ...state, selectedProduct: action.product, modifierOpen: true };
     case "modifierClose":
       return { ...state, selectedProduct: null, modifierOpen: false };
+    case "openPriceOpen":
+      return { ...state, openPriceProduct: action.product };
+    case "openPriceClose":
+      return { ...state, openPriceProduct: null };
     case "cartOpen":
       return { ...state, cartOpen: true };
     case "cartClose":
@@ -180,6 +188,7 @@ export default function CashierOrderExperience({
     searchTerm: "",
     orderNote: "",
     selectedProduct: null,
+    openPriceProduct: null,
     modifierOpen: false,
     cartOpen: false,
     submitting: false,
@@ -251,7 +260,7 @@ export default function CashierOrderExperience({
     selectedCategory,
   );
 
-  function addProduct(product: Product) {
+  function continueAddingProduct(product: Product) {
     if (product.category?.station === "BARISTA" && !baristas.length) {
       dispatch({
         type: "failed",
@@ -270,6 +279,14 @@ export default function CashierOrderExperience({
       finalPrice: Number(product.price) || 0,
     });
     dispatch({ type: "added" });
+  }
+
+  function addProduct(product: Product) {
+    if (product.isOpenPrice) {
+      dispatch({ type: "openPriceOpen", product });
+      return;
+    }
+    continueAddingProduct(product);
   }
 
   function confirmModifiers(
@@ -324,6 +341,9 @@ export default function CashierOrderExperience({
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
+            unitPriceOverride: item.product.isOpenPrice
+              ? Number(item.product.price)
+              : undefined,
             assignedBaristaId: item.assignedUserId ?? null,
             modifiers: item.selectedModifiers.map((modifier) => ({
               modifierId: modifier.optionId,
@@ -401,6 +421,15 @@ export default function CashierOrderExperience({
         baristas={baristas}
         onClose={() => dispatch({ type: "modifierClose" })}
         onConfirm={confirmModifiers}
+      />
+      <OpenPriceDialog
+        key={state.openPriceProduct?.id ?? "closed"}
+        product={state.openPriceProduct}
+        onClose={() => dispatch({ type: "openPriceClose" })}
+        onConfirm={(product) => {
+          dispatch({ type: "openPriceClose" });
+          continueAddingProduct(product);
+        }}
       />
       <CustomerCartSheet
         mode="cashier"
