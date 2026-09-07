@@ -21,6 +21,8 @@ type CustomerCartSheetProps = {
   cart: CartLine[];
   customerName: string;
   customerPhone: string;
+  fulfillmentType?: "TAKEOUT" | "DELIVERY";
+  deliveryAddress?: string;
   orderNote: string;
   cartSubtotal: number;
   cartCount: number;
@@ -30,6 +32,8 @@ type CustomerCartSheetProps = {
   onClose: () => void;
   onCustomerNameChange: (value: string) => void;
   onCustomerPhoneChange: (value: string) => void;
+  onFulfillmentTypeChange?: (value: "TAKEOUT" | "DELIVERY") => void;
+  onDeliveryAddressChange?: (value: string) => void;
   onOrderNoteChange: (value: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
   onRemove: (cartKey: string) => void;
@@ -44,6 +48,8 @@ export default function CustomerCartSheet({
   cart,
   customerName,
   customerPhone,
+  fulfillmentType = "TAKEOUT",
+  deliveryAddress = "",
   orderNote,
   cartSubtotal,
   cartCount,
@@ -53,6 +59,8 @@ export default function CustomerCartSheet({
   onClose,
   onCustomerNameChange,
   onCustomerPhoneChange,
+  onFulfillmentTypeChange,
+  onDeliveryAddressChange,
   onOrderNoteChange,
   onChangeQuantity,
   onRemove,
@@ -130,24 +138,73 @@ export default function CustomerCartSheet({
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   {!isCashier ? (
                     <>
-                  <Input
-                    aria-label="Name for the order"
-                    value={customerName}
-                    onChange={(event) =>
-                      onCustomerNameChange(event.target.value)
-                    }
-                    placeholder="Name for the order"
-                    className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
-                  />
-                  <Input
-                    aria-label="Phone number"
-                    value={customerPhone}
-                    onChange={(event) =>
-                      onCustomerPhoneChange(event.target.value)
-                    }
-                    placeholder="Phone number (optional)"
-                    className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
-                  />
+                      <div
+                        className="grid grid-cols-2 gap-2 md:col-span-2"
+                        aria-label="Order fulfillment"
+                      >
+                        <Button
+                          type="button"
+                          aria-pressed={fulfillmentType === "TAKEOUT"}
+                          onClick={() => onFulfillmentTypeChange?.("TAKEOUT")}
+                          className={`rounded-full border px-4 py-3 text-sm font-semibold ${
+                            fulfillmentType === "TAKEOUT"
+                              ? "border-stone-950 bg-stone-950 text-white"
+                              : "border-border bg-muted/50 text-foreground"
+                          }`}
+                        >
+                          Pickup
+                        </Button>
+                        <Button
+                          type="button"
+                          aria-pressed={fulfillmentType === "DELIVERY"}
+                          onClick={() =>
+                            onFulfillmentTypeChange?.("DELIVERY")
+                          }
+                          className={`rounded-full border px-4 py-3 text-sm font-semibold ${
+                            fulfillmentType === "DELIVERY"
+                              ? "border-stone-950 bg-stone-950 text-white"
+                              : "border-border bg-muted/50 text-foreground"
+                          }`}
+                        >
+                          Delivery
+                        </Button>
+                      </div>
+                      <Input
+                        aria-label="Name for the order"
+                        value={customerName}
+                        onChange={(event) =>
+                          onCustomerNameChange(event.target.value)
+                        }
+                        placeholder="Name for the order"
+                        className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
+                      />
+                      <Input
+                        aria-label="Phone number"
+                        value={customerPhone}
+                        onChange={(event) =>
+                          onCustomerPhoneChange(event.target.value)
+                        }
+                        placeholder={
+                          fulfillmentType === "DELIVERY"
+                            ? "Phone number for delivery"
+                            : "Phone number (optional)"
+                        }
+                        required={fulfillmentType === "DELIVERY"}
+                        className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
+                      />
+                      {fulfillmentType === "DELIVERY" ? (
+                        <Textarea
+                          aria-label="Delivery address"
+                          value={deliveryAddress}
+                          onChange={(event) =>
+                            onDeliveryAddressChange?.(event.target.value)
+                          }
+                          placeholder="Delivery address and nearby landmark"
+                          rows={3}
+                          required
+                          className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-stone-400 md:col-span-2"
+                        />
+                      ) : null}
                     </>
                   ) : null}
                   <div className="md:col-span-2">

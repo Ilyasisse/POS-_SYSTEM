@@ -206,7 +206,17 @@ export default async function AdminOrdersPage({
                       order.cashier?.fullName ??
                       "Walk-in"}
                   </TableCell>
-                  <TableCell>{order.type.replace("_", "-")}</TableCell>
+                  <TableCell>
+                    <span className="font-semibold">
+                      {order.type.replace("_", "-")}
+                    </span>
+                    {order.type === "DELIVERY" ? (
+                      <span className="mt-1 block max-w-64 text-xs text-slate-500">
+                        {order.deliveryAddress ?? "Address unavailable"}
+                        {order.deliveryPhone ? ` · ${order.deliveryPhone}` : ""}
+                      </span>
+                    ) : null}
+                  </TableCell>
                   <TableCell>{formatMoney(Number(order.total))}</TableCell>
                   <TableCell>
                     <ToneBadge tone={getStatusTone(order.status)}>

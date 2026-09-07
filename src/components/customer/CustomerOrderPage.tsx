@@ -87,6 +87,11 @@ type CustomerOrderAction =
   | { type: "categorySelected"; category: string }
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
+  | {
+      type: "fulfillmentTypeChanged";
+      fulfillmentType: "TAKEOUT" | "DELIVERY";
+    }
+  | { type: "deliveryAddressChanged"; deliveryAddress: string }
   | { type: "orderNoteChanged"; orderNote: string }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
@@ -107,6 +112,8 @@ const initialCustomerOrderState: CustomerOrderState = {
   searchTerm: "",
   customerName: "",
   customerPhone: "",
+  fulfillmentType: "TAKEOUT",
+  deliveryAddress: "",
   orderNote: "",
   selectedProduct: null,
   modifierModalOpen: false,
@@ -132,6 +139,16 @@ function customerOrderReducer(
       return { ...state, customerName: action.customerName };
     case "customerPhoneChanged":
       return { ...state, customerPhone: action.customerPhone };
+    case "fulfillmentTypeChanged":
+      return {
+        ...state,
+        fulfillmentType: action.fulfillmentType,
+        deliveryAddress:
+          action.fulfillmentType === "DELIVERY" ? state.deliveryAddress : "",
+        submitError: "",
+      };
+    case "deliveryAddressChanged":
+      return { ...state, deliveryAddress: action.deliveryAddress };
     case "orderNoteChanged":
       return { ...state, orderNote: action.orderNote };
     case "cartOpened":
@@ -185,6 +202,7 @@ function customerOrderReducer(
         lastOrderNumber: action.orderNumber,
         submitMessage: action.message,
         orderNote: "",
+        deliveryAddress: "",
         cartOpen: true,
       };
     case "checkoutFailed":
@@ -362,6 +380,28 @@ export default function CustomerOrderPage() {
       return;
     }
 
+    if (
+      orderState.fulfillmentType === "DELIVERY" &&
+      orderState.customerPhone.trim().length < 5
+    ) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter a phone number for delivery.",
+      });
+      return;
+    }
+
+    if (
+      orderState.fulfillmentType === "DELIVERY" &&
+      orderState.deliveryAddress.trim().length < 5
+    ) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter the delivery address before checkout.",
+      });
+      return;
+    }
+
     try {
       dispatchOrderState({ type: "checkoutStarted" });
 
@@ -373,6 +413,8 @@ export default function CustomerOrderPage() {
         body: JSON.stringify({
           customerName: orderState.customerName,
           customerPhone: orderState.customerPhone,
+          fulfillmentType: orderState.fulfillmentType,
+          deliveryAddress: orderState.deliveryAddress,
           notes: orderState.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
@@ -399,7 +441,9 @@ export default function CustomerOrderPage() {
       dispatchOrderState({
         type: "checkoutSucceeded",
         orderNumber: data.order.orderNumber,
-        message: `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
+        message: `Order #${data.order.orderNumber} is confirmed for ${
+          orderState.fulfillmentType === "DELIVERY" ? "delivery" : "pickup"
+        } and queued for the kitchen.`,
       });
       clearCart();
     } catch (error) {
@@ -472,6 +516,18 @@ export default function CustomerOrderPage() {
         }
         onCustomerPhoneChange={(customerPhone) =>
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
+        }
+        onFulfillmentTypeChange={(fulfillmentType) =>
+          dispatchOrderState({
+            type: "fulfillmentTypeChanged",
+            fulfillmentType,
+          })
+        }
+        onDeliveryAddressChange={(deliveryAddress) =>
+          dispatchOrderState({
+            type: "deliveryAddressChanged",
+            deliveryAddress,
+          })
         }
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
