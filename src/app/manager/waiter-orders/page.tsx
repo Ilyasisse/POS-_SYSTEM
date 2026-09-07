@@ -1,6 +1,8 @@
 ﻿import { Table } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { ToastOnMount } from "@/components/ui/toast";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -20,11 +22,13 @@ import {
   deleteWaiterOrderItem,
   discardDeletedWaiterOrderItem,
   restoreDeletedWaiterOrderItem,
+  transferOpenWaiterOrder,
 } from "./actions";
 
 type CashierWaiterOrdersPageProps = {
   searchParams?: Promise<{
     waiterId?: string;
+    handoffStatus?: string;
   }>;
 };
 
@@ -39,6 +43,7 @@ type WaiterOrderRow = {
   orderNumber: number;
   total: unknown;
   createdAt: Date;
+  status: string;
   table: { name: string } | null;
   orderItems: Array<{
     id: string;
@@ -68,6 +73,7 @@ type WaiterOrdersTableProps = {
   orders: WaiterOrderRow[];
   selectedWaiter: WaiterOption | null;
   selectedWaiterId: string;
+  waiters: WaiterOption[];
 };
 
 function formatMoney(value: number) {
@@ -252,6 +258,7 @@ function WaiterOrdersTable({
   orders,
   selectedWaiter,
   selectedWaiterId,
+  waiters,
 }: WaiterOrdersTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -285,7 +292,7 @@ function WaiterOrdersTable({
                   Total
                 </th>
                 <th className="px-4 py-3 font-semibold text-foreground">
-                  Delete orderka
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -296,6 +303,7 @@ function WaiterOrdersTable({
                   key={order.id}
                   order={order}
                   selectedWaiterId={selectedWaiterId}
+                  waiters={waiters}
                 />
               ))}
             </tbody>
@@ -309,9 +317,11 @@ function WaiterOrdersTable({
 function WaiterOrderRow({
   order,
   selectedWaiterId,
+  waiters,
 }: {
   order: WaiterOrderRow;
   selectedWaiterId: string;
+  waiters: WaiterOption[];
 }) {
   const orderItemsText = order.orderItems
     .map((item) => `${item.qty}x ${item.productName}`)
@@ -339,6 +349,36 @@ function WaiterOrderRow({
       </td>
       <td className="px-4 py-3">
         <div className="space-y-2">
+          {order.status === "OPEN" && waiters.length > 1 ? (
+            <form action={transferOpenWaiterOrder} className="space-y-2">
+              <Input type="hidden" name="orderId" value={order.id} />
+              <Input
+                type="hidden"
+                name="fromWaiterId"
+                value={selectedWaiterId}
+              />
+              <NativeSelect
+                name="toWaiterId"
+                defaultValue=""
+                aria-label={`Transfer order ${order.orderNumber} to waiter`}
+                required
+              >
+                <option value="" disabled>
+                  Transfer to…
+                </option>
+                {waiters
+                  .filter((waiter) => waiter.id !== selectedWaiterId)
+                  .map((waiter) => (
+                    <option key={waiter.id} value={waiter.id}>
+                      {waiter.fullName}
+                    </option>
+                  ))}
+              </NativeSelect>
+              <Button type="submit" variant="outline" className="w-full">
+                Transfer open order
+              </Button>
+            </form>
+          ) : null}
           {order.orderItems.map((item) => (
             <div key={item.id} className="space-y-2">
               {Array.from({ length: item.qty }).map((_, unitIndex) => (
@@ -416,6 +456,16 @@ export default async function CashierWaiterOrdersPage({
 
   const selectedWaiter =
     waiters.find((waiter) => waiter.id === selectedWaiterId) ?? null;
+  const handoffNotice =
+    params?.handoffStatus === "transferred"
+      ? { tone: "success" as const, description: "Open order transferred." }
+      : params?.handoffStatus === "invalid"
+        ? {
+            tone: "error" as const,
+            description:
+              "The order could not be transferred. It may be paid, closed, or already reassigned.",
+          }
+        : null;
 
   const orders = selectedWaiterId
     ? await prisma.order.findMany({
@@ -465,6 +515,8 @@ export default async function CashierWaiterOrdersPage({
 
       <WaiterFilter waiters={waiters} selectedWaiterId={selectedWaiterId} />
 
+      {handoffNotice ? <ToastOnMount {...handoffNotice} /> : null}
+
       <DeletedOrderItemsPanel deletedItems={deletedItems} />
 
       <WaiterOrderMetrics
@@ -477,6 +529,7 @@ export default async function CashierWaiterOrdersPage({
         orders={orders}
         selectedWaiter={selectedWaiter}
         selectedWaiterId={selectedWaiterId}
+        waiters={waiters}
       />
     </div>
   );
