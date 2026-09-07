@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToast } from "@/components/ui/toast";
 
-type Line = { id: string; payerName: string; payerPhone: string; amount: string };
-type RequestLine = { id: string; payerName: string; payerPhone: string; amount: number; paidAmount: number; remainingAmount: number; status: string };
+type Line = { id: string; payerName: string; payerPhone: string; amount: string; method: string };
+type RequestLine = { id: string; payerName: string; payerPhone: string; amount: number; paidAmount: number; remainingAmount: number; method: string; status: string; reference?: string | null };
 type Receipt = {
   id: string; reference: string | null; direction: "INCOMING" | "OUTGOING" | "UNKNOWN";
   status: "AVAILABLE" | "ASSIGNED" | "OUTGOING" | "NEEDS_REVIEW"; amount: number | null;
@@ -25,8 +25,7 @@ const tabLabels: Record<ReceiptTab, string> = { AVAILABLE: "Available", ASSIGNED
 export default function CashierPaymentDialog({ tableId, tableName, amountDue }: { tableId: string; tableName: string; amountDue: number }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState("");
-  const [lines, setLines] = useState<Line[]>([{ id: crypto.randomUUID(), payerName: "", payerPhone: "", amount: amountDue.toFixed(2) }]);
+  const [lines, setLines] = useState<Line[]>([{ id: crypto.randomUUID(), payerName: "", payerPhone: "", amount: amountDue.toFixed(2), method: "" }]);
   const [payLater, setPayLater] = useState(false);
   const [batchKey, setBatchKey] = useState("");
   const [requests, setRequests] = useState<RequestLine[]>([]);
@@ -81,13 +80,13 @@ export default function CashierPaymentDialog({ tableId, tableName, amountDue }: 
 
   async function startChecks() {
     setError("");
-    if (!method) return setError("Select a payment method first.");
+    if (lines.some((line) => !line.method)) return setError("Select a payment method for every payer.");
     const key = crypto.randomUUID();
     setSubmitting(true);
     try {
       const response = await fetch("/api/cashier/payment-requests", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchKey: key, tableId, method, payLater, lines: lines.map((line) => ({ payerName: line.payerName, payerPhone: line.payerPhone, amount: Number(line.amount) })) }),
+        body: JSON.stringify({ batchKey: key, tableId, payLater, lines: lines.map((line) => ({ payerName: line.payerName, payerPhone: line.payerPhone, amount: Number(line.amount), method: line.method })) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not start payment checks.");
@@ -140,12 +139,11 @@ export default function CashierPaymentDialog({ tableId, tableName, amountDue }: 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button className="min-h-11 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800">Take payment · {money(amountDue)}</Button></DialogTrigger>
       <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto rounded-[2rem] p-6 sm:p-8">
-        <DialogHeader><DialogTitle className="text-3xl">Payment for {tableName}</DialogTitle><DialogDescription>Create a row for each payer, then attach one or more incoming SAHAL receipts.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle className="text-3xl">Payment for {tableName}</DialogTitle><DialogDescription>Choose a provider for each payer, then attach one or more incoming SAHAL receipts.</DialogDescription></DialogHeader>
         {!batchKey ? (
           <div className="space-y-5">
-            <label className="block"><span className="mb-2 block text-sm font-semibold">Payment method</span><NativeSelect value={method} onChange={(event) => setMethod(event.target.value)} className="w-full rounded-xl"><option value="">Select payment method</option><option value="GOLIS">GOLIS / SAHAL</option><option value="MYCASH">MYCASH</option><option value="Dahabshiil">Dahabshiil</option><option value="OTHER">OTHER</option></NativeSelect></label>
-            <div className="space-y-3">{lines.map((line, index) => <div key={line.id} className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[1fr_1fr_7rem_auto]"><Input aria-label={`Payer ${index + 1} name`} placeholder="Name" value={line.payerName} onChange={(event) => updateLine(line.id, "payerName", event.target.value)} /><Input aria-label={`Payer ${index + 1} phone`} placeholder="Phone number" value={line.payerPhone} onChange={(event) => updateLine(line.id, "payerPhone", event.target.value)} /><Input aria-label={`Payer ${index + 1} amount`} type="number" min="0.01" step="0.01" value={line.amount} onChange={(event) => updateLine(line.id, "amount", event.target.value)} /><Button type="button" variant="outline" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))}>Remove</Button></div>)}</div>
-            <Button type="button" variant="outline" onClick={() => setLines((current) => [...current, { id: crypto.randomUUID(), payerName: "", payerPhone: "", amount: remaining ? remaining.toFixed(2) : "" }])}>+ Add another payer</Button>
+            <div className="space-y-3">{lines.map((line, index) => <div key={line.id} className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"><NativeSelect aria-label={`Payer ${index + 1} payment method`} value={line.method} onChange={(event) => updateLine(line.id, "method", event.target.value)}><option value="">Method</option><option value="GOLIS">GOLIS / SAHAL</option><option value="MYCASH">MYCASH</option><option value="Dahabshiil">Dahabshiil</option><option value="OTHER">OTHER</option></NativeSelect><Input aria-label={`Payer ${index + 1} name`} placeholder="Name" value={line.payerName} onChange={(event) => updateLine(line.id, "payerName", event.target.value)} /><Input aria-label={`Payer ${index + 1} phone`} placeholder="Phone number" value={line.payerPhone} onChange={(event) => updateLine(line.id, "payerPhone", event.target.value)} /><Input aria-label={`Payer ${index + 1} amount`} type="number" min="0.01" step="0.01" value={line.amount} onChange={(event) => updateLine(line.id, "amount", event.target.value)} /><Button type="button" variant="outline" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))}>Remove</Button></div>)}</div>
+            <Button type="button" variant="outline" onClick={() => setLines((current) => [...current, { id: crypto.randomUUID(), payerName: "", payerPhone: "", amount: remaining ? remaining.toFixed(2) : "", method: current.at(-1)?.method ?? "" }])}>+ Add another payer</Button>
             <div className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}><div className="flex justify-between"><span>Table balance</span><strong>{money(amountDue)}</strong></div><div className="mt-1 flex justify-between"><span>Entered payments</span><strong>{money(entered)}</strong></div><div className="mt-1 flex justify-between"><span>Remaining</span><strong>{money(remaining)}</strong></div></div>
             {remaining > 0.001 ? <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4"><input type="checkbox" checked={payLater} onChange={(event) => setPayLater(event.target.checked)} className="mt-1 size-4" /><span><strong>Pay later</strong><span className="block text-sm text-amber-900">Create a manager alert for the {money(remaining)} balance.</span></span></label> : null}
             {error ? <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
@@ -154,7 +152,7 @@ export default function CashierPaymentDialog({ tableId, tableName, amountDue }: 
         ) : (
           <div className="space-y-5">
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">Incoming SMS messages from 898 appear below automatically. Select the payer first, then assign a receipt.</div>
-            <div className="grid gap-3 md:grid-cols-2">{requests.map((request) => <button key={request.id} type="button" onClick={() => setSelectedRequestId(request.id)} className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "hover:bg-muted/40"}`}><span className="font-semibold">{request.payerName} · {request.payerPhone}</span><span className="mt-2 block text-sm">Paid {money(request.paidAmount)} of {money(request.amount)} · Remaining {money(request.remainingAmount)}</span><span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{request.status.replaceAll("_", " ")}</span></button>)}</div>
+            <div className="grid gap-3 md:grid-cols-2">{requests.map((request) => <button key={request.id} type="button" onClick={() => setSelectedRequestId(request.id)} className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "hover:bg-muted/40"}`}><span className="font-semibold">{request.payerName} · {request.payerPhone}</span><span className="mt-2 block text-sm">{request.method} · Paid {money(request.paidAmount)} of {money(request.amount)} · Remaining {money(request.remainingAmount)}</span><span className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{request.status.replaceAll("_", " ")}</span></button>)}</div>
             <div className="flex flex-wrap gap-2" role="tablist" aria-label="Payment receipts">{(Object.keys(tabLabels) as ReceiptTab[]).map((item) => <Button key={item} type="button" variant={tab === item ? "default" : "outline"} onClick={() => setTab(item)} role="tab" aria-selected={tab === item}>{tabLabels[item]} ({receipts.filter((receipt) => receipt.status === item).length})</Button>)}</div>
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, number, Tix, table, or payer" aria-label="Search receipts" />
             <div className="space-y-3">{visibleReceipts.length === 0 ? <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">No {tabLabels[tab].toLowerCase()} receipts match.</p> : visibleReceipts.map((receipt) => {
