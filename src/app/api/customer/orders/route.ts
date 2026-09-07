@@ -10,6 +10,10 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import {
+  getTableQrSecret,
+  verifyTableQrToken,
+} from "@/lib/customer-orders/table-qr-token";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -31,8 +35,17 @@ type CustomerOrderBody = {
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+  tableToken?: string;
   items: CustomerOrderItemInput[];
 };
+
+type TableOrderContext = {
+  id: string;
+  name: string;
+  tokenVersion: number;
+};
+
+class InactiveTableQrError extends Error {}
 
 type PreparedLine = {
   productId: string;
@@ -90,15 +103,174 @@ function buildCustomerOrderNote(
   return sections.join(" | ");
 }
 
+async function createCustomerOrderRecord(
+  tx: Prisma.TransactionClient,
+  input: {
+    total: Prisma.Decimal;
+    notes: string | null;
+    customerId: string | null;
+    table: TableOrderContext | null;
+  },
+) {
+  if (!input.table) {
+    return tx.order.create({
+      data: {
+        type: "TAKEOUT",
+        status: "OPEN",
+        notes: input.notes,
+        total: input.total,
+        customerId: input.customerId,
+      },
+    });
+  }
+
+  await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${input.table.id} FOR UPDATE`,
+  );
+
+  const currentTable = await tx.table.findUnique({
+    where: { id: input.table.id },
+    select: {
+      isActive: true,
+      qrOrderingEnabled: true,
+      qrTokenVersion: true,
+    },
+  });
+  if (
+    !currentTable?.isActive ||
+    !currentTable.qrOrderingEnabled ||
+    currentTable.qrTokenVersion !== input.table.tokenVersion
+  ) {
+    throw new InactiveTableQrError();
+  }
+
+  const latestOpenOrder = await tx.order.findFirst({
+    where: {
+      tableId: input.table.id,
+      status: "OPEN",
+      type: "DINE_IN",
+    },
+    orderBy: [{ createdAt: "desc" }, { orderNumber: "desc" }],
+    select: {
+      id: true,
+      orderNumber: true,
+      tableCheck: { select: { id: true } },
+    },
+  });
+
+  let tableCheckId = latestOpenOrder?.tableCheck?.id ?? null;
+  let roundNumber = 1;
+
+  if (latestOpenOrder?.tableCheck) {
+    const roundAggregate = await tx.order.aggregate({
+      where: { tableCheckId: latestOpenOrder.tableCheck.id },
+      _max: { tableCheckRound: true },
+    });
+    roundNumber = (roundAggregate._max.tableCheckRound ?? 1) + 1;
+  } else if (latestOpenOrder) {
+    const legacyCheck = await tx.tableCheck.create({
+      data: {
+        checkNumber: latestOpenOrder.orderNumber,
+        tableId: input.table.id,
+      },
+    });
+    tableCheckId = legacyCheck.id;
+    roundNumber = 2;
+
+    await tx.order.update({
+      where: { id: latestOpenOrder.id },
+      data: { tableCheckId: legacyCheck.id, tableCheckRound: 1 },
+    });
+  }
+
+  if (tableCheckId) {
+    return tx.order.create({
+      data: {
+        type: "DINE_IN",
+        status: "OPEN",
+        notes: input.notes,
+        total: input.total,
+        tableId: input.table.id,
+        tableCheckId,
+        tableCheckRound: roundNumber,
+      },
+    });
+  }
+
+  const firstOrder = await tx.order.create({
+    data: {
+      type: "DINE_IN",
+      status: "OPEN",
+      notes: input.notes,
+      total: input.total,
+      tableId: input.table.id,
+    },
+  });
+  const tableCheck = await tx.tableCheck.create({
+    data: {
+      checkNumber: firstOrder.orderNumber,
+      tableId: input.table.id,
+    },
+  });
+
+  return tx.order.update({
+    where: { id: firstOrder.id },
+    data: { tableCheckId: tableCheck.id, tableCheckRound: 1 },
+  });
+}
+
 export async function POST(request: Request) {
   try {
-    const authorization = await authorizeApi(PERMISSIONS.CUSTOMER_ORDER);
-    if (!authorization.ok) return authorization.response;
-
     const body = (await request.json()) as CustomerOrderBody;
     const customerName = String(body.customerName ?? "").trim();
     const customerPhone = String(body.customerPhone ?? "").trim();
     const notes = String(body.notes ?? "").trim();
+    const tableToken = String(body.tableToken ?? "").trim();
+
+    let tableContext: TableOrderContext | null = null;
+    let actorUserId: string | null = null;
+    let customerId: string | null = null;
+
+    if (tableToken) {
+      let tokenPayload;
+      try {
+        tokenPayload = verifyTableQrToken(tableToken, getTableQrSecret());
+      } catch {
+        return NextResponse.json(
+          { error: "Table ordering is not configured." },
+          { status: 503 },
+        );
+      }
+
+      if (tokenPayload) {
+        const table = await prisma.table.findFirst({
+          where: {
+            id: tokenPayload.tableId,
+            isActive: true,
+            qrOrderingEnabled: true,
+            qrTokenVersion: tokenPayload.tokenVersion,
+          },
+          select: { id: true, name: true },
+        });
+        tableContext = table
+          ? { ...table, tokenVersion: tokenPayload.tokenVersion }
+          : null;
+      }
+
+      if (!tableContext) {
+        return NextResponse.json(
+          { error: "This table ordering code is invalid or no longer active." },
+          { status: 403 },
+        );
+      }
+    } else {
+      const authorization = await authorizeApi(PERMISSIONS.CUSTOMER_ORDER);
+      if (!authorization.ok) return authorization.response;
+
+      actorUserId = authorization.user.id;
+      customerId =
+        authorization.user.role === "CUSTOMER" ? authorization.user.id : null;
+    }
 
     if (customerName.length < 2) {
       return NextResponse.json(
@@ -171,17 +343,19 @@ export async function POST(request: Request) {
             },
           })
         : Promise.resolve([]),
-      assignedBaristaIds.length > 0
+      assignedBaristaIds.length > 0 || tableContext
         ? prisma.user.findMany({
             where: {
-              id: { in: assignedBaristaIds },
               role: "BARISTA",
               isActive: true,
+              ...(tableContext ? {} : { id: { in: assignedBaristaIds } }),
             },
             select: {
               id: true,
               fullName: true,
             },
+            orderBy: { fullName: "asc" },
+            take: 50,
           })
         : Promise.resolve([]),
     ]);
@@ -255,18 +429,18 @@ export async function POST(request: Request) {
       let assignedBaristaName: string | null = null;
 
       if (station === "BARISTA") {
-        if (!item.assignedBaristaId) {
-          return NextResponse.json(
-            { error: `No barista is available for ${product.name}.` },
-            { status: 400 },
-          );
-        }
-
-        const barista = baristaMap.get(item.assignedBaristaId);
+        const requestedBaristaId = tableContext
+          ? null
+          : item.assignedBaristaId;
+        const barista = requestedBaristaId
+          ? baristaMap.get(requestedBaristaId)
+          : tableContext
+            ? baristas[0]
+            : null;
 
         if (!barista) {
           return NextResponse.json(
-            { error: `Assigned barista not found for ${product.name}.` },
+            { error: `No barista is available for ${product.name}.` },
             { status: 400 },
           );
         }
@@ -317,17 +491,11 @@ export async function POST(request: Request) {
 
     const result = await prisma.$transaction(
       async (tx) => {
-        const createdOrder = await tx.order.create({
-          data: {
-            type: "TAKEOUT",
-            status: "OPEN",
-            notes: orderNote || null,
-            total: toDecimal(calculatedTotal),
-            customerId:
-              authorization.user.role === "CUSTOMER"
-                ? authorization.user.id
-                : null,
-          },
+        const createdOrder = await createCustomerOrderRecord(tx, {
+          total: toDecimal(calculatedTotal),
+          notes: orderNote || null,
+          customerId,
+          table: tableContext,
         });
 
         await tx.orderItem.createMany({
@@ -371,7 +539,7 @@ export async function POST(request: Request) {
           orderId: createdOrder.id,
           lines: preparedLines,
           customerName,
-          actorUserId: authorization.user.id,
+          actorUserId,
         });
 
         const inventoryAlerts = await deductProductInventoryForSale(
@@ -381,7 +549,7 @@ export async function POST(request: Request) {
             qty: line.qty,
           })),
           createdOrder.id,
-          authorization.user.id,
+          actorUserId,
         );
 
         return { order: createdOrder, inventoryAlerts };
@@ -402,6 +570,13 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof InactiveTableQrError) {
+      return NextResponse.json(
+        { error: "This table ordering code is no longer active." },
+        { status: 403 },
+      );
+    }
+
     console.error("Customer order error:", error);
 
     return NextResponse.json(

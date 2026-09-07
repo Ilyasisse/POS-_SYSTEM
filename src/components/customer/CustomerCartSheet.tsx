@@ -80,7 +80,7 @@ export default function CustomerCartSheet({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-[0.3em] text-amber-200/90">
-                  {isCashier ? "Kitchen order" : "Your order"}
+                  {isCashier ? "Kitchen order" : tableName ? "Table order" : "Your order"}
                 </p>
                 <h2
                   className="mt-3 text-3xl sm:text-4xl"
@@ -89,7 +89,7 @@ export default function CustomerCartSheet({
                       '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
                   }}
                 >
-                  {isCashier ? tableName || "Selected table" : "Cart"}
+                  {isCashier ? tableName || "Selected table" : tableName || "Cart"}
                 </h2>
                 <p className="mt-1 text-sm text-white/70">
                   {cartCount} item{cartCount === 1 ? "" : "s"}

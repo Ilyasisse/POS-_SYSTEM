@@ -1,4 +1,5 @@
 ﻿import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -85,6 +86,11 @@ export default async function TablePage({ searchParams }: TablePageProps) {
     <AdminPage
       title="Tables"
       description="Manage dine-in tables and their status"
+      action={
+        <Button asChild variant="outline">
+          <Link href="/admin/tables/qr">Table QR codes</Link>
+        </Button>
+      }
     >
       {notice ? (
         <ToastOnMount tone={notice.tone} description={notice.message} />

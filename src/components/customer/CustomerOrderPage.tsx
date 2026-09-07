@@ -201,7 +201,16 @@ function customerOrderReducer(
   }
 }
 
-export default function CustomerOrderPage() {
+type CustomerOrderPageProps = {
+  tableOrderContext?: {
+    token: string;
+    tableName: string;
+  };
+};
+
+export default function CustomerOrderPage({
+  tableOrderContext,
+}: CustomerOrderPageProps = {}) {
   const { productsAll, categories, baristas, loading } = useWaiterData();
   const {
     cart,
@@ -300,7 +309,11 @@ export default function CustomerOrderPage() {
   }
 
   function handleProductClick(product: Product) {
-    if (product.category?.station === "BARISTA" && baristas.length === 0) {
+    if (
+      product.category?.station === "BARISTA" &&
+      baristas.length === 0 &&
+      !tableOrderContext
+    ) {
       dispatchOrderState({ type: "baristaUnavailable" });
       return;
     }
@@ -374,6 +387,7 @@ export default function CustomerOrderPage() {
           customerName: orderState.customerName,
           customerPhone: orderState.customerPhone,
           notes: orderState.orderNote,
+          tableToken: tableOrderContext?.token,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -399,7 +413,9 @@ export default function CustomerOrderPage() {
       dispatchOrderState({
         type: "checkoutSucceeded",
         orderNumber: data.order.orderNumber,
-        message: `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
+        message: tableOrderContext
+          ? `Order #${data.order.orderNumber} was sent from ${tableOrderContext.tableName} to the kitchen.`
+          : `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
       });
       clearCart();
     } catch (error) {
@@ -420,6 +436,11 @@ export default function CustomerOrderPage() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
 
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
+        {tableOrderContext ? (
+          <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-900">
+            Ordering for {tableOrderContext.tableName}. Your order will join this table&apos;s open check.
+          </div>
+        ) : null}
         <CustomerOrderHeader
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
@@ -483,6 +504,8 @@ export default function CustomerOrderPage() {
           dispatchOrderState({ type: "cartCleared" });
         }}
         onCheckout={handlePlaceOrder}
+        autoAssignBarista={Boolean(tableOrderContext)}
+        tableName={tableOrderContext?.tableName}
       />
     </main>
   );
