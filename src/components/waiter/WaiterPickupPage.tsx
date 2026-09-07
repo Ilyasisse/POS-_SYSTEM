@@ -9,7 +9,19 @@ type WaiterPickupPageProps = {
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
+  assignedOrders: Array<{
+    id: string;
+    orderNumber: number;
+    tableName: string;
+    createdAt: string;
+    outstandingTotal: number;
+    items: Array<{ id: string; name: string; quantity: number }>;
+  }>;
 };
+
+function formatMoney(value: number) {
+  return `$${value.toFixed(2)}`;
+}
 
 function formatTime(value: string) {
   return new Date(value).toLocaleTimeString("en-US", {
@@ -35,6 +47,7 @@ export default function WaiterPickupPage({
   currentUserId,
   currentUserName,
   currentUserRole,
+  assignedOrders,
 }: WaiterPickupPageProps) {
   const { activeTickets, statusMessage, updatePickupStatus } = useKitchenTickets({
     currentUserId,
@@ -65,6 +78,54 @@ export default function WaiterPickupPage({
             </p>
           </div>
         </header>
+
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold">My open tables</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Orders currently assigned to you and their unpaid balance.
+              </p>
+            </div>
+            <span className="text-sm font-semibold text-muted-foreground">
+              {assignedOrders.length} open
+            </span>
+          </div>
+
+          {assignedOrders.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+              No open tables are assigned to you.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {assignedOrders.map((order) => (
+                <article
+                  key={order.id}
+                  className="rounded-xl border border-border bg-muted/35 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold">{order.tableName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Order #{order.orderNumber} · {formatTime(order.createdAt)}
+                      </p>
+                    </div>
+                    <p className="font-bold text-emerald-700">
+                      {formatMoney(order.outstandingTotal)}
+                    </p>
+                  </div>
+                  <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                    {order.items.map((item) => (
+                      <p key={item.id}>
+                        {item.quantity}x {item.name}
+                      </p>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
 
         {statusMessage ? (
           <p className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
