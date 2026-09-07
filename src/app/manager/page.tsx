@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+import { ToastOnMount } from "@/components/ui/toast";
 import {
   buildWaiterShiftSummary,
   getWaiterNextOpeningAmount,
@@ -127,8 +128,6 @@ function getBalanceStatusMessage(balanceStatus?: string) {
   }
 }
 
-type BalanceNotice = NonNullable<ReturnType<typeof getBalanceStatusMessage>>;
-
 type WaiterOption = {
   id: string;
   fullName: string;
@@ -195,20 +194,6 @@ function ManagerPageHeader({
         </p>
       </div>
 
-    </div>
-  );
-}
-
-function BalanceNoticeBanner({ notice }: { notice: BalanceNotice }) {
-  return (
-    <div
-      className={`mb-6 rounded-2xl px-4 py-3 text-sm font-medium ${
-        notice.tone === "success"
-          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-          : "border border-red-200 bg-red-50 text-red-700"
-      }`}
-    >
-      {notice.message}
     </div>
   );
 }
@@ -840,7 +825,12 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
         businessDayLabel={businessDayLabel}
       />
 
-      {balanceNotice ? <BalanceNoticeBanner notice={balanceNotice} /> : null}
+      {balanceNotice ? (
+        <ToastOnMount
+          tone={balanceNotice.tone}
+          description={balanceNotice.message}
+        />
+      ) : null}
 
       <ManagerMetricCards
         waiterCount={summaries.length}

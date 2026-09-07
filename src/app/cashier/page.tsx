@@ -11,6 +11,7 @@ import {
 import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
+import { ToastOnMount } from "@/components/ui/toast";
 
 type CashierPageProps = {
   searchParams?: Promise<{
@@ -73,6 +74,14 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     searchParams,
   ]);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
+  const orderNotice =
+    params?.orderStatus === "sent"
+      ? {
+          tone: "success" as const,
+          message: "The table order was sent to the kitchen.",
+        }
+      : null;
+  const notice = paymentNotice ?? orderNotice;
 
   const tables = await prisma.table.findMany({
     where: {
@@ -159,16 +168,11 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         </Link>
       </div>
 
-      {paymentNotice ? (
-        <div
-          className={`mb-6 rounded-2xl px-4 py-3 text-sm font-medium ${
-            paymentNotice.tone === "success"
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {paymentNotice.message}
-        </div>
+      {notice ? (
+        <ToastOnMount
+          tone={notice.tone}
+          description={notice.message}
+        />
       ) : null}
 
       {/*
