@@ -10,6 +10,7 @@ import {
 } from "@/lib/reports/financial-formulas";
 import type { ReportRange } from "@/lib/reports/reporting-calendar";
 import type { ReportQuery } from "@/lib/reports/validation";
+import { countDineInCovers } from "@/lib/reports/cover-metrics";
 
 type SalesRow = { name: string; quantity: number; grossSales: Prisma.Decimal; cogs: Prisma.Decimal; missingCostLines: number };
 const zero = () => new Prisma.Decimal(0);
@@ -60,6 +61,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
         waiter: { select: { id: true, fullName: true } },
         cashier: { select: { id: true, fullName: true } },
         table: { select: { id: true, name: true } },
+        tableCheck: { select: { id: true, guestCount: true } },
         orderItems: {
           include: {
             product: { select: { id: true, name: true, category: { select: { id: true, name: true } } } },
@@ -83,6 +85,15 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   const productRows = new Map<string, SalesRow>();
   const categoryRows = new Map<string, SalesRow>();
   const hourly = new Map<string, Prisma.Decimal>();
+  const dineInCovers = countDineInCovers(
+    orders.map((order) => ({
+      id: order.id,
+      type: order.type,
+      tableCheckId: order.tableCheck?.id ?? null,
+      guestCount: order.tableCheck?.guestCount ?? null,
+    })),
+  );
+  let dineInNetSales = zero();
 
   for (const order of orders) {
     for (const payment of order.payments) paymentTotals.set(payment.method, (paymentTotals.get(payment.method) ?? zero()).plus(payment.amountPaid));
@@ -118,12 +129,15 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       addRow(categoryRows, item.product.category.id, item.product.category.name, { qty: item.qty, gross: item.lineTotal, cost: item.unitCostSnapshot });
     }
 
+    const orderNet = netSales(orderGross, orderDiscounts, orderRefunds);
+    if (order.type === "DINE_IN") {
+      dineInNetSales = dineInNetSales.plus(orderNet);
+    }
+
     const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
     hourly.set(
       hour,
-      (hourly.get(hour) ?? zero()).plus(
-        netSales(orderGross, orderDiscounts, orderRefunds),
-      ),
+      (hourly.get(hour) ?? zero()).plus(orderNet),
     );
   }
 
@@ -145,6 +159,8 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       grossSales: gross.toFixed(2), netSales: net.toFixed(2), discounts: discounts.toFixed(2), refunds: refunds.toFixed(2),
       complimentary: complimentary.toFixed(2), staffMeals: staffMeals.toFixed(2), paidOrders: orders.length,
       unpaidOrders, voidedOrders, averageOrderValue: serialize(averageOrderValue(net, orders.length)),
+      dineInCovers,
+      salesPerCover: serialize(averageOrderValue(dineInNetSales, dineInCovers)),
       cogs: costCoveredLines > 0 ? cogs.toFixed(2) : null, grossProfit: serialize(profit),
       grossMargin: profit ? serialize(ratioPercent(profit, net)) : null,
       costCoveragePercent: serialize(ratioPercent(costCoveredLines, totalLines)), costCoveredLines, totalLines,
@@ -152,6 +168,6 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
     paymentMethods: [...paymentTotals.entries()].map(([method, amount]) => ({ method, amount: amount.toFixed(2) })),
     hourlySales: [...hourly.entries()].map(([hour, amount]) => ({ hour, amount: amount.toFixed(2) })).sort((a, b) => Number(a.hour) - Number(b.hour)),
     categories: mapRows(categoryRows), products: mapRows(productRows),
-    orders: orders.map((order) => ({ id: order.id, orderNumber: order.orderNumber, closedAt: order.closedAt?.toISOString() ?? null, total: order.total.toFixed(2), waiter: order.waiter?.fullName ?? null, cashier: order.cashier?.fullName ?? null, table: order.table?.name ?? null })),
+    orders: orders.map((order) => ({ id: order.id, orderNumber: order.orderNumber, closedAt: order.closedAt?.toISOString() ?? null, total: order.total.toFixed(2), waiter: order.waiter?.fullName ?? null, cashier: order.cashier?.fullName ?? null, table: order.table?.name ?? null, guestCount: order.tableCheck?.guestCount ?? (order.type === "DINE_IN" ? 1 : null) })),
   };
 }

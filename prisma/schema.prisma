@@ -562,6 +562,7 @@ model TableCheck {
   id          String    @id @default(cuid())
   checkNumber Int       @unique
   tableId     String
+  guestCount  Int       @default(1)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   closedAt    DateTime?
