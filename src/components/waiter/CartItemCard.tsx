@@ -1,10 +1,12 @@
 ﻿import { Button } from "@/components/ui/button";
 import type { CartLine } from "@/lib/types";
+import { Textarea } from "@/components/ui/textarea";
 
 type CartItemCardProps = {
   line: CartLine;
   onChangeQuantity: (cartKey: string, delta: number) => void;
   onRemove: (cartKey: string) => void;
+  onItemNoteChange: (cartKey: string, note: string) => void;
 };
 
 function roundToTwo(num: number): number {
@@ -21,6 +23,7 @@ export default function CartItemCard({
   line,
   onChangeQuantity,
   onRemove,
+  onItemNoteChange,
 }: CartItemCardProps) {
   const modifiers = Array.isArray(line.selectedModifiers)
     ? line.selectedModifiers
@@ -95,6 +98,16 @@ export default function CartItemCard({
           </div>
         </div>
       ) : null}
+
+      <Textarea
+        aria-label={`Special instructions for ${line.name}`}
+        value={line.note ?? ""}
+        maxLength={500}
+        rows={2}
+        onChange={(event) => onItemNoteChange(line.cartKey, event.target.value)}
+        placeholder="Item instructions (for example, no sugar)"
+        className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+      />
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">

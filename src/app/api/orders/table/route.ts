@@ -11,6 +11,10 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import {
+  normalizeOrderItemNote,
+  OrderItemNoteValidationError,
+} from "@/lib/orders/order-item-notes";
 
 type TableOrderItemModifierInput = {
   modifierId: string;
@@ -20,6 +24,7 @@ type TableOrderItemModifierInput = {
 type TableOrderItemInput = {
   productId: string;
   qty: number;
+  note?: unknown;
   modifiers?: TableOrderItemModifierInput[];
   assignedBaristaId?: string | null;
 };
@@ -34,6 +39,7 @@ type PreparedLine = {
   productId: string;
   productName: string;
   qty: number;
+  notes: string | null;
   station: Station | null;
   assignedBaristaId: string | null;
   assignedBaristaName: string | null;
@@ -47,6 +53,7 @@ type SavedOrderItemForTicket = {
   id: string;
   productName: string;
   qty: number;
+  notes: string | null;
   station: Station | null;
   assignedUserId: string | null;
   assignedUserName: string | null;
@@ -293,6 +300,7 @@ export async function POST(request: Request) {
         productId: product.id,
         productName: product.name,
         qty,
+        notes: normalizeOrderItemNote(item.note),
         station,
         assignedBaristaId,
         assignedBaristaName,
@@ -314,6 +322,7 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       productName: line.productName,
       qty: line.qty,
+      notes: line.notes,
       station: line.station,
       assignedUserId: line.assignedBaristaId,
       assignedUserName: line.assignedBaristaName,
@@ -430,6 +439,7 @@ export async function POST(request: Request) {
             productId: line.productId,
             productName: line.productName,
             qty: line.qty,
+            notes: line.notes,
             unitPrice: toDecimal(line.unitPrice),
             lineTotal: toDecimal(line.lineTotal),
             ...line.costSnapshot,
@@ -513,7 +523,7 @@ export async function POST(request: Request) {
         error:
           error instanceof Error ? error.message : "Failed to create table order.",
       },
-      { status: 500 },
+      { status: error instanceof OrderItemNoteValidationError ? 400 : 500 },
     );
   }
 }

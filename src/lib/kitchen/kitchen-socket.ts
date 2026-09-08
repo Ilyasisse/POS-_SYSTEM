@@ -37,6 +37,7 @@ export type KitchenTicketItem = {
   id: string;
   name: string;
   quantity: number;
+  note?: string | null;
   station: KitchenStation;
   assignedUserId?: string | null;
   assignedUserName?: string | null;
@@ -326,6 +327,7 @@ function normalizeKitchenTicketItem(
     id: String(item.id),
     name: String(item.name),
     quantity: Math.max(1, Number(item.quantity) || 1),
+    note: typeof item.note === "string" ? item.note.trim().slice(0, 500) || null : null,
     station,
     assignedUserId: item.assignedUserId ? String(item.assignedUserId) : null,
     assignedUserName: item.assignedUserName

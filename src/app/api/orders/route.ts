@@ -10,6 +10,10 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
+import {
+  normalizeOrderItemNote,
+  OrderItemNoteValidationError,
+} from "@/lib/orders/order-item-notes";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -19,6 +23,7 @@ type CompleteSaleItemModifierInput = {
 type CompleteSaleItemInput = {
   productId: string;
   qty: number;
+  note?: unknown;
   modifiers?: CompleteSaleItemModifierInput[];
   assignedBaristaId?: string | null;
 };
@@ -35,6 +40,7 @@ type PreparedLine = {
   productId: string;
   productName: string;
   qty: number;
+  notes: string | null;
   station: Station | null;
   assignedBaristaId: string | null;
   assignedBaristaName: string | null;
@@ -48,6 +54,7 @@ type SavedOrderItemForTicket = {
   id: string;
   productName: string;
   qty: number;
+  notes: string | null;
   station: Station | null;
   assignedUserId: string | null;
   assignedUserName: string | null;
@@ -295,6 +302,7 @@ export async function POST(request: Request) {
         productId: product.id,
         productName: product.name,
         qty,
+        notes: normalizeOrderItemNote(item.note),
         station,
         assignedBaristaId,
         assignedBaristaName,
@@ -316,6 +324,7 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       productName: line.productName,
       qty: line.qty,
+      notes: line.notes,
       station: line.station,
       assignedUserId: line.assignedBaristaId,
       assignedUserName: line.assignedBaristaName,
@@ -343,6 +352,7 @@ export async function POST(request: Request) {
           productId: line.productId,
           productName: line.productName,
           qty: line.qty,
+          notes: line.notes,
           unitPrice: toDecimal(line.unitPrice),
           lineTotal: toDecimal(line.lineTotal),
           ...line.costSnapshot,
@@ -414,6 +424,7 @@ export async function POST(request: Request) {
           id: saved.id,
           name: saved.productName,
           quantity: saved.qty,
+          note: saved.notes,
           price: preparedLines[index]?.unitPrice ?? 0,
           finalPrice: preparedLines[index]?.lineTotal ?? 0,
           station: saved.station,
@@ -431,7 +442,7 @@ export async function POST(request: Request) {
         error:
           error instanceof Error ? error.message : "Failed to complete sale.",
       },
-      { status: 500 },
+      { status: error instanceof OrderItemNoteValidationError ? 400 : 500 },
     );
   }
 }

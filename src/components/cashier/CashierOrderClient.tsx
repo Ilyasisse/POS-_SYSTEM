@@ -75,6 +75,7 @@ type CurrentTableOrderPanelProps = {
   lastOrderMessage: string;
   onOrderNoteChange: (orderNote: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
+  onItemNoteChange: (cartKey: string, note: string) => void;
   onRemoveFromCart: (cartKey: string) => void;
   onClearOrder: () => void;
   onSendOrder: () => void;
@@ -256,6 +257,7 @@ function CurrentTableOrderPanel({
   lastOrderMessage,
   onOrderNoteChange,
   onChangeQuantity,
+  onItemNoteChange,
   onRemoveFromCart,
   onClearOrder,
   onSendOrder,
@@ -286,6 +288,7 @@ function CurrentTableOrderPanel({
               line={line}
               onChangeQuantity={onChangeQuantity}
               onRemove={onRemoveFromCart}
+              onItemNoteChange={onItemNoteChange}
             />
           ))
         )}
@@ -369,6 +372,7 @@ export default function CashierOrderClient({
     cart,
     addToCart,
     changeQuantity,
+    updateItemNote,
     removeFromCart,
     clearCart,
     calculateCartTotal,
@@ -479,6 +483,7 @@ export default function CashierOrderClient({
               modifierId: modifier.optionId,
               qty: modifier.qty,
             })),
+            note: item.note,
           })),
           notes: orderState.orderNote,
         }),
@@ -612,6 +617,7 @@ export default function CashierOrderClient({
             dispatchOrderState({ type: "orderNoteChanged", orderNote })
           }
           onChangeQuantity={changeQuantity}
+          onItemNoteChange={updateItemNote}
           onRemoveFromCart={removeFromCart}
           onClearOrder={handleClearOrder}
           onSendOrder={handleSendOrder}
