@@ -67,7 +67,8 @@ export async function SalesReportPage({
           <AlertDescription>
             {REPORT_SCHEMA_NOT_READY_MESSAGE} Required migrations:
             <code className="mt-2 block text-xs">
-              20260718_reporting_foundation, 20260718_sales_integrity
+              20260718_reporting_foundation, 20260718_sales_integrity,
+              20260908_table_check_guest_count
             </code>
           </AlertDescription>
         </Alert>
@@ -101,6 +102,8 @@ export async function SalesReportPage({
         <MetricCard label="Net Sales" value={money(report.summary.netSales)} />
         <MetricCard label="Paid Orders" value={report.summary.paidOrders} />
         <MetricCard label="Average Order Value" value={money(report.summary.averageOrderValue)} />
+        <MetricCard label="Dine-in Covers" value={report.summary.dineInCovers} />
+        <MetricCard label="Sales per Cover" value={money(report.summary.salesPerCover)} />
         <MetricCard label="Open / Unpaid" value={report.summary.unpaidOrders} />
         <MetricCard label="Discounts" value={money(report.summary.discounts)} />
         <MetricCard label="Refunds" value={money(report.summary.refunds)} />

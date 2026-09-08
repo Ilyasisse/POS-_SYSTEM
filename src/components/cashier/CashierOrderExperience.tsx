@@ -3,6 +3,7 @@
 import { useDeferredValue, useMemo, useReducer, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -29,10 +30,11 @@ import {
   type SelectedModifiersMap,
 } from "@/components/customer/customer-order-utils";
 
-type TableOption = { id: string; name: string };
+type TableOption = { id: string; name: string; guestCount: number };
 type Props = { tables: TableOption[]; initialTableId?: string };
 type State = {
   tableId: string;
+  guestCount: number;
   categoryId: string;
   searchTerm: string;
   orderNote: string;
@@ -44,7 +46,8 @@ type State = {
   error: string;
 };
 type Action =
-  | { type: "table"; value: string }
+  | { type: "table"; value: string; guestCount: number }
+  | { type: "guestCount"; value: number }
   | { type: "category"; value: string }
   | { type: "search"; value: string }
   | { type: "note"; value: string }
@@ -61,7 +64,14 @@ type Action =
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "table":
-      return { ...state, tableId: action.value, error: "" };
+      return {
+        ...state,
+        tableId: action.value,
+        guestCount: action.guestCount,
+        error: "",
+      };
+    case "guestCount":
+      return { ...state, guestCount: action.value, error: "" };
     case "category":
       return { ...state, categoryId: action.value };
     case "search":
@@ -176,6 +186,8 @@ export default function CashierOrderExperience({
     tableId: tables.some((table) => table.id === initialTableId)
       ? initialTableId
       : "",
+    guestCount:
+      tables.find((table) => table.id === initialTableId)?.guestCount ?? 1,
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
@@ -320,6 +332,7 @@ export default function CashierOrderExperience({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tableId: state.tableId,
+          guestCount: state.guestCount,
           notes: state.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
@@ -356,7 +369,14 @@ export default function CashierOrderExperience({
       <TablePicker
         open={!state.tableId}
         tables={tables}
-        onSelect={(value) => dispatch({ type: "table", value })}
+        onSelect={(value) => {
+          const selectedTable = tables.find((table) => table.id === value);
+          dispatch({
+            type: "table",
+            value,
+            guestCount: selectedTable?.guestCount ?? 1,
+          });
+        }}
       />
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <CustomerOrderHeader
@@ -374,6 +394,34 @@ export default function CashierOrderExperience({
           }}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
         />
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-card/90 p-4 shadow-sm">
+          <label htmlFor="cashier-guest-count" className="block max-w-xs">
+            <span className="mb-1 block text-sm font-semibold">
+              Guests at this table
+            </span>
+            <Input
+              id="cashier-guest-count"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value={state.guestCount}
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+                if (Number.isInteger(value) && value >= 1 && value <= 100) {
+                  dispatch({ type: "guestCount", value });
+                }
+              }}
+              aria-describedby="cashier-guest-count-help"
+            />
+            <span
+              id="cashier-guest-count-help"
+              className="mt-1 block text-xs text-muted-foreground"
+            >
+              Used for covers and sales-per-customer reporting.
+            </span>
+          </label>
+        </div>
         <MenuBrowserPanel
           searchTerm={state.searchTerm}
           categoryChips={categoryChips}
