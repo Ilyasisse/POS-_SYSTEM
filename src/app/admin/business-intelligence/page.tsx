@@ -7,6 +7,7 @@ const reportCards = [
   ["Inventory & waste", "/api/admin/reports/inventory", PERMISSIONS.REPORT_INVENTORY_VIEW],
   ["Kitchen", "/api/admin/reports/kitchen", PERMISSIONS.REPORT_KITCHEN_VIEW],
   ["Staff", "/api/admin/reports/staff", PERMISSIONS.REPORT_STAFF_VIEW],
+  ["Staff sales", "/api/admin/reports/staff-sales", PERMISSIONS.REPORT_STAFF_VIEW],
   ["Customers", "/api/admin/reports/customers", PERMISSIONS.REPORT_CUSTOMER_VIEW],
   ["Suppliers", "/api/admin/reports/suppliers", PERMISSIONS.REPORT_SUPPLIER_VIEW],
   ["Finance", "/api/admin/reports/finance", PERMISSIONS.REPORT_FINANCIAL_VIEW],
