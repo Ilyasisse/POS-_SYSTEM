@@ -207,6 +207,7 @@ export default function CustomerOrderPage() {
     cart,
     addToCart,
     changeQuantity,
+    updateItemNote,
     removeFromCart,
     clearCart,
     calculateCartTotal,
@@ -377,6 +378,7 @@ export default function CustomerOrderPage() {
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
+            note: item.note,
             assignedBaristaId: item.assignedUserId ?? null,
             modifiers: item.selectedModifiers.map((modifier) => ({
               modifierId: modifier.optionId,
@@ -477,6 +479,7 @@ export default function CustomerOrderPage() {
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
         onChangeQuantity={changeQuantity}
+        onItemNoteChange={updateItemNote}
         onRemove={removeFromCart}
         onClearCart={() => {
           clearCart();

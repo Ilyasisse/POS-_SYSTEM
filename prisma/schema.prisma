@@ -618,6 +618,7 @@ model OrderItem {
   qty                  Int
   unitPrice            Decimal
   lineTotal            Decimal
+  notes                String?               @db.VarChar(500)
   unitCostSnapshot     Decimal?              @db.Decimal(14, 6)
   costSnapshotSource   CostSnapshotSource?
   recipeVersionId      String?

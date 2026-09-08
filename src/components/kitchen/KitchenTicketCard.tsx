@@ -85,6 +85,12 @@ export default function KitchenTicketCard({
                 </p>
               </div>
 
+              {item.note ? (
+                <p className="mt-2 rounded-md border border-amber-700/50 bg-amber-900/25 px-2 py-1.5 text-xs font-semibold text-amber-200">
+                  Item note: {item.note}
+                </p>
+              ) : null}
+
               {item.modifiers.length > 0 ? (
                 <div className="mt-2 space-y-1 rounded-md bg-slate-800/70 px-2 py-2">
                   {item.modifiers.map((modifier) => (

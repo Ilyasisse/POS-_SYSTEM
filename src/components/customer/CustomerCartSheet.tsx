@@ -32,6 +32,7 @@ type CustomerCartSheetProps = {
   onCustomerPhoneChange: (value: string) => void;
   onOrderNoteChange: (value: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
+  onItemNoteChange: (cartKey: string, note: string) => void;
   onRemove: (cartKey: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
@@ -55,6 +56,7 @@ export default function CustomerCartSheet({
   onCustomerPhoneChange,
   onOrderNoteChange,
   onChangeQuantity,
+  onItemNoteChange,
   onRemove,
   onClearCart,
   onCheckout,
@@ -205,6 +207,18 @@ export default function CustomerCartSheet({
                           ))}
                         </div>
                       )}
+
+                      <Textarea
+                        aria-label={`Special instructions for ${item.name}`}
+                        value={item.note ?? ""}
+                        maxLength={500}
+                        rows={2}
+                        onChange={(event) =>
+                          onItemNoteChange(item.cartKey, event.target.value)
+                        }
+                        placeholder="Item instructions (for example, no sugar)"
+                        className="mt-3 w-full rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm"
+                      />
 
                       <div className="mt-4 flex items-center justify-between gap-3">
                         <div className="inline-flex items-center rounded-full border border-border bg-muted/50">
