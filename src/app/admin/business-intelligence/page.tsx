@@ -4,6 +4,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 
 const reportCards = [
   ["Sales", "/api/admin/reports/sales", PERMISSIONS.REPORT_DAILY_VIEW],
+  ["Order types", "/api/admin/reports/order-types", PERMISSIONS.REPORT_DAILY_VIEW],
   ["Inventory & waste", "/api/admin/reports/inventory", PERMISSIONS.REPORT_INVENTORY_VIEW],
   ["Kitchen", "/api/admin/reports/kitchen", PERMISSIONS.REPORT_KITCHEN_VIEW],
   ["Staff", "/api/admin/reports/staff", PERMISSIONS.REPORT_STAFF_VIEW],
