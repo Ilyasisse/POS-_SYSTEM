@@ -11,6 +11,7 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -415,6 +416,22 @@ export async function POST(request: Request) {
     }, { timeout: 15000, maxWait: 5000 });
 
     await sendInventoryAlerts(result.inventoryAlerts);
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: currentUser.id,
+        event: "sale_completed",
+        properties: {
+          payment_method: paymentMethod,
+          item_count: preparedLines.length,
+          total: calculatedTotal,
+          order_id: result.order.id,
+          cashier_role: currentUser.role,
+        },
+      });
+      await posthog.flush();
+    }
 
     return NextResponse.json({
       success: true,

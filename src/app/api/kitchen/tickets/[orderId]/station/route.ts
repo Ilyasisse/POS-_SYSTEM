@@ -9,6 +9,7 @@ import {
   updateKitchenTicketStation,
 } from "@/lib/kitchen/kitchen-tickets";
 import { normalizeKitchenStation } from "@/lib/kitchen/kitchen-socket";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const KITCHEN_STATUSES = new Set(["new", "in_progress", "done"]);
 
@@ -44,6 +45,21 @@ export async function PATCH(
       status: status as "new" | "in_progress" | "done",
       actorUserId: authorization.user.id,
     });
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: authorization.user.id,
+        event: "kitchen_ticket_status_updated",
+        properties: {
+          order_id: orderId,
+          station,
+          status,
+          staff_role: authorization.user.role,
+        },
+      });
+      await posthog.flush();
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -8,6 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import posthog from "posthog-js";
 import { useAos } from "@/components/AosInitializer";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useWaiterData } from "@/hooks/waiter/useWaiterData";
@@ -25,6 +26,11 @@ import BackToTopButton from "./UI/BackToTopButton";
 import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
+
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+    process.env.NEXT_PUBLIC_POSTHOG_HOST,
+);
 
 function isPastScrollOffset(offset: number) {
   return typeof window !== "undefined" && window.scrollY > offset;
@@ -316,6 +322,13 @@ export default function CustomerOrderPage() {
       selectedModifiers: [],
       finalPrice: Number(product.price) || 0,
     });
+    if (posthogConfigured) {
+      posthog.capture("cart_item_added", {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+      });
+    }
     dispatchOrderState({ type: "cartItemAdded" });
   }
 
@@ -342,6 +355,13 @@ export default function CustomerOrderPage() {
       assignedUserId: assignedBarista?.id ?? null,
       assignedUserName: assignedBarista?.fullName ?? null,
     });
+    if (posthogConfigured) {
+      posthog.capture("cart_item_added", {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+      });
+    }
     dispatchOrderState({ type: "modifierConfirmed" });
   }
 

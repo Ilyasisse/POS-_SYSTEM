@@ -7,6 +7,7 @@ import {
   closeSettledTableChecks,
   resolveTableCheckIdentity,
 } from "@/lib/cashier/table-checks";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type PayOrderBody = {
   orderId?: string;
@@ -127,6 +128,21 @@ export async function POST(request: Request) {
     });
 
     const identity = resolveTableCheckIdentity(order);
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: currentUser.id,
+        event: "order_paid",
+        properties: {
+          order_id: order.id,
+          payment_method: paymentMethod,
+          total: Number(order.total),
+          cashier_role: currentUser.role,
+        },
+      });
+      await posthog.flush();
+    }
 
     return NextResponse.json({
       success: true,

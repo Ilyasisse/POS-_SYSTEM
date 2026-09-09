@@ -4,6 +4,7 @@ import { authorizeApi } from "@/lib/auth/api-authorization";
 import { canAccessStation, PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeKitchenStation } from "@/lib/kitchen/kitchen-socket";
 import { recordKitchenQualityEvent } from "@/lib/kitchen/kitchen-operations";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const QUALITY_TYPES = new Set<KitchenQualityEventType>([
   "LATE",
@@ -42,6 +43,24 @@ export async function POST(
       reason: body.reason,
       actorUserId: authorization.user.id,
     });
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: authorization.user.id,
+        event: "kitchen_quality_event_recorded",
+        properties: {
+          order_id: orderId,
+          order_item_id:
+            typeof body.orderItemId === "string" ? body.orderItemId : null,
+          station,
+          quality_event_type: type,
+          staff_role: authorization.user.role,
+        },
+      });
+      await posthog.flush();
+    }
+
     return NextResponse.json({ ok: true, event }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

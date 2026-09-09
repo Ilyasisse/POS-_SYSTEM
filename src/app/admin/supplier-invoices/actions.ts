@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { getPostHogClient } from "@/lib/posthog-server";
 import type {
   SupplierInvoiceDraftInput,
   SupplierInvoiceLineInput,
@@ -196,6 +197,21 @@ export async function createManualSupplierInvoiceDraftAction(formData: FormData)
         : null,
     draft: await manualDraftFromFormData(formData, supplierId),
   });
+  const posthog = getPostHogClient();
+  if (posthog) {
+    posthog.capture({
+      distinctId: user.id,
+      event: "supplier_invoice_draft_created",
+      properties: {
+        supplier_id: supplierId,
+        source: "MANUAL",
+        has_recurrence: formData.get("recurrenceEnabled") === "on",
+        staff_role: user.role,
+      },
+    });
+    await posthog.flush();
+  }
+
   refreshInvoicePages(invoice.id);
   return {
     message: "Invoice draft created.",

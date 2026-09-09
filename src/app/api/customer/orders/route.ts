@@ -10,6 +10,7 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -390,6 +391,21 @@ export async function POST(request: Request) {
     );
 
     await sendInventoryAlerts(result.inventoryAlerts);
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: authorization.user.id,
+        event: "customer_order_placed",
+        properties: {
+          item_count: preparedLines.length,
+          total: calculatedTotal,
+          order_id: result.order.id,
+          order_type: "TAKEOUT",
+        },
+      });
+      await posthog.flush();
+    }
 
     const order = result.order;
     return NextResponse.json({

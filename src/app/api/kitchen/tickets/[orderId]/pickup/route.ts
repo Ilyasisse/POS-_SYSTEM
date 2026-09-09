@@ -5,6 +5,7 @@ import {
   KitchenTicketMutationError,
   updateKitchenTicketPickup,
 } from "@/lib/kitchen/kitchen-tickets";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 export async function PATCH(
   request: NextRequest,
@@ -30,6 +31,20 @@ export async function PATCH(
       pickupStatus,
       viewer: authorization.user,
     });
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: authorization.user.id,
+        event: "kitchen_pickup_status_updated",
+        properties: {
+          order_id: orderId,
+          pickup_status: pickupStatus,
+          staff_role: authorization.user.role,
+        },
+      });
+      await posthog.flush();
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

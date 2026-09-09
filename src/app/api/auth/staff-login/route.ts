@@ -35,6 +35,9 @@ export async function POST(request: Request) {
   const user = await prisma.user.findUnique({
     where: { id: data.user.id },
     select: {
+      id: true,
+      email: true,
+      fullName: true,
       role: true,
       station: true,
       isActive: true,
@@ -68,5 +71,13 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ redirectTo: getDefaultRouteForUser(user) });
+  return NextResponse.json({
+    redirectTo: getDefaultRouteForUser(user),
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.fullName,
+      role: user.role,
+    },
+  });
 }

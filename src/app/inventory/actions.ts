@@ -10,6 +10,7 @@ import {
 } from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
 import { decimalQuantity } from "@/lib/inventory/inventory-domain";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -85,5 +86,20 @@ export async function takeSupplyInventory(formData: FormData) {
   });
 
   const emailResult = await sendInventoryAlerts(alerts);
+
+  const posthog = getPostHogClient();
+  if (posthog) {
+    posthog.capture({
+      distinctId: user.id,
+      event: "inventory_taken",
+      properties: {
+        supply_id: supplyId,
+        quantity: quantity.toNumber(),
+        staff_role: user.role,
+      },
+    });
+    await posthog.flush();
+  }
+
   redirectWithInventoryEmailStatus(emailResult);
 }

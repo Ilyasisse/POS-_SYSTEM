@@ -11,6 +11,7 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type TableOrderItemModifierInput = {
   modifierId: string;
@@ -490,6 +491,23 @@ export async function POST(request: Request) {
     );
 
     await sendInventoryAlerts(result.inventoryAlerts);
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: currentUser.id,
+        event: "table_order_placed",
+        properties: {
+          table_name: table.name,
+          item_count: preparedLines.length,
+          total: calculatedTotal,
+          appended_to_existing: result.appendedToExisting,
+          cashier_role: currentUser.role,
+          order_id: result.order.id,
+        },
+      });
+      await posthog.flush();
+    }
 
     const order = result.order;
     const identity = resolveTableCheckIdentity(order);
