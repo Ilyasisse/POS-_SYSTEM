@@ -113,12 +113,12 @@ function getModifierSelectionErrors(
 
 function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
   return (
-    <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white lg:min-h-[32rem]">
+    <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white md:min-h-[22rem] lg:h-full lg:min-h-[32rem] lg:self-stretch">
       <Image
         src={getProductImage(product)}
         alt={product.name}
         fill
-        sizes="(min-width: 1024px) 52vw, 100vw"
+        sizes="(min-width: 1024px) 45vw, 100vw"
         unoptimized
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
@@ -131,7 +131,7 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
               Customize Item
             </p>
             <h2
-              className="mt-3 max-w-md text-3xl leading-tight sm:text-4xl lg:text-5xl"
+              className="mt-3 max-w-md break-words text-3xl leading-tight sm:text-4xl lg:text-5xl"
               style={{
                 fontFamily:
                   '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
@@ -150,9 +150,9 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
           </Button>
         </div>
 
-        <div className="  pl-5 pt-30 pr-0.5 text-right">
-          <div className=" sm:w-2 rounded-[25px] sm:border border-white/10 sm:bg-black/20 bg-transparent p-4 sm:backdrop-blur-sm">
-            <p className="text-sm leading-6 text-stone-100/80 hidden sm:block">
+        <div className="pl-5 pt-30 pr-0.5 text-right lg:mt-auto lg:flex lg:justify-end lg:p-7 lg:pt-32">
+          <div className="rounded-[25px] border-white/10 bg-transparent p-4 sm:w-full sm:max-w-md sm:border sm:bg-black/20 sm:backdrop-blur-sm">
+            <p className="hidden break-words text-sm leading-6 text-stone-100/80 sm:block">
               {product.description?.trim() ||
                 "Choose the details that make this item exactly how you want it."}
             </p>
@@ -182,22 +182,30 @@ function ModifierGroupList({
 
         return (
           <section
-          key={group.id}
-          data-aos="fade-up"
-          data-aos-delay={String(groupIndex * 50)}
-          className="rounded-[1.5rem] border border-border bg-card p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
-        >
+            key={group.id}
+            aria-labelledby={`modifier-group-${group.id}`}
+            aria-describedby={`modifier-guidance-${group.id}`}
+            data-aos="fade-up"
+            data-aos-delay={String(groupIndex * 50)}
+            className="min-w-0 rounded-[1.5rem] border border-border bg-card p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
+          >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3
+                id={`modifier-group-${group.id}`}
+                className="break-words text-lg font-semibold text-foreground"
+              >
                 {group.name}
               </h3>
-              <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              <p
+                id={`modifier-guidance-${group.id}`}
+                className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground"
+              >
                 Choose {getMinSelect(group)} to {getMaxSelect(group)}
               </p>
             </div>
             {errors[group.id] ? (
-              <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+              <span role="alert" className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
                 {errors[group.id]}
               </span>
             ) : null}
@@ -211,16 +219,17 @@ function ModifierGroupList({
                 <Button
                   key={option.id}
                   type="button"
+                  aria-pressed={checked}
                   onClick={() => onToggleOption(group, option.id)}
-                  className={`rounded-[1.25rem] border px-4 py-4 text-left transition ${
+                  className={`min-w-0 rounded-[1.25rem] border px-4 py-4 text-left transition ${
                     checked
                       ? "border-[#7c5c37] bg-[#f5ebde] shadow-[0_16px_32px_rgba(124,92,55,0.15)]"
                       : "border-border bg-muted/50 hover:border-border hover:bg-card"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-foreground">
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold text-foreground">
                         {option.name}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
@@ -269,7 +278,7 @@ function BaristaAssignment({
         <NativeSelect
           value={selectedBaristaId}
           onChange={(event) => onSelectedBaristaIdChange(event.target.value)}
-          className="rounded-full border border-amber-300 bg-card px-4 py-2 text-sm font-medium text-foreground outline-none"
+          className="w-full rounded-full border border-amber-300 bg-card px-4 py-2 text-sm font-medium text-foreground outline-none sm:w-auto"
         >
           <option value="">Select barista</option>
           {baristas.map((barista) => (
@@ -292,11 +301,11 @@ function ModifierModalFooter({
   return (
     <div className="sticky bottom-0 z-10 border-t border-border bg-card px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
             Selected add-ons
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 max-h-16 overflow-y-auto break-words text-sm text-muted-foreground">
             {selectedLines.length === 0
               ? "No extra selections yet."
               : selectedLines.map((modifier) => modifier.optionName).join(", ")}
@@ -414,10 +423,10 @@ function CustomerModifierContent({
   }
 
   return (
-    <div className="grid flex-1 items-start lg:grid-cols-[1.05fr_0.95fr]">
+    <div className="grid flex-1 items-start lg:h-[min(90dvh,54rem)] lg:grid-cols-[minmax(0,0.9fr)_minmax(28rem,1.1fr)] lg:items-stretch lg:overflow-hidden">
       <CustomerModifierHero product={product} onClose={onClose} />
 
-      <div className="flex flex-col bg-[#f9f4ee]">
+      <div className="min-h-0 min-w-0 flex flex-col bg-[#f9f4ee]">
         <div className="border-b border-border px-4 py-4 sm:px-6 hidden sm:block">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-stone-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white">
@@ -430,7 +439,7 @@ function CustomerModifierContent({
           </p>
         </div>
 
-        <div className="flex-1 space-y-4 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex-1 space-y-4 px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:overflow-y-auto">
           <ModifierGroupList
             modifierGroups={modifierGroups}
             selected={selected}
@@ -477,7 +486,7 @@ export default function CustomerModifierModal({
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[95vh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem]"
+        className="max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Customize {product.name}</DialogTitle>

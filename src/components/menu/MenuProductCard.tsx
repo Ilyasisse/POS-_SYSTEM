@@ -36,10 +36,10 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
       </div>
 
       {/* Product content section */}
-      <div className="space-y-0.5 p-5 flex flex-col justify-between gap-2 text-center ">
+      <div className="flex flex-col justify-between gap-2 p-5 text-center lg:p-4 xl:p-5">
         {/* Product name */}
         <h3
-          className="text-4xl sm:text-3xl  leading-none font-semibold  "
+          className="break-words text-4xl font-semibold leading-none sm:text-3xl lg:text-2xl xl:text-3xl"
           style={{
             fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
           }}
@@ -48,12 +48,12 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
         </h3>
 
         {/* Product description */}
-        <p className=" text-lg  leading-6 text-[#6c5a4f] sm:text-md">
+        <p className="break-words text-lg leading-6 text-[#6c5a4f] sm:text-base xl:text-lg">
           {product.description}
         </p>
 
         {/* Product price */}
-        <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] ">
+        <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] lg:text-2xl xl:text-3xl">
           {formatPrice(product.price)}
         </div>
       </div>
