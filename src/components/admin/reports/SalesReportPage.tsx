@@ -101,6 +101,11 @@ export async function SalesReportPage({
         <MetricCard label="Net Sales" value={money(report.summary.netSales)} />
         <MetricCard label="Paid Orders" value={report.summary.paidOrders} />
         <MetricCard label="Average Order Value" value={money(report.summary.averageOrderValue)} />
+        <MetricCard
+          label="Average Table Turn"
+          value={report.summary.averageTableTurnMinutes == null ? "Unavailable" : `${report.summary.averageTableTurnMinutes} min`}
+          helper={`${report.summary.completedTableChecks} completed table checks`}
+        />
         <MetricCard label="Open / Unpaid" value={report.summary.unpaidOrders} />
         <MetricCard label="Discounts" value={money(report.summary.discounts)} />
         <MetricCard label="Refunds" value={money(report.summary.refunds)} />

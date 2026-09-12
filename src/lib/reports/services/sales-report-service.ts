@@ -9,6 +9,7 @@ import {
   ratioPercent,
 } from "@/lib/reports/financial-formulas";
 import type { ReportRange } from "@/lib/reports/reporting-calendar";
+import { calculateTableTurnMetrics } from "@/lib/reports/table-turn-metrics";
 import type { ReportQuery } from "@/lib/reports/validation";
 
 type SalesRow = { name: string; quantity: number; grossSales: Prisma.Decimal; cogs: Prisma.Decimal; missingCostLines: number };
@@ -60,6 +61,9 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
         waiter: { select: { id: true, fullName: true } },
         cashier: { select: { id: true, fullName: true } },
         table: { select: { id: true, name: true } },
+        tableCheck: {
+          select: { id: true, createdAt: true, closedAt: true },
+        },
         orderItems: {
           include: {
             product: { select: { id: true, name: true, category: { select: { id: true, name: true } } } },
@@ -128,6 +132,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   }
 
   const net = netSales(gross, discounts.plus(complimentary).plus(staffMeals), refunds);
+  const tableTurnMetrics = calculateTableTurnMetrics(orders);
   const profit = totalLines > 0 && costCoveredLines === totalLines ? grossProfit(net, cogs) : null;
   const mapRows = (rows: Map<string, SalesRow>) => [...rows.entries()].map(([id, row]) => ({
     id,
@@ -148,6 +153,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       cogs: costCoveredLines > 0 ? cogs.toFixed(2) : null, grossProfit: serialize(profit),
       grossMargin: profit ? serialize(ratioPercent(profit, net)) : null,
       costCoveragePercent: serialize(ratioPercent(costCoveredLines, totalLines)), costCoveredLines, totalLines,
+      ...tableTurnMetrics,
     },
     paymentMethods: [...paymentTotals.entries()].map(([method, amount]) => ({ method, amount: amount.toFixed(2) })),
     hourlySales: [...hourly.entries()].map(([hour, amount]) => ({ hour, amount: amount.toFixed(2) })).sort((a, b) => Number(a.hour) - Number(b.hour)),
