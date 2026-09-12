@@ -6,6 +6,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToast } from "@/components/ui/toast";
+import {
+  MAX_EQUAL_SPLIT_PEOPLE,
+  splitBillEqually,
+} from "@/lib/payments/equal-bill-split";
 
 type Line = { id: string; payerName: string; payerPhone: string; amount: string };
 type RequestLine = { id: string; payerName: string; payerPhone: string; amount: number; paidAmount: number; remainingAmount: number; status: string };
@@ -26,6 +30,7 @@ export default function CashierPaymentDialog({ tableId, tableName, amountDue }: 
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState("");
+  const [equalSplitCount, setEqualSplitCount] = useState("2");
   const [lines, setLines] = useState<Line[]>([{ id: crypto.randomUUID(), payerName: "", payerPhone: "", amount: amountDue.toFixed(2) }]);
   const [payLater, setPayLater] = useState(false);
   const [batchKey, setBatchKey] = useState("");
@@ -77,6 +82,26 @@ export default function CashierPaymentDialog({ tableId, tableName, amountDue }: 
 
   function updateLine(id: string, field: keyof Omit<Line, "id">, value: string) {
     setLines((current) => current.map((line) => line.id === id ? { ...line, [field]: value } : line));
+  }
+
+  function applyEqualSplit() {
+    try {
+      const amounts = splitBillEqually(amountDue, Number(equalSplitCount));
+      setLines(
+        amounts.map((amount) => ({
+          id: crypto.randomUUID(),
+          payerName: "",
+          payerPhone: "",
+          amount: amount.toFixed(2),
+        })),
+      );
+      setPayLater(false);
+      setError("");
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Could not split the bill.",
+      );
+    }
   }
 
   async function startChecks() {
@@ -144,6 +169,26 @@ export default function CashierPaymentDialog({ tableId, tableName, amountDue }: 
         {!batchKey ? (
           <div className="space-y-5">
             <label className="block"><span className="mb-2 block text-sm font-semibold">Payment method</span><NativeSelect value={method} onChange={(event) => setMethod(event.target.value)} className="w-full rounded-xl"><option value="">Select payment method</option><option value="GOLIS">GOLIS / SAHAL</option><option value="MYCASH">MYCASH</option><option value="Dahabshiil">Dahabshiil</option><option value="OTHER">OTHER</option></NativeSelect></label>
+            <div className="rounded-2xl border bg-muted/30 p-4">
+              <p className="font-semibold">Split equally</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Divide the full table balance exactly between each payer.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Input
+                  aria-label="Number of people sharing the bill"
+                  type="number"
+                  min={2}
+                  max={MAX_EQUAL_SPLIT_PEOPLE}
+                  step={1}
+                  value={equalSplitCount}
+                  onChange={(event) => setEqualSplitCount(event.target.value)}
+                />
+                <Button type="button" variant="outline" onClick={applyEqualSplit}>
+                  Create equal shares
+                </Button>
+              </div>
+            </div>
             <div className="space-y-3">{lines.map((line, index) => <div key={line.id} className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[1fr_1fr_7rem_auto]"><Input aria-label={`Payer ${index + 1} name`} placeholder="Name" value={line.payerName} onChange={(event) => updateLine(line.id, "payerName", event.target.value)} /><Input aria-label={`Payer ${index + 1} phone`} placeholder="Phone number" value={line.payerPhone} onChange={(event) => updateLine(line.id, "payerPhone", event.target.value)} /><Input aria-label={`Payer ${index + 1} amount`} type="number" min="0.01" step="0.01" value={line.amount} onChange={(event) => updateLine(line.id, "amount", event.target.value)} /><Button type="button" variant="outline" disabled={lines.length === 1} onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))}>Remove</Button></div>)}</div>
             <Button type="button" variant="outline" onClick={() => setLines((current) => [...current, { id: crypto.randomUUID(), payerName: "", payerPhone: "", amount: remaining ? remaining.toFixed(2) : "" }])}>+ Add another payer</Button>
             <div className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}><div className="flex justify-between"><span>Table balance</span><strong>{money(amountDue)}</strong></div><div className="mt-1 flex justify-between"><span>Entered payments</span><strong>{money(entered)}</strong></div><div className="mt-1 flex justify-between"><span>Remaining</span><strong>{money(remaining)}</strong></div></div>
