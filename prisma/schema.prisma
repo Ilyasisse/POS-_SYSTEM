@@ -22,6 +22,7 @@ model User {
   claimedKitchenTickets               KitchenTicketState[]             @relation("KitchenTicketClaimant")
   payments                            Payment[]
   paymentRequests                     PaymentRequest[]              @relation("PaymentRequestCashier")
+  paymentRequestTips                  PaymentRequest[]              @relation("PaymentRequestTipRecipient")
   paymentDeferrals                    PaymentDeferral[]             @relation("PaymentDeferralCashier")
   mobileMoneyReceiptsAssigned         MobileMoneyReceipt[]          @relation("MobileMoneyReceiptAssignee")
   shifts                              Shift[]                       @relation("WaiterShifts")
@@ -1017,6 +1018,10 @@ model PaymentRequest {
   payerName         String
   payerPhone        String
   expectedAmount    Decimal
+  billAmount        Decimal              @db.Decimal(14, 2)
+  tipAmount         Decimal              @default(0) @db.Decimal(14, 2)
+  tipRecipientId    String?
+  tipRecipientName  String?
   status            PaymentRequestStatus @default(PENDING)
   providerReference String?
   rawMessage        String?
@@ -1025,6 +1030,7 @@ model PaymentRequest {
   expiresAt         DateTime
   table             Table                @relation(fields: [tableId], references: [id])
   cashier           User                 @relation("PaymentRequestCashier", fields: [cashierId], references: [id])
+  tipRecipient      User?                @relation("PaymentRequestTipRecipient", fields: [tipRecipientId], references: [id], onDelete: SetNull)
   payments          Payment[]
   mobileMoneyReceipts MobileMoneyReceipt[]
 
@@ -1032,6 +1038,7 @@ model PaymentRequest {
   @@unique([method, providerReference])
   @@index([tableId, status, createdAt])
   @@index([cashierId, createdAt])
+  @@index([tipRecipientId, matchedAt])
 }
 
 model MobileMoneyReceipt {

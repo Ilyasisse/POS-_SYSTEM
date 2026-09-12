@@ -1,11 +1,12 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { paymentLineCents } from "@/lib/payments/payment-tip-math";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
 
-export type PaymentRequestLineInput = { payerName: string; payerPhone: string; amount: number };
+export type PaymentRequestLineInput = { payerName: string; payerPhone: string; amount: number; tipAmount?: number };
 
 export async function getOpenTableBalance(tableId: string) {
   const orders = await prisma.order.findMany({
@@ -24,19 +25,28 @@ export async function createPaymentRequestBatch(input: {
   if (existing.length) return existing;
   const dueCents = await getOpenTableBalance(input.tableId);
   if (dueCents <= 0) throw new Error("This table no longer has an unpaid balance.");
-  const lines = input.lines.map((line) => ({ payerName: line.payerName.trim(), payerPhone: line.payerPhone.trim(), amountCents: cents(line.amount) }));
-  if (!lines.length || lines.some((line) => !line.payerName || !line.payerPhone || line.amountCents <= 0)) {
+  const lines = input.lines.map((line) => ({ payerName: line.payerName.trim(), payerPhone: line.payerPhone.trim(), ...paymentLineCents(line.amount, line.tipAmount ?? 0) }));
+  if (!lines.length || lines.some((line) => !line.payerName || !line.payerPhone)) {
     throw new Error("Every payment needs a name, phone number, and amount.");
   }
-  const requestedCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
+  const requestedCents = lines.reduce((sum, line) => sum + line.billCents, 0);
   if (requestedCents > dueCents) throw new Error("Split payments cannot exceed the table balance.");
   if (requestedCents < dueCents && !input.payLater) throw new Error("Add another payer or choose Pay later for the remaining balance.");
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
   return prisma.$transaction(async (tx) => {
+    const waiterRows = await tx.order.findMany({
+      where: { tableId: input.tableId, type: "DINE_IN", status: "OPEN", waiterId: { not: null } },
+      distinct: ["waiterId"],
+      select: { waiter: { select: { id: true, fullName: true } } },
+      take: 2,
+    });
+    const tipRecipient = waiterRows.length === 1 ? waiterRows[0]?.waiter : null;
     const requests = await Promise.all(lines.map((line, lineIndex) => tx.paymentRequest.create({
       data: { batchKey: input.batchKey, lineIndex, tableId: input.tableId, cashierId: input.cashier.id,
         cashierName: input.cashier.fullName, method: input.method, payerName: line.payerName,
-        payerPhone: line.payerPhone, expectedAmount: decimal(line.amountCents / 100), expiresAt },
+        payerPhone: line.payerPhone, billAmount: decimal(line.billCents / 100),
+        tipAmount: decimal(line.tipCents / 100), expectedAmount: decimal(line.expectedCents / 100),
+        tipRecipientId: tipRecipient?.id, tipRecipientName: tipRecipient?.fullName, expiresAt },
     })));
     if (requestedCents < dueCents) {
       await tx.paymentDeferral.create({ data: { batchKey: input.batchKey, tableId: input.tableId,
@@ -76,7 +86,7 @@ export async function matchPaymentRequest(input: {
     if (duplicate) return { duplicate: true, request: duplicate };
     const orders = await tx.order.findMany({ where: { tableId: request.tableId, type: "DINE_IN", status: "OPEN" },
       orderBy: { createdAt: "asc" }, include: { payments: { select: { amountPaid: true } } } });
-    let remainingCents = cents(input.amount);
+    let remainingCents = cents(request.billAmount);
     for (const order of orders) {
       if (remainingCents <= 0) break;
       const paidCents = order.payments.reduce((sum, payment) => sum + cents(payment.amountPaid), 0);

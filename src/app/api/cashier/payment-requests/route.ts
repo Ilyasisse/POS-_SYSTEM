@@ -51,6 +51,7 @@ export async function POST(request: Request) {
             payerName: String(line.payerName ?? ""),
             payerPhone: String(line.payerPhone ?? ""),
             amount: Number(line.amount),
+            tipAmount: Number(line.tipAmount ?? 0),
           }))
         : [],
     });
@@ -75,7 +76,10 @@ export async function POST(request: Request) {
         id: item.id,
         payerName: item.payerName,
         payerPhone: item.payerPhone,
-        amount: Number(item.expectedAmount),
+        amount: Number(item.billAmount),
+        tipAmount: Number(item.tipAmount),
+        totalAmount: Number(item.expectedAmount),
+        tipRecipientName: item.tipRecipientName,
         status: item.status,
       })),
     });
@@ -105,20 +109,24 @@ export async function GET(request: Request) {
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },
-    include: { payments: { select: { amountPaid: true } } },
+    include: {
+      payments: { select: { amountPaid: true } },
+      mobileMoneyReceipts: { where: { status: "ASSIGNED" }, select: { amount: true } },
+    },
   });
   return NextResponse.json({
     ok: true,
     requests: requests.map((item) => {
-      const paidAmount = item.payments.reduce(
-        (sum, payment) => sum + Number(payment.amountPaid),
-        0,
-      );
+      const receiptPaidAmount = item.mobileMoneyReceipts.reduce((sum, receipt) => sum + Number(receipt.amount ?? 0), 0);
+      const paidAmount = receiptPaidAmount || (item.status === "MATCHED" ? Number(item.expectedAmount) : item.payments.reduce((sum, payment) => sum + Number(payment.amountPaid), 0));
       return {
         id: item.id,
         payerName: item.payerName,
         payerPhone: item.payerPhone,
-        amount: Number(item.expectedAmount),
+        amount: Number(item.billAmount),
+        tipAmount: Number(item.tipAmount),
+        totalAmount: Number(item.expectedAmount),
+        tipRecipientName: item.tipRecipientName,
         paidAmount,
         remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
         status: item.status,

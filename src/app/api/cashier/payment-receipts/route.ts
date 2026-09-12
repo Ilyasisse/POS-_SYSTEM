@@ -38,6 +38,9 @@ function receiptDto(
           payerName: receipt.paymentRequest.payerName,
           payerPhone: receipt.paymentRequest.payerPhone,
           expectedAmount: Number(receipt.paymentRequest.expectedAmount),
+          billAmount: Number(receipt.paymentRequest.billAmount),
+          tipAmount: Number(receipt.paymentRequest.tipAmount),
+          tipRecipientName: receipt.paymentRequest.tipRecipientName,
           table: receipt.paymentRequest.table,
         }
       : null,
