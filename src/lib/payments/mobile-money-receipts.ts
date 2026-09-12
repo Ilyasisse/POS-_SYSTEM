@@ -5,6 +5,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { allocateReceiptWithTip } from "@/lib/payments/payment-tip-math";
 import { getPaymentReceiptBusinessDayRange } from "@/lib/cashier/cashier-business-day";
 import { prisma } from "@/lib/prisma";
 import { MACRODROID_GATEWAY_ID } from "@/lib/payments/macrodroid-auth";
@@ -141,6 +142,9 @@ export async function listMobileMoneyReceipts(now: Date = new Date()) {
           payerName: true,
           payerPhone: true,
           expectedAmount: true,
+          billAmount: true,
+          tipAmount: true,
+          tipRecipientName: true,
           table: { select: { id: true, name: true } },
         },
       },
@@ -171,7 +175,13 @@ export async function assignMobileMoneyReceipt(input: {
     const [request, receipt] = await Promise.all([
       tx.paymentRequest.findUnique({
         where: { id: input.paymentRequestId },
-        include: { payments: { select: { amountPaid: true } } },
+        include: {
+          payments: { select: { amountPaid: true } },
+          mobileMoneyReceipts: {
+            where: { status: MobileMoneyReceiptStatus.ASSIGNED },
+            select: { amount: true },
+          },
+        },
       }),
       tx.mobileMoneyReceipt.findUnique({ where: { id: input.receiptId } }),
     ]);
@@ -212,22 +222,22 @@ export async function assignMobileMoneyReceipt(input: {
       throw new Error("This receipt is missing required payment details.");
     }
 
-    const alreadyPaidCents = request.payments.reduce(
+    const billPaidCents = request.payments.reduce(
       (sum, payment) => sum + cents(payment.amountPaid),
       0,
     );
-    const requestRemainingCents = Math.max(
+    const alreadyPaidCents = request.mobileMoneyReceipts.reduce(
+      (sum, assignedReceipt) => sum + cents(assignedReceipt.amount),
       0,
-      cents(request.expectedAmount) - alreadyPaidCents,
     );
     const receiptCents = cents(receipt.amount);
-    if (receiptCents <= 0 || receiptCents > requestRemainingCents) {
-      throw new Error(
-        "The receipt amount exceeds this payer row's remaining $" +
-          (requestRemainingCents / 100).toFixed(2) +
-          ".",
-      );
-    }
+    const allocation = allocateReceiptWithTip({
+      billCents: cents(request.billAmount),
+      billPaidCents,
+      expectedCents: cents(request.expectedAmount),
+      receivedCents: alreadyPaidCents,
+      receiptCents,
+    });
 
     const claim = await tx.mobileMoneyReceipt.updateMany({
       where: {
@@ -252,7 +262,7 @@ export async function assignMobileMoneyReceipt(input: {
       orderBy: { createdAt: "asc" },
       include: { payments: { select: { amountPaid: true } } },
     });
-    let unallocatedCents = receiptCents;
+    let unallocatedCents = allocation.billAllocationCents;
     for (const order of orders) {
       if (unallocatedCents <= 0) break;
       const paidCents = order.payments.reduce(
@@ -291,11 +301,11 @@ export async function assignMobileMoneyReceipt(input: {
       }
     }
     if (unallocatedCents > 0) {
-      throw new Error("The receipt exceeds the table's remaining balance.");
+      throw new Error("The payer row's bill amount exceeds the table's remaining balance.");
     }
 
-    const totalPaidCents = alreadyPaidCents + receiptCents;
-    const fullyMatched = totalPaidCents === cents(request.expectedAmount);
+    const totalPaidCents = allocation.totalReceivedCents;
+    const fullyMatched = allocation.fullyMatched;
     const updatedRequest = await tx.paymentRequest.update({
       where: { id: request.id },
       data: {
@@ -421,12 +431,16 @@ export async function reverseMobileMoneyReceipt(input: {
       });
     }
 
-    const remainingPayments = await tx.payment.findMany({
-      where: { paymentRequestId: receipt.paymentRequest.id },
-      select: { amountPaid: true },
+    const remainingReceipts = await tx.mobileMoneyReceipt.findMany({
+      where: {
+        assignedPaymentRequestId: receipt.paymentRequest.id,
+        status: MobileMoneyReceiptStatus.ASSIGNED,
+        id: { not: receipt.id },
+      },
+      select: { amount: true },
     });
-    const paidCents = remainingPayments.reduce(
-      (sum, payment) => sum + cents(payment.amountPaid),
+    const paidCents = remainingReceipts.reduce(
+      (sum, assignedReceipt) => sum + cents(assignedReceipt.amount),
       0,
     );
     await tx.paymentRequest.update({

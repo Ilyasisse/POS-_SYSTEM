@@ -32,12 +32,33 @@ export async function getKitchenReport(range: ReportRange) {
 }
 
 export async function getStaffReport(range: ReportRange) {
-  const [attendance, payroll, staff] = await Promise.all([
+  const [attendance, payroll, staff, tips] = await Promise.all([
     prisma.attendanceRecord.groupBy({ by: ["status"], where: { businessDate: dateWhere(range) }, _count: true, _sum: { lateMinutes: true, approvedOvertimeMinutes: true } }),
     prisma.payrollLine.aggregate({ where: { payrollRun: { status: "FINALIZED", periodStart: { gte: range.start }, periodEnd: { lte: range.end } } }, _sum: { netPay: true } }),
     prisma.user.findMany({ where: { isActive: true }, select: { id: true, fullName: true, role: true } }),
+    prisma.paymentRequest.groupBy({
+      by: ["tipRecipientId", "tipRecipientName"],
+      where: { status: "MATCHED", matchedAt: dateWhere(range), tipAmount: { gt: 0 } },
+      _sum: { tipAmount: true },
+      _count: true,
+    }),
   ]);
-  return { period: range, coverage: coverage(new Date("2026-08-10T00:00:00.000Z"), range), attendance: attendance.map((x) => ({ status: x.status, count: x._count, lateMinutes: x._sum.lateMinutes ?? 0, overtimeMinutes: x._sum.approvedOvertimeMinutes ?? 0 })), staff, payrollCost: payroll._sum.netPay?.toFixed(2) ?? "0.00" };
+  return {
+    period: range,
+    coverage: coverage(new Date("2026-08-10T00:00:00.000Z"), range),
+    attendance: attendance.map((x) => ({ status: x.status, count: x._count, lateMinutes: x._sum.lateMinutes ?? 0, overtimeMinutes: x._sum.approvedOvertimeMinutes ?? 0 })),
+    staff,
+    payrollCost: payroll._sum.netPay?.toFixed(2) ?? "0.00",
+    tips: {
+      total: tips.reduce((sum, row) => sum.plus(row._sum.tipAmount ?? 0), zero()).toFixed(2),
+      byRecipient: tips.map((row) => ({
+        recipientId: row.tipRecipientId,
+        recipientName: row.tipRecipientName ?? "Unassigned",
+        amount: row._sum.tipAmount?.toFixed(2) ?? "0.00",
+        payments: row._count,
+      })),
+    },
+  };
 }
 
 export async function getCustomerReport(range: ReportRange) {
