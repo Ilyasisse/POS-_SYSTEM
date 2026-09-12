@@ -5,6 +5,7 @@ import {
   AdminPage,
   SearchToolbar,
   MetricCard,
+  RowActions,
   Table,
   DataTableCard,
   TableCell,
@@ -34,11 +35,26 @@ function getTableStatusMessage(tableStatus?: string) {
     case "table_created":
       return { tone: "success" as const, message: "The table has been added and is active." };
     case "invalid_table":
-      return { tone: "error" as const, message: "Enter a table name or number." };
+      return {
+        tone: "error" as const,
+        message: "Enter a valid table name, section, and capacity from 1 to 50.",
+      };
     case "duplicate_table":
       return { tone: "error" as const, message: "A table with that name already exists." };
     case "table_create_failed":
       return { tone: "error" as const, message: "The table could not be created." };
+    case "table_updated":
+      return { tone: "success" as const, message: "The table details were updated." };
+    case "occupied_table":
+      return {
+        tone: "warning" as const,
+        message:
+          "An occupied table cannot be hidden. Settle or transfer its open orders first.",
+      };
+    case "table_not_found":
+      return { tone: "error" as const, message: "The table no longer exists." };
+    case "table_update_failed":
+      return { tone: "error" as const, message: "The table could not be updated." };
     default:
       return null;
   }
@@ -98,7 +114,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <form
         action={createActiveTableFromAdmin}
-        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_auto]"
+        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_9rem_1fr_auto]"
       >
         <Input
           aria-label="Table name or number"
@@ -106,6 +122,24 @@ export default async function TablePage({ searchParams }: TablePageProps) {
           type="text"
           className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
           placeholder="Table name or number"
+          required
+        />
+        <Input
+          aria-label="Seating capacity"
+          name="capacity"
+          type="number"
+          min={1}
+          max={50}
+          defaultValue={4}
+          required
+        />
+        <Input
+          aria-label="Floor section"
+          name="section"
+          type="text"
+          maxLength={80}
+          defaultValue="Main Floor"
+          required
         />
         <Button type="submit">Add Table</Button>
       </form>
@@ -133,12 +167,13 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Open Orders</TableHead>
+                <TableHead>Action</TableHead>
               </tr>
             </thead>
             <tbody>
               {tables.length === 0 ? (
                 <tr>
-                  <TableCell colSpan={6} className="py-10 text-center">
+                  <TableCell colSpan={7} className="py-10 text-center">
                     No tables found.
                   </TableCell>
                 </tr>
@@ -153,14 +188,17 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                       <TableCell className="font-black text-slate-950">
                         {table.name}
                       </TableCell>
-                      <TableCell>{4 + (index % 4)}</TableCell>
+                      <TableCell>{table.capacity}</TableCell>
                       <TableCell>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                       </TableCell>
                       <TableCell>
-                        {index % 2 === 0 ? "Main Floor" : "Outdoor"}
+                        {table.section}
                       </TableCell>
                       <TableCell>{table.orders.length}</TableCell>
+                      <TableCell>
+                        <RowActions editHref={`/admin/tables/${table.id}`} />
+                      </TableCell>
                     </tr>
                   );
                 })
