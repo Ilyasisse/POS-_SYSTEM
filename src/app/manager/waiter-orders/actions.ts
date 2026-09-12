@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
+import { canTransferOpenOrder } from "@/lib/cashier/order-handoff";
 import {
   CASHIER_DELETED_ORDER_ITEM_COOKIE,
   CASHIER_DELETED_ORDER_ITEM_LIMIT,
@@ -19,6 +20,15 @@ function getReturnPath(waiterId: string) {
   return waiterId
     ? `/manager/waiter-orders?waiterId=${encodeURIComponent(waiterId)}`
     : "/manager/waiter-orders";
+}
+
+function getHandoffReturnPath(
+  waiterId: string,
+  status: "transferred" | "invalid",
+) {
+  const query = new URLSearchParams({ handoffStatus: status });
+  if (waiterId) query.set("waiterId", waiterId);
+  return `/manager/waiter-orders?${query.toString()}`;
 }
 
 function toDecimal(value: number) {
@@ -62,6 +72,91 @@ function revalidateCashierViews() {
   revalidatePath("/cashier");
   revalidatePath("/manager");
   revalidatePath("/manager/waiter-orders");
+}
+
+export async function transferOpenWaiterOrder(formData: FormData) {
+  const actor = await requirePermission(PERMISSIONS.ORDER_MANAGE);
+  const orderId = String(formData.get("orderId") ?? "").trim();
+  const fromWaiterId = String(formData.get("fromWaiterId") ?? "").trim();
+  const toWaiterId = String(formData.get("toWaiterId") ?? "").trim();
+
+  if (!orderId || !fromWaiterId || !toWaiterId || fromWaiterId === toWaiterId) {
+    redirect(getHandoffReturnPath(fromWaiterId, "invalid"));
+  }
+
+  const transferred = await prisma.$transaction(async (tx) => {
+    const [order, targetWaiter] = await Promise.all([
+      tx.order.findFirst({
+        where: {
+          id: orderId,
+          waiterId: fromWaiterId,
+          status: "OPEN",
+          payments: { none: {} },
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          _count: { select: { payments: true } },
+          waiter: { select: { fullName: true } },
+        },
+      }),
+      tx.user.findFirst({
+        where: { id: toWaiterId, role: "WAITER", isActive: true },
+        select: { id: true, fullName: true },
+      }),
+    ]);
+
+    if (
+      !order ||
+      !targetWaiter ||
+      !canTransferOpenOrder({
+        status: order.status,
+        paymentCount: order._count.payments,
+        currentWaiterId: fromWaiterId,
+        targetWaiterId: targetWaiter.id,
+      })
+    ) {
+      return false;
+    }
+
+    const result = await tx.order.updateMany({
+      where: {
+        id: order.id,
+        waiterId: fromWaiterId,
+        status: "OPEN",
+        payments: { none: {} },
+      },
+      data: { waiterId: targetWaiter.id },
+    });
+
+    if (result.count !== 1) return false;
+
+    await tx.auditLog.create({
+      data: {
+        actorUserId: actor.id,
+        action: "order.waiter.transferred",
+        entityType: "Order",
+        entityId: order.id,
+        previousValue: {
+          waiterId: fromWaiterId,
+          waiterName: order.waiter?.fullName ?? null,
+        },
+        newValue: {
+          waiterId: targetWaiter.id,
+          waiterName: targetWaiter.fullName,
+        },
+        reason: `Open order #${order.orderNumber} transferred between waiters`,
+      },
+    });
+
+    return true;
+  });
+
+  revalidateCashierViews();
+  redirect(
+    getHandoffReturnPath(fromWaiterId, transferred ? "transferred" : "invalid"),
+  );
 }
 
 export async function deleteWaiterOrderItem(formData: FormData) {
