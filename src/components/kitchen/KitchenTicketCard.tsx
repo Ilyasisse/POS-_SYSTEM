@@ -1,4 +1,6 @@
 ﻿import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Printer } from "lucide-react";
 import type {
   KitchenTicket,
   KitchenTicketStatus,
@@ -6,6 +8,7 @@ import type {
 import { kitchenStatusColor } from "./kitchen-utils";
 import { translateKitchenTicketStatus } from "@/lib/ui/ui-text";
 import { formatPreparationDuration } from "@/lib/kitchen/kitchen-metrics";
+import { buildKitchenPrintHref } from "@/lib/kitchen/kitchen-print";
 
 type KitchenTicketCardProps = {
   ticket: KitchenTicket;
@@ -160,6 +163,22 @@ export default function KitchenTicketCard({
           Open a specific station queue to update this ticket.
         </p>
       )}
+      <Button
+        asChild
+        type="button"
+        variant="outline"
+        className="mt-3 w-full border-slate-600 bg-transparent text-slate-100 hover:bg-slate-700"
+      >
+        <Link
+          href={buildKitchenPrintHref(
+            ticket.orderId,
+            canUpdateStatus ? station : null,
+          )}
+          target="_blank"
+        >
+          <Printer /> Print ticket
+        </Link>
+      </Button>
     </article>
   );
 }

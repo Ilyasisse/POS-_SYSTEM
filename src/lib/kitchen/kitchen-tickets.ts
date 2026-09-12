@@ -270,6 +270,42 @@ export async function getKitchenTicketSnapshot(
   return tickets;
 }
 
+/** Loads one historical or active ticket and limits it to the viewer's station. */
+export async function getPrintableKitchenTicket(
+  viewer: PermissionUser,
+  orderId: string,
+  requestedStation?: string | null,
+) {
+  const filter = getViewerFilter(viewer, requestedStation);
+
+  if (viewer.role !== "ADMIN" && !filter.station) return null;
+
+  const state = await prisma.kitchenTicketState.findUnique({
+    where: { orderId },
+    include: {
+      stationStates: true,
+      transitions: true,
+      order: {
+        include: {
+          table: true,
+          tableCheck: true,
+          cashier: true,
+          waiter: true,
+          orderItems: {
+            include: {
+              assignedUser: true,
+              modifiers: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!state) return null;
+  return filterKitchenTicketByStation(mapKitchenTicket(state), filter);
+}
+
 async function lockTicket(tx: KitchenStateTransaction, orderId: string) {
   const locked = await tx.$queryRaw<Array<{ orderId: string }>>(
     Prisma.sql`SELECT "orderId" AS "orderId" FROM "KitchenTicketState" WHERE "orderId" = ${orderId} FOR UPDATE`,
