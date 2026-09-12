@@ -37,9 +37,22 @@ import {
   getProductModifierGroups,
   type SelectedModifiersMap,
 } from "@/components/customer/customer-order-utils";
+import {
+  buildReorderLines,
+  type PreviousOrderItem,
+} from "@/lib/orders/reorder-items";
 
 type TableOption = { id: string; name: string };
-type Props = { tables: TableOption[]; initialTableId?: string };
+type Props = {
+  tables: TableOption[];
+  initialTableId?: string;
+  repeatOrder?: {
+    id: string;
+    orderNumber: number;
+    tableCheckRound: number | null;
+    orderItems: PreviousOrderItem[];
+  };
+};
 type State = {
   tableId: string;
   categoryId: string;
@@ -194,6 +207,7 @@ function TablePicker({
 export default function CashierOrderExperience({
   tables,
   initialTableId = "",
+  repeatOrder,
 }: Props) {
   const router = useRouter();
   const isDesktopCartPanel = useDesktopCartPanel();
@@ -323,6 +337,37 @@ export default function CashierOrderExperience({
     dispatch({ type: "added" });
   }
 
+  function addPreviousOrder() {
+    if (!repeatOrder || loading) return;
+    const result = buildReorderLines(repeatOrder.orderItems, products, baristas);
+    for (const line of result.lines) {
+      for (let quantity = 0; quantity < line.quantity; quantity += 1) {
+        addToCart({
+          ...line.product,
+          station: line.product.category?.station ?? null,
+          selectedModifiers: line.selectedModifiers,
+          finalPrice: line.finalPrice,
+          assignedUserId: line.assignedUserId,
+          assignedUserName: line.assignedUserName,
+        });
+      }
+    }
+    if (!result.lines.length) {
+      dispatch({
+        type: "failed",
+        error: "Those previous items are no longer available on the active menu.",
+      });
+      return;
+    }
+    dispatch({ type: "added" });
+    if (result.unavailableItems) {
+      dispatch({
+        type: "failed",
+        error: `${result.unavailableItems} previous item(s) were skipped because a product or modifier is no longer available.`,
+      });
+    }
+  }
+
   async function sendOrder() {
     if (!state.tableId) {
       dispatch({
@@ -400,6 +445,21 @@ export default function CashierOrderExperience({
           }}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
         />
+        {repeatOrder ? (
+          <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div>
+              <p className="font-semibold">
+                Reorder order #{repeatOrder.orderNumber}, round {repeatOrder.tableCheckRound ?? 1}
+              </p>
+              <p className="text-sm">
+                Current menu prices and availability will be used.
+              </p>
+            </div>
+            <Button type="button" variant="outline" disabled={loading} onClick={addPreviousOrder}>
+              {loading ? "Loading menu…" : "Add previous items"}
+            </Button>
+          </section>
+        ) : null}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
             <MenuBrowserPanel

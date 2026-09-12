@@ -274,6 +274,12 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                                 .map((item) => `${item.qty}x ${item.productName}`)
                                 .join(", ")}
                             </p>
+                            <Link
+                              href={`/cashier/order?tableId=${encodeURIComponent(table.id)}&repeatOrderId=${encodeURIComponent(round.id)}`}
+                              className="mt-2 inline-flex rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-accent"
+                            >
+                              Reorder this round
+                            </Link>
                           </div>
                         ))}
                       </div>
