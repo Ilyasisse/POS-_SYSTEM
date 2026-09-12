@@ -15,6 +15,8 @@ import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryString
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { prisma } from "@/lib/prisma";
 import Image from "next/image";
+import ProductAvailabilityControl from "./ProductAvailabilityControl";
+import { isProductAvailableForSale } from "@/lib/products/availability";
 
 type AdminProductsPageProps = {
   searchParams: Promise<{
@@ -121,6 +123,7 @@ export default async function AdminProductsPage({
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Availability</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Action</TableHead>
             </tr>
@@ -128,12 +131,14 @@ export default async function AdminProductsPage({
           <tbody>
             {productsList.length === 0 ? (
               <tr>
-                <TableCell colSpan={8} className="py-10 text-center">
+                <TableCell colSpan={9} className="py-10 text-center">
                   No products found.
                 </TableCell>
               </tr>
             ) : (
-              productsList.map((product, index) => (
+              productsList.map((product, index) => {
+                const unavailable = !isProductAvailableForSale(product);
+                return (
                 <tr key={product.id} className="border-b border-slate-50">
                   <TableCell className="font-bold text-slate-400">
                     {(currentPage - 1) * pageSize + index + 1}
@@ -163,13 +168,37 @@ export default async function AdminProductsPage({
                     <StatusBadge active={product.isActive} />
                   </TableCell>
                   <TableCell>
+                    <div className="space-y-1">
+                      <StatusBadge
+                        active={!unavailable}
+                        label={unavailable ? "Sold out" : "For sale"}
+                      />
+                      {unavailable ? (
+                        <p className="max-w-44 text-xs text-muted-foreground">
+                          {product.availabilityReason}
+                          {product.availabilityRestoresAt
+                            ? ` · until ${product.availabilityRestoresAt.toLocaleString()}`
+                            : " · manual restock"}
+                        </p>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {product.trackStock ? product.stockQty.toString() : "-"}
                   </TableCell>
                   <TableCell>
-                    <RowActions editHref={`/admin/products/${product.id}`} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ProductAvailabilityControl
+                        productId={product.id}
+                        productName={product.name}
+                        unavailable={unavailable}
+                      />
+                      <RowActions editHref={`/admin/products/${product.id}`} />
+                    </div>
                   </TableCell>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </Table>

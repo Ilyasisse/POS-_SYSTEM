@@ -1,3 +1,5 @@
+import { availableForSaleWhere } from "@/lib/products/availability";
+
 // Used for: The product cards, featured items, filtering, and sorting on /menu.
 // What it does: Defines the shape of one product shown on the menu page.
 // Like you are 10: This is the checklist every food or drink item must follow.
@@ -227,6 +229,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
           products: {
             some: {
               isActive: true,
+              ...availableForSaleWhere(),
             },
           },
         },
@@ -237,6 +240,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
           products: {
             where: {
               isActive: true,
+              ...availableForSaleWhere(),
             },
             orderBy: [{ isPopular: "desc" }, { name: "asc" }],
             select: {

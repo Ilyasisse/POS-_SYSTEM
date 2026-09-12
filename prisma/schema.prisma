@@ -430,6 +430,9 @@ model Product {
   imageUrl                    String?
   pronunciationAudioUrl       String?
   isActive                    Boolean               @default(true)
+  availableForSale            Boolean               @default(true)
+  availabilityRestoresAt      DateTime?
+  availabilityReason          String?
   isPopular                   Boolean               @default(false)
   price                       Decimal
   cost                        Decimal?              @db.Decimal(14, 6)
@@ -454,6 +457,7 @@ model Product {
   inventoryCountLines         InventoryCountLine[]
 
   @@index([categoryId, isActive])
+  @@index([availableForSale, availabilityRestoresAt])
   @@index([trackStock, inventoryAlertStatus])
   @@index([price, name])
   @@index([standardCostUpdatedByUserId])

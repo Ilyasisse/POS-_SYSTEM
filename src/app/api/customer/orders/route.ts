@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableForSale } from "@/lib/products/availability";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
@@ -141,6 +142,8 @@ export async function POST(request: Request) {
           name: true,
           price: true,
           cost: true,
+          availableForSale: true,
+          availabilityRestoresAt: true,
           recipeVersions: {
             where: { isActive: true },
             select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
@@ -203,6 +206,13 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { error: `Product not found or inactive: ${item.productId}` },
           { status: 400 },
+        );
+      }
+
+      if (!isProductAvailableForSale(product)) {
+        return NextResponse.json(
+          { error: `${product.name} is temporarily unavailable.` },
+          { status: 409 },
         );
       }
 
