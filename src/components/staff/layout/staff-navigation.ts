@@ -118,6 +118,7 @@ const navigationGroups: readonly {
       "cashier-waiter-orders",
       "waiter-home",
       "inventory-home",
+      "my-attendance",
     ],
   },
   {
@@ -202,6 +203,14 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     icon: PackageSearch,
     requiredPermissions: [PERMISSIONS.INVENTORY_VIEW] as const,
     stations: ["CABITAAN"],
+    section: "operations",
+  },
+  {
+    key: "my-attendance",
+    href: "/staff/attendance",
+    label: "My attendance",
+    icon: ClipboardList,
+    requiredPermissions: [PERMISSIONS.ATTENDANCE_RECORD] as const,
     section: "operations",
   },
   {
