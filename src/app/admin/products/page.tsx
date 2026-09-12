@@ -154,8 +154,20 @@ export default async function AdminProductsPage({
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="font-black text-slate-950">
-                    {product.name}
+                  <TableCell className="max-w-64">
+                    <div className="flex items-center gap-2 font-black text-slate-950">
+                      {product.name}
+                      {product.isPopular ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                          Popular
+                        </span>
+                      ) : null}
+                    </div>
+                    {product.description ? (
+                      <p className="mt-1 truncate text-xs text-slate-500">
+                        {product.description}
+                      </p>
+                    ) : null}
                   </TableCell>
                   <TableCell>{product.category?.name ?? "-"}</TableCell>
                   <TableCell>${Number(product.price).toFixed(2)}</TableCell>
