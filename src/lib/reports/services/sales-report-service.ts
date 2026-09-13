@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { summarizeWeekdaySales } from "@/lib/reports/weekday-sales";
 import {
   averageOrderValue,
   grossProfit,
@@ -83,6 +84,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   const productRows = new Map<string, SalesRow>();
   const categoryRows = new Map<string, SalesRow>();
   const hourly = new Map<string, Prisma.Decimal>();
+  const weekdayOrders: { closedAt: Date; netSales: string }[] = [];
 
   for (const order of orders) {
     for (const payment of order.payments) paymentTotals.set(payment.method, (paymentTotals.get(payment.method) ?? zero()).plus(payment.amountPaid));
@@ -119,6 +121,10 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
     }
 
     const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
+    weekdayOrders.push({
+      closedAt: order.closedAt ?? order.createdAt,
+      netSales: netSales(orderGross, orderDiscounts, orderRefunds).toFixed(2),
+    });
     hourly.set(
       hour,
       (hourly.get(hour) ?? zero()).plus(
@@ -150,6 +156,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       costCoveragePercent: serialize(ratioPercent(costCoveredLines, totalLines)), costCoveredLines, totalLines,
     },
     paymentMethods: [...paymentTotals.entries()].map(([method, amount]) => ({ method, amount: amount.toFixed(2) })),
+    weekdaySales: summarizeWeekdaySales(weekdayOrders),
     hourlySales: [...hourly.entries()].map(([hour, amount]) => ({ hour, amount: amount.toFixed(2) })).sort((a, b) => Number(a.hour) - Number(b.hour)),
     categories: mapRows(categoryRows), products: mapRows(productRows),
     orders: orders.map((order) => ({ id: order.id, orderNumber: order.orderNumber, closedAt: order.closedAt?.toISOString() ?? null, total: order.total.toFixed(2), waiter: order.waiter?.fullName ?? null, cashier: order.cashier?.fullName ?? null, table: order.table?.name ?? null })),
