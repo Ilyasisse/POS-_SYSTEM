@@ -188,6 +188,17 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     section: "operations",
   },
   {
+    key: "waiter-order",
+    href: "/waiter/order",
+    label: "Take order",
+    icon: ClipboardList,
+    requiredPermissions: [
+      PERMISSIONS.ORDER_CREATE,
+      PERMISSIONS.ORDER_VIEW_ASSIGNED,
+    ] as const,
+    section: "operations",
+  },
+  {
     key: "waiter-home",
     href: "/waiter",
     label: "Waiter",
