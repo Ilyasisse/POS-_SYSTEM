@@ -1,4 +1,5 @@
 import Link from "next/link";
+import WeekdaySalesTable from "@/components/admin/reports/WeekdaySalesTable";
 import { AdminPage, Card, MetricCard } from "@/components/admin/shared";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -139,6 +140,7 @@ export async function SalesReportPage({
       {focus === "orders" ? (
         <Card className="p-5"><h2 className="mb-4 text-lg font-black">Paid orders</h2><Table><TableHeader><TableRow><TableHead>Order</TableHead><TableHead>Closed</TableHead><TableHead>Waiter</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader><TableBody>{report.orders.map((order) => <TableRow key={order.id}><TableCell>#{order.orderNumber}</TableCell><TableCell>{order.closedAt ? new Date(order.closedAt).toLocaleString() : "—"}</TableCell><TableCell>{order.waiter ?? "—"}</TableCell><TableCell className="text-right">{money(order.total)}</TableCell></TableRow>)}</TableBody></Table></Card>
       ) : null}
+      {focus === "overview" ? <WeekdaySalesTable rows={report.weekdaySales} /> : null}
       <p className="text-xs text-slate-500">Recognized revenue uses fully paid orders and their closed time. Archived products remain visible through order-line snapshot names.</p>
     </AdminPage>
   );
