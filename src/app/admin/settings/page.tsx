@@ -1,4 +1,5 @@
-﻿import { NativeSelect } from "@/components/ui/native-select";
+﻿import Link from "next/link";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Button, Card, AdminPage, MetricCard } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
@@ -48,6 +49,7 @@ export default async function AdminSettingsPage() {
     <AdminPage
       title="Settings"
       description="Manage system settings and preferences"
+      action={<Button asChild><Link href="/admin/settings/hardware">Payment phone health</Link></Button>}
     >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Active Categories" value={activeCategories} />
