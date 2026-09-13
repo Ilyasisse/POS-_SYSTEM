@@ -37,6 +37,7 @@ const links = [
   ["Daily", "/admin/reports/daily"],
   ["Weekly", "/admin/reports/weekly"],
   ["Monthly", "/admin/reports/monthly"],
+  ["Compare months", "/admin/reports/comparison"],
   ["Sales", "/admin/reports/sales"],
   ["Products", "/admin/reports/products"],
 ] as const;
