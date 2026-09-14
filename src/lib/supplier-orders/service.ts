@@ -5,10 +5,7 @@ import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
 } from "@/lib/suppliers/purchase-orders";
-import {
-  assertWhatsAppPdfSize,
-  purchaseOrderPdfMediaPath,
-} from "./pdf-access";
+import { assertWhatsAppPdfSize, purchaseOrderPdfMediaPath } from "./pdf-access";
 import { generatePurchaseOrderPdf } from "./purchase-order-pdf";
 import {
   purchaseOrderPdfInclude,
@@ -66,11 +63,18 @@ async function createDueRuns(now: Date) {
   const schedules = await prisma.supplierOrderSchedule.findMany({
     where: { deletedAt: null, isActive: true, nextInviteAt: { lte: now } },
     include: {
-      supplier: { select: { id: true, name: true, phone: true, isActive: true } },
+      supplier: {
+        select: { id: true, name: true, phone: true, isActive: true },
+      },
       recipients: {
         include: {
           user: {
-            select: { id: true, fullName: true, phoneNumber: true, isActive: true },
+            select: {
+              id: true,
+              fullName: true,
+              phoneNumber: true,
+              isActive: true,
+            },
           },
         },
       },
@@ -87,7 +91,9 @@ async function createDueRuns(now: Date) {
     if (!schedule.supplier.isActive || !supplierPhone) continue;
     const activeRecipients = schedule.recipients.flatMap((recipient) => {
       const phone = normalizeE164Phone(recipient.user.phoneNumber ?? "");
-      return recipient.user.isActive && phone ? [{ user: recipient.user, phone }] : [];
+      return recipient.user.isActive && phone
+        ? [{ user: recipient.user, phone }]
+        : [];
     });
     if (activeRecipients.length === 0) continue;
 
@@ -127,38 +133,41 @@ async function createDueRuns(now: Date) {
       };
     });
 
-    const didCreate = await prisma.$transaction(async (tx) => {
-      const claimed = await tx.supplierOrderSchedule.updateMany({
-        where: {
-          id: schedule.id,
-          deletedAt: null,
-          isActive: true,
-          nextInviteAt: inviteAt,
-        },
-        data: {
-          nextInviteAt,
-          nextSupplierSendAt,
-          isActive: nextInviteAt !== null,
-        },
-      });
-      if (claimed.count !== 1) return false;
-      await tx.supplierOrderRun.create({
-        data: {
-          scheduleId: schedule.id,
-          sequence: schedule._count.runs + 1,
-          supplierId: schedule.supplier.id,
-          supplierName: schedule.supplier.name,
-          supplierPhone,
-          timeZone: schedule.timeZone,
-          inviteAt,
-          supplierSendAt,
-          reminderIntervalMinutes: schedule.reminderIntervalMinutes,
-          deliveryLeadDays: schedule.deliveryLeadDays,
-          recipients: { create: recipientRows },
-        },
-      });
-      return true;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    const didCreate = await prisma.$transaction(
+      async (tx) => {
+        const claimed = await tx.supplierOrderSchedule.updateMany({
+          where: {
+            id: schedule.id,
+            deletedAt: null,
+            isActive: true,
+            nextInviteAt: inviteAt,
+          },
+          data: {
+            nextInviteAt,
+            nextSupplierSendAt,
+            isActive: nextInviteAt !== null,
+          },
+        });
+        if (claimed.count !== 1) return false;
+        await tx.supplierOrderRun.create({
+          data: {
+            scheduleId: schedule.id,
+            sequence: schedule._count.runs + 1,
+            supplierId: schedule.supplier.id,
+            supplierName: schedule.supplier.name,
+            supplierPhone,
+            timeZone: schedule.timeZone,
+            inviteAt,
+            supplierSendAt,
+            reminderIntervalMinutes: schedule.reminderIntervalMinutes,
+            deliveryLeadDays: schedule.deliveryLeadDays,
+            recipients: { create: recipientRows },
+          },
+        });
+        return true;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
     if (didCreate) created += 1;
   }
   return created;
@@ -190,12 +199,18 @@ async function attemptEmployeeMessage(
     },
     update: {},
   });
-  if (delivery.status === "ACCEPTED" || delivery.status === "DELIVERED" || delivery.status === "READ") return false;
+  if (
+    delivery.status === "ACCEPTED" ||
+    delivery.status === "DELIVERED" ||
+    delivery.status === "READ"
+  )
+    return false;
   if (delivery.attempts >= MAX_DELIVERY_ATTEMPTS) return false;
   if (
     delivery.lastAttemptAt &&
     now.getTime() - delivery.lastAttemptAt.getTime() < RETRY_AFTER_MS
-  ) return false;
+  )
+    return false;
 
   try {
     const config = readWhatsAppConfig();
@@ -204,7 +219,10 @@ async function attemptEmployeeMessage(
       to: recipient.phone,
       employeeName: recipient.employeeName,
       supplierName: recipient.run.supplierName,
-      deadline: deadlineLabel(recipient.run.supplierSendAt, recipient.run.timeZone),
+      deadline: deadlineLabel(
+        recipient.run.supplierSendAt,
+        recipient.run.timeZone,
+      ),
       token: deriveRecipientToken(recipient.id, linkSecret()),
       reminder,
     });
@@ -238,7 +256,10 @@ async function attemptEmployeeMessage(
         attempts: { increment: 1 },
         lastAttemptAt: now,
         failedAt: now,
-        errorMessage: error instanceof Error ? error.message.slice(0, 1000) : "WhatsApp delivery failed.",
+        errorMessage:
+          error instanceof Error
+            ? error.message.slice(0, 1000)
+            : "WhatsApp delivery failed.",
       },
     });
     return false;
@@ -291,101 +312,118 @@ async function sendDueEmployeeMessages(now: Date) {
 
 async function finalizeRun(runId: string, now: Date) {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const run = await tx.supplierOrderRun.findFirst({
-        where: {
-          id: runId,
-          status: "FINALIZING",
-          schedule: { deletedAt: null },
-        },
-        include: {
-          schedule: { select: { createdByUserId: true, name: true } },
-          recipients: { include: { responseItems: true } },
-        },
-      });
-      if (!run || run.purchaseOrderId) return "ignored" as const;
-      const quantities = aggregateResponseQuantities(
-        run.recipients.flatMap((recipient) =>
-          recipient.responseItems.map((item) => ({
-            catalogItemId: item.supplierCatalogItemId,
-            quantity: item.quantity,
-          })),
-        ),
-      );
-      if (quantities.size === 0) {
-        if (!run.recipients.some((recipient) => recipient.invitedAt)) {
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const run = await tx.supplierOrderRun.findFirst({
+          where: {
+            id: runId,
+            status: "FINALIZING",
+            schedule: { deletedAt: null },
+          },
+          include: {
+            schedule: { select: { createdByUserId: true, name: true } },
+            recipients: { include: { responseItems: true } },
+          },
+        });
+        if (!run || run.purchaseOrderId) return "ignored" as const;
+        const quantities = aggregateResponseQuantities(
+          run.recipients.flatMap((recipient) =>
+            recipient.responseItems.map((item) => ({
+              catalogItemId: item.supplierCatalogItemId,
+              quantity: item.quantity,
+            })),
+          ),
+        );
+        if (quantities.size === 0) {
+          if (!run.recipients.some((recipient) => recipient.invitedAt)) {
+            await tx.supplierOrderRun.update({
+              where: { id: run.id },
+              data: {
+                status: "FAILED",
+                finalizedAt: now,
+                failureReason:
+                  "No employee invitation was delivered before the deadline.",
+              },
+            });
+            return "failed" as const;
+          }
           await tx.supplierOrderRun.update({
             where: { id: run.id },
-            data: {
-              status: "FAILED",
-              finalizedAt: now,
-              failureReason: "No employee invitation was delivered before the deadline.",
-            },
+            data: { status: "SKIPPED", finalizedAt: now, failureReason: null },
           });
-          return "failed" as const;
+          return "skipped" as const;
         }
+
+        const catalogItems = await tx.supplierCatalogItem.findMany({
+          where: {
+            id: { in: [...quantities.keys()] },
+            supplierId: run.supplierId,
+            isActive: true,
+          },
+          select: {
+            id: true,
+            unit: true,
+            unitPrice: true,
+            product: { select: { name: true, isActive: true } },
+            inventorySupply: { select: { name: true, isActive: true } },
+          },
+        });
+        if (catalogItems.length !== quantities.size) {
+          throw new Error(
+            "A selected supplier catalog item is no longer available.",
+          );
+        }
+        const lines = catalogItems.map((item) => {
+          const itemName = item.product?.isActive
+            ? item.product.name
+            : item.inventorySupply?.isActive
+              ? item.inventorySupply.name
+              : null;
+          if (!itemName)
+            throw new Error("A selected catalog item is inactive.");
+          const quantity = quantities.get(item.id) as Prisma.Decimal;
+          return {
+            supplierCatalogItemId: item.id,
+            itemName,
+            itemUnit: item.unit,
+            quantity,
+            unitPrice: item.unitPrice,
+            lineTotal: calculateSupplierPurchaseOrderLineTotal(
+              quantity,
+              item.unitPrice,
+            ),
+          };
+        });
+        const order = await tx.supplierPurchaseOrder.create({
+          data: {
+            supplierId: run.supplierId,
+            expectedDeliveryDate: expectedDeliveryDate(
+              run.supplierSendAt,
+              run.deliveryLeadDays,
+              run.timeZone,
+            ),
+            notes: `Automatically created from schedule: ${run.schedule.name}`,
+            totalAmount: calculateSupplierPurchaseOrderTotal(lines),
+            createdByUserId: run.schedule.createdByUserId,
+            items: { create: lines },
+          },
+          select: { id: true },
+        });
         await tx.supplierOrderRun.update({
           where: { id: run.id },
-          data: { status: "SKIPPED", finalizedAt: now, failureReason: null },
+          data: {
+            purchaseOrderId: order.id,
+            finalizedAt: now,
+            failureReason: null,
+          },
         });
-        return "skipped" as const;
-      }
-
-      const catalogItems = await tx.supplierCatalogItem.findMany({
-        where: {
-          id: { in: [...quantities.keys()] },
-          supplierId: run.supplierId,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          unit: true,
-          unitPrice: true,
-          product: { select: { name: true, isActive: true } },
-          inventorySupply: { select: { name: true, isActive: true } },
-        },
-      });
-      if (catalogItems.length !== quantities.size) {
-        throw new Error("A selected supplier catalog item is no longer available.");
-      }
-      const lines = catalogItems.map((item) => {
-        const itemName = item.product?.isActive
-          ? item.product.name
-          : item.inventorySupply?.isActive
-            ? item.inventorySupply.name
-            : null;
-        if (!itemName) throw new Error("A selected catalog item is inactive.");
-        const quantity = quantities.get(item.id) as Prisma.Decimal;
-        return {
-          supplierCatalogItemId: item.id,
-          itemName,
-          itemUnit: item.unit,
-          quantity,
-          unitPrice: item.unitPrice,
-          lineTotal: calculateSupplierPurchaseOrderLineTotal(quantity, item.unitPrice),
-        };
-      });
-      const order = await tx.supplierPurchaseOrder.create({
-        data: {
-          supplierId: run.supplierId,
-          expectedDeliveryDate: expectedDeliveryDate(
-            run.supplierSendAt,
-            run.deliveryLeadDays,
-            run.timeZone,
-          ),
-          notes: `Automatically created from schedule: ${run.schedule.name}`,
-          totalAmount: calculateSupplierPurchaseOrderTotal(lines),
-          createdByUserId: run.schedule.createdByUserId,
-          items: { create: lines },
-        },
-        select: { id: true },
-      });
-      await tx.supplierOrderRun.update({
-        where: { id: run.id },
-        data: { purchaseOrderId: order.id, finalizedAt: now, failureReason: null },
-      });
-      return "created" as const;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 });
+        return "created" as const;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 15000,
+      },
+    );
     return result;
   } catch (error) {
     await prisma.supplierOrderRun.update({
@@ -393,7 +431,10 @@ async function finalizeRun(runId: string, now: Date) {
       data: {
         status: "FAILED",
         finalizedAt: now,
-        failureReason: error instanceof Error ? error.message.slice(0, 1000) : "Purchase order finalization failed.",
+        failureReason:
+          error instanceof Error
+            ? error.message.slice(0, 1000)
+            : "Purchase order finalization failed.",
       },
     });
     return "failed" as const;
@@ -461,13 +502,18 @@ async function sendFinalizedOrders(now: Date) {
       update: {},
     });
     if (["ACCEPTED", "DELIVERED", "READ"].includes(delivery.status)) {
-      await prisma.supplierOrderRun.update({ where: { id: run.id }, data: { status: "SENT" } });
+      await prisma.supplierOrderRun.update({
+        where: { id: run.id },
+        data: { status: "SENT" },
+      });
       continue;
     }
     if (
       delivery.attempts >= MAX_DELIVERY_ATTEMPTS ||
-      (delivery.lastAttemptAt && now.getTime() - delivery.lastAttemptAt.getTime() < RETRY_AFTER_MS)
-    ) continue;
+      (delivery.lastAttemptAt &&
+        now.getTime() - delivery.lastAttemptAt.getTime() < RETRY_AFTER_MS)
+    )
+      continue;
     try {
       const config = readWhatsAppConfig();
       const pdf = await generatePurchaseOrderPdf(purchaseOrderPdfInput(order));
@@ -507,7 +553,10 @@ async function sendFinalizedOrders(now: Date) {
       sent += 1;
     } catch (error) {
       const attempts = delivery.attempts + 1;
-      const message = error instanceof Error ? error.message.slice(0, 1000) : "Supplier WhatsApp delivery failed.";
+      const message =
+        error instanceof Error
+          ? error.message.slice(0, 1000)
+          : "Supplier WhatsApp delivery failed.";
       await prisma.$transaction([
         prisma.supplierOrderWhatsAppDelivery.update({
           where: { id: delivery.id },
@@ -520,7 +569,12 @@ async function sendFinalizedOrders(now: Date) {
           },
         }),
         ...(attempts >= MAX_DELIVERY_ATTEMPTS
-          ? [prisma.supplierOrderRun.update({ where: { id: run.id }, data: { status: "FAILED", failureReason: message } })]
+          ? [
+              prisma.supplierOrderRun.update({
+                where: { id: run.id },
+                data: { status: "FAILED", failureReason: message },
+              }),
+            ]
           : []),
       ]);
       failed += 1;

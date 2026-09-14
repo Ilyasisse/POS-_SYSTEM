@@ -6,9 +6,9 @@ import { AppProviders } from "@/components/AppProviders";
 export const metadata: Metadata = {
   title: "Mash Allah cafe",
   description: "Mash Allah ",
-  icons:{
-    icon:"/newer_logo.png"
-  }
+  icons: {
+    icon: "/newer_logo.png",
+  },
 };
 
 export default function RootLayout({

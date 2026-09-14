@@ -121,46 +121,48 @@ export default async function InventoryPage({
 }: InventoryPageProps) {
   const todayStart = getEatDayStart();
 
-  const [, params, [supplies, takenTodayMovements]] =
-    await Promise.all([
-      requirePermission(PERMISSIONS.INVENTORY_VIEW, {
-        stations: ["CABITAAN"],
+  const [, params, [supplies, takenTodayMovements]] = await Promise.all([
+    requirePermission(PERMISSIONS.INVENTORY_VIEW, {
+      stations: ["CABITAAN"],
+    }),
+    searchParams,
+    Promise.all([
+      prisma.inventorySupply.findMany({
+        where: {
+          isActive: true,
+        },
+        orderBy: [{ stockQty: "asc" }, { name: "asc" }],
       }),
-      searchParams,
-      Promise.all([
-        prisma.inventorySupply.findMany({
-          where: {
-            isActive: true,
+      prisma.inventoryMovement.findMany({
+        where: {
+          itemType: "Supply",
+          supplyId: {
+            not: null,
           },
-          orderBy: [{ stockQty: "asc" }, { name: "asc" }],
-        }),
-        prisma.inventoryMovement.findMany({
-          where: {
-            itemType: "Supply",
-            supplyId: {
-              not: null,
-            },
-            delta: {
-              lt: 0,
-            },
-            createdAt: {
-              gte: todayStart,
-            },
+          delta: {
+            lt: 0,
           },
-          take: 12,
-          orderBy: {
-            createdAt: "desc",
+          createdAt: {
+            gte: todayStart,
           },
-        }),
-      ]),
-    ]);
+        },
+        take: 12,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+    ]),
+  ]);
   const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
 
   const summary = supplies.reduce<StatusSummary>(
     (accumulator, supply) => {
       addStatus(
         accumulator,
-    getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
+        getInventoryAlertStatus(
+          Number(supply.stockQty),
+          Number(supply.lowStockThreshold),
+        ),
       );
       return accumulator;
     },
@@ -253,8 +255,8 @@ export default async function InventoryPage({
               ) : (
                 supplies.map((supply) => {
                   const status = getInventoryAlertStatus(
-                Number(supply.stockQty),
-                Number(supply.lowStockThreshold),
+                    Number(supply.stockQty),
+                    Number(supply.lowStockThreshold),
                   );
                   const isOut = status === "OUT";
 
@@ -269,8 +271,11 @@ export default async function InventoryPage({
                             {supply.name}
                           </h3>
                           <p className="mt-1 text-xs text-muted-foreground">
-                        {supply.stockQty.toString()} {canonicalUnitLabel(supply.canonicalUnit)} on hand
-                        {supply.quantityCoverage !== "COMPLETE" ? " · unit mapping required" : ""}
+                            {supply.stockQty.toString()}{" "}
+                            {canonicalUnitLabel(supply.canonicalUnit)} on hand
+                            {supply.quantityCoverage !== "COMPLETE"
+                              ? " · unit mapping required"
+                              : ""}
                           </p>
                         </div>
                         <span
@@ -298,9 +303,9 @@ export default async function InventoryPage({
                             id={`quantity-${supply.id}`}
                             name="quantity"
                             type="number"
-                        inputMode="decimal"
-                        min="0.001"
-                        step="0.001"
+                            inputMode="decimal"
+                            min="0.001"
+                            step="0.001"
                             placeholder="0"
                             disabled={isOut}
                             required

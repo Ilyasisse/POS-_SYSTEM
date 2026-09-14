@@ -62,8 +62,7 @@ export function parseDeletedOrderItemSnapshots(
 
   try {
     const parsed = JSON.parse(rawValue) as
-      | DeletedOrderItemSnapshot
-      | DeletedOrderItemSnapshot[];
+      DeletedOrderItemSnapshot | DeletedOrderItemSnapshot[];
 
     if (Array.isArray(parsed)) {
       return parsed;

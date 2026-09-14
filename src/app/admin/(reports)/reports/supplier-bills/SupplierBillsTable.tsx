@@ -234,11 +234,15 @@ export default function SupplierBillsTable({
                             key={payment.id}
                             className="mb-2 border-b border-slate-100 pb-2 text-xs last:border-0"
                           >
-                            <strong>{money(payment.allocatedAmount)} applied</strong>{" "}
+                            <strong>
+                              {money(payment.allocatedAmount)} applied
+                            </strong>{" "}
                             · {payment.paymentMethod || "Unspecified"}
-                            {payment.totalPaymentAmount !== payment.allocatedAmount ? (
+                            {payment.totalPaymentAmount !==
+                            payment.allocatedAmount ? (
                               <div className="text-slate-500">
-                                From {money(payment.totalPaymentAmount)} supplier payment
+                                From {money(payment.totalPaymentAmount)}{" "}
+                                supplier payment
                               </div>
                             ) : null}
                             <br />

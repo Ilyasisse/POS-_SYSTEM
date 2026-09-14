@@ -86,8 +86,9 @@ export function calculateSupplierPaymentState(
   });
   const nextDueDate = installments
     .filter((installment) => installment.status !== "PAID")
-    .sort((first, second) => first.dueDate.getTime() - second.dueDate.getTime())[0]
-    ?.dueDate;
+    .sort(
+      (first, second) => first.dueDate.getTime() - second.dueDate.getTime(),
+    )[0]?.dueDate;
 
   return {
     bill: {
@@ -95,11 +96,9 @@ export function calculateSupplierPaymentState(
       status,
       dueDate: nextDueDate ?? input.dueDate,
       settledAt:
-        status === "PAID" ? latestAllocation?.allocatedAt ?? null : null,
+        status === "PAID" ? (latestAllocation?.allocatedAt ?? null) : null,
       settledByUserId:
-        status === "PAID"
-          ? latestAllocation?.appliedByUserId ?? null
-          : null,
+        status === "PAID" ? (latestAllocation?.appliedByUserId ?? null) : null,
     },
     installments,
   };

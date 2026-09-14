@@ -23,10 +23,7 @@ function cookieStore(cookieNames: string[]) {
 }
 
 test("derives the project-specific Supabase auth cookie prefix", () => {
-  assert.equal(
-    getSupabaseAuthCookiePrefix(SUPABASE_URL),
-    AUTH_COOKIE_PREFIX,
-  );
+  assert.equal(getSupabaseAuthCookiePrefix(SUPABASE_URL), AUTH_COOKIE_PREFIX);
   assert.throws(
     () => getSupabaseAuthCookiePrefix("not a url"),
     /Supabase URL is invalid/,
@@ -131,9 +128,7 @@ test("still clears the local session when remote revocation fails", async () => 
   });
 
   assert.equal(result.remoteSignOutSucceeded, false);
-  assert.deepEqual(result.clearedCookieNames, [
-    `${AUTH_COOKIE_PREFIX}.0`,
-  ]);
+  assert.deepEqual(result.clearedCookieNames, [`${AUTH_COOKIE_PREFIX}.0`]);
   assert.deepEqual(
     expired.map(({ name }) => name),
     [`${AUTH_COOKIE_PREFIX}.0`],

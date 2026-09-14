@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { CartLine, Product, SelectedModifierLine, Station } from "@/lib/types";
+import type {
+  CartLine,
+  Product,
+  SelectedModifierLine,
+  Station,
+} from "@/lib/types";
 
 type ProductWithConfiguration = Product & {
   finalPrice?: number;

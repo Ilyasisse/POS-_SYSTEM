@@ -169,10 +169,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
       </div>
 
       {notice ? (
-        <ToastOnMount
-          tone={notice.tone}
-          description={notice.message}
-        />
+        <ToastOnMount tone={notice.tone} description={notice.message} />
       ) : null}
 
       {/*
@@ -266,12 +263,17 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                             className="rounded-lg bg-muted/50 px-2.5 py-2"
                           >
                             <p className="text-xs font-semibold text-muted-foreground">
-                              Round {round.tableCheckRound ?? 1} · {formatDateTime(round.createdAt)}
-                              {round.cashierName ? ` by ${round.cashierName}` : ""}
+                              Round {round.tableCheckRound ?? 1} ·{" "}
+                              {formatDateTime(round.createdAt)}
+                              {round.cashierName
+                                ? ` by ${round.cashierName}`
+                                : ""}
                             </p>
                             <p className="mt-1 text-sm text-muted-foreground">
                               {round.items
-                                .map((item) => `${item.qty}x ${item.productName}`)
+                                .map(
+                                  (item) => `${item.qty}x ${item.productName}`,
+                                )
                                 .join(", ")}
                             </p>
                           </div>

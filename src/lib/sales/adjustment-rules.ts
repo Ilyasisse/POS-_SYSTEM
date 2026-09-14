@@ -1,4 +1,8 @@
-import { Prisma, type OrderStatus, type SalesAdjustmentType } from "@prisma/client";
+import {
+  Prisma,
+  type OrderStatus,
+  type SalesAdjustmentType,
+} from "@prisma/client";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
 export function requiredAdjustmentPermission(
@@ -11,9 +15,7 @@ export function requiredAdjustmentPermission(
 
 export function adjustmentReducesAmountDue(type: SalesAdjustmentType) {
   return (
-    type === "DISCOUNT" ||
-    type === "COMPLIMENTARY" ||
-    type === "STAFF_MEAL"
+    type === "DISCOUNT" || type === "COMPLIMENTARY" || type === "STAFF_MEAL"
   );
 }
 

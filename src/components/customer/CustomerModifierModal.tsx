@@ -189,69 +189,72 @@ function ModifierGroupList({
             data-aos-delay={String(groupIndex * 50)}
             className="min-w-0 rounded-[1.5rem] border border-border bg-card p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
           >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3
-                id={`modifier-group-${group.id}`}
-                className="break-words text-lg font-semibold text-foreground"
-              >
-                {group.name}
-              </h3>
-              <p
-                id={`modifier-guidance-${group.id}`}
-                className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground"
-              >
-                Choose {getMinSelect(group)} to {getMaxSelect(group)}
-              </p>
-            </div>
-            {errors[group.id] ? (
-              <span role="alert" className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
-                {errors[group.id]}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {group.options.map((option) => {
-              const checked = selectedOptionIdSet.has(option.id);
-
-              return (
-                <Button
-                  key={option.id}
-                  type="button"
-                  aria-pressed={checked}
-                  onClick={() => onToggleOption(group, option.id)}
-                  className={`min-w-0 rounded-[1.25rem] border px-4 py-4 text-left transition ${
-                    checked
-                      ? "border-[#7c5c37] bg-[#f5ebde] shadow-[0_16px_32px_rgba(124,92,55,0.15)]"
-                      : "border-border bg-muted/50 hover:border-border hover:bg-card"
-                  }`}
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3
+                  id={`modifier-group-${group.id}`}
+                  className="break-words text-lg font-semibold text-foreground"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="break-words font-semibold text-foreground">
-                        {option.name}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {Number(option.price) > 0
-                          ? `+${formatCurrency(Number(option.price))}`
-                          : "Included"}
-                      </p>
+                  {group.name}
+                </h3>
+                <p
+                  id={`modifier-guidance-${group.id}`}
+                  className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground"
+                >
+                  Choose {getMinSelect(group)} to {getMaxSelect(group)}
+                </p>
+              </div>
+              {errors[group.id] ? (
+                <span
+                  role="alert"
+                  className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700"
+                >
+                  {errors[group.id]}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {group.options.map((option) => {
+                const checked = selectedOptionIdSet.has(option.id);
+
+                return (
+                  <Button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={checked}
+                    onClick={() => onToggleOption(group, option.id)}
+                    className={`min-w-0 rounded-[1.25rem] border px-4 py-4 text-left transition ${
+                      checked
+                        ? "border-[#7c5c37] bg-[#f5ebde] shadow-[0_16px_32px_rgba(124,92,55,0.15)]"
+                        : "border-border bg-muted/50 hover:border-border hover:bg-card"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words font-semibold text-foreground">
+                          {option.name}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {Number(option.price) > 0
+                            ? `+${formatCurrency(Number(option.price))}`
+                            : "Included"}
+                        </p>
+                      </div>
+                      <span
+                        className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold uppercase ${
+                          checked
+                            ? "border-[#7c5c37] bg-[#7c5c37] text-white"
+                            : "border-border bg-card text-transparent"
+                        }`}
+                      >
+                        ok
+                      </span>
                     </div>
-                    <span
-                      className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold uppercase ${
-                        checked
-                          ? "border-[#7c5c37] bg-[#7c5c37] text-white"
-                          : "border-border bg-card text-transparent"
-                      }`}
-                    >
-                      ok
-                    </span>
-                  </div>
-                </Button>
-              );
-            })}
-          </div>
+                  </Button>
+                );
+              })}
+            </div>
           </section>
         );
       })}

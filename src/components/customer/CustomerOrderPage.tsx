@@ -29,7 +29,7 @@ import { bodyFont } from "./customer-order-styles";
 
 const posthogConfigured = Boolean(
   process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-    process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {

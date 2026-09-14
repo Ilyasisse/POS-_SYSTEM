@@ -7,7 +7,9 @@
  * @remarks Used by the products, modifiers, and categories admin pages before passing
  * the result to Pagination.
  */
-export function queryStringWithoutPage(params: Record<string, string | undefined>) {
+export function queryStringWithoutPage(
+  params: Record<string, string | undefined>,
+) {
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {

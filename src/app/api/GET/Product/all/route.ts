@@ -65,7 +65,7 @@ export async function GET() {
         options: Array<{
           id: string;
           name: string;
-          price: typeof product.modifiers[number]["price"];
+          price: (typeof product.modifiers)[number]["price"];
           pronunciationAudioUrl: string | null;
         }>;
       };
@@ -128,7 +128,7 @@ export async function GET() {
 
     return NextResponse.json(
       { error: "Failed to fetch products" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

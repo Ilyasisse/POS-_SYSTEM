@@ -53,12 +53,7 @@ function businessDateAtHour(
   date: Pick<BusinessDayDateParts, "year" | "month" | "day">,
   hour: number,
 ) {
-  const desiredWallClock = Date.UTC(
-    date.year,
-    date.month - 1,
-    date.day,
-    hour,
-  );
+  const desiredWallClock = Date.UTC(date.year, date.month - 1, date.day, hour);
   let candidate = new Date(desiredWallClock);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {

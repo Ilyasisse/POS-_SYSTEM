@@ -408,11 +408,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
-            | "CUNTO_SOOMAALI"
-            | "FAST_FOOD"
-            | "CABITAAN"
-            | "BARISTA"
-            | null,
+            "CUNTO_SOOMAALI" | "FAST_FOOD" | "CABITAAN" | "BARISTA" | null,
         },
       });
 
@@ -436,7 +432,8 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
             orderId: snapshot.order.id,
             cashierId: payment.cashierId,
             cashierName: payment.cashierName,
-            method: payment.method as "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
+            method: payment.method as
+              "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
             amountPaid: toDecimal(payment.amountPaid),
             reference: payment.reference,
             createdAt: new Date(payment.createdAt),
@@ -459,7 +456,8 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
         data: {
           qty: existingOrderItem.qty + snapshot.item.qty,
           lineTotal: toDecimal(
-            Number(existingOrderItem.lineTotal) + Number(snapshot.item.lineTotal),
+            Number(existingOrderItem.lineTotal) +
+              Number(snapshot.item.lineTotal),
           ),
         },
       });
@@ -482,11 +480,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
-            | "CUNTO_SOOMAALI"
-            | "FAST_FOOD"
-            | "CABITAAN"
-            | "BARISTA"
-            | null,
+            "CUNTO_SOOMAALI" | "FAST_FOOD" | "CABITAAN" | "BARISTA" | null,
         },
       });
 

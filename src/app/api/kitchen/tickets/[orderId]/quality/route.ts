@@ -26,10 +26,18 @@ export async function POST(
       orderItemId?: unknown;
       station?: unknown;
     };
-    const type = typeof body.type === "string" ? body.type.toUpperCase() as KitchenQualityEventType : null;
-    const station = normalizeKitchenStation(typeof body.station === "string" ? body.station : null);
+    const type =
+      typeof body.type === "string"
+        ? (body.type.toUpperCase() as KitchenQualityEventType)
+        : null;
+    const station = normalizeKitchenStation(
+      typeof body.station === "string" ? body.station : null,
+    );
     if (!type || !QUALITY_TYPES.has(type) || typeof body.reason !== "string") {
-      return NextResponse.json({ error: "A valid event type and reason are required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "A valid event type and reason are required." },
+        { status: 400 },
+      );
     }
     if (station && !canAccessStation(authorization.user, [station])) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
@@ -37,7 +45,8 @@ export async function POST(
     const { orderId } = await context.params;
     const event = await recordKitchenQualityEvent({
       orderId,
-      orderItemId: typeof body.orderItemId === "string" ? body.orderItemId : null,
+      orderItemId:
+        typeof body.orderItemId === "string" ? body.orderItemId : null,
       station: station ?? null,
       type,
       reason: body.reason,
@@ -64,7 +73,12 @@ export async function POST(
     return NextResponse.json({ ok: true, event }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to record quality event." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to record quality event.",
+      },
       { status: 400 },
     );
   }

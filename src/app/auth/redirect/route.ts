@@ -12,8 +12,7 @@ function getRedirectOrigin(request: Request, requestUrl: URL) {
   }
 
   const forwardedProto =
-    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
-    "https";
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
 
   return `${forwardedProto}://${forwardedHost}`;
 }
@@ -29,7 +28,9 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (authError || !authUser) {
-    return NextResponse.redirect(`${redirectOrigin}/staff-login?error=unauthorized`);
+    return NextResponse.redirect(
+      `${redirectOrigin}/staff-login?error=unauthorized`,
+    );
   }
 
   const user = await prisma.user.findUnique({
@@ -46,7 +47,9 @@ export async function GET(request: Request) {
   }
 
   if (!user.isActive) {
-    return NextResponse.redirect(`${redirectOrigin}/staff-login?error=inactive`);
+    return NextResponse.redirect(
+      `${redirectOrigin}/staff-login?error=inactive`,
+    );
   }
 
   return NextResponse.redirect(

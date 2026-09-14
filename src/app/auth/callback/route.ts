@@ -10,8 +10,7 @@ function getRedirectOrigin(request: Request, requestUrl: URL) {
   }
 
   const forwardedProto =
-    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
-    "https";
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
 
   return `${forwardedProto}://${forwardedHost}`;
 }
@@ -51,7 +50,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(
-    `${redirectOrigin}/?error=google-signin-failed`,
-  );
+  return NextResponse.redirect(`${redirectOrigin}/?error=google-signin-failed`);
 }

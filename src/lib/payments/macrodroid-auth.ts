@@ -2,9 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 
 export const MACRODROID_GATEWAY_ID = "macrodroid-898";
 
-export function resolveMacrodroidSecret(
-  env: NodeJS.ProcessEnv = process.env,
-) {
+export function resolveMacrodroidSecret(env: NodeJS.ProcessEnv = process.env) {
   return (
     env.MACRODROID_PAYMENT_WEBHOOK_SECRET?.trim() ||
     env.PAYMENT_WEBHOOK_SECRET?.trim() ||
@@ -12,9 +10,7 @@ export function resolveMacrodroidSecret(
   );
 }
 
-export function expectedMacrodroidSender(
-  env: NodeJS.ProcessEnv = process.env,
-) {
+export function expectedMacrodroidSender(env: NodeJS.ProcessEnv = process.env) {
   return env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "898";
 }
 
@@ -46,7 +42,6 @@ export function isExpectedMacrodroidSender(
   env: NodeJS.ProcessEnv = process.env,
 ) {
   return (
-    sender.trim().toUpperCase() ===
-    expectedMacrodroidSender(env).toUpperCase()
+    sender.trim().toUpperCase() === expectedMacrodroidSender(env).toUpperCase()
   );
 }

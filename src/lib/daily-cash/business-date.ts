@@ -18,18 +18,25 @@ export function getDailyCashWaiterBalanceDateKey(
 }
 
 export function isDailyCashLocked(businessDate: string, now = new Date()) {
-  return businessDate <= shiftBusinessDateKey(
-    getCurrentBusinessDateKey(now),
-    -DAILY_CASH_LOCK_AGE_DAYS,
+  return (
+    businessDate <=
+    shiftBusinessDateKey(
+      getCurrentBusinessDateKey(now),
+      -DAILY_CASH_LOCK_AGE_DAYS,
+    )
   );
 }
 
-export function assertDailyCashBusinessDate(businessDate: string, now = new Date()) {
+export function assertDailyCashBusinessDate(
+  businessDate: string,
+  now = new Date(),
+) {
   const parsed = parseBusinessDateKey(businessDate);
   if (!parsed) throw new Error("Choose a valid business date.");
   if (parsed < DAILY_CASH_START_DATE) {
     throw new Error("Daily Cash begins on August 1, 2026.");
   }
-  if (parsed > getCurrentBusinessDateKey(now)) throw new Error("Future business days cannot be used.");
+  if (parsed > getCurrentBusinessDateKey(now))
+    throw new Error("Future business days cannot be used.");
   return parsed;
 }

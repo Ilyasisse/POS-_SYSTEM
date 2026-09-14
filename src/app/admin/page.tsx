@@ -23,8 +23,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
 // Renders the admin dashboard page with live Prisma-backed metrics.
 export default async function AdminPage() {
   const now = new Date();
-  const { start: todayStart, end: tomorrowStart } =
-    getBusinessDayRange(now);
+  const { start: todayStart, end: tomorrowStart } = getBusinessDayRange(now);
   const { start: weekStart, end: weekEnd } = getReportingWeekRange(now);
 
   const [

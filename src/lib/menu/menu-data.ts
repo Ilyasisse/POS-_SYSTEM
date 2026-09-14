@@ -184,7 +184,6 @@ function groupCategories(products: MenuProduct[]) {
       existing.products.push(product);
       continue;
     }
-    
 
     groups.set(key, {
       id: key,
@@ -200,7 +199,7 @@ function groupCategories(products: MenuProduct[]) {
     if (rankDiff !== 0) {
       return rankDiff;
     }
-   
+
     return left.name.localeCompare(right.name);
   });
 }

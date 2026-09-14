@@ -29,8 +29,14 @@ test("invoice number migration preserves references and backfills chronologicall
 });
 
 test("invoice number migration installs a required unique database sequence", () => {
-  assert.match(migration, /CREATE SEQUENCE "SupplierInvoice_invoiceNumber_seq"/);
+  assert.match(
+    migration,
+    /CREATE SEQUENCE "SupplierInvoice_invoiceNumber_seq"/,
+  );
   assert.match(migration, /ALTER COLUMN "invoiceNumber" SET NOT NULL/);
   assert.match(migration, /ALTER COLUMN "invoiceNumber" SET DEFAULT nextval/);
-  assert.match(migration, /CREATE UNIQUE INDEX "SupplierInvoice_invoiceNumber_key"/);
+  assert.match(
+    migration,
+    /CREATE UNIQUE INDEX "SupplierInvoice_invoiceNumber_key"/,
+  );
 });

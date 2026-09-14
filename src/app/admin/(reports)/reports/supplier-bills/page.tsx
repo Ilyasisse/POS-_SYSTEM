@@ -133,10 +133,10 @@ function SupplierBillsFilters({
         href="/admin/reports/supplier-bills"
         show={Boolean(
           params.supplier ||
-            params.status ||
-            params.from ||
-            params.to ||
-            params.scope,
+          params.status ||
+          params.from ||
+          params.to ||
+          params.scope,
         )}
       />
     </form>
@@ -177,7 +177,10 @@ function SupplierBillsSummary({
         <MetricCard label="Unpaid balance" value={money(unpaid)} />
         <MetricCard label="Applied to invoices" value={money(paid)} />
         <MetricCard label="Supplier credit" value={money(supplierCredit)} />
-        <MetricCard label="All-time cash paid" value={money(supplierCashPaid)} />
+        <MetricCard
+          label="All-time cash paid"
+          value={money(supplierCashPaid)}
+        />
         <MetricCard label="Draft invoice value" value={money(draftValue)} />
         <MetricCard label="Void invoices" value={voidCount} />
       </section>
@@ -229,93 +232,87 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
 
   const [bills, suppliers, nonFinalInvoices] = await Promise.all([
     prisma.supplierBill.findMany({
-  where: {
-    supplierId: params.supplier || undefined,
-    ...(showingDueThroughTomorrow
-      ? {
-          status: { in: ["UNPAID", "PARTIAL"] },
-          dueDate: { lte: dueCutoff },
-        }
-      : {
-          createdAt: { gte: from, lte: to },
-        }),
-  },
-  select: {
-    id: true,
-    totalAmount: true,
-    paidAmount: true,
-    status: true,
-    dueDate: true,
-    settledAt: true,
-    createdAt: true,
-    supplier: {
-      select: {
-        id: true,
-        name: true,
+      where: {
+        supplierId: params.supplier || undefined,
+        ...(showingDueThroughTomorrow
+          ? {
+              status: { in: ["UNPAID", "PARTIAL"] },
+              dueDate: { lte: dueCutoff },
+            }
+          : {
+              createdAt: { gte: from, lte: to },
+            }),
       },
-    },
-    invoice: {
       select: {
         id: true,
-        submittedAt: true,
-        invoiceNumber: true,
-        supplierReference: true,
+        totalAmount: true,
+        paidAmount: true,
         status: true,
-        receiptObjectPath: true,
-        finalizedBy: {
-          select: {
-            fullName: true,
-          },
-        },
-      },
-    },
-    settledBy: {
-      select: {
-        fullName: true,
-      },
-    },
-    allocations: {
-      select: {
-        id: true,
-        amount: true,
-        installmentId: true,
-        supplierPayment: {
+        dueDate: true,
+        settledAt: true,
+        createdAt: true,
+        supplier: {
           select: {
             id: true,
-            amount: true,
-            paymentMethod: true,
-            paidAt: true,
-            recordedBy: { select: { fullName: true } },
-            dailyCashPayment: {
+            name: true,
+          },
+        },
+        invoice: {
+          select: {
+            id: true,
+            submittedAt: true,
+            invoiceNumber: true,
+            supplierReference: true,
+            status: true,
+            receiptObjectPath: true,
+            finalizedBy: {
               select: {
-                dailyCashDay: { select: { businessDate: true } },
+                fullName: true,
               },
             },
           },
         },
+        settledBy: {
+          select: {
+            fullName: true,
+          },
+        },
+        allocations: {
+          select: {
+            id: true,
+            amount: true,
+            installmentId: true,
+            supplierPayment: {
+              select: {
+                id: true,
+                amount: true,
+                paymentMethod: true,
+                paidAt: true,
+                recordedBy: { select: { fullName: true } },
+                dailyCashPayment: {
+                  select: {
+                    dailyCashDay: { select: { businessDate: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { allocatedAt: "desc" },
+        },
+        installments: {
+          select: {
+            id: true,
+            amount: true,
+            paidAmount: true,
+            dueDate: true,
+            status: true,
+          },
+          orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+        },
       },
-      orderBy: { allocatedAt: "desc" },
-    },
-    installments: {
-      select: {
-        id: true,
-        amount: true,
-        paidAmount: true,
-        dueDate: true,
-        status: true,
-      },
-      orderBy: [
-        { dueDate: "asc" },
-        { sequence: "asc" },
-      ],
-    },
-  },
-  orderBy: [
-    { dueDate: "asc" },
-    { createdAt: "desc" },
-  ],
-  take: 500,
-}),
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+      take: 500,
+    }),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: {
@@ -365,55 +362,61 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
         ...bill,
         payments: [
           ...bill.allocations
-            .reduce((grouped, allocation) => {
-              const payment = allocation.supplierPayment;
-              const existing = grouped.get(payment.id);
-              if (existing) {
-                existing.allocatedAmount += Number(allocation.amount);
-                existing.legacyAllocationAfterSchedule ||=
-                  !allocation.installmentId && bill.installments.length > 0;
-                return grouped;
-              }
-              const dailyCashBusinessDate = payment.dailyCashPayment
-                ? formatBusinessDateKey(
-                    payment.dailyCashPayment.dailyCashDay.businessDate,
-                  )
-                : null;
-              grouped.set(payment.id, {
-                id: payment.id,
-                allocatedAmount: Number(allocation.amount),
-                totalPaymentAmount: Number(payment.amount),
-                paymentMethod: payment.paymentMethod,
-                paidAt: payment.paidAt,
-                recordedBy: payment.recordedBy,
-                legacyAllocationAfterSchedule:
-                  !allocation.installmentId && bill.installments.length > 0,
-                dailyCashBusinessDate,
-                reversalError: getSupplierPaymentReversalError({
+            .reduce(
+              (grouped, allocation) => {
+                const payment = allocation.supplierPayment;
+                const existing = grouped.get(payment.id);
+                if (existing) {
+                  existing.allocatedAmount += Number(allocation.amount);
+                  existing.legacyAllocationAfterSchedule ||=
+                    !allocation.installmentId && bill.installments.length > 0;
+                  return grouped;
+                }
+                const dailyCashBusinessDate = payment.dailyCashPayment
+                  ? formatBusinessDateKey(
+                      payment.dailyCashPayment.dailyCashDay.businessDate,
+                    )
+                  : null;
+                grouped.set(payment.id, {
+                  id: payment.id,
+                  allocatedAmount: Number(allocation.amount),
+                  totalPaymentAmount: Number(payment.amount),
+                  paymentMethod: payment.paymentMethod,
+                  paidAt: payment.paidAt,
+                  recordedBy: payment.recordedBy,
                   legacyAllocationAfterSchedule:
                     !allocation.installmentId && bill.installments.length > 0,
-                  dailyCashLinked: Boolean(payment.dailyCashPayment),
-                  dailyCashLocked: dailyCashBusinessDate
-                    ? isDailyCashLocked(dailyCashBusinessDate, now)
-                    : false,
-                  canManageDailyCash: hasPermission(
-                    currentUser,
-                    PERMISSIONS.DAILY_CASH_MANAGE,
-                  ),
-                }),
-              });
-              return grouped;
-            }, new Map<string, {
-              id: string;
-              allocatedAmount: number;
-              totalPaymentAmount: number;
-              paymentMethod: string | null;
-              paidAt: Date;
-              recordedBy: { fullName: string };
-              legacyAllocationAfterSchedule: boolean;
-              dailyCashBusinessDate: string | null;
-              reversalError: string | null;
-            }>())
+                  dailyCashBusinessDate,
+                  reversalError: getSupplierPaymentReversalError({
+                    legacyAllocationAfterSchedule:
+                      !allocation.installmentId && bill.installments.length > 0,
+                    dailyCashLinked: Boolean(payment.dailyCashPayment),
+                    dailyCashLocked: dailyCashBusinessDate
+                      ? isDailyCashLocked(dailyCashBusinessDate, now)
+                      : false,
+                    canManageDailyCash: hasPermission(
+                      currentUser,
+                      PERMISSIONS.DAILY_CASH_MANAGE,
+                    ),
+                  }),
+                });
+                return grouped;
+              },
+              new Map<
+                string,
+                {
+                  id: string;
+                  allocatedAmount: number;
+                  totalPaymentAmount: number;
+                  paymentMethod: string | null;
+                  paidAt: Date;
+                  recordedBy: { fullName: string };
+                  legacyAllocationAfterSchedule: boolean;
+                  dailyCashBusinessDate: string | null;
+                  reversalError: string | null;
+                }
+              >(),
+            )
             .values(),
         ],
       },

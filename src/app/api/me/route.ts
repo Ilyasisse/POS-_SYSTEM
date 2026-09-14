@@ -12,10 +12,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Not authenticated" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
     const appUser = await prisma.user.findUnique({
@@ -34,14 +31,14 @@ export async function GET() {
     if (!appUser) {
       return NextResponse.json(
         { error: "User account not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!appUser.isActive) {
       return NextResponse.json(
         { error: "User account is inactive" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -51,7 +48,7 @@ export async function GET() {
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

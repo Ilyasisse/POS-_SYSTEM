@@ -193,7 +193,6 @@ function ManagerPageHeader({
           Business day: {businessDayLabel}
         </p>
       </div>
-
     </div>
   );
 }
@@ -615,81 +614,82 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
     businessDayEnd,
   );
 
-  const [currentUser, params, [waiters, openTableOrders, paymentDeferrals]] = await Promise.all([
-    requirePermission(PERMISSIONS.DASHBOARD_VIEW),
-    searchParams,
-    Promise.all([
-      prisma.user.findMany({
-        where: { role: "WAITER", isActive: true },
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          role: true,
-          waiterOrders: {
-            where: {
-              createdAt: {
-                gte: businessDayStart,
-                lt: businessDayEnd,
+  const [currentUser, params, [waiters, openTableOrders, paymentDeferrals]] =
+    await Promise.all([
+      requirePermission(PERMISSIONS.DASHBOARD_VIEW),
+      searchParams,
+      Promise.all([
+        prisma.user.findMany({
+          where: { role: "WAITER", isActive: true },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            role: true,
+            waiterOrders: {
+              where: {
+                createdAt: {
+                  gte: businessDayStart,
+                  lt: businessDayEnd,
+                },
               },
-            },
-            select: {
-              id: true,
-              total: true,
-              createdAt: true,
-              payments: { select: { id: true } },
-            },
-            orderBy: { createdAt: "desc" },
-          },
-          shifts: {
-            where: {
-              openedAt: {
-                gte: businessDayStart,
-                lt: businessDayEnd,
+              select: {
+                id: true,
+                total: true,
+                createdAt: true,
+                payments: { select: { id: true } },
               },
+              orderBy: { createdAt: "desc" },
             },
-            select: {
-              id: true,
-              openingAmount: true,
-              closingAmount: true,
-              reportedSales: true,
-              businessDate: true,
-              openedAt: true,
-              closedAt: true,
+            shifts: {
+              where: {
+                openedAt: {
+                  gte: businessDayStart,
+                  lt: businessDayEnd,
+                },
+              },
+              select: {
+                id: true,
+                openingAmount: true,
+                closingAmount: true,
+                reportedSales: true,
+                businessDate: true,
+                openedAt: true,
+                closedAt: true,
+              },
+              orderBy: { openedAt: "desc" },
+              take: 1,
             },
-            orderBy: { openedAt: "desc" },
-            take: 1,
           },
-        },
-        orderBy: { fullName: "asc" },
-      }),
-      prisma.order.findMany({
-        where: {
-          status: "OPEN",
-          type: "DINE_IN",
-          tableId: { not: null },
-          createdAt: {
-            gte: businessDayStart,
-            lt: businessDayEnd,
+          orderBy: { fullName: "asc" },
+        }),
+        prisma.order.findMany({
+          where: {
+            status: "OPEN",
+            type: "DINE_IN",
+            tableId: { not: null },
+            createdAt: {
+              gte: businessDayStart,
+              lt: businessDayEnd,
+            },
           },
-        },
-        orderBy: { createdAt: "desc" },
-        include: {
-          table: { select: { id: true, name: true } },
-          cashier: { select: { fullName: true } },
-          orderItems: {
-            select: { id: true, productName: true, qty: true },
-            orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: "desc" },
+          include: {
+            table: { select: { id: true, name: true } },
+            cashier: { select: { fullName: true } },
+            orderItems: {
+              select: { id: true, productName: true, qty: true },
+              orderBy: { createdAt: "asc" },
+            },
           },
-        },
-      }),
-      prisma.paymentDeferral.findMany({
-        where: { resolvedAt: null },
-        orderBy: { createdAt: "desc" },
-        include: { table: { select: { name: true } } },
-      }),
-    ]),
-  ]);
+        }),
+        prisma.paymentDeferral.findMany({
+          where: { resolvedAt: null },
+          orderBy: { createdAt: "desc" },
+          include: { table: { select: { name: true } } },
+        }),
+      ]),
+    ]);
   const balanceNotice = getBalanceStatusMessage(params?.balanceStatus);
 
   const summaries = waiters.map((waiter) => {
