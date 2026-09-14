@@ -17,7 +17,7 @@ import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
-import RevertPaymentButton from "@/app/admin/reports/supplier-bills/RevertPaymentButton";
+import RevertPaymentButton from "../../supplier-bills/RevertPaymentButton";
 import { recordSupplierAdvance } from "./actions";
 
 type MoneyValue = { toString(): string };
