@@ -118,6 +118,10 @@ export function useWaiterCart() {
     setCart([]);
   };
 
+  const replaceCart = (nextCart: CartLine[]) => {
+    setCart(nextCart);
+  };
+
   const removeFromCart = (cartKey: string) => {
     setCart((current) => current.filter((item) => item.cartKey !== cartKey));
   };
@@ -136,6 +140,7 @@ export function useWaiterCart() {
     changeQuantity,
     removeFromCart,
     clearCart,
+    replaceCart,
     calculateCartTotal,
   };
 }
