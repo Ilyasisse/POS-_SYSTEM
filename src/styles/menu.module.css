@@ -1,8 +1,20 @@
 .menuShell {
   background:
-    radial-gradient(circle at top left, rgba(251, 191, 36, 0.18), transparent 32%),
-    radial-gradient(circle at 85% 12%, rgba(45, 212, 191, 0.14), transparent 28%),
-    radial-gradient(circle at 50% 100%, rgba(244, 114, 182, 0.12), transparent 35%),
+    radial-gradient(
+      circle at top left,
+      rgba(251, 191, 36, 0.18),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 85% 12%,
+      rgba(45, 212, 191, 0.14),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgba(244, 114, 182, 0.12),
+      transparent 35%
+    ),
     linear-gradient(135deg, #120d09 0%, #20140f 48%, #0f1017 100%);
 }
 
@@ -21,7 +33,11 @@
 .glassPanel {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.06)
+    ),
     rgba(15, 16, 23, 0.68);
   box-shadow:
     0 25px 80px rgba(0, 0, 0, 0.32),
@@ -33,7 +49,11 @@
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.05)
+    ),
     rgba(15, 16, 23, 0.72);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.28),
@@ -45,7 +65,11 @@
   position: relative;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.04)
+    ),
     rgba(15, 16, 23, 0.72);
   box-shadow:
     0 20px 55px rgba(0, 0, 0, 0.24),

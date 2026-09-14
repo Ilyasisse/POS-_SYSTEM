@@ -78,16 +78,37 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         <MetricCard label="Kitchen Team" value={kitchenStaff} />
       </section>
 
-      <section aria-label="Staff administration" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        aria-label="Staff administration"
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      >
         {[
-          ["Employment", "Compensation profiles and effective dates", "/admin/staff/employment"],
-          ["Schedules", "Plan station shifts and prevent conflicts", "/admin/staff/schedules"],
-          ["Attendance", "Approve attendance, lateness and overtime", "/admin/staff/attendance"],
-          ["Payroll", "Preview, approve and finalize payroll", "/admin/staff/payroll"],
+          [
+            "Employment",
+            "Compensation profiles and effective dates",
+            "/admin/staff/employment",
+          ],
+          [
+            "Schedules",
+            "Plan station shifts and prevent conflicts",
+            "/admin/staff/schedules",
+          ],
+          [
+            "Attendance",
+            "Approve attendance, lateness and overtime",
+            "/admin/staff/attendance",
+          ],
+          [
+            "Payroll",
+            "Preview, approve and finalize payroll",
+            "/admin/staff/payroll",
+          ],
         ].map(([title, description, href]) => (
           <Card className="p-5" key={href}>
             <h2 className="font-bold">{title}</h2>
-            <p className="mt-1 min-h-10 text-sm text-slate-500">{description}</p>
+            <p className="mt-1 min-h-10 text-sm text-slate-500">
+              {description}
+            </p>
             <Button asChild variant="outline" className="mt-4">
               <Link href={href}>Open {title}</Link>
             </Button>
@@ -105,9 +126,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         <SearchToolbar
           placeholder="Search staff..."
           defaultValue={params?.q ?? ""}
-          hasActiveFilters={Boolean(
-            q || role !== "all" || status !== "all",
-          )}
+          hasActiveFilters={Boolean(q || role !== "all" || status !== "all")}
           clearHref="/admin/staff"
         >
           <AutoSubmitSelect name="role" defaultValue={role}>

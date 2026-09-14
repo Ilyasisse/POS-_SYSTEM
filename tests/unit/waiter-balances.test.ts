@@ -66,10 +66,7 @@ test("accepts only real ISO calendar dates", () => {
 test("blocks dates before activation and before the POS day has closed", () => {
   const now = new Date("2026-07-03T09:00:00.000Z");
 
-  assert.throws(
-    () => assertLedgerBusinessDate("2026-06-30", now),
-    /July 1/,
-  );
+  assert.throws(() => assertLedgerBusinessDate("2026-06-30", now), /July 1/);
   assert.equal(assertLedgerBusinessDate("2026-07-02", now), "2026-07-02");
   assert.throws(
     () => assertLedgerBusinessDate("2026-07-03", now),
@@ -175,14 +172,8 @@ test("clamps the default waiter-balance date to ledger activation", () => {
 });
 
 test("activates at the start of the July 1 POS business day", () => {
-  assert.equal(
-    isLedgerActive(new Date("2026-07-01T03:59:59.000Z")),
-    false,
-  );
-  assert.equal(
-    isLedgerActive(new Date("2026-07-01T04:00:00.000Z")),
-    true,
-  );
+  assert.equal(isLedgerActive(new Date("2026-07-01T03:59:59.000Z")), false);
+  assert.equal(isLedgerActive(new Date("2026-07-01T04:00:00.000Z")), true);
 });
 
 test("strictly parses currency form input", () => {

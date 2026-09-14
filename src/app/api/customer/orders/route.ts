@@ -9,7 +9,10 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
-import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import {
+  selectEffectiveRecipe,
+  snapshotInventoryCost,
+} from "@/lib/inventory/inventory-domain";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type CustomerOrderItemModifierInput = {
@@ -109,7 +112,10 @@ export async function POST(request: Request) {
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json({ error: "No items provided." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No items provided." },
+        { status: 400 },
+      );
     }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
@@ -143,7 +149,14 @@ export async function POST(request: Request) {
           cost: true,
           recipeVersions: {
             where: { isActive: true },
-            select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
+            select: {
+              id: true,
+              standardCost: true,
+              costCoverage: true,
+              effectiveFrom: true,
+              effectiveTo: true,
+              isActive: true,
+            },
           },
           category: {
             select: {
@@ -187,11 +200,15 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
     const modifierMap = new Map(
       modifierRecords.map((modifier) => [modifier.id, modifier]),
     );
-    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
+    const baristaMap = new Map(
+      baristas.map((barista) => [barista.id, barista]),
+    );
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -208,7 +225,9 @@ export async function POST(request: Request) {
 
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
-      const incomingModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
+      const incomingModifiers = Array.isArray(item.modifiers)
+        ? item.modifiers
+        : [];
       const selectedModifiers: SelectedModifierLine[] = [];
       const handledModifierIds = new Set<string>();
 
@@ -227,8 +246,11 @@ export async function POST(request: Request) {
             groupId: `placeholder-group-${incomingModifier.groupName ?? "custom"}`,
             groupName: incomingModifier.groupName?.trim() || "Custom",
             optionId: incomingModifier.modifierId,
-            optionName: incomingModifier.modifierName?.trim() || "Custom option",
-            price: roundCurrency(Math.max(0, Number(incomingModifier.price) || 0)),
+            optionName:
+              incomingModifier.modifierName?.trim() || "Custom option",
+            price: roundCurrency(
+              Math.max(0, Number(incomingModifier.price) || 0),
+            ),
             qty: Math.max(1, Number(incomingModifier.qty) || 1),
           });
           continue;
@@ -304,17 +326,23 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
-      id: crypto.randomUUID(),
-      productName: line.productName,
-      qty: line.qty,
-      station: line.station,
-      assignedUserId: line.assignedBaristaId,
-      assignedUserName: line.assignedBaristaName,
-      modifiers: line.modifiers,
-    }));
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
+      (line) => ({
+        id: crypto.randomUUID(),
+        productName: line.productName,
+        qty: line.qty,
+        station: line.station,
+        assignedUserId: line.assignedBaristaId,
+        assignedUserName: line.assignedBaristaName,
+        modifiers: line.modifiers,
+      }),
+    );
 
-    const orderNote = buildCustomerOrderNote(customerName, customerPhone, notes);
+    const orderNote = buildCustomerOrderNote(
+      customerName,
+      customerPhone,
+      notes,
+    );
 
     const result = await prisma.$transaction(
       async (tx) => {

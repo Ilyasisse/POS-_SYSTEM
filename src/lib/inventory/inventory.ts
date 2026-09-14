@@ -2,7 +2,10 @@ import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { decimalQuantity } from "@/lib/inventory/inventory-domain";
-import { appendStockEvent, deductSaleInventory } from "@/lib/inventory/stock-ledger";
+import {
+  appendStockEvent,
+  deductSaleInventory,
+} from "@/lib/inventory/stock-ledger";
 
 export type InventorySaleLine = {
   productId: string;
@@ -51,8 +54,6 @@ function toValidQuantity(value: number | Prisma.Decimal) {
   return Number(decimalQuantity(value));
 }
 
-
-
 /**
  * Calculates the inventory alert status for a stock quantity and low-stock threshold.
  *
@@ -96,9 +97,7 @@ function buildInventoryAlert(
 ): { status: InventoryAlertStatus; alert: InventoryAlert | null } {
   const status = getInventoryAlertStatus(nextStockQty, nextLowStockThreshold);
   const shouldAlert =
-    delta <= 0 &&
-    status !== "OK" &&
-    status !== item.inventoryAlertStatus;
+    delta <= 0 && status !== "OK" && status !== item.inventoryAlertStatus;
 
   return {
     status,
@@ -392,22 +391,50 @@ export async function deductProductInventoryForSale(
   sourceOrderId: string | null = null,
   actorUserId?: string | null,
 ) {
-  const events = await deductSaleInventory(tx, lines, sourceOrderId, actorUserId);
-  const productIds = [...new Set(events.flatMap((event) => event.productId ? [event.productId] : []))];
-  const supplyIds = [...new Set(events.flatMap((event) => event.supplyId ? [event.supplyId] : []))];
+  const events = await deductSaleInventory(
+    tx,
+    lines,
+    sourceOrderId,
+    actorUserId,
+  );
+  const productIds = [
+    ...new Set(
+      events.flatMap((event) => (event.productId ? [event.productId] : [])),
+    ),
+  ];
+  const supplyIds = [
+    ...new Set(
+      events.flatMap((event) => (event.supplyId ? [event.supplyId] : [])),
+    ),
+  ];
   const [products, supplies] = await Promise.all([
     tx.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, name: true, stockQty: true, lowStockThreshold: true, inventoryAlertStatus: true },
+      select: {
+        id: true,
+        name: true,
+        stockQty: true,
+        lowStockThreshold: true,
+        inventoryAlertStatus: true,
+      },
     }),
     tx.inventorySupply.findMany({
       where: { id: { in: supplyIds } },
-      select: { id: true, name: true, stockQty: true, lowStockThreshold: true, inventoryAlertStatus: true },
+      select: {
+        id: true,
+        name: true,
+        stockQty: true,
+        lowStockThreshold: true,
+        inventoryAlertStatus: true,
+      },
     }),
   ]);
   const alerts: InventoryAlert[] = [];
   const statusUpdates = [
-    ...products.map((product) => ({ ...product, itemType: "Product" as const })),
+    ...products.map((product) => ({
+      ...product,
+      itemType: "Product" as const,
+    })),
     ...supplies.map((supply) => ({ ...supply, itemType: "Supply" as const })),
   ].map((item) => {
     const stockQty = Number(item.stockQty);
@@ -422,9 +449,15 @@ export async function deductProductInventoryForSale(
     );
     if (alert) alerts.push(alert);
     if (item.itemType === "Product") {
-      return tx.product.update({ where: { id: item.id }, data: { inventoryAlertStatus: status } });
+      return tx.product.update({
+        where: { id: item.id },
+        data: { inventoryAlertStatus: status },
+      });
     }
-    return tx.inventorySupply.update({ where: { id: item.id }, data: { inventoryAlertStatus: status } });
+    return tx.inventorySupply.update({
+      where: { id: item.id },
+      data: { inventoryAlertStatus: status },
+    });
   });
   await Promise.all(statusUpdates);
   return alerts;
@@ -480,7 +513,10 @@ export async function setProductInventoryLevel(
     delta,
   );
 
-  await tx.product.update({ where: { id: product.id }, data: { trackStock: true, lowStockThreshold, inventoryAlertStatus: status } });
+  await tx.product.update({
+    where: { id: product.id },
+    data: { trackStock: true, lowStockThreshold, inventoryAlertStatus: status },
+  });
   if (!deltaDecimal.isZero()) {
     await appendStockEvent(tx, {
       productId: product.id,
@@ -566,7 +602,10 @@ export async function setSupplyInventoryLevel(
         }
       : null);
 
-  await tx.inventorySupply.update({ where: { id: supply.id }, data: { lowStockThreshold, inventoryAlertStatus: status } });
+  await tx.inventorySupply.update({
+    where: { id: supply.id },
+    data: { lowStockThreshold, inventoryAlertStatus: status },
+  });
 
   if (delta !== 0) {
     await appendStockEvent(tx, {

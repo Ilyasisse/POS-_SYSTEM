@@ -56,7 +56,9 @@ export default function RevertPaymentButton({
         toast({
           tone: "error",
           description:
-            error instanceof Error ? error.message : "Could not revert payment.",
+            error instanceof Error
+              ? error.message
+              : "Could not revert payment.",
         });
       }
     });
@@ -75,7 +77,8 @@ export default function RevertPaymentButton({
           <AlertDialogDescription>
             This permanently deletes the full supplier payment, removes its
             invoice allocations, and recalculates every affected balance. Any
-            invoice paid by this payment may reopen. This action cannot be undone.
+            invoice paid by this payment may reopen. This action cannot be
+            undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

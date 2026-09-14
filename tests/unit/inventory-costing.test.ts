@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Prisma } from "@prisma/client";
-import { getPermissionsForRole, PERMISSIONS } from "../../src/lib/auth/permissions";
+import {
+  getPermissionsForRole,
+  PERMISSIONS,
+} from "../../src/lib/auth/permissions";
 import {
   calculateCountVariance,
   calculateRecipeStandardCost,
@@ -34,7 +37,10 @@ test("kilograms convert confidently to grams", () => {
 });
 
 test("grams remain grams", () => {
-  assert.equal(convertLegacyQuantity("12.5", "grams").quantity.toString(), "12.5");
+  assert.equal(
+    convertLegacyQuantity("12.5", "grams").quantity.toString(),
+    "12.5",
+  );
 });
 
 test("litres convert confidently to millilitres", () => {
@@ -80,9 +86,24 @@ test("recipe cost remains unavailable when an ingredient has no standard cost", 
 test("effective recipe selection honors dates and chooses the newest version", () => {
   const selected = selectEffectiveRecipe(
     [
-      { id: "old", effectiveFrom: new Date("2026-01-01"), effectiveTo: null, isActive: true },
-      { id: "new", effectiveFrom: new Date("2026-07-01"), effectiveTo: null, isActive: true },
-      { id: "future", effectiveFrom: new Date("2027-01-01"), effectiveTo: null, isActive: true },
+      {
+        id: "old",
+        effectiveFrom: new Date("2026-01-01"),
+        effectiveTo: null,
+        isActive: true,
+      },
+      {
+        id: "new",
+        effectiveFrom: new Date("2026-07-01"),
+        effectiveTo: null,
+        isActive: true,
+      },
+      {
+        id: "future",
+        effectiveFrom: new Date("2027-01-01"),
+        effectiveTo: null,
+        isActive: true,
+      },
     ],
     new Date("2026-08-08"),
   );
@@ -91,7 +112,11 @@ test("effective recipe selection honors dates and chooses the newest version", (
 
 test("recipe snapshot takes precedence over product standard cost", () => {
   const snapshot = snapshotInventoryCost(
-    { id: "recipe-2", standardCost: new Prisma.Decimal("1.25"), costCoverage: "COMPLETE" },
+    {
+      id: "recipe-2",
+      standardCost: new Prisma.Decimal("1.25"),
+      costCoverage: "COMPLETE",
+    },
     new Prisma.Decimal("2.00"),
   );
   assert.equal(snapshot.unitCostSnapshot?.toString(), "1.25");
@@ -110,7 +135,11 @@ test("product standard cost is the fallback and missing costs are not fabricated
 
 test("an effective recipe with incomplete cost stays linked and does not use product fallback", () => {
   const snapshot = snapshotInventoryCost(
-    { id: "recipe-incomplete", standardCost: null, costCoverage: "MISSING_COST" },
+    {
+      id: "recipe-incomplete",
+      standardCost: null,
+      costCoverage: "MISSING_COST",
+    },
     new Prisma.Decimal("9.99"),
   );
   assert.equal(snapshot.unitCostSnapshot, null);

@@ -39,7 +39,8 @@ export default function PaymentForm({
       } catch (error) {
         toast({
           tone: "error",
-          description: error instanceof Error ? error.message : "Payment failed.",
+          description:
+            error instanceof Error ? error.message : "Payment failed.",
         });
       }
     });

@@ -17,7 +17,7 @@ export {
   calculateWaiterBalance,
   getBusinessDayRangeForKey,
   getCurrentBusinessDateKey,
-    shiftBusinessDateKey,
+  shiftBusinessDateKey,
   getDefaultWaiterBalanceDateKey,
   isLedgerActive,
   parseBusinessDateKey,
@@ -61,11 +61,10 @@ export async function getWaiterOpeningBalanceForBusinessDate(
   businessDateKey: string,
   database: LedgerDatabase = prisma,
 ) {
-  const initialization =
-    await database.waiterBalanceInitialization.findUnique({
-      where: { waiterId },
-      select: { openingBalance: true },
-    });
+  const initialization = await database.waiterBalanceInitialization.findUnique({
+    where: { waiterId },
+    select: { openingBalance: true },
+  });
 
   if (!initialization) {
     throw new Error("This waiter needs a one-time opening balance.");
@@ -114,10 +113,14 @@ export async function initializeWaiterBalance(input: {
 
   const openingBalance = roundCurrency(input.openingBalance);
   try {
-    assertLedgerCurrencyAmount(input.openingBalance, "Opening balance must be zero or a negative amount.", {
-      allowNegative: true,
-      requireNonPositive: true,
-    });
+    assertLedgerCurrencyAmount(
+      input.openingBalance,
+      "Opening balance must be zero or a negative amount.",
+      {
+        allowNegative: true,
+        requireNonPositive: true,
+      },
+    );
   } catch {
     throw new Error("Opening balance must be zero or a negative amount.");
   }
@@ -131,7 +134,9 @@ export async function initializeWaiterBalance(input: {
 
       if (!waiter) throw new Error("Waiter not found.");
       if (!waiter.isActive) {
-        throw new Error("Inactive waiters cannot receive a new opening balance.");
+        throw new Error(
+          "Inactive waiters cannot receive a new opening balance.",
+        );
       }
 
       const existing = await tx.waiterBalanceInitialization.findUnique({
@@ -215,10 +220,7 @@ export async function saveWaiterSettlement(input: {
   now?: Date;
 }) {
   const now = input.now ?? new Date();
-  const businessDateKey = assertLedgerBusinessDate(
-    input.businessDateKey,
-    now,
-  );
+  const businessDateKey = assertLedgerBusinessDate(input.businessDateKey, now);
   const reportedSales = roundCurrency(input.reportedSales);
   const endDayAmount = roundCurrency(input.endDayAmount);
 
@@ -338,10 +340,7 @@ export async function reopenWaiterSettlement(input: {
   now?: Date;
 }) {
   const now = input.now ?? new Date();
-  const businessDateKey = assertLedgerBusinessDate(
-    input.businessDateKey,
-    now,
-  );
+  const businessDateKey = assertLedgerBusinessDate(input.businessDateKey, now);
 
   return prisma.$transaction(
     async (tx) => {

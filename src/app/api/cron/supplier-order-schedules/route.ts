@@ -15,7 +15,10 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Scheduled supplier ordering cron failed:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Scheduled ordering failed." },
+      {
+        error:
+          error instanceof Error ? error.message : "Scheduled ordering failed.",
+      },
       { status: 500 },
     );
   }

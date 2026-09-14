@@ -264,12 +264,18 @@ function CartMessages({ message, error }: { message: string; error: string }) {
   return (
     <>
       {message ? (
-        <div role="status" className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+        <div
+          role="status"
+          className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800"
+        >
           {message}
         </div>
       ) : null}
       {error ? (
-        <div role="alert" className="rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div
+          role="alert"
+          className="rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700"
+        >
           {error}
         </div>
       ) : null}
@@ -353,9 +359,7 @@ function CustomerCartContent({
   );
 }
 
-export function CustomerCartPanel(
-  props: Omit<CustomerCartSheetProps, "open">,
-) {
+export function CustomerCartPanel(props: Omit<CustomerCartSheetProps, "open">) {
   return (
     <aside
       aria-label="Current table order"

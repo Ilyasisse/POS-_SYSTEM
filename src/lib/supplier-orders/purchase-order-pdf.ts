@@ -1,4 +1,10 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 
 export type PurchaseOrderPdfInput = {
   orderNumber: number;
@@ -49,7 +55,10 @@ function date(value: Date) {
 function fitText(value: string, font: PDFFont, size: number, width: number) {
   if (font.widthOfTextAtSize(value, size) <= width) return value;
   let output = value;
-  while (output.length > 1 && font.widthOfTextAtSize(`${output}...`, size) > width) {
+  while (
+    output.length > 1 &&
+    font.widthOfTextAtSize(`${output}...`, size) > width
+  ) {
     output = output.slice(0, -1);
   }
   return `${output}...`;
@@ -85,16 +94,37 @@ export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
   let y = PAGE_HEIGHT - MARGIN;
 
   const drawHeader = (continuation = false) => {
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 112, width: PAGE_WIDTH, height: 112, color: PALE_BLUE });
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 112, width: 8, height: 112, color: BLUE });
-    page.drawText("MASH ALLAH CAFE", { x: MARGIN, y: PAGE_HEIGHT - 52, font: bold, size: 11, color: BLUE });
-    page.drawText(continuation ? "PURCHASE ORDER - CONTINUED" : "PURCHASE ORDER", {
-      x: MARGIN,
-      y: PAGE_HEIGHT - 80,
-      font: bold,
-      size: 23,
-      color: INK,
+    page.drawRectangle({
+      x: 0,
+      y: PAGE_HEIGHT - 112,
+      width: PAGE_WIDTH,
+      height: 112,
+      color: PALE_BLUE,
     });
+    page.drawRectangle({
+      x: 0,
+      y: PAGE_HEIGHT - 112,
+      width: 8,
+      height: 112,
+      color: BLUE,
+    });
+    page.drawText("MASH ALLAH CAFE", {
+      x: MARGIN,
+      y: PAGE_HEIGHT - 52,
+      font: bold,
+      size: 11,
+      color: BLUE,
+    });
+    page.drawText(
+      continuation ? "PURCHASE ORDER - CONTINUED" : "PURCHASE ORDER",
+      {
+        x: MARGIN,
+        y: PAGE_HEIGHT - 80,
+        font: bold,
+        size: 23,
+        color: INK,
+      },
+    );
     const po = `PO #${input.orderNumber}`;
     page.drawText(po, {
       x: PAGE_WIDTH - MARGIN - bold.widthOfTextAtSize(po, 16),
@@ -115,7 +145,13 @@ export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
   };
 
   const drawTableHeader = () => {
-    page.drawRectangle({ x: MARGIN, y: y - 22, width: PAGE_WIDTH - 2 * MARGIN, height: 26, color: INK });
+    page.drawRectangle({
+      x: MARGIN,
+      y: y - 22,
+      width: PAGE_WIDTH - 2 * MARGIN,
+      height: 26,
+      color: INK,
+    });
     const labels = [
       ["ITEM", MARGIN + 8],
       ["UNIT", 288],
@@ -124,7 +160,13 @@ export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
       ["TOTAL", 501],
     ] as const;
     for (const [label, x] of labels) {
-      page.drawText(label, { x, y: y - 13, font: bold, size: 8, color: rgb(1, 1, 1) });
+      page.drawText(label, {
+        x,
+        y: y - 13,
+        font: bold,
+        size: 8,
+        color: rgb(1, 1, 1),
+      });
     }
     y -= 28;
   };
@@ -137,10 +179,31 @@ export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
   };
 
   drawHeader();
-  page.drawText("SUPPLIER", { x: MARGIN, y, font: bold, size: 8, color: MUTED });
-  page.drawText(fitText(input.supplierName, bold, 15, 225), { x: MARGIN, y: y - 23, font: bold, size: 15, color: INK });
-  const contact = [input.supplierContact, input.supplierPhone].filter(Boolean).join(" | ");
-  if (contact) page.drawText(fitText(contact, regular, 9, 225), { x: MARGIN, y: y - 40, font: regular, size: 9, color: MUTED });
+  page.drawText("SUPPLIER", {
+    x: MARGIN,
+    y,
+    font: bold,
+    size: 8,
+    color: MUTED,
+  });
+  page.drawText(fitText(input.supplierName, bold, 15, 225), {
+    x: MARGIN,
+    y: y - 23,
+    font: bold,
+    size: 15,
+    color: INK,
+  });
+  const contact = [input.supplierContact, input.supplierPhone]
+    .filter(Boolean)
+    .join(" | ");
+  if (contact)
+    page.drawText(fitText(contact, regular, 9, 225), {
+      x: MARGIN,
+      y: y - 40,
+      font: regular,
+      size: 9,
+      color: MUTED,
+    });
 
   const detailX = 330;
   const details = [
@@ -150,17 +213,48 @@ export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
   ];
   details.forEach(([label, value], index) => {
     const rowY = y - index * 22;
-    page.drawText(label, { x: detailX, y: rowY, font: regular, size: 8, color: MUTED });
-    drawRight(page, fitText(value, bold, 9, 135), detailX + 78, rowY, 135, bold, 9);
+    page.drawText(label, {
+      x: detailX,
+      y: rowY,
+      font: regular,
+      size: 8,
+      color: MUTED,
+    });
+    drawRight(
+      page,
+      fitText(value, bold, 9, 135),
+      detailX + 78,
+      rowY,
+      135,
+      bold,
+      9,
+    );
   });
   y -= 82;
   drawTableHeader();
 
   for (const item of input.items) {
     if (y < 92) nextPage();
-    page.drawLine({ start: { x: MARGIN, y: y - 22 }, end: { x: PAGE_WIDTH - MARGIN, y: y - 22 }, thickness: 0.6, color: LINE });
-    page.drawText(fitText(item.name, bold, 9, 220), { x: MARGIN + 8, y: y - 9, font: bold, size: 9, color: INK });
-    page.drawText(fitText(item.unit, regular, 9, 52), { x: 288, y: y - 9, font: regular, size: 9, color: INK });
+    page.drawLine({
+      start: { x: MARGIN, y: y - 22 },
+      end: { x: PAGE_WIDTH - MARGIN, y: y - 22 },
+      thickness: 0.6,
+      color: LINE,
+    });
+    page.drawText(fitText(item.name, bold, 9, 220), {
+      x: MARGIN + 8,
+      y: y - 9,
+      font: bold,
+      size: 9,
+      color: INK,
+    });
+    page.drawText(fitText(item.unit, regular, 9, 52), {
+      x: 288,
+      y: y - 9,
+      font: regular,
+      size: 9,
+      color: INK,
+    });
     drawRight(page, item.quantity, 342, y - 9, 48, regular);
     drawRight(page, money(item.unitPrice), 397, y - 9, 69, regular);
     drawRight(page, money(item.lineTotal), 473, y - 9, 74, bold);
@@ -173,26 +267,63 @@ export async function generatePurchaseOrderPdf(input: PurchaseOrderPdfInput) {
     drawHeader(true);
   }
   y -= 12;
-  page.drawRectangle({ x: 365, y: y - 42, width: 182, height: 50, color: PALE_BLUE });
-  page.drawText("ORDER TOTAL", { x: 378, y: y - 9, font: bold, size: 8, color: MUTED });
+  page.drawRectangle({
+    x: 365,
+    y: y - 42,
+    width: 182,
+    height: 50,
+    color: PALE_BLUE,
+  });
+  page.drawText("ORDER TOTAL", {
+    x: 378,
+    y: y - 9,
+    font: bold,
+    size: 8,
+    color: MUTED,
+  });
   drawRight(page, money(input.totalAmount), 374, y - 31, 160, bold, 18);
   y -= 70;
 
   if (input.notes) {
-    page.drawText("ORDER NOTES", { x: MARGIN, y, font: bold, size: 8, color: MUTED });
-    page.drawText(fitText(input.notes.replace(/\s+/g, " "), regular, 9, PAGE_WIDTH - 2 * MARGIN), {
+    page.drawText("ORDER NOTES", {
       x: MARGIN,
-      y: y - 18,
-      font: regular,
-      size: 9,
-      color: INK,
+      y,
+      font: bold,
+      size: 8,
+      color: MUTED,
     });
+    page.drawText(
+      fitText(
+        input.notes.replace(/\s+/g, " "),
+        regular,
+        9,
+        PAGE_WIDTH - 2 * MARGIN,
+      ),
+      {
+        x: MARGIN,
+        y: y - 18,
+        font: regular,
+        size: 9,
+        color: INK,
+      },
+    );
   }
 
   pages.forEach((current, index) => {
     const footer = `Mash Allah Cafe  |  PO #${input.orderNumber}  |  Page ${index + 1} of ${pages.length}`;
-    current.drawLine({ start: { x: MARGIN, y: 38 }, end: { x: PAGE_WIDTH - MARGIN, y: 38 }, thickness: 0.6, color: LINE });
-    current.drawText(footer, { x: MARGIN, y: 23, font: regular, size: 8, color: MUTED });
+    current.drawLine({
+      start: { x: MARGIN, y: 38 },
+      end: { x: PAGE_WIDTH - MARGIN, y: 38 },
+      thickness: 0.6,
+      color: LINE,
+    });
+    current.drawText(footer, {
+      x: MARGIN,
+      y: 23,
+      font: regular,
+      size: 8,
+      color: MUTED,
+    });
   });
 
   document.setTitle(`Purchase Order ${input.orderNumber}`);

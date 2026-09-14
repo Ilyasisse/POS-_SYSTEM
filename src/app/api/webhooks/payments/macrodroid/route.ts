@@ -14,7 +14,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+    const contentType =
+      request.headers.get("content-type")?.toLowerCase() ?? "";
     let sender = request.headers.get("x-sms-sender")?.trim() ?? "";
     let rawMessage = "";
     let receivedAt: Date | undefined;

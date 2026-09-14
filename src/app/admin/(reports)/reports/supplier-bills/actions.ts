@@ -60,10 +60,16 @@ export async function revertSupplierPaymentAction(paymentId: string) {
   }
 }
 
-export async function splitSupplierBillIntoInstallmentsAction(formData: FormData) {
+export async function splitSupplierBillIntoInstallmentsAction(
+  formData: FormData,
+) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
-  const dates = formData.getAll("installmentDueDate").map((value) => String(value));
-  const amounts = formData.getAll("installmentAmount").map((value) => Number(value));
+  const dates = formData
+    .getAll("installmentDueDate")
+    .map((value) => String(value));
+  const amounts = formData
+    .getAll("installmentAmount")
+    .map((value) => Number(value));
   if (!dates.length || dates.length !== amounts.length) {
     throw new Error("The installment schedule is incomplete.");
   }

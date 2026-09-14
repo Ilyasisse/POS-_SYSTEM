@@ -4,8 +4,7 @@ import { hasAnyPermission, type Permission } from "@/lib/auth/permissions";
 
 type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 type ApiAuthorizationResult =
-  | { ok: true; user: CurrentUser }
-  | { ok: false; response: NextResponse };
+  { ok: true; user: CurrentUser } | { ok: false; response: NextResponse };
 
 export async function authorizeApi(
   permission: Permission,

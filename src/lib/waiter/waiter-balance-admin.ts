@@ -69,9 +69,7 @@ export async function getWaiterBalanceAdminRows(
       where: {
         userId: { in: waiterIds },
         businessDate: {
-          gte: businessDateKeyToDatabaseDate(
-            WAITER_BALANCE_LEDGER_START_DATE,
-          ),
+          gte: businessDateKeyToDatabaseDate(WAITER_BALANCE_LEDGER_START_DATE),
           lt: selectedDatabaseDate,
         },
         closedAt: { not: null },
@@ -146,14 +144,8 @@ export async function getWaiterBalanceAdminRows(
         ? null
         : roundCurrency(Number(shift.closingAmount));
     const calculation =
-      openingBalance != null &&
-      reportedSales != null &&
-      endDayAmount != null
-        ? calculateWaiterBalance(
-            openingBalance,
-            reportedSales,
-            endDayAmount,
-          )
+      openingBalance != null && reportedSales != null && endDayAmount != null
+        ? calculateWaiterBalance(openingBalance, reportedSales, endDayAmount)
         : null;
     const capabilities = getWaiterBalanceCapabilities({
       isActive: waiter.isActive,

@@ -66,7 +66,10 @@ export async function POST(request: Request) {
     const paymentMethod = String(body.paymentMethod ?? "").trim();
 
     if (!orderId) {
-      return NextResponse.json({ error: "Order is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order is required." },
+        { status: 400 },
+      );
     }
 
     if (!isPaymentMethod(paymentMethod)) {

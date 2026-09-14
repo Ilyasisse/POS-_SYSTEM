@@ -52,7 +52,10 @@ test("converts Nairobi wall-clock schedule values to UTC and back", () => {
 });
 
 test("advances daily, weekly, and month-end recurrences in local time", () => {
-  const start = zonedDateTimeToUtc("2026-01-31T09:00", "Africa/Nairobi") as Date;
+  const start = zonedDateTimeToUtc(
+    "2026-01-31T09:00",
+    "Africa/Nairobi",
+  ) as Date;
   assert.equal(
     formatDateTimeLocal(
       advanceRecurringDate(start, "DAY", 2, "Africa/Nairobi") as Date,
@@ -160,11 +163,21 @@ test("verifies Twilio signatures and maps status callbacks", () => {
   };
   const signature = twilio.getExpectedTwilioSignature(authToken, url, params);
   assert.equal(
-    verifyTwilioSignature({ authToken, signatureHeader: signature, url, params }),
+    verifyTwilioSignature({
+      authToken,
+      signatureHeader: signature,
+      url,
+      params,
+    }),
     true,
   );
   assert.equal(
-    verifyTwilioSignature({ authToken, signatureHeader: "invalid", url, params }),
+    verifyTwilioSignature({
+      authToken,
+      signatureHeader: "invalid",
+      url,
+      params,
+    }),
     false,
   );
   assert.deepEqual(extractTwilioStatusUpdate(params), {
@@ -215,10 +228,8 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     APP_BASE_URL: "https://cafe.example.com/",
     TWILIO_EMPLOYEE_INVITATION_CONTENT_SID:
       "HX11111111111111111111111111111111",
-    TWILIO_EMPLOYEE_REMINDER_CONTENT_SID:
-      "HX22222222222222222222222222222222",
-    TWILIO_SUPPLIER_ORDER_CONTENT_SID:
-      "HX33333333333333333333333333333333",
+    TWILIO_EMPLOYEE_REMINDER_CONTENT_SID: "HX22222222222222222222222222222222",
+    TWILIO_SUPPLIER_ORDER_CONTENT_SID: "HX33333333333333333333333333333333",
   });
   const calls: Parameters<TwilioMessageClient["messages"]["create"]>[0][] = [];
   const client: TwilioMessageClient = {
@@ -244,10 +255,7 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
   assert.equal(invitationId, "SM00000000000000000000000000000001");
   assert.equal(calls[0]?.from, "whatsapp:+15553269140");
   assert.equal(calls[0]?.to, "whatsapp:+252612345678");
-  assert.equal(
-    calls[0]?.contentSid,
-    "HX11111111111111111111111111111111",
-  );
+  assert.equal(calls[0]?.contentSid, "HX11111111111111111111111111111111");
   assert.deepEqual(JSON.parse(calls[0]?.contentVariables ?? "{}"), {
     "1": "Amina",
     "2": "Jasper Market",
@@ -271,10 +279,7 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     client,
   );
   assert.equal(supplierMessageId, "SM00000000000000000000000000000002");
-  assert.equal(
-    calls[1]?.contentSid,
-    "HX33333333333333333333333333333333",
-  );
+  assert.equal(calls[1]?.contentSid, "HX33333333333333333333333333333333");
   assert.deepEqual(JSON.parse(calls[1]?.contentVariables ?? "{}"), {
     "1": "delivery-id/token/purchase-order-101.pdf",
     "2": "101",
@@ -352,14 +357,10 @@ test("generates valid one-page and multi-page purchase-order PDFs", async () => 
 
 function inMemorySchedulerLease(clock: { now: number }) {
   let current:
-    | { key: string; ownerToken: string; expiresAt: number }
-    | undefined;
+    { key: string; ownerToken: string; expiresAt: number } | undefined;
   const operations: SchedulerLeaseOperations = {
     async tryAcquire(claim: SchedulerLeaseClaim) {
-      if (
-        current?.key === claim.key &&
-        current.expiresAt > clock.now
-      ) {
+      if (current?.key === claim.key && current.expiresAt > clock.now) {
         return false;
       }
       current = {
@@ -438,7 +439,10 @@ test("recovers expired leases and releases only the current owner", async () => 
 
   clock.now += SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS;
   assert.equal(
-    await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "new-owner" }),
+    await lease.operations.tryAcquire({
+      ...staleClaim,
+      ownerToken: "new-owner",
+    }),
     true,
   );
   await lease.operations.release({
@@ -556,10 +560,7 @@ test("soft-deletes supplier-order schedules while preserving their audit history
   assert.doesNotMatch(actions, /supplierPurchaseOrder\.delete/);
   assert.doesNotMatch(actions, /supplierOrderWhatsAppDelivery\.delete/);
 
-  const service = readFileSync(
-    "src/lib/supplier-orders/service.ts",
-    "utf8",
-  );
+  const service = readFileSync("src/lib/supplier-orders/service.ts", "utf8");
   assert.ok(
     service.match(/deletedAt: null/g)?.length >= 6,
     "every scheduler stage and the transactional claim must exclude deleted schedules",
@@ -587,10 +588,7 @@ test("soft-deletes supplier-order schedules while preserving their audit history
   assert.match(deleteButton, /variant="destructive"/);
   assert.match(deleteButton, /Existing purchase orders/);
 
-  const requests = readFileSync(
-    "src/lib/supplier-orders/requests.ts",
-    "utf8",
-  );
+  const requests = readFileSync("src/lib/supplier-orders/requests.ts", "utf8");
   assert.match(requests, /recipient\.run\.schedule\.deletedAt === null/);
   assert.match(requests, /recipient\.run\.schedule\.deletedAt !== null/);
 });
