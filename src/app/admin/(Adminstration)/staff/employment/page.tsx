@@ -19,7 +19,7 @@ const label = "grid gap-1 text-sm font-semibold text-slate-700";
 export default async function EmploymentPage() {
   await requirePermission(PERMISSIONS.EMPLOYMENT_MANAGE);
   const [staff, profiles] = await Promise.all([
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: { role: { notIn: ["CUSTOMER", "SUPPLIER"] }, isActive: true },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true, role: true },

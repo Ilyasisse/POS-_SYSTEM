@@ -97,7 +97,7 @@ async function scheduleInput(formData: FormData) {
         _count: { select: { catalogItems: { where: { isActive: true } } } },
       },
     }),
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: { id: { in: employeeIds }, isActive: true },
       select: { id: true, phoneNumber: true },
     }),

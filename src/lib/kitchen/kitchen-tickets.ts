@@ -82,6 +82,7 @@ export async function createKitchenTicketState(
     lines: readonly KitchenStateLine[];
     customerName?: string | null;
     actorUserId?: string | null;
+    actorCustomerId?: string | null;
   },
 ) {
   const stations = getStationSet(input.lines);
@@ -109,6 +110,7 @@ export async function createKitchenTicketState(
           toStationStatus: "NEW",
           targetMinutesSnapshot: targetByStation.get(station) ?? null,
           actorUserId: input.actorUserId ?? null,
+          actorCustomerId: input.actorCustomerId ?? null,
         })),
       },
     },

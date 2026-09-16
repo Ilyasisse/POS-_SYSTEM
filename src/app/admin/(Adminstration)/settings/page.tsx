@@ -34,7 +34,7 @@ export default async function AdminSettingsPage() {
           isActive: true,
         },
       }),
-      prisma.user.count({
+      prisma.staff.count({
         where: {
           isActive: true,
           role: {

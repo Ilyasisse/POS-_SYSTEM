@@ -19,7 +19,7 @@ async function currentCashier() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const cashier = await prisma.user.findUnique({
+  const cashier = await prisma.staff.findUnique({
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });

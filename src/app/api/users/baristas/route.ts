@@ -13,7 +13,7 @@ export async function GET() {
     ]);
     if (!authorization.ok) return authorization.response;
 
-    const baristas = await prisma.user.findMany({
+    const baristas = await prisma.staff.findMany({
       where: {
         role: "BARISTA",
         isActive: true,

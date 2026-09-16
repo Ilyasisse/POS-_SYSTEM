@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const currentUser = await prisma.user.findUnique({
+    const currentUser = await prisma.staff.findUnique({
       where: { id: authUser.id },
       select: {
         id: true,
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
           })
         : Promise.resolve([]),
       assignedBaristaIds.length > 0
-        ? prisma.user.findMany({
+        ? prisma.staff.findMany({
             where: {
               id: { in: assignedBaristaIds },
               role: "BARISTA",

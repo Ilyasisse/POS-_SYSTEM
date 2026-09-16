@@ -20,6 +20,7 @@ type StockMutation = StockTarget & {
   quantityDelta: Prisma.Decimal | string | number;
   reason: string;
   actorUserId?: string | null;
+  actorCustomerId?: string | null;
   approvedByUserId?: string | null;
   sourceType?: string | null;
   sourceId?: string | null;
@@ -119,6 +120,7 @@ export async function appendStockEvent(
             : item.quantityCoverage,
       reason: input.reason.trim() || input.type,
       actorUserId: input.actorUserId ?? null,
+      actorCustomerId: input.actorCustomerId ?? null,
       approvedByUserId: input.approvedByUserId ?? null,
       sourceType: input.sourceType ?? null,
       sourceId: input.sourceId ?? null,
@@ -152,6 +154,7 @@ export async function deductSaleInventory(
   lines: readonly SaleInventoryLine[],
   sourceOrderId: string | null,
   actorUserId?: string | null,
+  actorCustomerId?: string | null,
 ) {
   const quantityByProduct = new Map<string, Prisma.Decimal>();
   for (const line of lines) {
@@ -190,6 +193,7 @@ export async function deductSaleInventory(
           quantityDelta: usage.negated(),
           reason: `Recipe usage: ${product.name}`,
           actorUserId,
+          actorCustomerId,
           sourceType: "Order",
           sourceId: sourceOrderId,
         };
@@ -203,6 +207,7 @@ export async function deductSaleInventory(
             quantityDelta: sold.negated(),
             reason: `Finished-item sale: ${product.name}`,
             actorUserId,
+            actorCustomerId,
             sourceType: "Order",
             sourceId: sourceOrderId,
           },

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getDefaultRouteForUser } from "@/lib/auth/get-default-route-for-user";
-import { prisma } from "@/lib/prisma";
+import { findAppUser } from "@/lib/auth/app-user";
 import { createClient } from "@/lib/supabase/server";
 
 function getRedirectOrigin(request: Request, requestUrl: URL) {
@@ -33,14 +33,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: authUser.id },
-    select: {
-      role: true,
-      station: true,
-      isActive: true,
-    },
-  });
+  const user = await findAppUser(authUser.id);
 
   if (!user) {
     return NextResponse.redirect(`${redirectOrigin}/menu`);

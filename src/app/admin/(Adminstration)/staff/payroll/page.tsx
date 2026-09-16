@@ -27,7 +27,7 @@ const usd = (value: { toFixed(digits: number): string }) =>
 export default async function PayrollPage() {
   await requirePermission(PERMISSIONS.PAYROLL_MANAGE);
   const [staff, adjustments, runs] = await Promise.all([
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: { employmentProfile: { is: { status: "ACTIVE" } } },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true },

@@ -121,7 +121,7 @@ async function currentState(tx: Tx, dateKey: string) {
         select: { id: true, userId: true, closingAmount: true },
       }),
     () =>
-      tx.user.findMany({
+      tx.staff.findMany({
         where: { role: "WAITER", isActive: true },
         select: { id: true, fullName: true },
       }),

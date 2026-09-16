@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.staff.findUnique({
     where: { id: data.user.id },
     select: {
       id: true,

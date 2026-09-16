@@ -56,7 +56,7 @@ export default async function AdminPage() {
     prisma.category.count(),
     prisma.product.count(),
     prisma.modifier.count(),
-    prisma.user.count({
+    prisma.staff.count({
       where: {
         role: {
           not: "CUSTOMER",
@@ -135,9 +135,8 @@ export default async function AdminPage() {
         createdAt: true,
       },
     }),
-    prisma.user.count({
+    prisma.customer.count({
       where: {
-        role: "CUSTOMER",
         createdAt: {
           gte: weekStart,
           lt: weekEnd,

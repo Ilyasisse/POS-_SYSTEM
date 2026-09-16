@@ -47,7 +47,7 @@ export async function getWaiterBalanceAdminRows(
   const selectedDatabaseDate = businessDateKeyToDatabaseDate(selectedDate);
   const { start, end } = getBusinessDayRangeForKey(selectedDate);
 
-  const waiters = await prisma.user.findMany({
+  const waiters = await prisma.staff.findMany({
     where: buildWaiterBalanceWaiterWhere(includeInactive),
     select: {
       id: true,
@@ -191,7 +191,7 @@ export async function getWaiterBalanceAdminRows(
 export async function getWaiterInitializationRowsWithInactive(
   includeInactive = false,
 ) {
-  return prisma.user.findMany({
+  return prisma.staff.findMany({
     where: buildWaiterBalanceWaiterWhere(includeInactive),
     select: {
       id: true,

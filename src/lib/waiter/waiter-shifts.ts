@@ -238,7 +238,7 @@ export async function openWaiterBusinessDayShift(
   requestedOpeningAmount: number,
   now: Date = new Date(),
 ) {
-  const waiter = await prisma.user.findFirst({
+  const waiter = await prisma.staff.findFirst({
     where: { id: waiterId, role: "WAITER", isActive: true },
     select: { id: true },
   });

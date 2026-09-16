@@ -15,7 +15,7 @@ export default async function NewSupplierOrderSchedulePage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true, phone: true },
     }),
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: { isActive: true, role: { notIn: ["CUSTOMER", "SUPPLIER"] } },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true, phoneNumber: true },

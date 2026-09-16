@@ -30,7 +30,7 @@ function formatRole(role: string) {
 export default async function StaffPage({ searchParams }: StaffPageProps) {
   const params = await searchParams;
   const q = params?.q?.trim().toLowerCase() ?? "";
-  const userRows = await prisma.user.findMany({
+  const userRows = await prisma.staff.findMany({
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
     include: {
       _count: {
@@ -42,7 +42,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
       },
     },
   });
-  const allStaff = userRows.filter((member) => member.role !== "CUSTOMER");
+  const allStaff = userRows;
   const roles = Array.from(
     new Set(allStaff.map((member) => member.role)),
   ).toSorted();
