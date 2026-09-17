@@ -62,15 +62,6 @@ export async function POST(request: Request) {
     );
   }
 
-  if (user.role === "CUSTOMER") {
-    await supabase.auth.signOut();
-
-    return NextResponse.json(
-      { error: "Customer accounts should use the customer login page." },
-      { status: 403 },
-    );
-  }
-
   return NextResponse.json({
     redirectTo: getDefaultRouteForUser(user),
     user: {

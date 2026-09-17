@@ -21,7 +21,7 @@ export default async function StaffSchedulesPage() {
   const now = new Date();
   const [staff, shifts] = await Promise.all([
     prisma.staff.findMany({
-      where: { role: { notIn: ["CUSTOMER", "SUPPLIER"] }, isActive: true },
+      where: { role: { not: "SUPPLIER" }, isActive: true },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true },
     }),

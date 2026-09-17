@@ -20,7 +20,7 @@ export default async function EmploymentPage() {
   await requirePermission(PERMISSIONS.EMPLOYMENT_MANAGE);
   const [staff, profiles] = await Promise.all([
     prisma.staff.findMany({
-      where: { role: { notIn: ["CUSTOMER", "SUPPLIER"] }, isActive: true },
+      where: { role: { not: "SUPPLIER" }, isActive: true },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true, role: true },
     }),

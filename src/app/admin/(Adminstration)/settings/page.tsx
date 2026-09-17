@@ -37,9 +37,6 @@ export default async function AdminSettingsPage() {
       prisma.staff.count({
         where: {
           isActive: true,
-          role: {
-            not: "CUSTOMER",
-          },
         },
       }),
     ]);

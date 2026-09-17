@@ -24,13 +24,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     prisma.product.count(),
     prisma.modifier.count(),
     prisma.modifierGroup.count(),
-    prisma.staff.count({
-      where: {
-        role: {
-          not: "CUSTOMER",
-        },
-      },
-    }),
+    prisma.staff.count(),
     prisma.table.count(),
     prisma.order.count({
       where: {
