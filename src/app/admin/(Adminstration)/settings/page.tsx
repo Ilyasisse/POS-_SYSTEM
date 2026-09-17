@@ -1,7 +1,6 @@
-﻿import { NativeSelect } from "@/components/ui/native-select";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Button, Card, AdminPage, MetricCard } from "@/components/admin/shared";
-import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 
@@ -17,41 +16,12 @@ const tabs = [
 
 export default async function AdminSettingsPage() {
   await requirePermission(PERMISSIONS.SETTINGS_MANAGE);
-  const [activeCategories, activeProducts, activeTables, activeStaff] =
-    await Promise.all([
-      prisma.category.count({
-        where: {
-          isActive: true,
-        },
-      }),
-      prisma.product.count({
-        where: {
-          isActive: true,
-        },
-      }),
-      prisma.table.count({
-        where: {
-          isActive: true,
-        },
-      }),
-      prisma.staff.count({
-        where: {
-          isActive: true,
-        },
-      }),
-    ]);
 
   return (
     <AdminPage
       title="Settings"
       description="Manage system settings and preferences"
     >
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Active Categories" value={activeCategories} />
-        <MetricCard label="Active Products" value={activeProducts} />
-        <MetricCard label="Active Tables" value={activeTables} />
-        <MetricCard label="Active Staff" value={activeStaff} />
-      </section>
 
       <section className="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
         <Card className="overflow-hidden p-2">
