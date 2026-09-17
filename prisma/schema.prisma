@@ -8,18 +8,18 @@ datasource db {
 
 /// Staff profile. id is the existing Supabase Auth user ID.
 model Staff {
-  kitchenTransitions                  KitchenTransitionEvent[]         @relation("KitchenTransitionActor")
-  stockEventsCreated                  StockEvent[]                     @relation("StockEventActor")
-  auditLogsCreated                    AuditLog[]                       @relation("AuditLogActor")
   id                                  String                           @id
   phoneNumber                         String?                          @unique
   fullName                            String
-  role                                UserRole                         @default(CASHIER)
   isActive                            Boolean                          @default(true)
-  createdAt                           DateTime                         @default(now())
-  updatedAt                           DateTime                         @updatedAt
+  role                                UserRole                         @default(CASHIER)
   email                               String                           @unique
   station                             Station?
+  createdAt                           DateTime                         @default(now())
+  updatedAt                           DateTime                         @updatedAt
+  kitchenTransitions                  KitchenTransitionEvent[]         @relation("KitchenTransitionActor")
+  stockEventsCreated                  StockEvent[]                     @relation("StockEventActor")
+  auditLogsCreated                    AuditLog[]                       @relation("AuditLogActor")
   orders                              Order[]                          @relation("Cashier")
   waiterOrders                        Order[]                          @relation("WaiterOrders")
   assignedItems                       OrderItem[]                      @relation("AssignedOrderItems")
