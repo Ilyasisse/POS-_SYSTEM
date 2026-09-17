@@ -9,6 +9,7 @@ import {
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
 import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
+import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
 import { ToastOnMount } from "@/components/ui/toast";
@@ -73,6 +74,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     requirePermission(PERMISSIONS.ORDER_MANAGE),
     searchParams,
   ]);
+  const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
   const orderNotice =
     params?.orderStatus === "sent"
@@ -293,6 +295,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     tableId={table.id}
                     tableName={table.name}
                     amountDue={tableTotal}
+                    showEqualSplit={showEqualSplit}
                   />
                 </div>
               </article>
