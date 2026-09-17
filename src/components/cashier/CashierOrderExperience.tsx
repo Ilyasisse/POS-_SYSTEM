@@ -37,6 +37,14 @@ import {
   getProductModifierGroups,
   type SelectedModifiersMap,
 } from "@/components/customer/customer-order-utils";
+import {
+  HeldOrderDrafts,
+  removeHeldOrderDraft,
+} from "@/components/cashier/HeldOrderDrafts";
+import {
+  restoreHeldOrderDraft,
+  type HeldOrderDraft,
+} from "@/lib/cashier/held-order-drafts";
 
 type TableOption = { id: string; name: string };
 type Props = { tables: TableOption[]; initialTableId?: string };
@@ -63,6 +71,8 @@ type Action =
   | { type: "cartClose" }
   | { type: "cleared" }
   | { type: "added" }
+  | { type: "held"; label: string }
+  | { type: "resumed"; tableId: string; orderNote: string; message: string }
   | { type: "submitting" }
   | { type: "failed"; error: string }
   | { type: "finished" };
@@ -89,6 +99,24 @@ function reducer(state: State, action: Action): State {
       return { ...state, orderNote: "", message: "", error: "" };
     case "added":
       return { ...state, cartOpen: true, message: "", error: "" };
+    case "held":
+      return {
+        ...state,
+        tableId: "",
+        orderNote: "",
+        cartOpen: false,
+        message: `Held ${action.label}.`,
+        error: "",
+      };
+    case "resumed":
+      return {
+        ...state,
+        tableId: action.tableId,
+        orderNote: action.orderNote,
+        cartOpen: true,
+        message: action.message,
+        error: "",
+      };
     case "submitting":
       return {
         ...state,
@@ -218,8 +246,10 @@ export default function CashierOrderExperience({
     changeQuantity,
     removeFromCart,
     clearCart,
+    replaceCart,
     calculateCartTotal,
   } = useWaiterCart();
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(state.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const products = useMemo(
@@ -361,6 +391,8 @@ export default function CashierOrderExperience({
       if (!response.ok)
         throw new Error(data?.error || "The table order could not be sent.");
       clearCart();
+      if (activeDraftId) removeHeldOrderDraft(activeDraftId);
+      setActiveDraftId(null);
       router.push("/cashier?orderStatus=sent");
       router.refresh();
     } catch (error) {
@@ -371,6 +403,43 @@ export default function CashierOrderExperience({
     } finally {
       dispatch({ type: "finished" });
     }
+  }
+
+  function holdCurrentOrder(label: string) {
+    if (activeDraftId) removeHeldOrderDraft(activeDraftId);
+    setActiveDraftId(null);
+    clearCart();
+    dispatch({ type: "held", label });
+  }
+
+  function clearCurrentOrder() {
+    clearCart();
+    setActiveDraftId(null);
+    dispatch({ type: "cleared" });
+  }
+
+  function resumeOrder(draft: HeldOrderDraft) {
+    const restored = restoreHeldOrderDraft(draft, products, baristas);
+    if (restored.cart.length === 0) {
+      dispatch({
+        type: "failed",
+        error:
+          "This held order has no items that are still available. Remove it and start a new order.",
+      });
+      return;
+    }
+    const tableAvailable = tables.some((table) => table.id === draft.tableId);
+    replaceCart(restored.cart);
+    setActiveDraftId(draft.id);
+    dispatch({
+      type: "resumed",
+      tableId: tableAvailable ? draft.tableId : "",
+      orderNote: draft.orderNote,
+      message:
+        restored.skippedItems > 0
+          ? `Reopened ${draft.label}; ${restored.skippedItems} unavailable item${restored.skippedItems === 1 ? " was" : "s were"} skipped.`
+          : `Reopened ${draft.label}. Prices were refreshed from the current menu.`,
+    });
   }
 
   return (
@@ -394,11 +463,16 @@ export default function CashierOrderExperience({
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
           hideCartOnDesktop
-          onReset={() => {
-            clearCart();
-            dispatch({ type: "cleared" });
-          }}
+          onReset={clearCurrentOrder}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
+        />
+        <HeldOrderDrafts
+          cart={cart}
+          tableId={state.tableId}
+          tableName={tableName}
+          orderNote={state.orderNote}
+          onHeld={holdCurrentOrder}
+          onResume={resumeOrder}
         />
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
@@ -442,10 +516,7 @@ export default function CashierOrderExperience({
             onOrderNoteChange={(value) => dispatch({ type: "note", value })}
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
-            onClearCart={() => {
-              clearCart();
-              dispatch({ type: "cleared" });
-            }}
+            onClearCart={clearCurrentOrder}
             onCheckout={sendOrder}
           />
         </div>
@@ -476,10 +547,7 @@ export default function CashierOrderExperience({
         onOrderNoteChange={(value) => dispatch({ type: "note", value })}
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
-        onClearCart={() => {
-          clearCart();
-          dispatch({ type: "cleared" });
-        }}
+        onClearCart={clearCurrentOrder}
         onCheckout={sendOrder}
       />
     </main>
