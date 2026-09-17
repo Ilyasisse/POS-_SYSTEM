@@ -186,7 +186,7 @@ export async function POST(request: Request) {
           })
         : Promise.resolve([]),
       assignedBaristaIds.length > 0
-        ? prisma.user.findMany({
+        ? prisma.staff.findMany({
             where: {
               id: { in: assignedBaristaIds },
               role: "BARISTA",
@@ -400,7 +400,14 @@ export async function POST(request: Request) {
           orderId: createdOrder.id,
           lines: preparedLines,
           customerName,
-          actorUserId: authorization.user.id,
+          actorUserId:
+            authorization.user.role === "CUSTOMER"
+              ? null
+              : authorization.user.id,
+          actorCustomerId:
+            authorization.user.role === "CUSTOMER"
+              ? authorization.user.id
+              : null,
         });
 
         const inventoryAlerts = await deductProductInventoryForSale(
@@ -410,7 +417,8 @@ export async function POST(request: Request) {
             qty: line.qty,
           })),
           createdOrder.id,
-          authorization.user.id,
+          authorization.user.role === "CUSTOMER" ? null : authorization.user.id,
+          authorization.user.role === "CUSTOMER" ? authorization.user.id : null,
         );
 
         return { order: createdOrder, inventoryAlerts };

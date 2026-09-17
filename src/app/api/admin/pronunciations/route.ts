@@ -48,7 +48,7 @@ async function ensureAdminUser(
     return null;
   }
 
-  return prisma.user.findUnique({
+  return prisma.staff.findUnique({
     where: { id: user.id },
     select: {
       id: true,

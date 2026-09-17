@@ -41,7 +41,7 @@ export default async function OperationsPage() {
       },
       orderBy: { scheduledFor: "asc" },
     }),
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: { isActive: true },
       select: { id: true, fullName: true },
       orderBy: { fullName: "asc" },

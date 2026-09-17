@@ -122,7 +122,7 @@ export async function getStaffReport(range: ReportRange) {
       },
       _sum: { netPay: true },
     }),
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: { isActive: true },
       select: { id: true, fullName: true, role: true },
     }),

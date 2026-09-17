@@ -127,7 +127,7 @@ export async function initializeWaiterBalance(input: {
 
   try {
     return await prisma.$transaction(async (tx) => {
-      const waiter = await tx.user.findFirst({
+      const waiter = await tx.staff.findFirst({
         where: { id: input.waiterId, role: "WAITER" },
         select: { id: true, isActive: true },
       });
@@ -239,7 +239,7 @@ export async function saveWaiterSettlement(input: {
 
   return prisma.$transaction(
     async (tx) => {
-      const waiter = await tx.user.findFirst({
+      const waiter = await tx.staff.findFirst({
         where: { id: input.waiterId, role: "WAITER" },
         select: { id: true, isActive: true },
       });

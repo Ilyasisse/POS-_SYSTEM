@@ -20,8 +20,8 @@ export default async function StaffSchedulesPage() {
   await requirePermission(PERMISSIONS.ATTENDANCE_SCHEDULE);
   const now = new Date();
   const [staff, shifts] = await Promise.all([
-    prisma.user.findMany({
-      where: { role: { notIn: ["CUSTOMER", "SUPPLIER"] }, isActive: true },
+    prisma.staff.findMany({
+      where: { role: { not: "SUPPLIER" }, isActive: true },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true },
     }),

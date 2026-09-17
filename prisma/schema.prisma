@@ -6,99 +6,115 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
+/// Staff profile. id is the existing Supabase Auth user ID.
+model Staff {
   id                                  String                           @id
   phoneNumber                         String?                          @unique
   fullName                            String
-  role                                UserRole                         @default(CASHIER)
   isActive                            Boolean                          @default(true)
-  createdAt                           DateTime                         @default(now())
-  updatedAt                           DateTime                         @updatedAt
+  role                                UserRole                         @default(CASHIER)
   email                               String                           @unique
   station                             Station?
+  createdAt                           DateTime                         @default(now())
+  updatedAt                           DateTime                         @updatedAt
+  kitchenTransitions                  KitchenTransitionEvent[]         @relation("KitchenTransitionActor")
+  stockEventsCreated                  StockEvent[]                     @relation("StockEventActor")
+  auditLogsCreated                    AuditLog[]                       @relation("AuditLogActor")
   orders                              Order[]                          @relation("Cashier")
   waiterOrders                        Order[]                          @relation("WaiterOrders")
   assignedItems                       OrderItem[]                      @relation("AssignedOrderItems")
   claimedKitchenTickets               KitchenTicketState[]             @relation("KitchenTicketClaimant")
   payments                            Payment[]
-  paymentRequests                     PaymentRequest[]              @relation("PaymentRequestCashier")
-  paymentDeferrals                    PaymentDeferral[]             @relation("PaymentDeferralCashier")
-  mobileMoneyReceiptsAssigned         MobileMoneyReceipt[]          @relation("MobileMoneyReceiptAssignee")
-  shifts                              Shift[]                       @relation("WaiterShifts")
-  shiftsSettled                       Shift[]                       @relation("ShiftSettledBy")
-  waiterBalanceInitialization         WaiterBalanceInitialization?  @relation("WaiterBalanceOwner")
-  waiterBalanceInitializationsCreated WaiterBalanceInitialization[] @relation("WaiterBalanceCreatedBy")
-  supplierBillsSettled                SupplierBill[]                @relation("SupplierBillSettledBy")
-  supplierPaymentsRecorded            SupplierPayment[]             @relation("SupplierPaymentRecordedBy")
-  supplierPaymentAllocationsApplied   SupplierPaymentAllocation[]   @relation("SupplierPaymentAllocationAppliedBy")
-  supplyPurchasesCreated              SupplyPurchase[]              @relation("SupplyPurchaseCreatedBy")
-  supplyCatalogItemsCreated           SupplyCatalogItem[]           @relation("SupplyCatalogItemCreatedBy")
-  supplyDaysClosed                    SupplyDay[]                   @relation("SupplyDayClosedBy")
-  supplyDaysReopened                  SupplyDay[]                   @relation("SupplyDayReopenedBy")
-  supplierPurchaseOrdersCreated       SupplierPurchaseOrder[]       @relation("SupplierPurchaseOrderCreatedBy")
-  supplierInvoicesCreated             SupplierInvoice[]             @relation("SupplierInvoiceCreatedBy")
-  supplierInvoicesFinalized           SupplierInvoice[]             @relation("SupplierInvoiceFinalizedBy")
-  supplierInvoicesVoided              SupplierInvoice[]             @relation("SupplierInvoiceVoidedBy")
-  supplierInvoiceRecurrencesCreated   SupplierInvoiceRecurrence[]   @relation("SupplierInvoiceRecurrenceCreatedBy")
-  supplierInvoiceRecurrencesPaused    SupplierInvoiceRecurrence[]   @relation("SupplierInvoiceRecurrencePausedBy")
-  dailyCashSalaryRatesCreated         DailySalaryRate[]             @relation("DailySalaryRateCreatedBy")
-  dailyCashSalaryOverrides            DailyCashDay[]                @relation("DailyCashSalaryOverriddenBy")
-  dailyCashSalaryPayments             DailyCashDay[]                @relation("DailyCashSalaryPaidBy")
-  dailyCashFinalizations              DailyCashDay[]                @relation("DailyCashFinalizedBy")
-  dailyCashManualExpensesCreated      DailyCashManualExpense[]      @relation("DailyCashManualExpenseCreatedBy")
-  dailyCashSupplierPaymentsRecorded   DailyCashSupplierPayment[]    @relation("DailyCashSupplierPaymentRecordedBy")
-  supplierOrderSchedulesCreated       SupplierOrderSchedule[]       @relation("SupplierOrderScheduleCreatedBy")
+  paymentRequests                     PaymentRequest[]                 @relation("PaymentRequestCashier")
+  paymentDeferrals                    PaymentDeferral[]                @relation("PaymentDeferralCashier")
+  mobileMoneyReceiptsAssigned         MobileMoneyReceipt[]             @relation("MobileMoneyReceiptAssignee")
+  shifts                              Shift[]                          @relation("WaiterShifts")
+  shiftsSettled                       Shift[]                          @relation("ShiftSettledBy")
+  waiterBalanceInitialization         WaiterBalanceInitialization?     @relation("WaiterBalanceOwner")
+  waiterBalanceInitializationsCreated WaiterBalanceInitialization[]    @relation("WaiterBalanceCreatedBy")
+  supplierBillsSettled                SupplierBill[]                   @relation("SupplierBillSettledBy")
+  supplierPaymentsRecorded            SupplierPayment[]                @relation("SupplierPaymentRecordedBy")
+  supplierPaymentAllocationsApplied   SupplierPaymentAllocation[]      @relation("SupplierPaymentAllocationAppliedBy")
+  supplyPurchasesCreated              SupplyPurchase[]                 @relation("SupplyPurchaseCreatedBy")
+  supplyCatalogItemsCreated           SupplyCatalogItem[]              @relation("SupplyCatalogItemCreatedBy")
+  supplyDaysClosed                    SupplyDay[]                      @relation("SupplyDayClosedBy")
+  supplyDaysReopened                  SupplyDay[]                      @relation("SupplyDayReopenedBy")
+  supplierPurchaseOrdersCreated       SupplierPurchaseOrder[]          @relation("SupplierPurchaseOrderCreatedBy")
+  supplierInvoicesCreated             SupplierInvoice[]                @relation("SupplierInvoiceCreatedBy")
+  supplierInvoicesFinalized           SupplierInvoice[]                @relation("SupplierInvoiceFinalizedBy")
+  supplierInvoicesVoided              SupplierInvoice[]                @relation("SupplierInvoiceVoidedBy")
+  supplierInvoiceRecurrencesCreated   SupplierInvoiceRecurrence[]      @relation("SupplierInvoiceRecurrenceCreatedBy")
+  supplierInvoiceRecurrencesPaused    SupplierInvoiceRecurrence[]      @relation("SupplierInvoiceRecurrencePausedBy")
+  dailyCashSalaryRatesCreated         DailySalaryRate[]                @relation("DailySalaryRateCreatedBy")
+  dailyCashSalaryOverrides            DailyCashDay[]                   @relation("DailyCashSalaryOverriddenBy")
+  dailyCashSalaryPayments             DailyCashDay[]                   @relation("DailyCashSalaryPaidBy")
+  dailyCashFinalizations              DailyCashDay[]                   @relation("DailyCashFinalizedBy")
+  dailyCashManualExpensesCreated      DailyCashManualExpense[]         @relation("DailyCashManualExpenseCreatedBy")
+  dailyCashSupplierPaymentsRecorded   DailyCashSupplierPayment[]       @relation("DailyCashSupplierPaymentRecordedBy")
+  supplierOrderSchedulesCreated       SupplierOrderSchedule[]          @relation("SupplierOrderScheduleCreatedBy")
   supplierOrderScheduleRecipients     SupplierOrderScheduleRecipient[]
   supplierOrderRunRecipients          SupplierOrderRunRecipient[]
-  auditLogsCreated                    AuditLog[]                    @relation("AuditLogActor")
-  cafeSettingsUpdated                 CafeSetting[]                 @relation("CafeSettingUpdatedBy")
-  customerOrders                      Order[]                       @relation("CustomerOrders")
-  salesAdjustmentsCreated             SalesAdjustment[]             @relation("SalesAdjustmentActor")
-  salesAdjustmentsApproved            SalesAdjustment[]             @relation("SalesAdjustmentApprover")
-  productCostsChanged                 Product[]                     @relation("ProductStandardCostChangedBy")
-  supplyCostsChanged                  InventorySupply[]             @relation("SupplyStandardCostChangedBy")
-  recipeVersionsCreated               RecipeVersion[]               @relation("RecipeVersionCreatedBy")
-  stockEventsCreated                  StockEvent[]                  @relation("StockEventActor")
-  stockEventsApproved                 StockEvent[]                  @relation("StockEventApprover")
-  inventoryCountsCreated              InventoryCountSession[]       @relation("InventoryCountCreatedBy")
-  inventoryCountsSubmitted            InventoryCountSession[]       @relation("InventoryCountSubmittedBy")
-  inventoryCountsApproved             InventoryCountSession[]       @relation("InventoryCountApprovedBy")
-  kitchenTransitions                  KitchenTransitionEvent[]      @relation("KitchenTransitionActor")
-  kitchenTargetsUpdated               KitchenPreparationTarget[]    @relation("KitchenTargetUpdatedBy")
-  kitchenQualityEvents                KitchenQualityEvent[]         @relation("KitchenQualityActor")
-  incidentsReported                   OperationalIncident[]         @relation("IncidentReporter")
-  incidentsAssigned                   OperationalIncident[]         @relation("IncidentAssignee")
-  cleaningRunsAssigned                CleaningChecklistRun[]        @relation("CleaningRunAssignee")
-  cleaningRunsCompleted               CleaningChecklistRun[]        @relation("CleaningRunCompletedBy")
-  cleaningTasksCompleted              CleaningChecklistRunTask[]    @relation("CleaningTaskCompletedBy")
-  dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]      @relation("DailyCashSupplyPaymentRecordedBy")
-  dailyCashSavingsDepositsRecorded    DailyCashSavingsDeposit[]     @relation("DailyCashSavingsDepositRecordedBy")
+  cafeSettingsUpdated                 CafeSetting[]                    @relation("CafeSettingUpdatedBy")
+  salesAdjustmentsCreated             SalesAdjustment[]                @relation("SalesAdjustmentActor")
+  salesAdjustmentsApproved            SalesAdjustment[]                @relation("SalesAdjustmentApprover")
+  productCostsChanged                 Product[]                        @relation("ProductStandardCostChangedBy")
+  supplyCostsChanged                  InventorySupply[]                @relation("SupplyStandardCostChangedBy")
+  recipeVersionsCreated               RecipeVersion[]                  @relation("RecipeVersionCreatedBy")
+  stockEventsApproved                 StockEvent[]                     @relation("StockEventApprover")
+  inventoryCountsCreated              InventoryCountSession[]          @relation("InventoryCountCreatedBy")
+  inventoryCountsSubmitted            InventoryCountSession[]          @relation("InventoryCountSubmittedBy")
+  inventoryCountsApproved             InventoryCountSession[]          @relation("InventoryCountApprovedBy")
+  kitchenTargetsUpdated               KitchenPreparationTarget[]       @relation("KitchenTargetUpdatedBy")
+  kitchenQualityEvents                KitchenQualityEvent[]            @relation("KitchenQualityActor")
+  incidentsReported                   OperationalIncident[]            @relation("IncidentReporter")
+  incidentsAssigned                   OperationalIncident[]            @relation("IncidentAssignee")
+  cleaningRunsAssigned                CleaningChecklistRun[]           @relation("CleaningRunAssignee")
+  cleaningRunsCompleted               CleaningChecklistRun[]           @relation("CleaningRunCompletedBy")
+  cleaningTasksCompleted              CleaningChecklistRunTask[]       @relation("CleaningTaskCompletedBy")
+  dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]         @relation("DailyCashSupplyPaymentRecordedBy")
+  dailyCashSavingsDepositsRecorded    DailyCashSavingsDeposit[]        @relation("DailyCashSavingsDepositRecordedBy")
   employmentProfile                   EmploymentProfile?
-  scheduledShifts                     ScheduledShift[]             @relation("ScheduledShiftWorker")
-  scheduledShiftsCreated              ScheduledShift[]             @relation("ScheduledShiftCreator")
-  clockEvents                         ClockEvent[]                 @relation("ClockEventWorker")
-  attendanceApprovals                 AttendanceRecord[]           @relation("AttendanceApprover")
-  attendanceRecords                   AttendanceRecord[]           @relation("AttendanceWorker")
-  payrollAdjustmentsCreated           PayrollAdjustment[]          @relation("PayrollAdjustmentActor")
-  payrollAdjustmentsApproved          PayrollAdjustment[]          @relation("PayrollAdjustmentApprover")
-  payrollRunsCreated                  PayrollRun[]                 @relation("PayrollRunCreator")
-  payrollRunsApproved                 PayrollRun[]                 @relation("PayrollRunApprover")
-  payrollRunsFinalized                PayrollRun[]                 @relation("PayrollRunFinalizer")
-  payrollAdjustments                  PayrollAdjustment[]          @relation("PayrollAdjustmentWorker")
-  payrollLines                        PayrollLine[]                @relation("PayrollLineWorker")
-  expenseCategoriesCreated            ExpenseCategory[]            @relation("ExpenseCategoryCreator")
-  expensesRecorded                    ExpenseTransaction[]         @relation("ExpenseActor")
-  expensesApproved                    ExpenseTransaction[]         @relation("ExpenseApprover")
-  ownerWithdrawalsRecorded            OwnerWithdrawal[]            @relation("OwnerWithdrawalActor")
-  supplierReceivingsRecorded          SupplierReceiving[]          @relation("SupplierReceivingActor")
-  customerFeedbackRecorded            CustomerFeedback[]           @relation("CustomerFeedbackActor")
-  complaintsAssigned                  ComplaintCase[]              @relation("ComplaintAssignee")
-  complaintsResolved                  ComplaintCase[]              @relation("ComplaintResolver")
-  complaintsRecorded                  ComplaintCase[]              @relation("ComplaintActor")
-  reportExports                       ReportExportAudit[]          @relation("ReportExportActor")
+  scheduledShifts                     ScheduledShift[]                 @relation("ScheduledShiftWorker")
+  scheduledShiftsCreated              ScheduledShift[]                 @relation("ScheduledShiftCreator")
+  clockEvents                         ClockEvent[]                     @relation("ClockEventWorker")
+  attendanceApprovals                 AttendanceRecord[]               @relation("AttendanceApprover")
+  attendanceRecords                   AttendanceRecord[]               @relation("AttendanceWorker")
+  payrollAdjustmentsCreated           PayrollAdjustment[]              @relation("PayrollAdjustmentActor")
+  payrollAdjustmentsApproved          PayrollAdjustment[]              @relation("PayrollAdjustmentApprover")
+  payrollRunsCreated                  PayrollRun[]                     @relation("PayrollRunCreator")
+  payrollRunsApproved                 PayrollRun[]                     @relation("PayrollRunApprover")
+  payrollRunsFinalized                PayrollRun[]                     @relation("PayrollRunFinalizer")
+  payrollAdjustments                  PayrollAdjustment[]              @relation("PayrollAdjustmentWorker")
+  payrollLines                        PayrollLine[]                    @relation("PayrollLineWorker")
+  expenseCategoriesCreated            ExpenseCategory[]                @relation("ExpenseCategoryCreator")
+  expensesRecorded                    ExpenseTransaction[]             @relation("ExpenseActor")
+  expensesApproved                    ExpenseTransaction[]             @relation("ExpenseApprover")
+  ownerWithdrawalsRecorded            OwnerWithdrawal[]                @relation("OwnerWithdrawalActor")
+  supplierReceivingsRecorded          SupplierReceiving[]              @relation("SupplierReceivingActor")
+  customerFeedbackRecorded            CustomerFeedback[]               @relation("CustomerFeedbackActor")
+  complaintsAssigned                  ComplaintCase[]                  @relation("ComplaintAssignee")
+  complaintsResolved                  ComplaintCase[]                  @relation("ComplaintResolver")
+  complaintsRecorded                  ComplaintCase[]                  @relation("ComplaintActor")
+  reportExports                       ReportExportAudit[]              @relation("ReportExportActor")
 
   @@index([role, isActive])
   @@index([station])
+}
+
+/// Customer profile. id is the verified Supabase Auth user ID.
+/// Credentials remain in Supabase auth.users; customers have no staff role.
+model Customer {
+  kitchenTransitions KitchenTransitionEvent[] @relation("KitchenTransitionActorCustomer")
+  stockEventsCreated StockEvent[]             @relation("StockEventActorCustomer")
+  auditLogsCreated   AuditLog[]               @relation("AuditLogActorCustomer")
+  id                 String                   @id
+  phoneNumber        String?                  @unique
+  fullName           String
+  isActive           Boolean                  @default(true)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  email              String                   @unique
+  orders             Order[]                  @relation("CustomerOrders")
 }
 
 model CafeSetting {
@@ -112,7 +128,7 @@ model CafeSetting {
   updatedByUserId        String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
-  updatedBy              User?    @relation("CafeSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  updatedBy              Staff?    @relation("CafeSettingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   @@index([updatedByUserId])
 }
@@ -129,7 +145,7 @@ model EmploymentProfile {
   status           EmploymentStatus   @default(ACTIVE)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             Staff               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status, effectiveFrom])
 }
@@ -153,8 +169,8 @@ model ScheduledShift {
   createdByUserId String
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  worker          User             @relation("ScheduledShiftWorker", fields: [workerId], references: [id], onDelete: Restrict)
-  createdBy       User             @relation("ScheduledShiftCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  worker          Staff             @relation("ScheduledShiftWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy       Staff             @relation("ScheduledShiftCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   attendance      AttendanceRecord?
 
   @@index([workerId, startsAt])
@@ -169,7 +185,7 @@ model ClockEvent {
   occurredAt DateTime      @default(now())
   note      String?
   createdAt DateTime       @default(now())
-  worker    User           @relation("ClockEventWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  worker    Staff           @relation("ClockEventWorker", fields: [workerId], references: [id], onDelete: Restrict)
 
   @@index([workerId, occurredAt])
 }
@@ -190,9 +206,9 @@ model AttendanceRecord {
   approvedAt             DateTime?
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
-  worker                 User             @relation("AttendanceWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  worker                 Staff             @relation("AttendanceWorker", fields: [workerId], references: [id], onDelete: Restrict)
   scheduledShift         ScheduledShift?  @relation(fields: [scheduledShiftId], references: [id], onDelete: SetNull)
-  approvedBy             User?            @relation("AttendanceApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  approvedBy             Staff?            @relation("AttendanceApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([workerId, businessDate])
   @@index([businessDate, status])
@@ -210,9 +226,9 @@ model PayrollAdjustment {
   approvedByUserId String?
   approvedAt       DateTime?
   createdAt        DateTime              @default(now())
-  worker           User                  @relation("PayrollAdjustmentWorker", fields: [workerId], references: [id], onDelete: Restrict)
-  createdBy        User                  @relation("PayrollAdjustmentActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  approvedBy       User?                 @relation("PayrollAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  worker           Staff                  @relation("PayrollAdjustmentWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  createdBy        Staff                  @relation("PayrollAdjustmentActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       Staff?                 @relation("PayrollAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([workerId, periodStart, periodEnd])
   @@index([approvedAt])
@@ -232,9 +248,9 @@ model PayrollRun {
   voidReason       String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
-  createdBy        User              @relation("PayrollRunCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  approvedBy       User?             @relation("PayrollRunApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
-  finalizedBy      User?             @relation("PayrollRunFinalizer", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  createdBy        Staff              @relation("PayrollRunCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       Staff?             @relation("PayrollRunApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  finalizedBy      Staff?             @relation("PayrollRunFinalizer", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
   lines            PayrollLine[]
 
   @@index([status, periodStart, periodEnd])
@@ -255,14 +271,16 @@ model PayrollLine {
   snapshot              Json
   createdAt             DateTime   @default(now())
   payrollRun            PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  worker                User       @relation("PayrollLineWorker", fields: [workerId], references: [id], onDelete: Restrict)
+  worker                Staff       @relation("PayrollLineWorker", fields: [workerId], references: [id], onDelete: Restrict)
 
   @@unique([payrollRunId, workerId])
   @@index([workerId, createdAt])
 }
 
 model AuditLog {
-  id                String   @id @default(cuid())
+  actorCustomerId   String?
+  actorCustomer     Customer? @relation("AuditLogActorCustomer", fields: [actorCustomerId], references: [id], onDelete: SetNull)
+  id                String    @id @default(cuid())
   actorUserId       String?
   action            String
   entityType        String
@@ -272,9 +290,10 @@ model AuditLog {
   newValue          Json?
   relatedEntityType String?
   relatedEntityId   String?
-  createdAt         DateTime @default(now())
-  actor             User?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime  @default(now())
+  actor             Staff?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
+  @@index([actorCustomerId])
   @@index([entityType, entityId, createdAt])
   @@index([actorUserId, createdAt])
   @@index([action, createdAt])
@@ -288,7 +307,7 @@ model ExpenseCategory {
   createdByUserId String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  createdBy       User     @relation("ExpenseCategoryCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy       Staff     @relation("ExpenseCategoryCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   expenses        ExpenseTransaction[]
 }
 
@@ -310,8 +329,8 @@ model ExpenseTransaction {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   category         ExpenseCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  createdBy        User              @relation("ExpenseActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  approvedBy       User?             @relation("ExpenseApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  createdBy        Staff              @relation("ExpenseActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  approvedBy       Staff?             @relation("ExpenseApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 
   @@index([paidAt, status])
   @@index([categoryId, paidAt])
@@ -325,7 +344,7 @@ model OwnerWithdrawal {
   receiptReference String?
   createdByUserId  String
   createdAt        DateTime @default(now())
-  createdBy        User     @relation("OwnerWithdrawalActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy        Staff     @relation("OwnerWithdrawalActor", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([withdrawnAt])
 }
@@ -342,7 +361,7 @@ model SupplierReceiving {
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   purchaseOrder         SupplierPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  receivedBy            User                  @relation("SupplierReceivingActor", fields: [receivedByUserId], references: [id], onDelete: Restrict)
+  receivedBy            Staff                  @relation("SupplierReceivingActor", fields: [receivedByUserId], references: [id], onDelete: Restrict)
   items                 SupplierReceivingItem[]
 }
 
@@ -367,7 +386,7 @@ model CustomerFeedback {
   createdByUserId  String?
   createdAt        DateTime @default(now())
   order            Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  createdBy        User?    @relation("CustomerFeedbackActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  createdBy        Staff?    @relation("CustomerFeedbackActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([orderId, createdAt])
 }
@@ -387,9 +406,9 @@ model ComplaintCase {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   order            Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  assignedTo       User?           @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  resolvedBy       User?           @relation("ComplaintResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
-  createdBy        User?           @relation("ComplaintActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  assignedTo       Staff?           @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  resolvedBy       Staff?           @relation("ComplaintResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  createdBy        Staff?           @relation("ComplaintActor", fields: [createdByUserId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([assignedToUserId, status])
@@ -402,7 +421,7 @@ model ReportExportAudit {
   format           String
   filters          Json
   createdAt        DateTime @default(now())
-  actor            User     @relation("ReportExportActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  actor            Staff     @relation("ReportExportActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([actorUserId, createdAt])
 }
@@ -448,7 +467,7 @@ model Product {
   orderItems                  OrderItem[]
   supplierCatalogItems        SupplierCatalogItem[]
   category                    Category              @relation(fields: [categoryId], references: [id])
-  standardCostUpdatedBy       User?                 @relation("ProductStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
+  standardCostUpdatedBy       Staff?                 @relation("ProductStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
   recipeVersions              RecipeVersion[]
   stockEvents                 StockEvent[]
   inventoryCountLines         InventoryCountLine[]
@@ -476,7 +495,7 @@ model InventorySupply {
   updatedAt                   DateTime                  @updatedAt
   movements                   InventoryMovement[]
   supplierCatalogItems        SupplierCatalogItem[]
-  standardCostUpdatedBy       User?                     @relation("SupplyStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
+  standardCostUpdatedBy       Staff?                     @relation("SupplyStandardCostChangedBy", fields: [standardCostUpdatedByUserId], references: [id], onDelete: SetNull)
   purchaseUnitConversions     InventoryUnitConversion[]
   recipeIngredients           RecipeIngredient[]
   stockEvents                 StockEvent[]
@@ -587,11 +606,11 @@ model Order {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   closedAt           DateTime?
-  cashier            User?               @relation("Cashier", fields: [cashierId], references: [id])
-  waiter             User?               @relation("WaiterOrders", fields: [waiterId], references: [id])
-  customer           User?               @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: SetNull)
+  cashier            Staff?              @relation("Cashier", fields: [cashierId], references: [id])
+  waiter             Staff?              @relation("WaiterOrders", fields: [waiterId], references: [id])
+  customer           Customer?           @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: SetNull)
   table              Table?              @relation(fields: [tableId], references: [id])
-  tableCheck         TableCheck?          @relation(fields: [tableCheckId], references: [id], onDelete: SetNull)
+  tableCheck         TableCheck?         @relation(fields: [tableCheckId], references: [id], onDelete: SetNull)
   orderItems         OrderItem[]
   payments           Payment[]
   kitchenTicketState KitchenTicketState?
@@ -599,12 +618,12 @@ model Order {
   feedback           CustomerFeedback[]
   complaints         ComplaintCase[]
 
+  @@unique([tableCheckId, tableCheckRound])
   @@index([status])
   @@index([createdAt])
   @@index([cashierId, createdAt])
   @@index([waiterId, createdAt])
   @@index([tableId, createdAt])
-  @@unique([tableCheckId, tableCheckRound])
   @@index([tableCheckId, createdAt])
   @@index([customerId, closedAt])
   @@index([status, closedAt])
@@ -624,7 +643,7 @@ model OrderItem {
   createdAt            DateTime              @default(now())
   assignedUserId       String?
   station              Station?
-  assignedUser         User?                 @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
+  assignedUser         Staff?                 @relation("AssignedOrderItems", fields: [assignedUserId], references: [id])
   order                Order                 @relation(fields: [orderId], references: [id])
   product              Product               @relation(fields: [productId], references: [id])
   recipeVersion        RecipeVersion?        @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
@@ -666,7 +685,7 @@ model RecipeVersion {
   createdByUserId String
   createdAt       DateTime              @default(now())
   product         Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
-  createdBy       User                  @relation("RecipeVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy       Staff                  @relation("RecipeVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   ingredients     RecipeIngredient[]
   orderItems      OrderItem[]
 
@@ -689,6 +708,8 @@ model RecipeIngredient {
 }
 
 model StockEvent {
+  actorCustomerId          String?
+  actorCustomer            Customer?             @relation("StockEventActorCustomer", fields: [actorCustomerId], references: [id], onDelete: SetNull)
   id                       String                @id @default(cuid())
   productId                String?
   supplyId                 String?
@@ -708,10 +729,11 @@ model StockEvent {
   createdAt                DateTime              @default(now())
   product                  Product?              @relation(fields: [productId], references: [id], onDelete: Restrict)
   supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: Restrict)
-  actor                    User?                 @relation("StockEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-  approvedBy               User?                 @relation("StockEventApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  actor                    Staff?                @relation("StockEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  approvedBy               Staff?                @relation("StockEventApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
   inventoryCountLine       InventoryCountLine?
 
+  @@index([actorCustomerId])
   @@index([productId, occurredAt])
   @@index([supplyId, occurredAt])
   @@index([type, occurredAt])
@@ -730,9 +752,9 @@ model InventoryCountSession {
   approvedAt        DateTime?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
-  createdBy         User                 @relation("InventoryCountCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  submittedBy       User?                @relation("InventoryCountSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
-  approvedBy        User?                @relation("InventoryCountApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  createdBy         Staff                 @relation("InventoryCountCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  submittedBy       Staff?                @relation("InventoryCountSubmittedBy", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  approvedBy        Staff?                @relation("InventoryCountApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
   lines             InventoryCountLine[]
 
   @@index([businessDate, status])
@@ -778,8 +800,8 @@ model SalesAdjustment {
   createdAt        DateTime            @default(now())
   order            Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
   orderItem        OrderItem?          @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
-  actor            User                @relation("SalesAdjustmentActor", fields: [actorUserId], references: [id], onDelete: Restrict)
-  approvedBy       User                @relation("SalesAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
+  actor            Staff                @relation("SalesAdjustmentActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  approvedBy       Staff                @relation("SalesAdjustmentApprover", fields: [approvedByUserId], references: [id], onDelete: Restrict)
 
   @@index([orderId, createdAt])
   @@index([orderItemId, createdAt])
@@ -799,7 +821,7 @@ model KitchenTicketState {
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
   order               Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  claimedByWaiter     User?                       @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
+  claimedByWaiter     Staff?                       @relation("KitchenTicketClaimant", fields: [claimedByWaiterId], references: [id], onDelete: SetNull)
   stationStates       KitchenTicketStationState[]
   transitions         KitchenTransitionEvent[]
   qualityEvents       KitchenQualityEvent[]
@@ -828,12 +850,14 @@ model KitchenPreparationTarget {
   updatedByUserId String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  updatedBy       User     @relation("KitchenTargetUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  updatedBy       Staff     @relation("KitchenTargetUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: Restrict)
 
   @@index([updatedByUserId])
 }
 
 model KitchenTransitionEvent {
+  actorCustomerId       String?
+  actorCustomer         Customer?                   @relation("KitchenTransitionActorCustomer", fields: [actorCustomerId], references: [id], onDelete: SetNull)
   id                    String                      @id @default(cuid())
   orderId               String
   station               Station?
@@ -847,8 +871,9 @@ model KitchenTransitionEvent {
   occurredAt            DateTime                    @default(now())
   createdAt             DateTime                    @default(now())
   ticket                KitchenTicketState          @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
-  actor                 User?                       @relation("KitchenTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor                 Staff?                      @relation("KitchenTransitionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
+  @@index([actorCustomerId])
   @@index([orderId, station, occurredAt])
   @@index([type, occurredAt])
   @@index([actorUserId, occurredAt])
@@ -866,7 +891,7 @@ model KitchenQualityEvent {
   createdAt   DateTime                @default(now())
   ticket      KitchenTicketState      @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
   orderItem   OrderItem?              @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
-  actor       User                    @relation("KitchenQualityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  actor       Staff                    @relation("KitchenQualityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([orderId, occurredAt])
   @@index([type, occurredAt])
@@ -889,8 +914,8 @@ model OperationalIncident {
   resolutionNotes  String?
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
-  reportedBy       User                    @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
-  assignedTo       User?                   @relation("IncidentAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  reportedBy       Staff                    @relation("IncidentReporter", fields: [reportedByUserId], references: [id], onDelete: Restrict)
+  assignedTo       Staff?                   @relation("IncidentAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   @@index([type, status, startedAt])
   @@index([severity, status])
@@ -939,8 +964,8 @@ model CleaningChecklistRun {
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
   template          CleaningChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  assignedTo        User?                      @relation("CleaningRunAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  completedBy       User?                      @relation("CleaningRunCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  assignedTo        Staff?                      @relation("CleaningRunAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  completedBy       Staff?                      @relation("CleaningRunCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
   tasks             CleaningChecklistRunTask[]
 
   @@index([status, scheduledFor])
@@ -960,7 +985,7 @@ model CleaningChecklistRunTask {
   updatedAt         DateTime              @updatedAt
   run               CleaningChecklistRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
   task              CleaningChecklistTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  completedBy       User?                 @relation("CleaningTaskCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  completedBy       Staff?                 @relation("CleaningTaskCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([runId, taskId])
   @@index([completedByUserId, completedAt])
@@ -993,7 +1018,7 @@ model Payment {
   paymentRequestId String?
   mobileMoneyReceiptId String?
   createdAt   DateTime      @default(now())
-  cashier     User          @relation(fields: [cashierId], references: [id])
+  cashier     Staff          @relation(fields: [cashierId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id])
   paymentRequest PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
   mobileMoneyReceipt MobileMoneyReceipt? @relation(fields: [mobileMoneyReceiptId], references: [id], onDelete: SetNull)
@@ -1024,7 +1049,7 @@ model PaymentRequest {
   matchedAt         DateTime?
   expiresAt         DateTime
   table             Table                @relation(fields: [tableId], references: [id])
-  cashier           User                 @relation("PaymentRequestCashier", fields: [cashierId], references: [id])
+  cashier           Staff                 @relation("PaymentRequestCashier", fields: [cashierId], references: [id])
   payments          Payment[]
   mobileMoneyReceipts MobileMoneyReceipt[]
 
@@ -1057,7 +1082,7 @@ model MobileMoneyReceipt {
   assignedByName           String?
   assignedAt               DateTime?
   paymentRequest           PaymentRequest?          @relation(fields: [assignedPaymentRequestId], references: [id], onDelete: Restrict)
-  assignedBy               User?                    @relation("MobileMoneyReceiptAssignee", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+  assignedBy               Staff?                    @relation("MobileMoneyReceiptAssignee", fields: [assignedByUserId], references: [id], onDelete: Restrict)
   payments                 Payment[]
 
   @@unique([method, providerReference])
@@ -1090,7 +1115,7 @@ model PaymentDeferral {
   createdAt       DateTime @default(now())
   resolvedAt      DateTime?
   table           Table    @relation(fields: [tableId], references: [id])
-  cashier         User     @relation("PaymentDeferralCashier", fields: [cashierId], references: [id])
+  cashier         Staff     @relation("PaymentDeferralCashier", fields: [cashierId], references: [id])
 
   @@index([resolvedAt, createdAt])
   @@index([tableId, resolvedAt])
@@ -1107,8 +1132,8 @@ model Shift {
   reportedSales   Decimal?
   settledByUserId String?
   updatedAt       DateTime  @updatedAt
-  waiter          User      @relation("WaiterShifts", fields: [userId], references: [id])
-  settledBy       User?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
+  waiter          Staff      @relation("WaiterShifts", fields: [userId], references: [id])
+  settledBy       Staff?     @relation("ShiftSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
 
   @@unique([userId, businessDate])
   @@index([openedAt])
@@ -1123,8 +1148,8 @@ model WaiterBalanceInitialization {
   openingBalance        Decimal
   createdByUserId       String
   createdAt             DateTime @default(now())
-  waiter                User     @relation("WaiterBalanceOwner", fields: [waiterId], references: [id])
-  createdBy             User     @relation("WaiterBalanceCreatedBy", fields: [createdByUserId], references: [id])
+  waiter                Staff     @relation("WaiterBalanceOwner", fields: [waiterId], references: [id])
+  createdBy             Staff     @relation("WaiterBalanceCreatedBy", fields: [createdByUserId], references: [id])
 
   @@index([createdByUserId])
 }
@@ -1167,7 +1192,7 @@ model SupplierBill {
   updatedAt       DateTime                     @updatedAt
   supplier        Supplier                     @relation(fields: [supplierId], references: [id])
   invoice         SupplierInvoice              @relation(fields: [invoiceId], references: [id])
-  settledBy       User?                        @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
+  settledBy       Staff?                        @relation("SupplierBillSettledBy", fields: [settledByUserId], references: [id], onDelete: SetNull)
   allocations     SupplierPaymentAllocation[]
   installments    SupplierInvoiceInstallment[]
 
@@ -1186,7 +1211,7 @@ model SupplierPayment {
   paidAt           DateTime                    @default(now())
   createdAt        DateTime                    @default(now())
   supplier         Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  recordedBy       User                        @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  recordedBy       Staff                        @relation("SupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id])
   allocations      SupplierPaymentAllocation[]
   dailyCashPayment DailyCashSupplierPayment?
 
@@ -1208,7 +1233,7 @@ model SupplierPaymentAllocation {
   supplierPayment   SupplierPayment             @relation(fields: [supplierPaymentId], references: [id], onDelete: Cascade)
   bill              SupplierBill                @relation(fields: [billId], references: [id], onDelete: Restrict)
   installment       SupplierInvoiceInstallment? @relation(fields: [installmentId], references: [id], onDelete: Restrict)
-  appliedBy         User                        @relation("SupplierPaymentAllocationAppliedBy", fields: [appliedByUserId], references: [id], onDelete: Restrict)
+  appliedBy         Staff                        @relation("SupplierPaymentAllocationAppliedBy", fields: [appliedByUserId], references: [id], onDelete: Restrict)
 
   @@index([supplierPaymentId])
   @@index([billId, allocatedAt])
@@ -1224,7 +1249,7 @@ model DailySalaryRate {
   amount                Decimal        @db.Decimal(14, 2)
   createdByUserId       String
   createdAt             DateTime       @default(now())
-  createdBy             User           @relation("DailySalaryRateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy             Staff           @relation("DailySalaryRateCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   days                  DailyCashDay[]
 
   @@index([createdByUserId, createdAt])
@@ -1256,9 +1281,9 @@ model DailyCashDay {
   createdAt                          DateTime                   @default(now())
   updatedAt                          DateTime                   @updatedAt
   salaryRate                         DailySalaryRate?           @relation(fields: [salaryRateId], references: [id], onDelete: Restrict)
-  salaryOverriddenBy                 User?                      @relation("DailyCashSalaryOverriddenBy", fields: [salaryOverriddenByUserId], references: [id], onDelete: Restrict)
-  salaryPaidBy                       User?                      @relation("DailyCashSalaryPaidBy", fields: [salaryPaidByUserId], references: [id], onDelete: Restrict)
-  finalizedBy                        User?                      @relation("DailyCashFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: Restrict)
+  salaryOverriddenBy                 Staff?                      @relation("DailyCashSalaryOverriddenBy", fields: [salaryOverriddenByUserId], references: [id], onDelete: Restrict)
+  salaryPaidBy                       Staff?                      @relation("DailyCashSalaryPaidBy", fields: [salaryPaidByUserId], references: [id], onDelete: Restrict)
+  finalizedBy                        Staff?                      @relation("DailyCashFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: Restrict)
   manualExpenses                     DailyCashManualExpense[]
   supplierPayments                   DailyCashSupplierPayment[]
   supplyPayments                     DailyCashSupplyPayment[]
@@ -1282,7 +1307,7 @@ model DailyCashManualExpense {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   dailyCashDay    DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
-  createdBy       User         @relation("DailyCashManualExpenseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy       Staff         @relation("DailyCashManualExpenseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([dailyCashDayId, createdAt])
   @@index([createdByUserId, createdAt])
@@ -1300,7 +1325,7 @@ model DailyCashSupplierPayment {
   createdAt         DateTime        @default(now())
   dailyCashDay      DailyCashDay    @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
   supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id], onDelete: Restrict)
-  recordedBy        User            @relation("DailyCashSupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  recordedBy        Staff            @relation("DailyCashSupplierPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
 
   @@index([dailyCashDayId, createdAt])
   @@index([recordedByUserId, createdAt])
@@ -1318,7 +1343,7 @@ model DailyCashSupplyPayment {
   createdAt        DateTime     @default(now())
   dailyCashDay     DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
   supplyDay        SupplyDay    @relation(fields: [supplyDayId], references: [id], onDelete: Restrict)
-  recordedBy       User         @relation("DailyCashSupplyPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  recordedBy       Staff         @relation("DailyCashSupplyPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
 
   @@index([dailyCashDayId, createdAt])
   @@index([supplyDayId, createdAt])
@@ -1335,7 +1360,7 @@ model DailyCashSavingsDeposit {
   recordedByUserId String
   createdAt        DateTime     @default(now())
   dailyCashDay     DailyCashDay @relation(fields: [dailyCashDayId], references: [id], onDelete: Cascade)
-  recordedBy       User         @relation("DailyCashSavingsDepositRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  recordedBy       Staff         @relation("DailyCashSavingsDepositRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
 
   @@index([dailyCashDayId, createdAt])
   @@index([recordedByUserId, createdAt])
@@ -1381,7 +1406,7 @@ model SupplierPurchaseOrder {
   updatedAt            DateTime                    @updatedAt
   emergencyPurchase    Boolean                     @default(false)
   supplier             Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy            User                        @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy            Staff                        @relation("SupplierPurchaseOrderCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   items                SupplierPurchaseOrderItem[]
   invoices             SupplierInvoice[]
   receiving            SupplierReceiving?
@@ -1440,7 +1465,7 @@ model SupplierOrderSchedule {
   createdAt               DateTime                         @default(now())
   updatedAt               DateTime                         @updatedAt
   supplier                Supplier                         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  createdBy               User                             @relation("SupplierOrderScheduleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy               Staff                             @relation("SupplierOrderScheduleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   recipients              SupplierOrderScheduleRecipient[]
   runs                    SupplierOrderRun[]
 
@@ -1455,7 +1480,7 @@ model SupplierOrderScheduleRecipient {
   userId     String
   createdAt  DateTime              @default(now())
   schedule   SupplierOrderSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  user       User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user       Staff                  @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([scheduleId, userId])
   @@index([userId])
@@ -1506,7 +1531,7 @@ model SupplierOrderRunRecipient {
   createdAt      DateTime                        @default(now())
   updatedAt      DateTime                        @updatedAt
   run            SupplierOrderRun                @relation(fields: [runId], references: [id], onDelete: Cascade)
-  user           User                            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user           Staff                            @relation(fields: [userId], references: [id], onDelete: Restrict)
   responseItems  SupplierOrderResponseItem[]
   deliveries     SupplierOrderWhatsAppDelivery[]
 
@@ -1592,9 +1617,9 @@ model SupplierInvoice {
   purchaseOrder            SupplierPurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
   templateRecurrence       SupplierInvoiceRecurrence?   @relation("SupplierInvoiceRecurrenceTemplate")
   generatedByRecurrence    SupplierInvoiceRecurrence?   @relation("SupplierInvoiceRecurrenceGenerated", fields: [recurrenceScheduleId], references: [id], onDelete: SetNull)
-  createdBy                User?                        @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  finalizedBy              User?                        @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
-  voidedBy                 User?                        @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
+  createdBy                Staff?                        @relation("SupplierInvoiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  finalizedBy              Staff?                        @relation("SupplierInvoiceFinalizedBy", fields: [finalizedByUserId], references: [id], onDelete: SetNull)
+  voidedBy                 Staff?                        @relation("SupplierInvoiceVoidedBy", fields: [voidedByUserId], references: [id], onDelete: SetNull)
   items                    SupplierInvoiceItem[]
   installments             SupplierInvoiceInstallment[]
   bill                     SupplierBill?
@@ -1628,8 +1653,8 @@ model SupplierInvoiceRecurrence {
   updatedAt         DateTime                        @updatedAt
   supplier          Supplier                        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   sourceInvoice     SupplierInvoice                 @relation("SupplierInvoiceRecurrenceTemplate", fields: [sourceInvoiceId], references: [id], onDelete: Restrict)
-  createdBy         User                            @relation("SupplierInvoiceRecurrenceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  pausedBy          User?                           @relation("SupplierInvoiceRecurrencePausedBy", fields: [pausedByUserId], references: [id], onDelete: SetNull)
+  createdBy         Staff                            @relation("SupplierInvoiceRecurrenceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  pausedBy          Staff?                           @relation("SupplierInvoiceRecurrencePausedBy", fields: [pausedByUserId], references: [id], onDelete: SetNull)
   items             SupplierInvoiceRecurrenceItem[]
   generatedInvoices SupplierInvoice[]               @relation("SupplierInvoiceRecurrenceGenerated")
 
@@ -1704,7 +1729,7 @@ model SupplyCatalogItem {
   createdByUserId  String
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
-  createdBy        User             @relation("SupplyCatalogItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy        Staff             @relation("SupplyCatalogItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   purchases        SupplyPurchase[]
 
   @@unique([name, unit])
@@ -1722,8 +1747,8 @@ model SupplyDay {
   reopenedByUserId String?
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
-  closedBy         User?                    @relation("SupplyDayClosedBy", fields: [closedByUserId], references: [id], onDelete: Restrict)
-  reopenedBy       User?                    @relation("SupplyDayReopenedBy", fields: [reopenedByUserId], references: [id], onDelete: Restrict)
+  closedBy         Staff?                    @relation("SupplyDayClosedBy", fields: [closedByUserId], references: [id], onDelete: Restrict)
+  reopenedBy       Staff?                    @relation("SupplyDayReopenedBy", fields: [reopenedByUserId], references: [id], onDelete: Restrict)
   purchases        SupplyPurchase[]         @relation("SupplyPurchasesByDate")
   payments         DailyCashSupplyPayment[]
 
@@ -1743,7 +1768,7 @@ model SupplyPurchase {
   createdByUserId String
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
-  createdBy       User               @relation("SupplyPurchaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy       Staff               @relation("SupplyPurchaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
   catalogItem     SupplyCatalogItem? @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
   day             SupplyDay          @relation("SupplyPurchasesByDate", fields: [purchaseDate], references: [purchaseDate], onDelete: Restrict)
 
@@ -1990,26 +2015,31 @@ enum CompensationType {
   DAILY
   MONTHLY
 }
+
 enum EmploymentStatus {
   ACTIVE
   SUSPENDED
   ENDED
 }
+
 enum ScheduledShiftStatus {
   SCHEDULED
   CANCELLED
   COMPLETED
 }
+
 enum ClockEventType {
   IN
   OUT
 }
+
 enum AttendanceStatus {
   PENDING
   PRESENT
   ABSENT
   REJECTED
 }
+
 enum PayrollAdjustmentType {
   BONUS
   ADVANCE
@@ -2017,29 +2047,34 @@ enum PayrollAdjustmentType {
   CORRECTION
   OVERTIME
 }
+
 enum PayrollRunStatus {
   DRAFT
   APPROVED
   FINALIZED
   VOIDED
 }
+
 enum ExpenseStatus {
   PENDING
   APPROVED
   VOIDED
 }
+
 enum ComplaintCategory {
   SERVICE
   FOOD
   PAYMENT
   OTHER
 }
+
 enum ComplaintPriority {
   LOW
   MEDIUM
   HIGH
   CRITICAL
 }
+
 enum ComplaintStatus {
   OPEN
   IN_PROGRESS

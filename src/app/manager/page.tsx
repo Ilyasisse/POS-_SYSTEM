@@ -619,7 +619,7 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
       requirePermission(PERMISSIONS.DASHBOARD_VIEW),
       searchParams,
       Promise.all([
-        prisma.user.findMany({
+        prisma.staff.findMany({
           where: { role: "WAITER", isActive: true },
           select: {
             id: true,

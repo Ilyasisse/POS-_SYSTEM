@@ -390,12 +390,14 @@ export async function deductProductInventoryForSale(
   lines: InventorySaleLine[],
   sourceOrderId: string | null = null,
   actorUserId?: string | null,
+  actorCustomerId?: string | null,
 ) {
   const events = await deductSaleInventory(
     tx,
     lines,
     sourceOrderId,
     actorUserId,
+    actorCustomerId,
   );
   const productIds = [
     ...new Set(
