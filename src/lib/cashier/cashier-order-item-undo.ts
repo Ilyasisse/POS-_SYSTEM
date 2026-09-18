@@ -44,7 +44,7 @@ export type DeletedOrderItemSnapshot = {
   };
   payments: Array<{
     id: string;
-    cashierId: string;
+    cashierId: string | null;
     cashierName: string;
     method: string;
     amountPaid: number;

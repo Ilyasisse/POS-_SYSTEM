@@ -30,7 +30,6 @@ import type { Category, Product } from "@/lib/types";
 import {
   buildModifierLines,
   getProductModifierGroups,
-  type CustomerOrderResponse,
   type SelectedModifiersMap,
 } from "./customer-order-utils";
 import CustomerOrderHeader from "./UI/CustomerOrderHeader";
@@ -40,6 +39,7 @@ import BackToTopButton from "./UI/BackToTopButton";
 import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
+import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
 
 const posthogConfigured = Boolean(
   process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
@@ -271,6 +271,10 @@ export default function CustomerOrderPage({
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const restoredRef = useRef(false);
+  const checkoutKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    checkoutKeyRef.current = null;
+  }, [cart, orderState.customerName, orderState.customerPhone, orderState.orderNote]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const showBackToTop = useBackToTopVisibility(520);
@@ -486,6 +490,13 @@ export default function CustomerOrderPage({
       });
       return;
     }
+    if (!normalizeSomaliPhone(orderState.customerPhone)) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter the mobile money phone number sending this payment.",
+      });
+      return;
+    }
     if (!orderState.customerName.trim()) {
       dispatchOrderState({
         type: "checkoutBlocked",
@@ -497,14 +508,15 @@ export default function CustomerOrderPage({
     try {
       dispatchOrderState({ type: "checkoutStarted" });
 
-      const response = await fetch("/api/customer/orders", {
+      const response = await fetch("/api/customer/checkouts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           customerName: orderState.customerName,
-          customerPhone: orderState.customerPhone,
+          paymentPhone: orderState.customerPhone,
+          idempotencyKey: checkoutKeyRef.current ??= crypto.randomUUID(),
           notes: orderState.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
@@ -527,19 +539,14 @@ export default function CustomerOrderPage({
         setSignInOpen(true);
         return;
       }
-      const data = (await response.json()) as CustomerOrderResponse;
-
-      if (!response.ok || !data.success || !data.order) {
-        throw new Error(data.error || "The order could not be placed.");
+      const data = (await response.json()) as {
+        checkout?: { id: string };
+        error?: string;
+      };
+      if (!response.ok || !data.checkout?.id) {
+        throw new Error(data.error || "Could not start mobile money checkout.");
       }
-
-      dispatchOrderState({
-        type: "checkoutSucceeded",
-        orderNumber: data.order.orderNumber,
-        message: `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
-      });
-      clearCustomerOrderDraft();
-      clearCart();
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",

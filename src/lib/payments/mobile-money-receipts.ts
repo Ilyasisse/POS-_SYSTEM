@@ -135,7 +135,14 @@ export async function listMobileMoneyReceipts(now: Date = new Date()) {
       ],
     },
     include: {
-      paymentRequest: {
+      customerCheckout: {
+        select: {
+          id: true,
+          customerName: true,
+          payerPhone: true,
+          amount: true,
+        },
+      },      paymentRequest: {
         select: {
           id: true,
           payerName: true,

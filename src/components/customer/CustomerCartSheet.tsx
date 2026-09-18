@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Button } from "@/components/ui/button";
 
@@ -231,10 +231,10 @@ function CartBody({
                 className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
               />
               <Input
-                aria-label="Phone number"
+                aria-label={isCashier ? "Phone number" : "Mobile money phone number"}
                 value={customerPhone}
                 onChange={(event) => onCustomerPhoneChange(event.target.value)}
-                placeholder="Phone number (optional)"
+                placeholder={isCashier ? "Phone number (optional)" : "Phone sending mobile money payment"}
                 className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
               />
             </>
@@ -297,7 +297,7 @@ function CartFooter({
   const checkoutLabel = isSubmitting
     ? isCashier
       ? "Sending to kitchen…"
-      : "Placing order…"
+      : "Preparing payment…"
     : isCashier
       ? "Send to kitchen"
       : "Checkout";
