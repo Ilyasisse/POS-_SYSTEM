@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import CustomerOrderPage from "@/components/customer/CustomerOrderPage";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { getDefaultRouteForUser } from "@/lib/auth/get-default-route-for-user";
 
 export const metadata: Metadata = {
   title: "Customer Menu | Mash Allah Cafe",
@@ -9,14 +10,14 @@ export const metadata: Metadata = {
 };
 
 export default async function CustomerPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/?error=customer-login-required");
+  const user = await getCurrentUser();
+  if (user && user.role !== "CUSTOMER") {
+    redirect(getDefaultRouteForUser(user));
   }
 
-  return <CustomerOrderPage />;
+  return (
+    <CustomerOrderPage
+      authState={!user ? "guest" : user.isActive ? "customer" : "blocked"}
+    />
+  );
 }

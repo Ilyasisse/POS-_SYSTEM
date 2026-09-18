@@ -5,13 +5,27 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import posthog from "posthog-js";
 import { useAos } from "@/components/AosInitializer";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
-import { useWaiterData } from "@/hooks/waiter/useWaiterData";
+import { useCustomerOrderData } from "@/hooks/customer/useCustomerOrderData";
+import {
+  clearCustomerOrderDraft,
+  restoreCustomerOrderDraft,
+  saveCustomerOrderDraft,
+} from "@/lib/customer/customer-order-draft";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Category, Product } from "@/lib/types";
 import {
   buildModifierLines,
@@ -106,7 +120,15 @@ type CustomerOrderAction =
   | { type: "checkoutStarted" }
   | { type: "checkoutSucceeded"; orderNumber: number; message: string }
   | { type: "checkoutFailed"; error: string }
-  | { type: "checkoutFinished" };
+  | { type: "checkoutFinished" }
+  | {
+      type: "draftRestored";
+      customerName: string;
+      customerPhone: string;
+      orderNote: string;
+      message: string;
+      error: string;
+    };
 
 const initialCustomerOrderState: CustomerOrderState = {
   selectedCategoryValue: "all",
@@ -202,19 +224,42 @@ function customerOrderReducer(
       };
     case "checkoutFinished":
       return { ...state, isSubmitting: false };
+    case "draftRestored":
+      return {
+        ...state,
+        customerName: action.customerName,
+        customerPhone: action.customerPhone,
+        orderNote: action.orderNote,
+        submitMessage: action.message,
+        submitError: action.error,
+        cartOpen: true,
+      };
     default:
       return state;
   }
 }
 
-export default function CustomerOrderPage() {
-  const { productsAll, categories, baristas, loading } = useWaiterData();
+type CustomerOrderPageProps = {
+  authState: "guest" | "customer" | "blocked";
+};
+
+export default function CustomerOrderPage({
+  authState,
+}: CustomerOrderPageProps) {
+  const {
+    productsAll,
+    categories,
+    baristas,
+    loading,
+    error: catalogError,
+  } = useCustomerOrderData();
   const {
     cart,
     addToCart,
     changeQuantity,
     removeFromCart,
     clearCart,
+    replaceCart,
     calculateCartTotal,
   } = useWaiterCart();
 
@@ -222,6 +267,10 @@ export default function CustomerOrderPage() {
     customerOrderReducer,
     initialCustomerOrderState,
   );
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [signInError, setSignInError] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const restoredRef = useRef(false);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const showBackToTop = useBackToTopVisibility(520);
@@ -286,6 +335,54 @@ export default function CustomerOrderPage() {
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
 
+  useEffect(() => {
+    if (loading || catalogError || restoredRef.current) return;
+    restoredRef.current = true;
+    const restored = restoreCustomerOrderDraft(productsAll, baristas);
+    if (restored) {
+      replaceCart(restored.cart);
+      const issues = [
+        restored.skipped > 0
+          ? `${restored.skipped} unavailable item(s) were removed. Add them again if needed.`
+          : "",
+        restored.repriced > 0
+          ? `${restored.repriced} item(s) have updated prices. Review the total before checkout.`
+          : "",
+      ].filter(Boolean);
+      dispatchOrderState({
+        type: "draftRestored",
+        customerName: restored.customerName,
+        customerPhone: restored.customerPhone,
+        orderNote: restored.orderNote,
+        message: issues.length
+          ? ""
+          : "Your order is ready to review. Press Checkout when you are ready.",
+        error: issues.join(" "),
+      });
+    }
+    setDraftReady(true);
+  }, [loading, catalogError, productsAll, baristas, replaceCart]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (cart.length === 0) {
+      clearCustomerOrderDraft();
+      return;
+    }
+    saveCustomerOrderDraft(
+      cart,
+      orderState.customerName,
+      orderState.customerPhone,
+      orderState.orderNote,
+    );
+  }, [
+    draftReady,
+    cart,
+    orderState.customerName,
+    orderState.customerPhone,
+    orderState.orderNote,
+  ]);
+
   useAos(
     cart.length,
     orderState.cartOpen,
@@ -296,6 +393,7 @@ export default function CustomerOrderPage() {
   );
 
   function resetKiosk() {
+    clearCustomerOrderDraft();
     clearCart();
     dispatchOrderState({ type: "reset" });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -311,7 +409,10 @@ export default function CustomerOrderPage() {
       return;
     }
 
-    if (getProductModifierGroups(product).length > 0) {
+    if (
+      getProductModifierGroups(product).length > 0 ||
+      product.category?.station === "BARISTA"
+    ) {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -366,18 +467,29 @@ export default function CustomerOrderPage() {
   }
 
   async function handlePlaceOrder() {
-    if (!orderState.customerName.trim()) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "Enter your name before checkout.",
-      });
-      return;
-    }
-
     if (cart.length === 0) {
       dispatchOrderState({
         type: "checkoutBlocked",
         error: "Add at least one item to your cart.",
+      });
+      return;
+    }
+    if (authState === "guest") {
+      setSignInError("");
+      setSignInOpen(true);
+      return;
+    }
+    if (authState === "blocked") {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "This account cannot place customer orders.",
+      });
+      return;
+    }
+    if (!orderState.customerName.trim()) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter your name before checkout.",
       });
       return;
     }
@@ -410,6 +522,11 @@ export default function CustomerOrderPage() {
         }),
       });
 
+      if (response.status === 401) {
+        setSignInError("");
+        setSignInOpen(true);
+        return;
+      }
       const data = (await response.json()) as CustomerOrderResponse;
 
       if (!response.ok || !data.success || !data.order) {
@@ -421,6 +538,7 @@ export default function CustomerOrderPage() {
         orderNumber: data.order.orderNumber,
         message: `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
       });
+      clearCustomerOrderDraft();
       clearCart();
     } catch (error) {
       dispatchOrderState({
@@ -430,6 +548,22 @@ export default function CustomerOrderPage() {
     } finally {
       dispatchOrderState({ type: "checkoutFinished" });
     }
+  }
+
+  function handleContinueWithGoogle() {
+    const saved = saveCustomerOrderDraft(
+      cart,
+      orderState.customerName,
+      orderState.customerPhone,
+      orderState.orderNote,
+    );
+    if (!saved) {
+      setSignInError(
+        "Your browser could not save this order. Please allow session storage and try again.",
+      );
+      return;
+    }
+    window.location.assign("/auth/google/start?next=%2Fcustomer");
   }
 
   return (
@@ -446,6 +580,14 @@ export default function CustomerOrderPage() {
           onReset={resetKiosk}
           onOpenCart={() => dispatchOrderState({ type: "cartOpened" })}
         />
+        {catalogError ? (
+          <div
+            role="alert"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800"
+          >
+            {catalogError}
+          </div>
+        ) : null}
 
         <MenuBrowserPanel
           searchTerm={orderState.searchTerm}
@@ -499,11 +641,43 @@ export default function CustomerOrderPage() {
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
         onClearCart={() => {
+          clearCustomerOrderDraft();
           clearCart();
           dispatchOrderState({ type: "cartCleared" });
         }}
         onCheckout={handlePlaceOrder}
       />
+      <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle>Sign in to place your order</DialogTitle>
+            <DialogDescription>
+              Continue with Google. We will bring you back to this cart so you
+              can review it before placing your order.
+            </DialogDescription>
+          </DialogHeader>
+          {signInError ? (
+            <p role="alert" className="text-sm text-rose-700">
+              {signInError}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            onClick={handleContinueWithGoogle}
+            className="w-full rounded-full"
+          >
+            Continue with Google
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setSignInOpen(false)}
+            className="w-full rounded-full"
+          >
+            Keep editing
+          </Button>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
