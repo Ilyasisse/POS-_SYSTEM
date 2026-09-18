@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -168,6 +168,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         >
           New table order
         </Link>
+        <Link href="/cashier/customer-checkouts" className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50">Customer payment review</Link>
       </div>
 
       {notice ? (

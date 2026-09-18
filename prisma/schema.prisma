@@ -115,6 +115,7 @@ model Customer {
   updatedAt          DateTime                 @updatedAt
   email              String                   @unique
   orders             Order[]                  @relation("CustomerOrders")
+  checkouts           CustomerCheckout[]
 }
 
 model CafeSetting {
@@ -617,6 +618,7 @@ model Order {
   salesAdjustments   SalesAdjustment[]
   feedback           CustomerFeedback[]
   complaints         ComplaintCase[]
+  customerCheckout   CustomerCheckout?
 
   @@unique([tableCheckId, tableCheckRound])
   @@index([status])
@@ -1008,7 +1010,7 @@ model OrderItemModifier {
 model Payment {
   id          String        @id @default(cuid())
   orderId     String
-  cashierId   String
+  cashierId   String?
   cashierName String
   method      PaymentMethod
   amountPaid  Decimal
@@ -1018,7 +1020,7 @@ model Payment {
   paymentRequestId String?
   mobileMoneyReceiptId String?
   createdAt   DateTime      @default(now())
-  cashier     Staff          @relation(fields: [cashierId], references: [id])
+  cashier     Staff?         @relation(fields: [cashierId], references: [id])
   order       Order         @relation(fields: [orderId], references: [id])
   paymentRequest PaymentRequest? @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
   mobileMoneyReceipt MobileMoneyReceipt? @relation(fields: [mobileMoneyReceiptId], references: [id], onDelete: SetNull)
@@ -1084,12 +1086,38 @@ model MobileMoneyReceipt {
   paymentRequest           PaymentRequest?          @relation(fields: [assignedPaymentRequestId], references: [id], onDelete: Restrict)
   assignedBy               Staff?                    @relation("MobileMoneyReceiptAssignee", fields: [assignedByUserId], references: [id], onDelete: Restrict)
   payments                 Payment[]
+  customerCheckout         CustomerCheckout?
 
   @@unique([method, providerReference])
   @@index([status, direction, transactionAt])
   @@index([assignedPaymentRequestId])
   @@index([assignedByUserId, assignedAt])
   @@index([receivedAt])
+}
+
+model CustomerCheckout {
+  id             String                 @id @default(cuid())
+  customerId     String
+  customerName   String
+  payerPhone     String
+  notes          String?
+  amount         Decimal                @db.Decimal(14, 2)
+  snapshot       Json
+  idempotencyKey String                 @unique
+  status         CustomerCheckoutStatus @default(PENDING)
+  receiptId      String?                @unique
+  orderId        String?                @unique
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  expiresAt      DateTime
+  paidAt         DateTime?
+  customer       Customer               @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  receipt        MobileMoneyReceipt?    @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  order          Order?                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@index([status, amount, expiresAt])
+  @@index([payerPhone, status, amount])
 }
 
 model PaymentGatewayStatus {
@@ -1833,6 +1861,15 @@ enum OrderStatus {
   OPEN
   PAID
   CANCELLED
+}
+
+enum CustomerCheckoutStatus {
+  PENDING
+  REVIEW
+  PAYMENT_RECEIVED
+  PAID
+  EXPIRED
+  NEEDS_HELP
 }
 
 enum CostSnapshotSource {

@@ -46,7 +46,12 @@ type Receipt = {
   parseError: string | null;
   assignedByName: string | null;
   rawMessage: string;
-  assignment: {
+  customerCheckout: {
+    id: string;
+    customerName: string;
+    payerPhone: string;
+    amount: number;
+  } | null;  assignment: {
     paymentRequestId: string;
     payerName: string;
     payerPhone: string;
@@ -594,7 +599,12 @@ export default function CashierPaymentDialog({
                               ? "not found"
                               : money(receipt.providerBalance)}
                           </p>
-                          {receipt.assignment ? (
+                          {receipt.customerCheckout ? (
+                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
+                              Assigned to customer checkout {receipt.customerCheckout.customerName}
+                              {" "}({receipt.customerCheckout.payerPhone}) · {money(receipt.customerCheckout.amount)}.
+                            </p>
+                          ) : null}                          {receipt.assignment ? (
                             <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
                               Assigned to {receipt.assignment.payerName} at{" "}
                               {receipt.assignment.table.name} by{" "}
