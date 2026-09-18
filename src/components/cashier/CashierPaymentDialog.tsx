@@ -13,6 +13,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToast } from "@/components/ui/toast";
+import {
+  MAX_EQUAL_SPLIT_PEOPLE,
+  splitBillEqually,
+} from "@/lib/payments/equal-bill-split";
 
 type Line = {
   id: string;
@@ -64,14 +68,17 @@ export default function CashierPaymentDialog({
   tableId,
   tableName,
   amountDue,
+  showEqualSplit,
 }: {
   tableId: string;
   tableName: string;
   amountDue: number;
+  showEqualSplit: boolean;
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState("");
+  const [equalSplitCount, setEqualSplitCount] = useState("2");
   const [lines, setLines] = useState<Line[]>([
     {
       id: crypto.randomUUID(),
@@ -164,6 +171,27 @@ export default function CashierPaymentDialog({
         line.id === id ? { ...line, [field]: value } : line,
       ),
     );
+  }
+
+  function applyEqualSplit() {
+    if (!showEqualSplit) return;
+    try {
+      const amounts = splitBillEqually(amountDue, Number(equalSplitCount));
+      setLines(
+        amounts.map((amount) => ({
+          id: crypto.randomUUID(),
+          payerName: "",
+          payerPhone: "",
+          amount: amount.toFixed(2),
+        })),
+      );
+      setPayLater(false);
+      setError("");
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Could not split the bill.",
+      );
+    }
   }
 
   async function startChecks() {
@@ -324,6 +352,32 @@ export default function CashierPaymentDialog({
                 <option value="OTHER">OTHER</option>
               </NativeSelect>
             </label>
+            {showEqualSplit ? (
+              <div className="rounded-2xl border bg-muted/30 p-4">
+                <p className="font-semibold">Split equally</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Divide the full table balance exactly between each payer.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <Input
+                    aria-label="Number of people sharing the bill"
+                    type="number"
+                    min={2}
+                    max={MAX_EQUAL_SPLIT_PEOPLE}
+                    step={1}
+                    value={equalSplitCount}
+                    onChange={(event) => setEqualSplitCount(event.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={applyEqualSplit}
+                  >
+                    Create equal shares
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <div className="space-y-3">
               {lines.map((line, index) => (
                 <div
