@@ -8,7 +8,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -162,10 +162,10 @@ function TablePicker({
             className="text-center text-3xl text-stone-950 sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
-            Select an available table
+            Select a table
           </DialogTitle>
           <DialogDescription className="text-center text-base">
-            Choose the table before adding items. Occupied tables are hidden.
+            Choose the table before adding items.
           </DialogDescription>
         </DialogHeader>
         {tables.length ? (
@@ -196,6 +196,8 @@ export default function CashierOrderExperience({
   initialTableId = "",
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const waiterMode = pathname.startsWith("/waiter/");
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
     tableId: tables.some((table) => table.id === initialTableId)
@@ -361,7 +363,9 @@ export default function CashierOrderExperience({
       if (!response.ok)
         throw new Error(data?.error || "The table order could not be sent.");
       clearCart();
-      router.push("/cashier?orderStatus=sent");
+      router.push(
+        waiterMode ? "/waiter?orderStatus=sent" : "/cashier?orderStatus=sent",
+      );
       router.refresh();
     } catch (error) {
       dispatch({
@@ -385,7 +389,7 @@ export default function CashierOrderExperience({
       />
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <CustomerOrderHeader
-          title="Cashier order"
+          title={waiterMode ? "Waiter order" : "Cashier order"}
           subtitle={
             tableName ? `Ordering for ${tableName}` : "Select a table to begin"
           }
