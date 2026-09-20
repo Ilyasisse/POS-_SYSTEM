@@ -294,7 +294,7 @@ export async function assignCustomerCheckoutReceipt(input: {
   await finalizeCustomerCheckout(checkoutId);
 }
 
-export async function autoMatchCustomerReceipt(receiptId: string) {
+export async function autoMatchCustomerReceipt(receiptId: string, expectedCheckoutId?: string) {
   const receipt = await prisma.mobileMoneyReceipt.findUnique({
     where: { id: receiptId },
   });
@@ -325,12 +325,51 @@ export async function autoMatchCustomerReceipt(receiptId: string) {
     ...candidate,
     amount: Number(candidate.amount),
   })), new Date());
-  if (!checkoutId) return;  try {
+  if (!checkoutId || (expectedCheckoutId && checkoutId !== expectedCheckoutId)) return;
+  try {
     await assignCustomerCheckoutReceipt({
       checkoutId,
       receiptId,
     });
   } catch (error) {
     console.error("Customer receipt needs staff review:", receiptId, error);
+  }
+}
+
+// Reconcile receipts that arrived before the customer requested another check.
+// Reuse the global matcher: narrowing its candidates to this checkout would
+// incorrectly accept a receipt shared by two otherwise identical checkouts.
+export async function retryCustomerCheckoutPayment(checkoutId: string) {
+  const checkout = await prisma.customerCheckout.findUnique({ where: { id: checkoutId } });
+  if (!checkout || checkout.receiptId ||
+      (checkout.status !== CustomerCheckoutStatus.PENDING &&
+       checkout.status !== CustomerCheckoutStatus.REVIEW) || checkout.expiresAt < new Date()) return;
+
+  const receipts = await prisma.mobileMoneyReceipt.findMany({
+    where: {
+      status: MobileMoneyReceiptStatus.AVAILABLE,
+      direction: "INCOMING",
+      method: "GOLIS",
+      assignedPaymentRequestId: null,
+      amount: checkout.amount,
+      providerReference: { not: null },
+      transactionAt: {
+        gte: new Date(checkout.createdAt.getTime() - 1000),
+        lte: checkout.expiresAt,
+      },
+    },
+    select: { id: true },
+    orderBy: { transactionAt: "desc" },
+    take: 100,
+  });
+  // A truncated result set requires staff review, just like the global matcher.
+  if (receipts.length === 100) return;
+  for (const receipt of receipts) {
+    await autoMatchCustomerReceipt(receipt.id, checkoutId);
+    const current = await prisma.customerCheckout.findUnique({
+      where: { id: checkoutId },
+      select: { receiptId: true },
+    });
+    if (!current || current.receiptId) return;
   }
 }

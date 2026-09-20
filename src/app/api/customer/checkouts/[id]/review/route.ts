@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
+import { retryCustomerCheckoutPayment } from "@/lib/payments/customer-checkout";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 
 export async function POST(
@@ -17,7 +18,7 @@ export async function POST(
     where: {
       id,
       customerId: authorization.user.id,
-      status: "PENDING",
+      status: { in: ["PENDING", "REVIEW"] },
       expiresAt: { gt: new Date() },
       receiptId: null,
     },
@@ -26,5 +27,6 @@ export async function POST(
   if (result.count !== 1) {
     return NextResponse.json({ error: "This checkout can no longer request review." }, { status: 409 });
   }
+  await retryCustomerCheckoutPayment(id);
   return NextResponse.json({ ok: true });
 }
