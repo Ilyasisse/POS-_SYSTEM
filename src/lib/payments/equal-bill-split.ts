@@ -9,9 +9,7 @@ export function splitBillEqually(amount: number, people: number): number[] {
     people < 2 ||
     people > MAX_EQUAL_SPLIT_PEOPLE
   ) {
-    throw new Error(
-      `Choose between 2 and ${MAX_EQUAL_SPLIT_PEOPLE} people.`,
-    );
+    throw new Error(`Choose between 2 and ${MAX_EQUAL_SPLIT_PEOPLE} people.`);
   }
 
   const totalCents = Math.round(amount * 100);

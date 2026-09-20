@@ -25,7 +25,10 @@ export async function POST(
     data: { status: "REVIEW" },
   });
   if (result.count !== 1) {
-    return NextResponse.json({ error: "This checkout can no longer request review." }, { status: 409 });
+    return NextResponse.json(
+      { error: "This checkout can no longer request review." },
+      { status: 409 },
+    );
   }
   await retryCustomerCheckoutPayment(id);
   return NextResponse.json({ ok: true });

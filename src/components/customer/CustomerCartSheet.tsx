@@ -231,10 +231,16 @@ function CartBody({
                 className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
               />
               <Input
-                aria-label={isCashier ? "Phone number" : "Mobile money phone number"}
+                aria-label={
+                  isCashier ? "Phone number" : "Mobile money phone number"
+                }
                 value={customerPhone}
                 onChange={(event) => onCustomerPhoneChange(event.target.value)}
-                placeholder={isCashier ? "Phone number (optional)" : "Phone sending mobile money payment"}
+                placeholder={
+                  isCashier
+                    ? "Phone number (optional)"
+                    : "Phone sending mobile money payment"
+                }
                 className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
               />
             </>

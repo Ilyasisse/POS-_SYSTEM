@@ -142,7 +142,8 @@ export async function listMobileMoneyReceipts(now: Date = new Date()) {
           payerPhone: true,
           amount: true,
         },
-      },      paymentRequest: {
+      },
+      paymentRequest: {
         select: {
           id: true,
           payerName: true,

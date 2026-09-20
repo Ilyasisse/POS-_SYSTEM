@@ -27,16 +27,56 @@ test("automatically selects only a unique exact receipt match in the payment win
   const now = new Date("2026-09-18T06:00:30Z");
   const createdAt = new Date("2026-09-18T06:00:00.800Z");
   const expiresAt = new Date("2026-09-18T06:15:00Z");
-  const candidate = { id: "checkout-1", amount: 26, payerPhone: "252905109687", createdAt, expiresAt };
+  const candidate = {
+    id: "checkout-1",
+    amount: 26,
+    payerPhone: "252905109687",
+    createdAt,
+    expiresAt,
+  };
   const receipt = {
     amount: 26,
     identifiers: ["43095", "252905109687"],
     transactionAt: new Date("2026-09-18T06:00:00Z"),
   };
-  assert.equal(chooseUniqueCustomerCheckout(receipt, [candidate], now), "checkout-1");
-  assert.equal(chooseUniqueCustomerCheckout(receipt, [candidate, { ...candidate, id: "checkout-2" }], now), null);
-  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, identifiers: ["43095"] }, [candidate], now), null);
-  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, amount: 25 }, [candidate], now), null);
-  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, transactionAt: new Date("2026-09-18T05:59:58Z") }, [candidate], now), null);
-  assert.equal(chooseUniqueCustomerCheckout(receipt, [candidate], new Date("2026-09-18T06:15:01Z")), null);
+  assert.equal(
+    chooseUniqueCustomerCheckout(receipt, [candidate], now),
+    "checkout-1",
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      receipt,
+      [candidate, { ...candidate, id: "checkout-2" }],
+      now,
+    ),
+    null,
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      { ...receipt, identifiers: ["43095"] },
+      [candidate],
+      now,
+    ),
+    null,
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout({ ...receipt, amount: 25 }, [candidate], now),
+    null,
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      { ...receipt, transactionAt: new Date("2026-09-18T05:59:58Z") },
+      [candidate],
+      now,
+    ),
+    null,
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      receipt,
+      [candidate],
+      new Date("2026-09-18T06:15:01Z"),
+    ),
+    null,
+  );
 });

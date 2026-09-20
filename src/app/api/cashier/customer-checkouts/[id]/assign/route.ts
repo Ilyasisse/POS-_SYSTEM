@@ -26,8 +26,14 @@ export async function POST(
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Receipt could not be assigned.",
-    }, { status: 409 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Receipt could not be assigned.",
+      },
+      { status: 409 },
+    );
   }
 }

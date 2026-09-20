@@ -22,7 +22,6 @@ export default async function AdminSettingsPage() {
       title="Settings"
       description="Manage system settings and preferences"
     >
-
       <section className="grid gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
         <Card className="overflow-hidden p-2">
           <nav className="space-y-1">

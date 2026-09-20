@@ -16,7 +16,15 @@ export async function GET() {
   const [checkouts, receipts] = await Promise.all([
     prisma.customerCheckout.findMany({
       where: {
-        status: { in: ["PENDING", "REVIEW", "EXPIRED", "PAYMENT_RECEIVED", "NEEDS_HELP"] },
+        status: {
+          in: [
+            "PENDING",
+            "REVIEW",
+            "EXPIRED",
+            "PAYMENT_RECEIVED",
+            "NEEDS_HELP",
+          ],
+        },
         createdAt: { gte: since },
       },
       orderBy: { createdAt: "desc" },
@@ -53,14 +61,17 @@ export async function GET() {
       },
     }),
   ]);
-  return NextResponse.json({
-    checkouts: checkouts.map((checkout) => ({
-      ...checkout,
-      amount: Number(checkout.amount),
-    })),
-    receipts: receipts.map((receipt) => ({
-      ...receipt,
-      amount: Number(receipt.amount),
-    })),
-  }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(
+    {
+      checkouts: checkouts.map((checkout) => ({
+        ...checkout,
+        amount: Number(checkout.amount),
+      })),
+      receipts: receipts.map((receipt) => ({
+        ...receipt,
+        amount: Number(receipt.amount),
+      })),
+    },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

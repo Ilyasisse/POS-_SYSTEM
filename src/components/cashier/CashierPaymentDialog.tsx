@@ -51,7 +51,8 @@ type Receipt = {
     customerName: string;
     payerPhone: string;
     amount: number;
-  } | null;  assignment: {
+  } | null;
+  assignment: {
     paymentRequestId: string;
     payerName: string;
     payerPhone: string;
@@ -601,10 +602,13 @@ export default function CashierPaymentDialog({
                           </p>
                           {receipt.customerCheckout ? (
                             <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
-                              Assigned to customer checkout {receipt.customerCheckout.customerName}
-                              {" "}({receipt.customerCheckout.payerPhone}) · {money(receipt.customerCheckout.amount)}.
+                              Assigned to customer checkout{" "}
+                              {receipt.customerCheckout.customerName} (
+                              {receipt.customerCheckout.payerPhone}) ·{" "}
+                              {money(receipt.customerCheckout.amount)}.
                             </p>
-                          ) : null}                          {receipt.assignment ? (
+                          ) : null}{" "}
+                          {receipt.assignment ? (
                             <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
                               Assigned to {receipt.assignment.payerName} at{" "}
                               {receipt.assignment.table.name} by{" "}

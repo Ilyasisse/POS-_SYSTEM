@@ -39,7 +39,8 @@ function receiptDto(
           payerPhone: receipt.customerCheckout.payerPhone,
           amount: Number(receipt.customerCheckout.amount),
         }
-      : null,    assignment: receipt.paymentRequest
+      : null,
+    assignment: receipt.paymentRequest
       ? {
           paymentRequestId: receipt.paymentRequest.id,
           payerName: receipt.paymentRequest.payerName,

@@ -4,7 +4,10 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 
 const migration = await readFile(
-  new URL("../../prisma/migrations/20260918090000_customer_mobile_checkout/migration.sql", import.meta.url),
+  new URL(
+    "../../prisma/migrations/20260918090000_customer_mobile_checkout/migration.sql",
+    import.meta.url,
+  ),
   "utf8",
 );
 
@@ -25,7 +28,15 @@ test("customer checkout migration preserves unique receipt claims and cashier-in
       `INSERT INTO "CustomerCheckout"
        ("id", "customerId", "customerName", "payerPhone", "amount", "snapshot", "idempotencyKey", "updatedAt", "expiresAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '15 minutes')`,
-      ["checkout-1", "customer-1", "Customer", "252905109687", 26, "[]", "key-1"],
+      [
+        "checkout-1",
+        "customer-1",
+        "Customer",
+        "252905109687",
+        26,
+        "[]",
+        "key-1",
+      ],
     );
     await assert.rejects(
       db.query(
@@ -37,9 +48,15 @@ test("customer checkout migration preserves unique receipt claims and cashier-in
     await db.query(
       `UPDATE "CustomerCheckout" SET "receiptId" = 'receipt-1', "orderId" = 'order-1' WHERE "id" = 'checkout-1'`,
     );
-    await db.query(`INSERT INTO "Payment" ("id", "cashierId") VALUES ('payment-1', NULL)`);
-    const result = await db.query(`SELECT "receiptId", "orderId" FROM "CustomerCheckout" WHERE "id" = 'checkout-1'`);
-    assert.deepEqual(result.rows, [{ receiptId: "receipt-1", orderId: "order-1" }]);
+    await db.query(
+      `INSERT INTO "Payment" ("id", "cashierId") VALUES ('payment-1', NULL)`,
+    );
+    const result = await db.query(
+      `SELECT "receiptId", "orderId" FROM "CustomerCheckout" WHERE "id" = 'checkout-1'`,
+    );
+    assert.deepEqual(result.rows, [
+      { receiptId: "receipt-1", orderId: "order-1" },
+    ]);
   } finally {
     await db.close();
   }

@@ -14,7 +14,11 @@ export function normalizeSomaliPhone(value: string): string | null {
 
 export function formatCustomerUssdAmount(amount: number): string {
   const cents = Math.round(amount * 100);
-  if (!Number.isFinite(amount) || cents <= 0 || Math.abs(amount * 100 - cents) > 0.0001) {
+  if (
+    !Number.isFinite(amount) ||
+    cents <= 0 ||
+    Math.abs(amount * 100 - cents) > 0.0001
+  ) {
     throw new Error("Invalid checkout amount.");
   }
   return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
@@ -31,7 +35,6 @@ export function androidDialerHref(code: string): string {
 export function isAndroidDevice(userAgent: string): boolean {
   return /Android/i.test(userAgent);
 }
-
 
 export type CheckoutMatchCandidate = {
   id: string;
@@ -56,12 +59,13 @@ export function chooseUniqueCustomerCheckout(
       .filter((value): value is string => Boolean(value)),
   );
   if (phones.size === 0) return null;
-  const matches = candidates.filter((checkout) =>
-    Math.round(checkout.amount * 100) === Math.round(receipt.amount * 100) &&
-    phones.has(checkout.payerPhone) &&
-    receipt.transactionAt.getTime() >= checkout.createdAt.getTime() - 1000 &&
-    receipt.transactionAt <= checkout.expiresAt &&
-    now <= checkout.expiresAt,
+  const matches = candidates.filter(
+    (checkout) =>
+      Math.round(checkout.amount * 100) === Math.round(receipt.amount * 100) &&
+      phones.has(checkout.payerPhone) &&
+      receipt.transactionAt.getTime() >= checkout.createdAt.getTime() - 1000 &&
+      receipt.transactionAt <= checkout.expiresAt &&
+      now <= checkout.expiresAt,
   );
   return matches.length === 1 ? matches[0].id : null;
 }

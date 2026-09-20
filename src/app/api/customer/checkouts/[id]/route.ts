@@ -23,7 +23,8 @@ export async function GET(
     where: { id, customerId: authorization.user.id },
     include: { order: { select: { orderNumber: true } } },
   });
-  if (!checkout) return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
+  if (!checkout)
+    return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
   await expireCustomerCheckout(checkout.id);
   if (checkout.status === "PAYMENT_RECEIVED") {
     await finalizeCustomerCheckout(checkout.id);
@@ -32,16 +33,20 @@ export async function GET(
     where: { id, customerId: authorization.user.id },
     include: { order: { select: { orderNumber: true } } },
   });
-  if (!checkout) return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
-  return NextResponse.json({
-    checkout: {
-      id: checkout.id,
-      amount: Number(checkout.amount),
-      payerPhone: checkout.payerPhone,
-      status: checkout.status,
-      expiresAt: checkout.expiresAt.toISOString(),
-      orderNumber: checkout.order?.orderNumber ?? null,
-      paymentReceived: Boolean(checkout.receiptId),
+  if (!checkout)
+    return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
+  return NextResponse.json(
+    {
+      checkout: {
+        id: checkout.id,
+        amount: Number(checkout.amount),
+        payerPhone: checkout.payerPhone,
+        status: checkout.status,
+        expiresAt: checkout.expiresAt.toISOString(),
+        orderNumber: checkout.order?.orderNumber ?? null,
+        paymentReceived: Boolean(checkout.receiptId),
+      },
     },
-  }, { headers: { "Cache-Control": "private, no-store" } });
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

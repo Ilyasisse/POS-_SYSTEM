@@ -274,7 +274,12 @@ export default function CustomerOrderPage({
   const checkoutKeyRef = useRef<string | null>(null);
   useEffect(() => {
     checkoutKeyRef.current = null;
-  }, [cart, orderState.customerName, orderState.customerPhone, orderState.orderNote]);
+  }, [
+    cart,
+    orderState.customerName,
+    orderState.customerPhone,
+    orderState.orderNote,
+  ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const showBackToTop = useBackToTopVisibility(520);
@@ -516,7 +521,7 @@ export default function CustomerOrderPage({
         body: JSON.stringify({
           customerName: orderState.customerName,
           paymentPhone: orderState.customerPhone,
-          idempotencyKey: checkoutKeyRef.current ??= crypto.randomUUID(),
+          idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
           notes: orderState.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
@@ -546,7 +551,9 @@ export default function CustomerOrderPage({
       if (!response.ok || !data.checkout?.id) {
         throw new Error(data.error || "Could not start mobile money checkout.");
       }
-      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
+      window.location.assign(
+        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
+      );
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",

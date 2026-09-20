@@ -79,13 +79,26 @@ export async function POST(request: Request) {
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
 
     if (authorization.user.role !== "CUSTOMER") {
-      return NextResponse.json({ error: "Customer sign-in is required." }, { status: 403 });
+      return NextResponse.json(
+        { error: "Customer sign-in is required." },
+        { status: 403 },
+      );
     }
     if (!payerPhone) {
-      return NextResponse.json({ error: "Enter the phone number sending the payment." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Enter the phone number sending the payment." },
+        { status: 400 },
+      );
     }
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
-      return NextResponse.json({ error: "Invalid checkout key." }, { status: 400 });
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idempotencyKey,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Invalid checkout key." },
+        { status: 400 },
+      );
     }
 
     if (customerName.length < 2) {
@@ -311,19 +324,35 @@ export async function POST(request: Request) {
     calculatedTotal = roundCurrency(calculatedTotal);
 
     if (calculatedTotal <= 0) {
-      return NextResponse.json({ error: "The checkout amount must be positive." }, { status: 400 });
+      return NextResponse.json(
+        { error: "The checkout amount must be positive." },
+        { status: 400 },
+      );
     }
 
-    const existing = await prisma.customerCheckout.findUnique({ where: { idempotencyKey } });
+    const existing = await prisma.customerCheckout.findUnique({
+      where: { idempotencyKey },
+    });
     if (existing) {
       if (existing.customerId !== authorization.user.id) {
-        return NextResponse.json({ error: "Checkout key is already in use." }, { status: 409 });
+        return NextResponse.json(
+          { error: "Checkout key is already in use." },
+          { status: 409 },
+        );
       }
-      return NextResponse.json({ checkout: { id: existing.id, amount: Number(existing.amount), status: existing.status } });
+      return NextResponse.json({
+        checkout: {
+          id: existing.id,
+          amount: Number(existing.amount),
+          status: existing.status,
+        },
+      });
     }
 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const snapshot = JSON.parse(JSON.stringify(preparedLines)) as Prisma.InputJsonValue;
+    const snapshot = JSON.parse(
+      JSON.stringify(preparedLines),
+    ) as Prisma.InputJsonValue;
     try {
       const checkout = await prisma.customerCheckout.create({
         data: {
@@ -337,18 +366,44 @@ export async function POST(request: Request) {
           expiresAt,
         },
       });
-      return NextResponse.json({ checkout: { id: checkout.id, amount: calculatedTotal, status: checkout.status } }, { status: 201 });
+      return NextResponse.json(
+        {
+          checkout: {
+            id: checkout.id,
+            amount: calculatedTotal,
+            status: checkout.status,
+          },
+        },
+        { status: 201 },
+      );
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const checkout = await prisma.customerCheckout.findUnique({ where: { idempotencyKey } });
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const checkout = await prisma.customerCheckout.findUnique({
+          where: { idempotencyKey },
+        });
         if (checkout?.customerId === authorization.user.id) {
-          return NextResponse.json({ checkout: { id: checkout.id, amount: Number(checkout.amount), status: checkout.status } });
+          return NextResponse.json({
+            checkout: {
+              id: checkout.id,
+              amount: Number(checkout.amount),
+              status: checkout.status,
+            },
+          });
         }
       }
       throw error;
     }
   } catch (error) {
     console.error("Customer checkout error:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not start checkout." }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Could not start checkout.",
+      },
+      { status: 500 },
+    );
   }
 }
