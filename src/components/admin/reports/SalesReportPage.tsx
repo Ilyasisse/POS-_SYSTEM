@@ -15,6 +15,7 @@ import {
 import type { Permission } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
+import { rankHourlyActivity } from "@/lib/reports/hourly-activity";
 import { getSalesReport } from "@/lib/reports/services/sales-report-service";
 import { reportQuerySchema } from "@/lib/reports/validation";
 import {
@@ -83,6 +84,7 @@ export async function SalesReportPage({
   }
   const canSeeFinancials = user.role === "ADMIN";
   const rows = focus === "products" ? report.products : report.categories;
+  const rankedHours = rankHourlyActivity(report.hourlySales);
 
   return (
     <AdminPage title={title} description={description}>
@@ -175,6 +177,54 @@ export async function SalesReportPage({
           </p>
         </Card>
       </section>
+
+      <Card className="p-5">
+        <h2 className="mb-2 text-lg font-black">Busy and slow hours</h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Hours with paid orders, ranked by order count. Ties use net sales.
+          Times are in the café timezone ({report.period.timezone}); hours with
+          no paid orders are omitted.
+        </p>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Hour</TableHead>
+              <TableHead className="text-right">Paid orders</TableHead>
+              <TableHead className="text-right">Net sales</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rankedHours.length ? (
+              rankedHours.map((row, index) => (
+                <TableRow key={row.hour}>
+                  <TableCell>
+                    {String(row.hour).padStart(2, "0")}:00
+                    {index === 0
+                      ? " · Busiest"
+                      : index === rankedHours.length - 1 &&
+                          rankedHours.length > 1
+                        ? " · Slowest observed"
+                        : ""}
+                  </TableCell>
+                  <TableCell className="text-right">{row.orders}</TableCell>
+                  <TableCell className="text-right">
+                    {money(row.amount)}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={3}
+                  className="py-8 text-center text-slate-500"
+                >
+                  No paid orders in this period.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
 
       <Card className="p-5">
         <h2 className="mb-4 text-lg font-black">
