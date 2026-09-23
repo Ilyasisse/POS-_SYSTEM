@@ -15,6 +15,8 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { deliveryDifference } from "@/lib/suppliers/receiving";
+import { recordSupplierDeliveryAction } from "../actions";
 import PurchaseOrderStatusActions from "./PurchaseOrderStatusActions";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -39,6 +41,29 @@ function statusNotice(status: string | undefined) {
       return {
         tone: "success",
         message: "Invoice voided and purchase order reopened.",
+      };
+    case "delivery_recorded":
+      return {
+        tone: "success",
+        message:
+          "Delivery count recorded. Review the shortages and extras below.",
+      };
+    case "delivery_unavailable":
+      return {
+        tone: "warning",
+        message:
+          "This delivery was already recorded or the purchase order is no longer completed. Refresh to see its latest status.",
+      };
+    case "invalid_delivery":
+      return {
+        tone: "error",
+        message:
+          "Enter valid received quantities for every item. Explain any shortage or extra quantity in the delivery note.",
+      };
+    case "delivery_failed":
+      return {
+        tone: "error",
+        message: "Could not record the delivery. Refresh and try again.",
       };
     case "not_open":
       return {
@@ -90,6 +115,18 @@ export default async function SupplierPurchaseOrderDetailPage({
       invoices: {
         select: { id: true, status: true, createdAt: true },
         orderBy: { createdAt: "desc" },
+      },
+      receiving: {
+        include: {
+          receivedBy: { select: { fullName: true } },
+          items: {
+            select: {
+              purchaseOrderItemId: true,
+              expectedQuantity: true,
+              receivedQuantity: true,
+            },
+          },
+        },
       },
     },
   });
@@ -200,6 +237,132 @@ export default async function SupplierPurchaseOrderDetailPage({
           </tbody>
         </Table>
       </DataTableCard>
+
+      {order.receiving ? (
+        <Card className="space-y-3 p-5">
+          <h2 className="font-semibold">Delivery count</h2>
+          <p className="text-sm text-muted-foreground">
+            Recorded {order.receiving.receivedAt.toLocaleString()} by{" "}
+            {order.receiving.receivedBy.fullName}. These are delivery quantities
+            only; recording them does not update inventory or change the
+            supplier invoice.
+          </p>
+          <DataTableCard>
+            <Table>
+              <thead>
+                <tr>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Ordered</TableHead>
+                  <TableHead>Received</TableHead>
+                  <TableHead>Difference</TableHead>
+                </tr>
+              </thead>
+              <tbody>
+                {order.items.map((item) => {
+                  const count = order.receiving!.items.find(
+                    (entry) => entry.purchaseOrderItemId === item.id,
+                  );
+                  const difference = count
+                    ? deliveryDifference(
+                        count.expectedQuantity,
+                        count.receivedQuantity,
+                      )
+                    : null;
+                  return (
+                    <tr key={item.id} className="border-t">
+                      <TableCell>{item.itemName}</TableCell>
+                      <TableCell>{item.itemUnit}</TableCell>
+                      <TableCell>
+                        {count?.expectedQuantity.toString() ??
+                          item.quantity.toString()}
+                      </TableCell>
+                      <TableCell>
+                        {count?.receivedQuantity.toString() ?? "Not recorded"}
+                      </TableCell>
+                      <TableCell>
+                        {difference
+                          ? `${difference.status}${difference.status === "Matched" ? "" : ` ${difference.quantity}`}`
+                          : "Not recorded"}
+                      </TableCell>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </DataTableCard>
+          {order.receiving.qualityRating ? (
+            <p className="text-sm">
+              Quality: {order.receiving.qualityRating}/5
+            </p>
+          ) : null}
+          {order.receiving.completionNote ? (
+            <p className="whitespace-pre-wrap text-sm">
+              Note: {order.receiving.completionNote}
+            </p>
+          ) : null}
+        </Card>
+      ) : order.status === "COMPLETED" ? (
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">Record supplier delivery</h2>
+          <p className="text-sm text-muted-foreground">
+            Count what arrived in the same units as the purchase order. Use zero
+            for an item that did not arrive. This permanent delivery record does
+            not update inventory or the invoice.
+          </p>
+          <form action={recordSupplierDeliveryAction} className="space-y-4">
+            <input type="hidden" name="id" value={order.id} />
+            {order.items.map((item) => (
+              <label
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-2 text-sm"
+              >
+                <span>
+                  {item.itemName} · ordered {item.quantity.toString()}{" "}
+                  {item.itemUnit}
+                </span>
+                <input
+                  className="w-36 rounded border px-3 py-2"
+                  aria-label={`Received ${item.itemName}`}
+                  name={`received-${item.id}`}
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  max="999999999.999"
+                  defaultValue={item.quantity.toString()}
+                  required
+                />
+              </label>
+            ))}
+            <label className="block space-y-1 text-sm">
+              <span>Quality rating (optional)</span>
+              <select
+                name="qualityRating"
+                defaultValue=""
+                className="block rounded border px-3 py-2"
+              >
+                <option value="">Not rated</option>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <option key={rating} value={rating}>
+                    {rating}/5
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span>Delivery note (required if quantities differ)</span>
+              <textarea
+                name="completionNote"
+                maxLength={2000}
+                className="block w-full rounded border px-3 py-2"
+                rows={3}
+                placeholder="Describe missing, damaged, or extra items"
+              />
+            </label>
+            <Button type="submit">Save delivery count</Button>
+          </form>
+        </Card>
+      ) : null}
 
       {order.notes ? (
         <Card className="p-5">
