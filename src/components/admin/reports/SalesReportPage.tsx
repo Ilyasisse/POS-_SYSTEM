@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ProductDiscountsTable } from "@/components/admin/reports/ProductDiscountsTable";
 import {
   Table,
   TableBody,
@@ -222,6 +223,10 @@ export async function SalesReportPage({
           </TableBody>
         </Table>
       </Card>
+
+      {focus === "products" ? (
+        <ProductDiscountsTable insights={report.productDiscounts} />
+      ) : null}
 
       {focus === "orders" ? (
         <Card className="p-5">
