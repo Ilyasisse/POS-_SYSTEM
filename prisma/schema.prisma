@@ -485,6 +485,7 @@ model InventorySupply {
   unit                        String                    @default("unit")
   stockQty                    Decimal                   @default(0) @db.Decimal(18, 6)
   lowStockThreshold           Decimal                   @default(5) @db.Decimal(18, 6)
+  parLevel                    Decimal?                  @db.Decimal(18, 6)
   canonicalUnit               CanonicalUnit?
   quantityCoverage            InventoryDataCoverage     @default(LEGACY_INCOMPLETE)
   standardUnitCost            Decimal?                  @db.Decimal(14, 6)
