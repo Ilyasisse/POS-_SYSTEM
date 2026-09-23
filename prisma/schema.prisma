@@ -114,6 +114,8 @@ model Customer {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   email              String                   @unique
+  marketingEmailConsentAt DateTime?
+  marketingEmailRevokedAt DateTime?
   orders             Order[]                  @relation("CustomerOrders")
   checkouts           CustomerCheckout[]
 }

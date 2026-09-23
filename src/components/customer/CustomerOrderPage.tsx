@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   useDeferredValue,
   useEffect,
@@ -594,6 +596,14 @@ export default function CustomerOrderPage({
           onReset={resetKiosk}
           onOpenCart={() => dispatchOrderState({ type: "cartOpened" })}
         />
+        {authState === "customer" ? (
+          <Link
+            href="/customer/preferences"
+            className="mt-2 inline-block text-sm font-semibold text-stone-800 underline dark:text-amber-100"
+          >
+            Email preferences
+          </Link>
+        ) : null}
         {catalogError ? (
           <div
             role="alert"
