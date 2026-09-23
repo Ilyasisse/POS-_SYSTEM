@@ -248,6 +248,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       orderNumber: order.orderNumber,
       closedAt: order.closedAt?.toISOString() ?? null,
       total: order.total.toFixed(2),
+      waiterId: order.waiter?.id ?? null,
       waiter: order.waiter?.fullName ?? null,
       cashier: order.cashier?.fullName ?? null,
       table: order.table?.name ?? null,
