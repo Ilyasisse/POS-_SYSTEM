@@ -252,6 +252,8 @@ export default function CustomerOrderPage({
     baristas,
     loading,
     error: catalogError,
+    stale: menuStale,
+    refresh: refreshMenu,
   } = useCustomerOrderData();
   const {
     cart,
@@ -271,6 +273,7 @@ export default function CustomerOrderPage({
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const restoredRef = useRef(false);
+  const wasStaleRef = useRef(false);
   const checkoutKeyRef = useRef<string | null>(null);
   useEffect(() => {
     checkoutKeyRef.current = null;
@@ -345,6 +348,14 @@ export default function CustomerOrderPage({
   const cartSubtotal = calculateCartTotal();
 
   useEffect(() => {
+    if (menuStale) {
+      wasStaleRef.current = true;
+      return;
+    }
+    if (wasStaleRef.current) {
+      restoredRef.current = false;
+      wasStaleRef.current = false;
+    }
     if (loading || catalogError || restoredRef.current) return;
     restoredRef.current = true;
     const restored = restoreCustomerOrderDraft(productsAll, baristas);
@@ -370,7 +381,7 @@ export default function CustomerOrderPage({
       });
     }
     setDraftReady(true);
-  }, [loading, catalogError, productsAll, baristas, replaceCart]);
+  }, [loading, catalogError, menuStale, productsAll, baristas, replaceCart]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -413,6 +424,7 @@ export default function CustomerOrderPage({
   }
 
   function handleProductClick(product: Product) {
+    if (menuStale) return;
     if (product.category?.station === "BARISTA" && baristas.length === 0) {
       dispatchOrderState({ type: "baristaUnavailable" });
       return;
@@ -447,6 +459,13 @@ export default function CustomerOrderPage({
     selectedModifiers: SelectedModifiersMap,
     assignedBaristaId: string | null,
   ) {
+    if (menuStale) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Reconnect before adding items to your order.",
+      });
+      return;
+    }
     const modifierLines = buildModifierLines(product, selectedModifiers);
     const modifiersTotal = modifierLines.reduce(
       (sum, modifier) => sum + modifier.price * modifier.qty,
@@ -476,6 +495,13 @@ export default function CustomerOrderPage({
   }
 
   async function handlePlaceOrder() {
+    if (menuStale || !navigator.onLine) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Reconnect and refresh the live menu before checkout.",
+      });
+      return;
+    }
     if (cart.length === 0) {
       dispatchOrderState({
         type: "checkoutBlocked",
@@ -594,6 +620,20 @@ export default function CustomerOrderPage({
           onReset={resetKiosk}
           onOpenCart={() => dispatchOrderState({ type: "cartOpened" })}
         />
+        {menuStale ? (
+          <div
+            role="status"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500 bg-amber-100 p-4 text-amber-950"
+          >
+            <p className="text-sm font-semibold">
+              Saved menu for reference only. Availability and prices may have
+              changed. Ordering is paused until the live menu reconnects.
+            </p>
+            <Button type="button" variant="outline" onClick={refreshMenu}>
+              Retry live menu
+            </Button>
+          </div>
+        ) : null}
         {catalogError ? (
           <div
             role="alert"
