@@ -54,19 +54,21 @@ export default function PurchaseOrderBuilder({
   suppliers,
   selectedSupplier,
   catalogItems,
+  initialCatalogItemId,
   todayDateKey,
   defaultDeliveryDateKey,
 }: {
   suppliers: SupplierOption[];
   selectedSupplier: SupplierOption | null;
   catalogItems: CatalogItem[];
+  initialCatalogItemId: string;
   todayDateKey: string;
   defaultDeliveryDateKey: string;
 }) {
   const router = useRouter();
   const nextKey = useRef(2);
   const [rows, setRows] = useState<OrderRow[]>([
-    { key: 1, catalogItemId: "", quantity: "1" },
+    { key: 1, catalogItemId: initialCatalogItemId, quantity: "1" },
   ]);
   const catalogById = useMemo(
     () => new Map(catalogItems.map((item) => [item.id, item])),
