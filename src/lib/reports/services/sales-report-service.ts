@@ -125,6 +125,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   const productRows = new Map<string, SalesRow>();
   const categoryRows = new Map<string, SalesRow>();
   const hourly = new Map<string, Prisma.Decimal>();
+  const hourlyOrders = new Map<string, number>();
 
   for (const order of orders) {
     for (const payment of order.payments)
@@ -174,6 +175,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
     }
 
     const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
+    hourlyOrders.set(hour, (hourlyOrders.get(hour) ?? 0) + 1);
     hourly.set(
       hour,
       (hourly.get(hour) ?? zero()).plus(
@@ -239,7 +241,11 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       amount: amount.toFixed(2),
     })),
     hourlySales: [...hourly.entries()]
-      .map(([hour, amount]) => ({ hour, amount: amount.toFixed(2) }))
+      .map(([hour, amount]) => ({
+        hour,
+        amount: amount.toFixed(2),
+        orders: hourlyOrders.get(hour) ?? 0,
+      }))
       .sort((a, b) => Number(a.hour) - Number(b.hour)),
     categories: mapRows(categoryRows),
     products: mapRows(productRows),
