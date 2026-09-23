@@ -11,11 +11,7 @@ const reportCards = [
   ],
   ["Kitchen", "/api/admin/reports/kitchen", PERMISSIONS.REPORT_KITCHEN_VIEW],
   ["Staff", "/api/admin/reports/staff", PERMISSIONS.REPORT_STAFF_VIEW],
-  [
-    "Customers",
-    "/api/admin/reports/customers",
-    PERMISSIONS.REPORT_CUSTOMER_VIEW,
-  ],
+  ["Customers", "/admin/reports/customers", PERMISSIONS.REPORT_CUSTOMER_VIEW],
   [
     "Suppliers",
     "/api/admin/reports/suppliers",
@@ -51,7 +47,7 @@ export default async function BusinessIntelligencePage() {
             >
               <h2 className="font-medium">{name}</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Open JSON report or export with authorized filters.
+                Open an authorized report with date filters.
               </p>
             </Link>
           ))}
