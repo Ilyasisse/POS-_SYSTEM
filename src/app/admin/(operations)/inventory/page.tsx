@@ -1,4 +1,5 @@
 ﻿import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -479,6 +480,9 @@ export default async function AdminInventoryPage({
       description="Track stock levels and manage inventory"
     >
       <InventoryNotice notice={notice} />
+      <Button variant="outline" asChild>
+        <Link href="/admin/inventory/waste">Record waste or damage</Link>
+      </Button>
       <InventorySummary
         summary={summary}
         takenTodayCount={takenTodayMovements.length}
