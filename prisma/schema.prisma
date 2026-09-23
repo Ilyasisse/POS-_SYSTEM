@@ -29,6 +29,7 @@ model Staff {
   paymentDeferrals                    PaymentDeferral[]                @relation("PaymentDeferralCashier")
   mobileMoneyReceiptsAssigned         MobileMoneyReceipt[]             @relation("MobileMoneyReceiptAssignee")
   shifts                              Shift[]                          @relation("WaiterShifts")
+  cashierRegisterShifts              CashierRegisterShift[]           @relation("CashierRegisterShiftOwner")
   shiftsSettled                       Shift[]                          @relation("ShiftSettledBy")
   waiterBalanceInitialization         WaiterBalanceInitialization?     @relation("WaiterBalanceOwner")
   waiterBalanceInitializationsCreated WaiterBalanceInitialization[]    @relation("WaiterBalanceCreatedBy")
@@ -1167,6 +1168,22 @@ model Shift {
   @@index([openedAt])
   @@index([userId, openedAt])
   @@index([settledByUserId])
+}
+
+/// A cashier's physical opening and closing cash counts, separate from
+/// waiter balances and from customer payment transactions.
+model CashierRegisterShift {
+  id          String    @id @default(cuid())
+  cashierId   String
+  openedAt    DateTime  @default(now())
+  openingCash Decimal   @db.Decimal(14, 2)
+  closedAt    DateTime?
+  closingCash Decimal?  @db.Decimal(14, 2)
+  closingNote String?
+  cashier     Staff     @relation("CashierRegisterShiftOwner", fields: [cashierId], references: [id], onDelete: Restrict)
+
+  @@index([cashierId, openedAt])
+  @@index([closedAt, openedAt])
 }
 
 model WaiterBalanceInitialization {
