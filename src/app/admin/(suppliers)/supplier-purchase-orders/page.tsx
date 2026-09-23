@@ -16,6 +16,10 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import {
+  getSupplierOverdueCutoff,
+  isSupplierPurchaseOrderOverdue,
+} from "@/lib/suppliers/purchase-orders";
 
 const ORDER_STATUSES = ["OPEN", "COMPLETED", "CANCELLED"] as const;
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -34,7 +38,11 @@ function statusTone(status: SupplierPurchaseOrderStatus) {
 export default async function SupplierPurchaseOrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ supplier?: string; status?: string }>;
+  searchParams?: Promise<{
+    supplier?: string;
+    status?: string;
+    overdue?: string;
+  }>;
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
@@ -43,11 +51,14 @@ export default async function SupplierPurchaseOrdersPage({
   )
     ? (query.status as SupplierPurchaseOrderStatus)
     : undefined;
-  const [orders, suppliers] = await Promise.all([
+  const overdueOnly = query.overdue === "1";
+  const overdueCutoff = getSupplierOverdueCutoff();
+  const [orders, suppliers, overdueCount] = await Promise.all([
     prisma.supplierPurchaseOrder.findMany({
       where: {
         supplierId: query.supplier || undefined,
-        status,
+        status: overdueOnly ? "OPEN" : status,
+        expectedDeliveryDate: overdueOnly ? { lt: overdueCutoff } : undefined,
       },
       include: {
         supplier: { select: { name: true } },
@@ -60,6 +71,13 @@ export default async function SupplierPurchaseOrdersPage({
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
+    }),
+    prisma.supplierPurchaseOrder.count({
+      where: {
+        supplierId: query.supplier || undefined,
+        status: "OPEN",
+        expectedDeliveryDate: { lt: overdueCutoff },
+      },
     }),
   ]);
   const openOrders = orders.filter((order) => order.status === "OPEN");
@@ -95,7 +113,7 @@ export default async function SupplierPurchaseOrdersPage({
     >
       <form
         method="get"
-        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-center"
       >
         <AutoSubmitSelect
           name="supplier"
@@ -112,7 +130,7 @@ export default async function SupplierPurchaseOrdersPage({
         </AutoSubmitSelect>
         <AutoSubmitSelect
           name="status"
-          defaultValue={status || ""}
+          defaultValue={overdueOnly ? "OPEN" : status || ""}
           aria-label="Purchase order status"
           className="w-full"
         >
@@ -123,16 +141,29 @@ export default async function SupplierPurchaseOrdersPage({
             </option>
           ))}
         </AutoSubmitSelect>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            name="overdue"
+            type="checkbox"
+            value="1"
+            defaultChecked={overdueOnly}
+          />
+          Overdue only (open)
+        </label>
+        <Button type="submit" variant="outline">
+          Apply
+        </Button>
         <ClearFiltersLink
           href="/admin/supplier-purchase-orders"
-          show={Boolean(query.supplier || status)}
+          show={Boolean(query.supplier || status || overdueOnly)}
         />
       </form>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-4">
         <MetricCard label="Open orders" value={openOrders.length} />
         <MetricCard label="Open order value" value={formatMoney(openTotal)} />
         <MetricCard label="Completed in results" value={completedCount} />
+        <MetricCard label="Overdue open orders" value={overdueCount} />
       </section>
 
       <DataTableCard>
@@ -176,6 +207,11 @@ export default async function SupplierPurchaseOrdersPage({
                     <ToneBadge tone={statusTone(order.status)}>
                       {order.status}
                     </ToneBadge>
+                    {isSupplierPurchaseOrderOverdue(order) ? (
+                      <span className="ml-2 text-sm font-semibold text-red-700">
+                        Overdue
+                      </span>
+                    ) : null}
                   </TableCell>
                 </tr>
               ))
