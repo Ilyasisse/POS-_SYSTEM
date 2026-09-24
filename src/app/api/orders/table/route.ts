@@ -15,6 +15,10 @@ import {
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
 import { getPostHogClient } from "@/lib/posthog-server";
+import {
+  parseCustomerLookup,
+  resolveTableCustomer,
+} from "@/lib/cashier/table-customer";
 
 type TableOrderItemModifierInput = {
   modifierId: string;
@@ -32,7 +36,10 @@ type TableOrderBody = {
   tableId?: string;
   items: TableOrderItemInput[];
   notes?: string;
+  customerIdentifier?: string;
 };
+
+class CustomerAssociationError extends Error {}
 
 type PreparedLine = {
   productId: string;
@@ -99,6 +106,15 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as TableOrderBody;
     const tableId = String(body.tableId ?? "").trim();
+    const customerLookup = parseCustomerLookup(body.customerIdentifier);
+    if (customerLookup.kind === "invalid") {
+      return NextResponse.json(
+        {
+          error: "Enter a valid customer account email or exact phone number.",
+        },
+        { status: 400 },
+      );
+    }
 
     if (!tableId) {
       return NextResponse.json(
@@ -355,6 +371,7 @@ export async function POST(request: Request) {
           orderBy: [{ createdAt: "desc" }, { orderNumber: "desc" }],
           select: {
             id: true,
+            customerId: true,
             orderNumber: true,
             tableCheckId: true,
             tableCheckRound: true,
@@ -366,6 +383,36 @@ export async function POST(request: Request) {
             },
           },
         });
+
+        const selectedCustomer =
+          customerLookup.kind === "none"
+            ? null
+            : await tx.customer.findFirst({
+                where: {
+                  isActive: true,
+                  ...(customerLookup.kind === "email"
+                    ? {
+                        email: {
+                          equals: customerLookup.value,
+                          mode: "insensitive" as const,
+                        },
+                      }
+                    : { phoneNumber: customerLookup.value }),
+                },
+                select: { id: true },
+              });
+        if (customerLookup.kind !== "none" && !selectedCustomer) {
+          throw new CustomerAssociationError(
+            "No active customer account matches that email or phone. Clear the field to keep this order anonymous.",
+          );
+        }
+        const association = resolveTableCustomer(
+          Boolean(latestOpenOrder),
+          latestOpenOrder?.customerId ?? null,
+          selectedCustomer?.id ?? null,
+        );
+        if (association.error)
+          throw new CustomerAssociationError(association.error);
 
         let tableCheckId = latestOpenOrder?.tableCheck?.id ?? null;
         let roundNumber = 1;
@@ -408,6 +455,7 @@ export async function POST(request: Request) {
               tableCheckId,
               tableCheckRound: roundNumber,
               cashierId: currentUser.id,
+              customerId: association.customerId,
             },
             include: {
               tableCheck: { select: { checkNumber: true } },
@@ -422,6 +470,7 @@ export async function POST(request: Request) {
               total: toDecimal(calculatedTotal),
               tableId: table.id,
               cashierId: currentUser.id,
+              customerId: association.customerId,
             },
           });
           const tableCheck = await tx.tableCheck.create({
@@ -439,6 +488,18 @@ export async function POST(request: Request) {
             },
             include: {
               tableCheck: { select: { checkNumber: true } },
+            },
+          });
+        }
+
+        if (!latestOpenOrder && association.customerId) {
+          await tx.auditLog.create({
+            data: {
+              actorUserId: currentUser.id,
+              action: "order.customer.linked",
+              entityType: "Order",
+              entityId: createdOrder.id,
+              newValue: { customerId: association.customerId },
             },
           });
         }
@@ -543,6 +604,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof CustomerAssociationError)
+      return NextResponse.json({ error: error.message }, { status: 409 });
     console.error("Table order error:", error);
 
     return NextResponse.json(
