@@ -51,6 +51,7 @@ export type KitchenTicket = {
   ticketNumber: number;
   roundNumber: number;
   createdAt: string;
+  queueEnteredAt?: string | null;
   status: KitchenTicketStatus;
   stationStatuses: KitchenTicketStationStatuses;
   stationMetrics: KitchenTicketStationMetrics;
@@ -395,6 +396,10 @@ export function normalizeKitchenTicket(
     ticketNumber,
     roundNumber,
     createdAt: String(ticket.createdAt ?? new Date().toISOString()),
+    queueEnteredAt:
+      ticket.queueEnteredAt && !Number.isNaN(Date.parse(ticket.queueEnteredAt))
+        ? new Date(ticket.queueEnteredAt).toISOString()
+        : null,
     status: "new",
     stationStatuses,
     stationMetrics: normalizeStationMetrics(ticket.stationMetrics),
