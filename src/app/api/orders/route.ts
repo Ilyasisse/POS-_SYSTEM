@@ -6,7 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
-import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import {
+  selectEffectiveRecipe,
+  snapshotInventoryCost,
+} from "@/lib/inventory/inventory-domain";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
@@ -85,7 +88,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const currentUser = await prisma.user.findUnique({
+    const currentUser = await prisma.staff.findUnique({
       where: { id: authUser.id },
       select: {
         id: true,
@@ -109,7 +112,10 @@ export async function POST(request: Request) {
     const body = (await request.json()) as CompleteSaleBody;
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json({ error: "No items provided." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No items provided." },
+        { status: 400 },
+      );
     }
 
     if (
@@ -159,7 +165,14 @@ export async function POST(request: Request) {
           availabilityRestoresAt: true,
           recipeVersions: {
             where: { isActive: true },
-            select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
+            select: {
+              id: true,
+              standardCost: true,
+              costCoverage: true,
+              effectiveFrom: true,
+              effectiveTo: true,
+              isActive: true,
+            },
           },
           category: {
             select: {
@@ -189,7 +202,7 @@ export async function POST(request: Request) {
           })
         : Promise.resolve([]),
       assignedBaristaIds.length > 0
-        ? prisma.user.findMany({
+        ? prisma.staff.findMany({
             where: {
               id: { in: assignedBaristaIds },
               role: "BARISTA",
@@ -203,11 +216,15 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
     const modifierMap = new Map(
       modifierRecords.map((modifier) => [modifier.id, modifier]),
     );
-    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
+    const baristaMap = new Map(
+      baristas.map((barista) => [barista.id, barista]),
+    );
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -322,89 +339,94 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
-      id: crypto.randomUUID(),
-      productName: line.productName,
-      qty: line.qty,
-      station: line.station,
-      assignedUserId: line.assignedBaristaId,
-      assignedUserName: line.assignedBaristaName,
-      modifiers: line.modifiers,
-    }));
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
+      (line) => ({
+        id: crypto.randomUUID(),
+        productName: line.productName,
+        qty: line.qty,
+        station: line.station,
+        assignedUserId: line.assignedBaristaId,
+        assignedUserName: line.assignedBaristaName,
+        modifiers: line.modifiers,
+      }),
+    );
 
-    const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.create({
-        data: {
-          type: "DINE_IN",
-          status: "PAID",
-          notes: body.notes?.trim() || null,
-          total: toDecimal(calculatedTotal),
-          closedAt: new Date(),
-          cashier: {
-            connect: { id: currentUser.id },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const order = await tx.order.create({
+          data: {
+            type: "DINE_IN",
+            status: "PAID",
+            notes: body.notes?.trim() || null,
+            total: toDecimal(calculatedTotal),
+            closedAt: new Date(),
+            cashier: {
+              connect: { id: currentUser.id },
+            },
           },
-        },
-      });
-
-      await tx.orderItem.createMany({
-        data: preparedLines.map((line, index) => ({
-          id: savedOrderItems[index]?.id ?? crypto.randomUUID(),
-          orderId: order.id,
-          productId: line.productId,
-          productName: line.productName,
-          qty: line.qty,
-          unitPrice: toDecimal(line.unitPrice),
-          lineTotal: toDecimal(line.lineTotal),
-          ...line.costSnapshot,
-          station: line.station,
-          assignedUserId: line.assignedBaristaId,
-        })),
-      });
-
-      const modifierRows = preparedLines.flatMap((line, index) =>
-        line.modifiers.map((modifier) => ({
-          orderItemId: savedOrderItems[index]?.id ?? "",
-          modifierId: modifier.optionId,
-          modifierName: modifier.optionName,
-          qty: modifier.qty,
-          price: toDecimal(modifier.price),
-        })),
-      );
-
-      if (modifierRows.length > 0) {
-        await tx.orderItemModifier.createMany({
-          data: modifierRows,
         });
-      }
 
-      await createKitchenTicketState(tx, {
-        orderId: order.id,
-        lines: preparedLines,
-        actorUserId: currentUser.id,
-      });
+        await tx.orderItem.createMany({
+          data: preparedLines.map((line, index) => ({
+            id: savedOrderItems[index]?.id ?? crypto.randomUUID(),
+            orderId: order.id,
+            productId: line.productId,
+            productName: line.productName,
+            qty: line.qty,
+            unitPrice: toDecimal(line.unitPrice),
+            lineTotal: toDecimal(line.lineTotal),
+            ...line.costSnapshot,
+            station: line.station,
+            assignedUserId: line.assignedBaristaId,
+          })),
+        });
 
-      await tx.payment.create({
-        data: {
+        const modifierRows = preparedLines.flatMap((line, index) =>
+          line.modifiers.map((modifier) => ({
+            orderItemId: savedOrderItems[index]?.id ?? "",
+            modifierId: modifier.optionId,
+            modifierName: modifier.optionName,
+            qty: modifier.qty,
+            price: toDecimal(modifier.price),
+          })),
+        );
+
+        if (modifierRows.length > 0) {
+          await tx.orderItemModifier.createMany({
+            data: modifierRows,
+          });
+        }
+
+        await createKitchenTicketState(tx, {
           orderId: order.id,
-          cashierId: currentUser.id,
-          cashierName: currentUser.fullName,
-          method: paymentMethod,
-          amountPaid: toDecimal(calculatedTotal),
-        },
-      });
+          lines: preparedLines,
+          actorUserId: currentUser.id,
+        });
 
-      const inventoryAlerts = await deductProductInventoryForSale(
-        tx,
-        preparedLines.map((line) => ({
-          productId: line.productId,
-          qty: line.qty,
-        })),
-        order.id,
-        currentUser.id,
-      );
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            cashierId: currentUser.id,
+            cashierName: currentUser.fullName,
+            method: paymentMethod,
+            amountPaid: toDecimal(calculatedTotal),
+          },
+        });
 
-      return { order, savedOrderItems, inventoryAlerts };
-    }, { timeout: 15000, maxWait: 5000 });
+        const inventoryAlerts = await deductProductInventoryForSale(
+          tx,
+          preparedLines.map((line) => ({
+            productId: line.productId,
+            qty: line.qty,
+          })),
+          order.id,
+          currentUser.id,
+        );
+
+        return { order, savedOrderItems, inventoryAlerts };
+      },
+      { timeout: 15000, maxWait: 5000 },
+    );
 
     await sendInventoryAlerts(result.inventoryAlerts);
 

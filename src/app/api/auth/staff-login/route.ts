@@ -32,9 +32,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.staff.findUnique({
     where: { id: data.user.id },
     select: {
+      id: true,
+      email: true,
+      fullName: true,
       role: true,
       station: true,
       isActive: true,
@@ -59,14 +62,13 @@ export async function POST(request: Request) {
     );
   }
 
-  if (user.role === "CUSTOMER") {
-    await supabase.auth.signOut();
-
-    return NextResponse.json(
-      { error: "Customer accounts should use the customer login page." },
-      { status: 403 },
-    );
-  }
-
-  return NextResponse.json({ redirectTo: getDefaultRouteForUser(user) });
+  return NextResponse.json({
+    redirectTo: getDefaultRouteForUser(user),
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.fullName,
+      role: user.role,
+    },
+  });
 }

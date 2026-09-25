@@ -11,7 +11,12 @@ export async function recordOwnClockAction(formData: FormData) {
   await recordClockEvent({
     workerId: worker.id,
     type: z.enum(["IN", "OUT"]).parse(formData.get("type")),
-    note: z.string().trim().max(250).parse(String(formData.get("note") ?? "")) || null,
+    note:
+      z
+        .string()
+        .trim()
+        .max(250)
+        .parse(String(formData.get("note") ?? "")) || null,
   });
   revalidatePath("/staff/attendance");
   revalidatePath("/admin/staff/attendance");

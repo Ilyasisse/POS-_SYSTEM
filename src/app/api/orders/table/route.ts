@@ -6,12 +6,16 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
-import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import {
+  selectEffectiveRecipe,
+  snapshotInventoryCost,
+} from "@/lib/inventory/inventory-domain";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type TableOrderItemModifierInput = {
   modifierId: string;
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const currentUser = await prisma.user.findUnique({
+    const currentUser = await prisma.staff.findUnique({
       where: { id: authUser.id },
       select: {
         id: true,
@@ -123,7 +127,10 @@ export async function POST(request: Request) {
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json({ error: "No items provided." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No items provided." },
+        { status: 400 },
+      );
     }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
@@ -159,7 +166,14 @@ export async function POST(request: Request) {
           availabilityRestoresAt: true,
           recipeVersions: {
             where: { isActive: true },
-            select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
+            select: {
+              id: true,
+              standardCost: true,
+              costCoverage: true,
+              effectiveFrom: true,
+              effectiveTo: true,
+              isActive: true,
+            },
           },
           category: {
             select: {
@@ -189,7 +203,7 @@ export async function POST(request: Request) {
           })
         : Promise.resolve([]),
       assignedBaristaIds.length > 0
-        ? prisma.user.findMany({
+        ? prisma.staff.findMany({
             where: {
               id: { in: assignedBaristaIds },
               role: "BARISTA",
@@ -203,11 +217,15 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
     const modifierMap = new Map(
       modifierRecords.map((modifier) => [modifier.id, modifier]),
     );
-    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
+    const baristaMap = new Map(
+      baristas.map((barista) => [barista.id, barista]),
+    );
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -320,15 +338,17 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
-      id: crypto.randomUUID(),
-      productName: line.productName,
-      qty: line.qty,
-      station: line.station,
-      assignedUserId: line.assignedBaristaId,
-      assignedUserName: line.assignedBaristaName,
-      modifiers: line.modifiers,
-    }));
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
+      (line) => ({
+        id: crypto.randomUUID(),
+        productName: line.productName,
+        qty: line.qty,
+        station: line.station,
+        assignedUserId: line.assignedBaristaId,
+        assignedUserName: line.assignedBaristaName,
+        modifiers: line.modifiers,
+      }),
+    );
 
     const result = await prisma.$transaction(
       async (tx) => {
@@ -501,6 +521,23 @@ export async function POST(request: Request) {
 
     await sendInventoryAlerts(result.inventoryAlerts);
 
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: currentUser.id,
+        event: "table_order_placed",
+        properties: {
+          table_name: table.name,
+          item_count: preparedLines.length,
+          total: calculatedTotal,
+          appended_to_existing: result.appendedToExisting,
+          cashier_role: currentUser.role,
+          order_id: result.order.id,
+        },
+      });
+      await posthog.flush();
+    }
+
     const order = result.order;
     const identity = resolveTableCheckIdentity(order);
     return NextResponse.json({
@@ -521,7 +558,9 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to create table order.",
+          error instanceof Error
+            ? error.message
+            : "Failed to create table order.",
       },
       { status: 500 },
     );

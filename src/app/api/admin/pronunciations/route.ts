@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 
-const LEGACY_UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "pronunciations");
+const LEGACY_UPLOAD_ROOT = path.join(
+  process.cwd(),
+  "public",
+  "uploads",
+  "pronunciations",
+);
 const PRONUNCIATION_BUCKET =
   process.env.SUPABASE_PRONUNCIATION_BUCKET?.trim() || "pronunciations";
 
@@ -32,7 +37,9 @@ function getExtension(contentType: string) {
 
 // Supabase tells us who is logged in, then Prisma tells us what that user is
 // allowed to do inside this cafe app. Both checks matter: login first, role next.
-async function ensureAdminUser(supabase: Awaited<ReturnType<typeof createClient>>) {
+async function ensureAdminUser(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -41,7 +48,7 @@ async function ensureAdminUser(supabase: Awaited<ReturnType<typeof createClient>
     return null;
   }
 
-  return prisma.user.findUnique({
+  return prisma.staff.findUnique({
     where: { id: user.id },
     select: {
       id: true,
@@ -151,11 +158,17 @@ export async function POST(request: Request) {
     // Step 4: make sure we actually received audio. This keeps random uploads
     // and empty recordings from sneaking into the storage bucket.
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Audio file is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Audio file is required." },
+        { status: 400 },
+      );
     }
 
     if (!file.type.startsWith("audio/")) {
-      return NextResponse.json({ error: "Only audio files are allowed." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Only audio files are allowed." },
+        { status: 400 },
+      );
     }
 
     if (file.size === 0 || file.size > 5 * 1024 * 1024) {

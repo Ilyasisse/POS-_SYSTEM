@@ -37,7 +37,9 @@ type PaidBreakdownInput = {
   }>;
 };
 
-export function buildDailyCashPaidBreakdown(input: PaidBreakdownInput): DailyCashPaidBreakdownRow[] {
+export function buildDailyCashPaidBreakdown(
+  input: PaidBreakdownInput,
+): DailyCashPaidBreakdownRow[] {
   const rows: DailyCashPaidBreakdownRow[] = [];
 
   if (input.salary.paidAt && input.salary.amount > 0) {
@@ -56,7 +58,9 @@ export function buildDailyCashPaidBreakdown(input: PaidBreakdownInput): DailyCas
     rows.push({
       id: `manual:${expense.id}`,
       type: "MANUAL",
-      description: expense.note ? `${expense.description} · ${expense.note}` : expense.description,
+      description: expense.note
+        ? `${expense.description} · ${expense.note}`
+        : expense.description,
       paidAt: expense.createdAt,
       amount: roundMoney(expense.amount),
       revenueFunded: roundMoney(expense.revenueFunded),
@@ -88,13 +92,25 @@ export function buildDailyCashPaidBreakdown(input: PaidBreakdownInput): DailyCas
     });
   }
 
-  return rows.sort((left, right) => left.paidAt.getTime() - right.paidAt.getTime() || left.id.localeCompare(right.id));
+  return rows.sort(
+    (left, right) =>
+      left.paidAt.getTime() - right.paidAt.getTime() ||
+      left.id.localeCompare(right.id),
+  );
 }
 
-export function calculatePaidBreakdownTotals(revenue: number, rows: DailyCashPaidBreakdownRow[]) {
-  const savingsUsed = roundMoney(rows.reduce((sum, row) => sum + row.savingsFunded, 0));
+export function calculatePaidBreakdownTotals(
+  revenue: number,
+  rows: DailyCashPaidBreakdownRow[],
+) {
+  const savingsUsed = roundMoney(
+    rows.reduce((sum, row) => sum + row.savingsFunded, 0),
+  );
   const totalPaid = roundMoney(rows.reduce((sum, row) => sum + row.amount, 0));
-  const currentRemaining = Math.max(0, roundMoney(revenue + savingsUsed - totalPaid));
+  const currentRemaining = Math.max(
+    0,
+    roundMoney(revenue + savingsUsed - totalPaid),
+  );
 
   return { savingsUsed, totalPaid, currentRemaining };
 }

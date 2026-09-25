@@ -11,7 +11,11 @@ type KitchenTicketCardProps = {
   ticket: KitchenTicket;
   onUpdateStatus: (id: string, status: KitchenTicketStatus) => void;
   canUpdateStatus?: boolean;
-  onRecordQuality: (id: string, type: "LATE" | "REMAKE" | "WRONG_ORDER" | "WAITER_MISTAKE", reason: string) => void;
+  onRecordQuality: (
+    id: string,
+    type: "LATE" | "REMAKE" | "WRONG_ORDER" | "WAITER_MISTAKE",
+    reason: string,
+  ) => void;
 };
 
 export default function KitchenTicketCard({
@@ -111,49 +115,54 @@ export default function KitchenTicketCard({
 
       {canUpdateStatus ? (
         <div className="mt-4 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          {ticket.status === "new" ? (
-            <Button
-              type="button"
-              onClick={() => onUpdateStatus(ticket.id, "in_progress")}
-              className="min-h-11 rounded-lg bg-blue-600 text-sm font-semibold text-white"
-            >
-              Bilow
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={() => onUpdateStatus(ticket.id, "new")}
-              className="min-h-11 rounded-lg bg-slate-600 text-sm font-semibold text-white"
-            >
-              Dib fur
-            </Button>
-          )}
+          <div className="grid grid-cols-2 gap-2">
+            {ticket.status === "new" ? (
+              <Button
+                type="button"
+                onClick={() => onUpdateStatus(ticket.id, "in_progress")}
+                className="min-h-11 rounded-lg bg-blue-600 text-sm font-semibold text-white"
+              >
+                Bilow
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => onUpdateStatus(ticket.id, "new")}
+                className="min-h-11 rounded-lg bg-slate-600 text-sm font-semibold text-white"
+              >
+                Dib fur
+              </Button>
+            )}
 
-          <Button
-            type="button"
-            onClick={() => onUpdateStatus(ticket.id, "done")}
-            className="min-h-11 rounded-lg bg-green-600 text-sm font-semibold text-white"
-          >
-            Dhammaay
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-2 border-t border-slate-700 pt-3">
-          {(["LATE", "REMAKE", "WRONG_ORDER", "WAITER_MISTAKE"] as const).map((type) => (
             <Button
-              key={type}
               type="button"
-              variant="outline"
-              className="min-h-9 border-slate-600 bg-transparent text-xs text-slate-200"
-              onClick={() => {
-                const reason = window.prompt(`Reason for ${type.replaceAll("_", " ").toLowerCase()}:`);
-                if (reason?.trim()) onRecordQuality(ticket.id, type, reason);
-              }}
+              onClick={() => onUpdateStatus(ticket.id, "done")}
+              className="min-h-11 rounded-lg bg-green-600 text-sm font-semibold text-white"
             >
-              {type.replaceAll("_", " ")}
+              Dhammaay
             </Button>
-          ))}
-        </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 border-t border-slate-700 pt-3">
+            {(["LATE", "REMAKE", "WRONG_ORDER", "WAITER_MISTAKE"] as const).map(
+              (type) => (
+                <Button
+                  key={type}
+                  type="button"
+                  variant="outline"
+                  className="min-h-9 border-slate-600 bg-transparent text-xs text-slate-200"
+                  onClick={() => {
+                    const reason = window.prompt(
+                      `Reason for ${type.replaceAll("_", " ").toLowerCase()}:`,
+                    );
+                    if (reason?.trim())
+                      onRecordQuality(ticket.id, type, reason);
+                  }}
+                >
+                  {type.replaceAll("_", " ")}
+                </Button>
+              ),
+            )}
+          </div>
         </div>
       ) : (
         <p className="mt-4 text-xs text-slate-400">

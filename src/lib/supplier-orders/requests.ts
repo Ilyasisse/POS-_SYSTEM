@@ -3,7 +3,10 @@ import { hashRecipientToken, parseEmployeeResponse } from "./scheduling";
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
 
-export function checkSupplierOrderRequestRateLimit(token: string, now = Date.now()) {
+export function checkSupplierOrderRequestRateLimit(
+  token: string,
+  now = Date.now(),
+) {
   if (attempts.size > 5000) {
     for (const [key, value] of attempts) {
       if (value.resetAt <= now) attempts.delete(key);
@@ -96,7 +99,9 @@ export async function saveSupplierOrderRequest(token: string, raw: unknown) {
       recipient.run.supplierSendAt.getTime() <= Date.now() ||
       !["SCHEDULED", "COLLECTING"].includes(recipient.run.status)
     ) {
-      throw new Error("This order has already closed and can no longer be changed.");
+      throw new Error(
+        "This order has already closed and can no longer be changed.",
+      );
     }
     if (!input.noOrder) {
       const validCount = await tx.supplierCatalogItem.count({

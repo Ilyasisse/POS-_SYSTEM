@@ -1,5 +1,6 @@
 ﻿import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ToastOnMount, type ToastTone } from "@/components/ui/toast";
 import Link from "next/link";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -87,43 +88,31 @@ function InventoryEmailPopup({ status }: { status: InventoryEmailStatus }) {
     sent: {
       title: "Inventory email sent",
       message: "The low-stock email was accepted.",
-      classes: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      tone: "success" as ToastTone,
     },
     failed: {
       title: "Inventory email failed",
       message: "The alert was not sent. Check the server logs.",
-      classes: "border-red-200 bg-red-50 text-red-900",
+      tone: "error" as ToastTone,
     },
     skipped: {
       title: "Inventory email skipped",
       message: "Email settings are missing on the server.",
-      classes: "border-amber-200 bg-amber-50 text-amber-900",
+      tone: "warning" as ToastTone,
     },
     none: {
       title: "No inventory email needed",
       message: "The stock change did not create a new alert.",
-      classes: "border-border bg-card text-foreground",
+      tone: "info" as ToastTone,
     },
   }[status];
 
   return (
-    <output
-      className={`fixed right-4 top-4 z-50 w-[min(360px,calc(100vw-2rem))] rounded-xl border p-4 shadow-xl ${config.classes}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-bold">{config.title}</p>
-          <p className="mt-1 text-sm">{config.message}</p>
-        </div>
-        <Link
-          href="/inventory"
-          className="rounded-md px-2 py-1 text-sm font-bold hover:bg-black/5"
-          aria-label="Dismiss inventory email message"
-        >
-          x
-        </Link>
-      </div>
-    </output>
+    <ToastOnMount
+      tone={config.tone}
+      title={config.title}
+      description={config.message}
+    />
   );
 }
 
@@ -132,46 +121,48 @@ export default async function InventoryPage({
 }: InventoryPageProps) {
   const todayStart = getEatDayStart();
 
-  const [, params, [supplies, takenTodayMovements]] =
-    await Promise.all([
-      requirePermission(PERMISSIONS.INVENTORY_VIEW, {
-        stations: ["CABITAAN"],
+  const [, params, [supplies, takenTodayMovements]] = await Promise.all([
+    requirePermission(PERMISSIONS.INVENTORY_VIEW, {
+      stations: ["CABITAAN"],
+    }),
+    searchParams,
+    Promise.all([
+      prisma.inventorySupply.findMany({
+        where: {
+          isActive: true,
+        },
+        orderBy: [{ stockQty: "asc" }, { name: "asc" }],
       }),
-      searchParams,
-      Promise.all([
-        prisma.inventorySupply.findMany({
-          where: {
-            isActive: true,
+      prisma.inventoryMovement.findMany({
+        where: {
+          itemType: "Supply",
+          supplyId: {
+            not: null,
           },
-          orderBy: [{ stockQty: "asc" }, { name: "asc" }],
-        }),
-        prisma.inventoryMovement.findMany({
-          where: {
-            itemType: "Supply",
-            supplyId: {
-              not: null,
-            },
-            delta: {
-              lt: 0,
-            },
-            createdAt: {
-              gte: todayStart,
-            },
+          delta: {
+            lt: 0,
           },
-          take: 12,
-          orderBy: {
-            createdAt: "desc",
+          createdAt: {
+            gte: todayStart,
           },
-        }),
-      ]),
-    ]);
+        },
+        take: 12,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+    ]),
+  ]);
   const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
 
   const summary = supplies.reduce<StatusSummary>(
     (accumulator, supply) => {
       addStatus(
         accumulator,
-    getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
+        getInventoryAlertStatus(
+          Number(supply.stockQty),
+          Number(supply.lowStockThreshold),
+        ),
       );
       return accumulator;
     },
@@ -264,8 +255,8 @@ export default async function InventoryPage({
               ) : (
                 supplies.map((supply) => {
                   const status = getInventoryAlertStatus(
-                Number(supply.stockQty),
-                Number(supply.lowStockThreshold),
+                    Number(supply.stockQty),
+                    Number(supply.lowStockThreshold),
                   );
                   const isOut = status === "OUT";
 
@@ -280,8 +271,11 @@ export default async function InventoryPage({
                             {supply.name}
                           </h3>
                           <p className="mt-1 text-xs text-muted-foreground">
-                        {supply.stockQty.toString()} {canonicalUnitLabel(supply.canonicalUnit)} on hand
-                        {supply.quantityCoverage !== "COMPLETE" ? " · unit mapping required" : ""}
+                            {supply.stockQty.toString()}{" "}
+                            {canonicalUnitLabel(supply.canonicalUnit)} on hand
+                            {supply.quantityCoverage !== "COMPLETE"
+                              ? " · unit mapping required"
+                              : ""}
                           </p>
                         </div>
                         <span
@@ -309,9 +303,9 @@ export default async function InventoryPage({
                             id={`quantity-${supply.id}`}
                             name="quantity"
                             type="number"
-                        inputMode="decimal"
-                        min="0.001"
-                        step="0.001"
+                            inputMode="decimal"
+                            min="0.001"
+                            step="0.001"
                             placeholder="0"
                             disabled={isOut}
                             required

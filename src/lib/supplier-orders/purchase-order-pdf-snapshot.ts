@@ -7,10 +7,9 @@ export const purchaseOrderPdfInclude = {
   items: { orderBy: { createdAt: "asc" } },
 } satisfies Prisma.SupplierPurchaseOrderInclude;
 
-export type PurchaseOrderPdfSnapshot =
-  Prisma.SupplierPurchaseOrderGetPayload<{
-    include: typeof purchaseOrderPdfInclude;
-  }>;
+export type PurchaseOrderPdfSnapshot = Prisma.SupplierPurchaseOrderGetPayload<{
+  include: typeof purchaseOrderPdfInclude;
+}>;
 
 export function purchaseOrderPdfInput(
   order: PurchaseOrderPdfSnapshot,

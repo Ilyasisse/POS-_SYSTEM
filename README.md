@@ -5,6 +5,7 @@ A production-grade Point of Sale system designed for cafeterias, featuring fast 
 ## Features
 
 ### 1. Cashier Interface
+
 - Touch-optimized tablet UI for fast order entry
 - Product grid with category filtering and search
 - Real-time totals with tax and discount logic
@@ -13,46 +14,54 @@ A production-grade Point of Sale system designed for cafeterias, featuring fast 
 - Quick-access items and order notes
 
 ### 2. Menu and Catalog Management
+
 - Category-based item organization
 - Item metadata support (name, price, SKU/barcode, tax profile, status)
 - Variant and modifiers-ready data model
 - Product images and quick filtering
 
 ### 3. Sales and Payment Processing
+
 - Receipt creation with line items
 - Multiple payment methods and status tracking
 - Discount support (percentage and fixed amount)
 - Transaction history with immutable receipt snapshots
 
 ### 4. Inventory Management
+
 - Real-time stock tracking per item
 - Reorder point alerts
 - Append-only inventory ledger with reason tracking
 - Low stock notifications and valuation reporting
 
 ### 5. Customer Management
+
 - Customer database with contact details
 - Purchase history and preferences
 - Store credit support
 
 ### 6. Employee Management
+
 - Shift open/close workflows
 - Cash reconciliation (expected vs counted)
 - Over/short reporting
 - Shift-to-receipt accountability
 
 ### 7. User and Access Control
+
 - Role-based access (Admin, Manager, Cashier)
 - Per-store user management
 - Active/inactive user status
 - Audited user activity logs
 
 ### 8. Admin Dashboard
+
 - Sales and inventory overview
 - User and store settings management
 - Tax and receipt configuration
 
 ### 9. Reporting and Analytics
+
 - Daily sales summary
 - Filterable transaction history
 - Inventory and reconciliation reports
@@ -69,6 +78,7 @@ A production-grade Point of Sale system designed for cafeterias, featuring fast 
 ## Database Schema (Target)
 
 Core tables:
+
 - `profiles`
 - `stores`
 - `categories`
@@ -88,6 +98,7 @@ Core tables:
 ## Design System
 
 Color palette:
+
 - Primary: Blue (`#4F7CFF`)
 - Success: Green (`#2E7D32`)
 - Warning: Orange (`#F57C00`)
@@ -95,6 +106,7 @@ Color palette:
 - Muted: Gray scale for secondary content
 
 Layout principles:
+
 - Desktop-first with mobile adaptation
 - Sidebar-driven navigation
 - Touch targets of at least 44px
@@ -103,6 +115,7 @@ Layout principles:
 ## Authentication and Authorization
 
 ### User Roles
+
 1. Admin
    - Full system access
    - User management
@@ -116,6 +129,7 @@ Layout principles:
    - Own shift management
 
 ### Login Rules
+
 - Username-based authentication
 - First registered user becomes Admin
 - No email verification requirement
@@ -124,6 +138,7 @@ Layout principles:
 ## Getting Started
 
 Prerequisites:
+
 - Node.js 18+
 - npm
 
@@ -170,6 +185,7 @@ Open `http://localhost:3000`.
 ## Usage Guide
 
 ### Processing a Sale
+
 1. Open shift with opening cash
 2. Add items to cart
 3. Apply discount if needed
@@ -177,11 +193,13 @@ Open `http://localhost:3000`.
 5. Complete sale and issue receipt
 
 ### Managing Inventory
+
 1. Review stock levels
 2. Make stock adjustments with reason
 3. Track all movements in the ledger
 
 ### Managing Users (Admin)
+
 1. View all users
 2. Assign or update roles
 3. Activate/deactivate accounts
@@ -214,6 +232,7 @@ The system is intended to include initial sample categories, items, modifiers, a
 ## Support
 
 For troubleshooting:
+
 1. Check `TODO.md` for known issues
 2. Review database migrations and schema files
 3. Check browser developer console and server logs

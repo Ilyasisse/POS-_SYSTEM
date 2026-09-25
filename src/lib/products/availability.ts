@@ -16,10 +16,7 @@ export function isProductAvailableForSale(
 
 export function availableForSaleWhere(now = new Date()) {
   return {
-    OR: [
-      { availableForSale: true },
-      { availabilityRestoresAt: { lte: now } },
-    ],
+    OR: [{ availableForSale: true }, { availabilityRestoresAt: { lte: now } }],
   };
 }
 

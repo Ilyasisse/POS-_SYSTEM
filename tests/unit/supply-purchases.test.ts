@@ -73,7 +73,10 @@ test("validates decimal quantities and unit prices", () => {
 
 test("accepts up to four decimal places for Supply unit prices", () => {
   for (const value of ["0", "0.07", "0.074", "0.0742"]) {
-    assert.equal(parseSupplyUnitPrice(value)?.toString(), String(Number(value)));
+    assert.equal(
+      parseSupplyUnitPrice(value)?.toString(),
+      String(Number(value)),
+    );
   }
 
   for (const value of ["-0.0742", "0.07421", ".0742", "1.", "not-a-price"]) {

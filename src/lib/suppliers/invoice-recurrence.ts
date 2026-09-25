@@ -60,7 +60,9 @@ export function validateSupplierInvoiceRecurrenceInput(
     input.nextRunDate.trim(),
   );
   if (!nextRunDate) throw new Error("Choose a valid next invoice date.");
-  if (supplierInvoiceDateKey(nextRunDate) < getSupplierPurchaseTodayDateKey(now)) {
+  if (
+    supplierInvoiceDateKey(nextRunDate) < getSupplierPurchaseTodayDateKey(now)
+  ) {
     throw new Error("The next invoice date cannot be in the past.");
   }
 
@@ -72,11 +74,10 @@ export function validateSupplierInvoiceRecurrenceInput(
   };
 }
 
-export function supplierInvoiceDueOffsetDays(
-  invoiceDate: Date,
-  dueDate: Date,
-) {
-  const offset = Math.round((dueDate.getTime() - invoiceDate.getTime()) / DAY_MS);
+export function supplierInvoiceDueOffsetDays(invoiceDate: Date, dueDate: Date) {
+  const offset = Math.round(
+    (dueDate.getTime() - invoiceDate.getTime()) / DAY_MS,
+  );
   if (offset < 0) {
     throw new Error(
       "A recurring invoice due date cannot be before its invoice date.",
@@ -105,7 +106,8 @@ export function advanceSupplierInvoiceRecurrenceDate(
   }
 
   const desiredDay = anchorDay ?? date.getUTCDate();
-  const targetMonth = date.getUTCFullYear() * 12 + date.getUTCMonth() + interval;
+  const targetMonth =
+    date.getUTCFullYear() * 12 + date.getUTCMonth() + interval;
   const targetYear = Math.floor(targetMonth / 12);
   const targetMonthIndex = targetMonth % 12;
   const lastDay = new Date(

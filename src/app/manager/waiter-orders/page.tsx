@@ -383,7 +383,7 @@ export default async function CashierWaiterOrdersPage({
     requirePermission(PERMISSIONS.ORDER_MANAGE),
     searchParams,
     cookies(),
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: {
         role: "WAITER",
         isActive: true,

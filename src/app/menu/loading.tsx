@@ -11,7 +11,7 @@ export default function MenuLoading() {
             <Skeleton key={index} className="h-10 w-28 shrink-0 bg-white/10" />
           ))}
         </div>
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 9 }).map((_, index) => (
             <Skeleton key={index} className="h-80 w-full bg-white/10" />
           ))}
