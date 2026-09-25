@@ -1,9 +1,14 @@
 ﻿"use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import type { KitchenTicket } from "@/lib/kitchen/kitchen-socket";
 import { useKitchenTickets } from "@/hooks/kitchen/useKitchenTickets";
+import {
+  formatPickupWait,
+  sortWaiterPickupTickets,
+} from "@/lib/kitchen/pickup-priority";
 
 type WaiterPickupPageProps = {
   currentUserId: string;
@@ -42,6 +47,16 @@ export default function WaiterPickupPage({
       currentUserName,
       currentUserRole,
     });
+  const [clockMs, setClockMs] = useState(0);
+  useEffect(() => {
+    const initial = window.setTimeout(() => setClockMs(Date.now()), 0);
+    const timer = window.setInterval(() => setClockMs(Date.now()), 30_000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, []);
+  const prioritizedTickets = sortWaiterPickupTickets(activeTickets);
 
   return (
     <div
@@ -85,7 +100,7 @@ export default function WaiterPickupPage({
           </section>
         ) : (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {activeTickets.map((ticket) => {
+            {prioritizedTickets.map((ticket) => {
               const canDeliver = isClaimedByCurrentUser(
                 ticket,
                 currentUserId,
@@ -112,8 +127,15 @@ export default function WaiterPickupPage({
                         {ticket.tableName ?? "-"}
                       </h2>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Ready at {formatTime(ticket.createdAt)}
+                        {ticket.readyAt
+                          ? `Ready at ${formatTime(ticket.readyAt)}`
+                          : "Ready time unavailable"}
                       </p>
+                      {clockMs > 0 && ticket.readyAt ? (
+                        <p className="mt-1 text-sm font-semibold text-amber-700">
+                          {formatPickupWait(ticket.readyAt, clockMs)}
+                        </p>
+                      ) : null}
                     </div>
 
                     <span
