@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -9,8 +9,10 @@ import {
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
 import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
+import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
+import { ToastOnMount } from "@/components/ui/toast";
 
 type CashierPageProps = {
   searchParams?: Promise<{
@@ -72,7 +74,16 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     requirePermission(PERMISSIONS.ORDER_MANAGE),
     searchParams,
   ]);
+  const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
+  const orderNotice =
+    params?.orderStatus === "sent"
+      ? {
+          tone: "success" as const,
+          message: "The table order was sent to the kitchen.",
+        }
+      : null;
+  const notice = paymentNotice ?? orderNotice;
 
   const tables = await prisma.table.findMany({
     where: {
@@ -165,18 +176,16 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
             New table order
           </Link>
         </div>
+        <Link
+          href="/cashier/customer-checkouts"
+          className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+        >
+          Customer payment review
+        </Link>
       </div>
 
-      {paymentNotice ? (
-        <div
-          className={`mb-6 rounded-2xl px-4 py-3 text-sm font-medium ${
-            paymentNotice.tone === "success"
-              ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {paymentNotice.message}
-        </div>
+      {notice ? (
+        <ToastOnMount tone={notice.tone} description={notice.message} />
       ) : null}
 
       {/*
@@ -270,12 +279,17 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                             className="rounded-lg bg-muted/50 px-2.5 py-2"
                           >
                             <p className="text-xs font-semibold text-muted-foreground">
-                              Round {round.tableCheckRound ?? 1} · {formatDateTime(round.createdAt)}
-                              {round.cashierName ? ` by ${round.cashierName}` : ""}
+                              Round {round.tableCheckRound ?? 1} ·{" "}
+                              {formatDateTime(round.createdAt)}
+                              {round.cashierName
+                                ? ` by ${round.cashierName}`
+                                : ""}
                             </p>
                             <p className="mt-1 text-sm text-muted-foreground">
                               {round.items
-                                .map((item) => `${item.qty}x ${item.productName}`)
+                                .map(
+                                  (item) => `${item.qty}x ${item.productName}`,
+                                )
                                 .join(", ")}
                             </p>
                           </div>
@@ -295,6 +309,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     tableId={table.id}
                     tableName={table.name}
                     amountDue={tableTotal}
+                    showEqualSplit={showEqualSplit}
                   />
                 </div>
               </article>

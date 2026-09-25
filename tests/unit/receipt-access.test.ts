@@ -11,8 +11,14 @@ const order = {
 };
 
 test("customers can view only their own receipts", () => {
-  assert.equal(canViewOrderReceipt(user("customer-1", "CUSTOMER"), order), true);
-  assert.equal(canViewOrderReceipt(user("customer-2", "CUSTOMER"), order), false);
+  assert.equal(
+    canViewOrderReceipt(user("customer-1", "CUSTOMER"), order),
+    true,
+  );
+  assert.equal(
+    canViewOrderReceipt(user("customer-2", "CUSTOMER"), order),
+    false,
+  );
 });
 
 test("assigned waiters and cashiers can view their order receipts", () => {

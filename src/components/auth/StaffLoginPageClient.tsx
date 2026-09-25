@@ -11,6 +11,7 @@ import { useEffect, useReducer } from "react";
 import { useAos } from "@/components/AosInitializer";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import posthog from "posthog-js";
 
 type StaffLoginState = {
   email: string;
@@ -126,10 +127,31 @@ export default function StaffLoginPageClient() {
       const data = (await response.json()) as {
         error?: string;
         redirectTo?: string;
+        user?: {
+          id: string;
+          email: string;
+          name: string;
+          role: string;
+        };
       };
 
       if (!response.ok) {
         throw new Error(data.error || "Login failed.");
+      }
+
+      if (
+        data.user &&
+        process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+        process.env.NEXT_PUBLIC_POSTHOG_HOST
+      ) {
+        posthog.identify(data.user.id, {
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+        });
+        posthog.capture("staff_login_succeeded", {
+          staff_role: data.user.role,
+        });
       }
 
       router.replace(data.redirectTo || "/auth/redirect");

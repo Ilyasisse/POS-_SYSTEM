@@ -26,7 +26,9 @@ export default async function PrintableOrderReceiptPage({
       include: {
         table: { select: { name: true } },
         tableCheck: { select: { checkNumber: true } },
-        customer: { select: { fullName: true, email: true, phoneNumber: true } },
+        customer: {
+          select: { fullName: true, email: true, phoneNumber: true },
+        },
         waiter: { select: { fullName: true } },
         cashier: { select: { fullName: true } },
         orderItems: {
@@ -71,7 +73,10 @@ export default async function PrintableOrderReceiptPage({
       </div>
       <article className="relative mx-auto max-w-sm overflow-hidden rounded-2xl border bg-background p-6 shadow-sm print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
         {order.status !== "PAID" ? (
-          <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            aria-hidden="true"
+          >
             <span className="-rotate-12 text-5xl font-black text-destructive/10">
               {order.status === "CANCELLED" ? "CANCELLED" : "UNPAID"}
             </span>
@@ -91,12 +96,39 @@ export default async function PrintableOrderReceiptPage({
         </header>
 
         <dl className="relative grid grid-cols-2 gap-x-4 gap-y-2 border-b border-dashed py-4 text-xs">
-          <div><dt className="text-muted-foreground">Order</dt><dd className="font-semibold">#{order.orderNumber}</dd></div>
-          <div className="text-right"><dt className="text-muted-foreground">Date</dt><dd className="font-semibold">{dateTime.format(order.closedAt ?? order.createdAt)}</dd></div>
-          <div><dt className="text-muted-foreground">Type</dt><dd>{order.type.replace("_", " ")}</dd></div>
-          <div className="text-right"><dt className="text-muted-foreground">Table / check</dt><dd>{order.table?.name ?? "Counter"}{order.tableCheck ? ` · #${order.tableCheck.checkNumber}` : ""}</dd></div>
-          <div><dt className="text-muted-foreground">Served by</dt><dd>{order.waiter?.fullName ?? order.cashier?.fullName ?? "Cafe staff"}</dd></div>
-          <div className="text-right"><dt className="text-muted-foreground">Customer</dt><dd>{order.customer?.fullName ?? "Walk-in"}</dd></div>
+          <div>
+            <dt className="text-muted-foreground">Order</dt>
+            <dd className="font-semibold">#{order.orderNumber}</dd>
+          </div>
+          <div className="text-right">
+            <dt className="text-muted-foreground">Date</dt>
+            <dd className="font-semibold">
+              {dateTime.format(order.closedAt ?? order.createdAt)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Type</dt>
+            <dd>{order.type.replace("_", " ")}</dd>
+          </div>
+          <div className="text-right">
+            <dt className="text-muted-foreground">Table / check</dt>
+            <dd>
+              {order.table?.name ?? "Counter"}
+              {order.tableCheck ? ` · #${order.tableCheck.checkNumber}` : ""}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Served by</dt>
+            <dd>
+              {order.waiter?.fullName ??
+                order.cashier?.fullName ??
+                "Cafe staff"}
+            </dd>
+          </div>
+          <div className="text-right">
+            <dt className="text-muted-foreground">Customer</dt>
+            <dd>{order.customer?.fullName ?? "Walk-in"}</dd>
+          </div>
         </dl>
 
         <section className="relative border-b border-dashed py-4">
@@ -111,7 +143,12 @@ export default async function PrintableOrderReceiptPage({
                 </div>
                 {item.modifiers.length ? (
                   <p className="ml-7 text-xs text-muted-foreground">
-                    {item.modifiers.map((modifier) => `${modifier.qty}× ${modifier.modifierName}`).join(", ")}
+                    {item.modifiers
+                      .map(
+                        (modifier) =>
+                          `${modifier.qty}× ${modifier.modifierName}`,
+                      )
+                      .join(", ")}
                   </p>
                 ) : null}
               </div>
@@ -120,25 +157,47 @@ export default async function PrintableOrderReceiptPage({
         </section>
 
         <section className="relative space-y-2 border-b border-dashed py-4 text-sm">
-          <div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div>
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{money(subtotal)}</span>
+          </div>
           {reductions.map((adjustment) => (
-            <div key={adjustment.id} className="flex justify-between text-muted-foreground">
+            <div
+              key={adjustment.id}
+              className="flex justify-between text-muted-foreground"
+            >
               <span>{adjustment.type.replace("_", " ")}</span>
               <span>-{money(adjustment.amount)}</span>
             </div>
           ))}
-          <div className="flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{money(order.total)}</span></div>
-          <div className="flex justify-between"><span>Paid</span><span>{money(paid)}</span></div>
-          {refunded ? <div className="flex justify-between text-destructive"><span>Refunded</span><span>-{money(refunded)}</span></div> : null}
+          <div className="flex justify-between border-t pt-2 text-base font-bold">
+            <span>Total</span>
+            <span>{money(order.total)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Paid</span>
+            <span>{money(paid)}</span>
+          </div>
+          {refunded ? (
+            <div className="flex justify-between text-destructive">
+              <span>Refunded</span>
+              <span>-{money(refunded)}</span>
+            </div>
+          ) : null}
         </section>
 
         {order.payments.length ? (
           <section className="relative border-b border-dashed py-4 text-xs">
-            <h2 className="mb-2 font-semibold uppercase tracking-wide">Payments</h2>
+            <h2 className="mb-2 font-semibold uppercase tracking-wide">
+              Payments
+            </h2>
             <div className="space-y-2">
               {order.payments.map((payment) => (
                 <div key={payment.id} className="flex justify-between gap-4">
-                  <span>{payment.method}{payment.reference ? ` · ${payment.reference}` : ""}</span>
+                  <span>
+                    {payment.method}
+                    {payment.reference ? ` · ${payment.reference}` : ""}
+                  </span>
                   <span>{money(payment.amountPaid)}</span>
                 </div>
               ))}
@@ -146,7 +205,11 @@ export default async function PrintableOrderReceiptPage({
           </section>
         ) : null}
 
-        {order.notes ? <p className="relative border-b border-dashed py-4 text-xs"><strong>Order note:</strong> {order.notes}</p> : null}
+        {order.notes ? (
+          <p className="relative border-b border-dashed py-4 text-xs">
+            <strong>Order note:</strong> {order.notes}
+          </p>
+        ) : null}
         <footer className="relative pt-5 text-center text-xs text-muted-foreground">
           <p className="font-medium text-foreground">Thank you for visiting!</p>
           <p>Receipt #{order.orderNumber}</p>

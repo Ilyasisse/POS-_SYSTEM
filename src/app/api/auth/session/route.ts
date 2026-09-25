@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { findAppUser } from "@/lib/auth/app-user";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -9,5 +10,19 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return NextResponse.json({ authenticated: Boolean(user) });
+  if (!user) {
+    return NextResponse.json({ authenticated: false });
+  }
+
+  const profile = await findAppUser(user.id);
+
+  return NextResponse.json({
+    authenticated: true,
+    user: {
+      id: user.id,
+      email: profile?.email ?? user.email,
+      name: profile?.fullName,
+      role: profile?.role,
+    },
+  });
 }

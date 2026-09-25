@@ -22,7 +22,9 @@ export default async function CashierReceiptsPage({
   const q = params.q?.trim() ?? "";
   const allTime = params.scope === "all";
   const { start, end } = getCashierBusinessDayRange();
-  const orderNumber = /^#?\d+$/.test(q) ? Number(q.replace("#", "")) : undefined;
+  const orderNumber = /^#?\d+$/.test(q)
+    ? Number(q.replace("#", ""))
+    : undefined;
   const orders = await prisma.order.findMany({
     where: {
       status: "PAID",
@@ -46,17 +48,33 @@ export default async function CashierReceiptsPage({
       <div className="mx-auto max-w-6xl space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cashier</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Cashier
+            </p>
             <h1 className="text-3xl font-bold">Customer receipts</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Find, review, and reprint paid order receipts.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Find, review, and reprint paid order receipts.
+            </p>
           </div>
-          <Button asChild variant="outline"><Link href="/cashier">Back to cashier</Link></Button>
+          <Button asChild variant="outline">
+            <Link href="/cashier">Back to cashier</Link>
+          </Button>
         </header>
 
         <Card className="p-4">
           <form className="flex flex-col gap-3 sm:flex-row">
-            <Input name="q" defaultValue={q} inputMode="numeric" placeholder="Order number, for example #123" className="flex-1" />
-            <select name="scope" defaultValue={allTime ? "all" : "today"} className="h-10 rounded-lg border bg-background px-3 text-sm">
+            <Input
+              name="q"
+              defaultValue={q}
+              inputMode="numeric"
+              placeholder="Order number, for example #123"
+              className="flex-1"
+            />
+            <select
+              name="scope"
+              defaultValue={allTime ? "all" : "today"}
+              className="h-10 rounded-lg border bg-background px-3 text-sm"
+            >
               <option value="today">Current business day</option>
               <option value="all">All time</option>
             </select>
@@ -67,24 +85,69 @@ export default async function CashierReceiptsPage({
         <Card className="overflow-hidden p-0">
           {orders.length ? (
             <Table>
-              <thead><tr><TableHead>Order</TableHead><TableHead>Customer</TableHead><TableHead>Service</TableHead><TableHead>Items</TableHead><TableHead>Payment</TableHead><TableHead>Total</TableHead><TableHead>Closed</TableHead><TableHead>Receipt</TableHead></tr></thead>
+              <thead>
+                <tr>
+                  <TableHead>Order</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Service</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Payment</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Closed</TableHead>
+                  <TableHead>Receipt</TableHead>
+                </tr>
+              </thead>
               <tbody>
                 {orders.map((order) => (
                   <tr key={order.id} className="border-b">
-                    <TableCell className="font-semibold">#{order.orderNumber}</TableCell>
-                    <TableCell>{order.customer?.fullName ?? "Walk-in"}</TableCell>
-                    <TableCell><p>{order.table?.name ?? order.type.replace("_", " ")}</p><p className="text-xs text-muted-foreground">{order.waiter?.fullName ?? order.cashier?.fullName ?? "Cafe staff"}</p></TableCell>
+                    <TableCell className="font-semibold">
+                      #{order.orderNumber}
+                    </TableCell>
+                    <TableCell>
+                      {order.customer?.fullName ?? "Walk-in"}
+                    </TableCell>
+                    <TableCell>
+                      <p>{order.table?.name ?? order.type.replace("_", " ")}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.waiter?.fullName ??
+                          order.cashier?.fullName ??
+                          "Cafe staff"}
+                      </p>
+                    </TableCell>
                     <TableCell>{order._count.orderItems}</TableCell>
-                    <TableCell>{[...new Set(order.payments.map((payment) => payment.method))].join(", ") || "—"}</TableCell>
+                    <TableCell>
+                      {[
+                        ...new Set(
+                          order.payments.map((payment) => payment.method),
+                        ),
+                      ].join(", ") || "—"}
+                    </TableCell>
                     <TableCell>{money(order.total)}</TableCell>
-                    <TableCell>{order.closedAt?.toLocaleString() ?? "—"}</TableCell>
-                    <TableCell><Button asChild size="sm" variant="outline"><Link href={`/print/orders/${order.id}`}><Printer /> Print</Link></Button></TableCell>
+                    <TableCell>
+                      {order.closedAt?.toLocaleString() ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/print/orders/${order.id}`}>
+                          <Printer /> Print
+                        </Link>
+                      </Button>
+                    </TableCell>
                   </tr>
                 ))}
               </tbody>
             </Table>
           ) : (
-            <EmptyState icon={ReceiptText} title="No paid receipts found" description={q ? "Check the order number or search all time." : "Paid orders will appear here after checkout."} className="m-4" />
+            <EmptyState
+              icon={ReceiptText}
+              title="No paid receipts found"
+              description={
+                q
+                  ? "Check the order number or search all time."
+                  : "Paid orders will appear here after checkout."
+              }
+              className="m-4"
+            />
           )}
         </Card>
       </div>

@@ -1,3 +1,5 @@
+import { availableForSaleWhere } from "@/lib/products/availability";
+
 // Used for: The product cards, featured items, filtering, and sorting on /menu.
 // What it does: Defines the shape of one product shown on the menu page.
 // Like you are 10: This is the checklist every food or drink item must follow.
@@ -184,7 +186,6 @@ function groupCategories(products: MenuProduct[]) {
       existing.products.push(product);
       continue;
     }
-    
 
     groups.set(key, {
       id: key,
@@ -200,7 +201,7 @@ function groupCategories(products: MenuProduct[]) {
     if (rankDiff !== 0) {
       return rankDiff;
     }
-   
+
     return left.name.localeCompare(right.name);
   });
 }
@@ -227,6 +228,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
           products: {
             some: {
               isActive: true,
+              ...availableForSaleWhere(),
             },
           },
         },
@@ -237,6 +239,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
           products: {
             where: {
               isActive: true,
+              ...availableForSaleWhere(),
             },
             orderBy: [{ isPopular: "desc" }, { name: "asc" }],
             select: {

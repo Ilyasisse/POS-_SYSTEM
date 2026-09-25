@@ -71,7 +71,9 @@ export async function closeSettledTableChecks(
   tableCheckIds: readonly (string | null | undefined)[],
   closedAt: Date,
 ) {
-  const ids = [...new Set(tableCheckIds.filter((id): id is string => Boolean(id)))];
+  const ids = [
+    ...new Set(tableCheckIds.filter((id): id is string => Boolean(id))),
+  ];
 
   if (ids.length === 0) return;
 
