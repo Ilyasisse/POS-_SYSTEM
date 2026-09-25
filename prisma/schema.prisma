@@ -71,6 +71,8 @@ model Staff {
   cleaningRunsAssigned                CleaningChecklistRun[]           @relation("CleaningRunAssignee")
   cleaningRunsCompleted               CleaningChecklistRun[]           @relation("CleaningRunCompletedBy")
   cleaningTasksCompleted              CleaningChecklistRunTask[]       @relation("CleaningTaskCompletedBy")
+  handoverNotesCreated                ShiftHandoverNote[]             @relation("ShiftHandoverCreator")
+  handoverNotesResolved               ShiftHandoverNote[]             @relation("ShiftHandoverResolver")
   dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]         @relation("DailyCashSupplyPaymentRecordedBy")
   dailyCashSavingsDepositsRecorded    DailyCashSavingsDeposit[]        @relation("DailyCashSavingsDepositRecordedBy")
   employmentProfile                   EmploymentProfile?
@@ -926,6 +928,23 @@ model OperationalIncident {
   @@index([type, status, startedAt])
   @@index([severity, status])
   @@index([assignedToUserId, status])
+}
+
+model ShiftHandoverNote {
+  id               String    @id @default(cuid())
+  requestToken     String    @unique
+  title            String
+  details          String
+  createdByUserId  String
+  createdAt        DateTime  @default(now())
+  resolvedByUserId String?
+  resolvedAt       DateTime?
+  resolutionNote   String?
+  createdBy        Staff     @relation("ShiftHandoverCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  resolvedBy       Staff?    @relation("ShiftHandoverResolver", fields: [resolvedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([resolvedAt, createdAt])
+  @@index([createdByUserId, createdAt])
 }
 
 model CleaningChecklistTemplate {
