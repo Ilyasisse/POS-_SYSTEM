@@ -22,6 +22,7 @@ import {
 } from "@/lib/auth/permissions";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
 import { calculateKitchenPreparationMetric } from "@/lib/kitchen/kitchen-metrics";
+import { latestPickupReadyAt } from "@/lib/kitchen/pickup-priority";
 
 type KitchenStateTransaction = Prisma.TransactionClient;
 
@@ -219,6 +220,7 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
       ]),
     ),
     pickupStatus: toPickupStatus(state.pickupStatus),
+    readyAt: latestPickupReadyAt(state.transitions)?.toISOString() ?? null,
     tableId: state.order.tableId,
     tableName: state.order.table?.name ?? null,
     cashierId: state.order.cashierId,
