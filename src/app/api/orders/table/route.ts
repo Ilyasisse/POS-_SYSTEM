@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
+import { parseCourseHoldInput } from "@/lib/kitchen/course-hold";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   selectEffectiveRecipe,
@@ -32,6 +33,8 @@ type TableOrderBody = {
   tableId?: string;
   items: TableOrderItemInput[];
   notes?: string;
+  holdForCourse?: unknown;
+  courseLabel?: unknown;
 };
 
 type PreparedLine = {
@@ -98,6 +101,18 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as TableOrderBody;
+    let courseHold: ReturnType<typeof parseCourseHoldInput>;
+    try {
+      courseHold = parseCourseHoldInput(body);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error ? error.message : "Invalid course hold.",
+        },
+        { status: 400 },
+      );
+    }
     const tableId = String(body.tableId ?? "").trim();
 
     if (!tableId) {
@@ -327,6 +342,12 @@ export async function POST(request: Request) {
     }
 
     calculatedTotal = roundCurrency(calculatedTotal);
+    if (courseHold.isHeld && !preparedLines.some((line) => line.station)) {
+      return NextResponse.json(
+        { error: "A held round needs at least one kitchen item." },
+        { status: 400 },
+      );
+    }
 
     const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
       (line) => ({
@@ -478,6 +499,7 @@ export async function POST(request: Request) {
           orderId: createdOrder.id,
           lines: preparedLines,
           actorUserId: currentUser.id,
+          ...courseHold,
         });
 
         const [inventoryAlerts, checkTotal] = await Promise.all([
