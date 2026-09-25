@@ -122,7 +122,6 @@ export default async function AdminProductsPage({
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Availability</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Action</TableHead>
@@ -164,9 +163,6 @@ export default async function AdminProductsPage({
                     </TableCell>
                     <TableCell>{product.category?.name ?? "-"}</TableCell>
                     <TableCell>${Number(product.price).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <StatusBadge active={product.isActive} />
-                    </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <StatusBadge
