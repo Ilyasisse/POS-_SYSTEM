@@ -113,6 +113,7 @@ export default async function SupplierPurchaseOrderDetailPage({
         <>
           <Button asChild>
             <Link
+              prefetch={false}
               href={`/print/supplier-purchase-orders/${order.id}`}
               target="_blank"
               rel="noreferrer"
@@ -121,7 +122,7 @@ export default async function SupplierPurchaseOrderDetailPage({
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/admin/supplier-purchase-orders">
+            <Link prefetch={false} href="/admin/supplier-purchase-orders">
               Back to purchase orders
             </Link>
           </Button>
@@ -219,12 +220,13 @@ export default async function SupplierPurchaseOrderDetailPage({
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href={`/admin/supplier-invoices/${activeInvoice.id}`}>
+              <Link prefetch={false} href={`/admin/supplier-invoices/${activeInvoice.id}`}>
                 Open invoice
               </Link>
             </Button>
             <Button asChild variant="outline">
               <Link
+                prefetch={false}
                 href={`/print/supplier-invoices/${activeInvoice.id}`}
                 target="_blank"
                 rel="noreferrer"

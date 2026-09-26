@@ -118,6 +118,7 @@ export default async function NewProductPage() {
               </Button>
 
               <Link
+                prefetch={false}
                 href="/admin/products"
                 className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-50"
               >

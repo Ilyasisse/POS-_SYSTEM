@@ -163,12 +163,14 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         </div>
 
         <Link
+          prefetch={false}
           href="/cashier/order"
           className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
         >
           New table order
         </Link>
         <Link
+          prefetch={false}
           href="/cashier/customer-checkouts"
           className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
         >
@@ -292,6 +294,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                 </div>
                 <div className="mt-4 grid gap-2">
                   <Link
+                    prefetch={false}
                     href={`/cashier/order?tableId=${encodeURIComponent(table.id)}`}
                     className="block rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
                   >

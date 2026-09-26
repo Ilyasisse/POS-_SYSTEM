@@ -127,7 +127,7 @@ export function ClearFiltersLink({
 
   return (
     <Button asChild variant="outline">
-      <Link href={href}>{label}</Link>
+      <Link prefetch={false} href={href}>{label}</Link>
     </Button>
   );
 }
@@ -141,7 +141,7 @@ export function PrimaryLink({
 }) {
   return (
     <Button asChild>
-      <Link href={href}>
+      <Link prefetch={false} href={href}>
         <Plus data-icon="inline-start" />
         {children}
       </Link>
@@ -173,6 +173,7 @@ export function PaginationBar({
           className={cn(currentPage <= 1 && "pointer-events-none opacity-40")}
         >
           <Link
+            prefetch={false}
             href={`${prefix}page=${Math.max(currentPage - 1, 1)}`}
             aria-label="Previous page"
           >
@@ -191,6 +192,7 @@ export function PaginationBar({
           )}
         >
           <Link
+            prefetch={false}
             href={`${prefix}page=${Math.min(currentPage + 1, totalPages)}`}
             aria-label="Next page"
           >
@@ -212,7 +214,7 @@ export function RowActions({
   return (
     <div className="flex items-center gap-1">
       <Button asChild variant="ghost" size="icon" aria-label="Edit">
-        <Link href={editHref}>
+        <Link prefetch={false} href={editHref}>
           <Pencil />
         </Link>
       </Button>

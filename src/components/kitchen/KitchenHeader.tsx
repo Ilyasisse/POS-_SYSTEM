@@ -35,6 +35,7 @@ export default function KitchenHeader({
       <div className="flex flex-wrap items-center gap-2">
         {canUseInventory ? (
           <Link
+            prefetch={false}
             href="/inventory"
             className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold uppercase text-white transition hover:bg-emerald-500"
           >
