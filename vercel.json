@@ -5,6 +5,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/inventory-low-stock-whatsapp",
+      "schedule": "5 3 * * *"
+    },
+    {
       "path": "/api/cron/supplier-recurring-invoices",
       "schedule": "0 3 * * *"
     }
