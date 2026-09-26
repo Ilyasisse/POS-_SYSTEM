@@ -127,7 +127,9 @@ export function ClearFiltersLink({
 
   return (
     <Button asChild variant="outline">
-      <Link prefetch={false} href={href}>{label}</Link>
+      <Link prefetch={false} href={href}>
+        {label}
+      </Link>
     </Button>
   );
 }

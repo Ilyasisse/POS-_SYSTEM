@@ -58,7 +58,9 @@ export default function Error({ error, reset }: ErrorPageProps) {
             Try again
           </Button>
           <Button asChild variant="outline" className="min-h-12 rounded-2xl">
-            <Link prefetch={false} href="/menu">Go to menu</Link>
+            <Link prefetch={false} href="/menu">
+              Go to menu
+            </Link>
           </Button>
         </div>
 
@@ -67,7 +69,9 @@ export default function Error({ error, reset }: ErrorPageProps) {
           variant="secondary"
           className="mt-3 min-h-12 rounded-2xl"
         >
-          <Link prefetch={false} href="/staff-login">Staff login</Link>
+          <Link prefetch={false} href="/staff-login">
+            Staff login
+          </Link>
         </Button>
       </Card>
     </main>

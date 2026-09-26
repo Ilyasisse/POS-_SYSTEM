@@ -220,7 +220,10 @@ export default async function SupplierPurchaseOrderDetailPage({
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild>
-              <Link prefetch={false} href={`/admin/supplier-invoices/${activeInvoice.id}`}>
+              <Link
+                prefetch={false}
+                href={`/admin/supplier-invoices/${activeInvoice.id}`}
+              >
                 Open invoice
               </Link>
             </Button>
