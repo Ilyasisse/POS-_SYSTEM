@@ -11,6 +11,10 @@ import {
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
+import {
+  getOrderBusinessDayRange,
+  summarizeOrderBusinessDay,
+} from "@/lib/admin/orders-business-day";
 
 type AdminOrdersPageProps = {
   searchParams?: Promise<{
@@ -24,6 +28,7 @@ const ORDER_STATUS_FILTERS = ["all", "OPEN", "PAID", "CANCELLED"] as const;
 const ORDER_DATE_FILTERS = ["today", "all"] as const;
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Africa/Nairobi",
   month: "short",
   day: "numeric",
   hour: "numeric",
@@ -55,20 +60,15 @@ export default async function AdminOrdersPage({
     "all",
   );
   const date = normalizeFilterChoice(params?.date, ORDER_DATE_FILTERS, "today");
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startDate = date === "today" ? startOfToday : undefined;
+  const businessDay = getOrderBusinessDayRange();
+  const businessDayWhere = {
+    createdAt: { gte: businessDay.start, lt: businessDay.end },
+  };
   const where = {
     ...(status !== "all"
       ? { status: status as "OPEN" | "PAID" | "CANCELLED" }
       : {}),
-    ...(startDate
-      ? {
-          createdAt: {
-            gte: startDate,
-          },
-        }
-      : {}),
+    ...(date === "today" ? businessDayWhere : {}),
     ...(q && Number(q)
       ? {
           orderNumber: Number(q),
@@ -107,11 +107,7 @@ export default async function AdminOrdersPage({
       },
     }),
     prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: startOfToday,
-        },
-      },
+      where: businessDayWhere,
       select: {
         status: true,
         total: true,
@@ -119,26 +115,25 @@ export default async function AdminOrdersPage({
     }),
   ]);
 
-  const openToday = ordersToday.filter(
-    (order) => order.status === "OPEN",
-  ).length;
-  const paidToday = ordersToday.filter(
-    (order) => order.status === "PAID",
-  ).length;
-  const revenueToday = ordersToday.reduce(
-    (sum, order) => sum + Number(order.total),
-    0,
+  const { open, paid, paidRevenue } = summarizeOrderBusinessDay(
+    ordersToday.map((order) => ({
+      status: order.status,
+      total: Number(order.total),
+    })),
   );
 
   return (
     <AdminPage title="Orders" description="Track and manage customer orders">
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Orders Today" value={ordersToday.length} />
         <MetricCard
-          label="Open vs Paid"
-          value={`${openToday} / ${paidToday}`}
+          label="Orders This Business Day"
+          value={ordersToday.length}
         />
-        <MetricCard label="Revenue Today" value={formatMoney(revenueToday)} />
+        <MetricCard label="Open vs Paid" value={`${open} / ${paid}`} />
+        <MetricCard
+          label="Paid Revenue This Business Day"
+          value={formatMoney(paidRevenue)}
+        />
       </section>
 
       <DataTableCard
@@ -161,7 +156,7 @@ export default async function AdminOrdersPage({
             <option value="CANCELLED">Cancelled</option>
           </AutoSubmitSelect>
           <AutoSubmitSelect name="date" defaultValue={date}>
-            <option value="today">Date Today</option>
+            <option value="today">Current Business Day</option>
             <option value="all">All Time</option>
           </AutoSubmitSelect>
         </SearchToolbar>
