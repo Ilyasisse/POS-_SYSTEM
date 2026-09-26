@@ -9,6 +9,7 @@ import {
   getCashierBusinessDayRange,
 } from "@/lib/cashier/cashier-business-day";
 import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
+import { filterOccupiedTables } from "@/lib/cashier/occupied-table-search";
 import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
@@ -18,6 +19,7 @@ type CashierPageProps = {
   searchParams?: Promise<{
     paymentStatus?: string;
     orderStatus?: string;
+    q?: string;
   }>;
 };
 
@@ -75,6 +77,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
     searchParams,
   ]);
   const showEqualSplit = await canShowEqualBillSplit(currentUser);
+  const q = params?.q?.trim().slice(0, 80) ?? "";
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
   const orderNotice =
     params?.orderStatus === "sent"
@@ -147,6 +150,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
       ),
     ]),
   );
+  const visibleTables = filterOccupiedTables(tables, q);
 
   return (
     <main className="min-h-screen bg-muted/35 p-4 text-foreground sm:p-6">
@@ -180,6 +184,44 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         <ToastOnMount tone={notice.tone} description={notice.message} />
       ) : null}
 
+      <form
+        method="get"
+        className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-4"
+      >
+        <label
+          htmlFor="occupied-table-search"
+          className="min-w-48 flex-1 text-sm font-semibold"
+        >
+          Find an occupied table or order
+          <input
+            id="occupied-table-search"
+            type="search"
+            name="q"
+            defaultValue={q}
+            maxLength={80}
+            placeholder="Table name or order number"
+            className="mt-2 w-full rounded-lg border border-border bg-background px-4 py-3 text-base"
+          />
+        </label>
+        <button
+          type="submit"
+          className="rounded-lg bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800"
+        >
+          Search
+        </button>
+        {q ? (
+          <Link
+            href="/cashier"
+            className="rounded-lg border border-border px-5 py-3 text-sm font-semibold hover:bg-muted"
+          >
+            Clear
+          </Link>
+        ) : null}
+        <p role="status" className="w-full text-sm text-muted-foreground">
+          Showing {visibleTables.length} of {tables.length} occupied tables
+        </p>
+      </form>
+
       {/*
       
       BRING BACK IF YOU WANT Occupied tables,Open order,Open order total
@@ -212,8 +254,13 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
               New table order to start service for an active table.
             </p>
           </div>
+        ) : visibleTables.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+            No occupied tables match that search. Try a table name or an exact
+            order number.
+          </div>
         ) : (
-          tables.map((table) => {
+          visibleTables.map((table) => {
             const tableChecks = openChecksByTable.get(table.id) ?? [];
             const tableTotal = tableChecks.reduce(
               (sum, check) => sum + check.total,
