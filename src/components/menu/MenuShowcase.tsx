@@ -14,6 +14,7 @@ import { useAos } from "@/components/AosInitializer";
 
 // TypeScript types for menu data and products
 import type { MenuData, MenuProduct } from "@/lib/menu/menu-data";
+import { searchMenuProducts } from "@/lib/menu/menu-search";
 import { ModeToggle } from "@/components/mode-toggle";
 
 // Props type for the MenuShowcase component
@@ -114,6 +115,14 @@ import FeaturedCard from "@/components/menu/FeaturedCard";
 // Main menu showcase page component
 export default function MenuShowcase({ data }: MenuShowcaseProps) {
   const hasFeaturedItems = data.featuredItems.length > 0;
+  const [search, setSearch] = useState("");
+  const [searchVisibleCount, setSearchVisibleCount] = useState(
+    INITIAL_CATEGORY_ITEMS,
+  );
+  const isSearching = search.trim().length > 0;
+  const searchResults = isSearching
+    ? searchMenuProducts(data.products, search)
+    : [];
 
   // Gets the slug of the first category for default selection
   const firstCategorySlug = data.categories[0]?.slug ?? "";
@@ -147,14 +156,14 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
     : 0;
 
   // Creates sliced array containing only visible products
-  const visibleProducts = selectedCategoryProducts.slice(
-    0,
-    visibleProductCount,
-  );
+  const visibleProducts = isSearching
+    ? searchResults.slice(0, searchVisibleCount)
+    : selectedCategoryProducts.slice(0, visibleProductCount);
 
   // Calculates how many products are left hidden
   const remainingProductCount = Math.max(
-    selectedCategoryProducts.length - visibleProducts.length,
+    (isSearching ? searchResults.length : selectedCategoryProducts.length) -
+      visibleProducts.length,
     0,
   );
 
@@ -165,6 +174,10 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
 
   // Loads additional products into currently selected category
   function loadMoreProducts() {
+    if (isSearching) {
+      setSearchVisibleCount((count) => count + LOAD_MORE_ITEMS);
+      return;
+    }
     // Stops function if no category selected
     if (!selectedCategoryData) {
       return;
@@ -221,7 +234,10 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   }, []);
 
   // Refreshes AOS animations when menu products change
-  useAos(visibleProducts.length, menuState.selectedCategory);
+  useAos(
+    visibleProducts.length,
+    isSearching ? search : menuState.selectedCategory,
+  );
 
   return (
     <main className="min-h-screen bg-[#f7efe6] text-[#2f180d] dark:bg-[#120d09] dark:text-stone-50">
@@ -236,19 +252,64 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
 
       <MenuHero heroImage={data.heroImage} />
 
-      <MenuCategoryTabs
-        categories={data.categories}
-        selectedCategory={menuState.selectedCategory}
-        onOpenCategory={openCategory}
-      />
+      <section className="relative z-10 -mt-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="rounded-[32px] border border-[#ead8c6] bg-[#fbf6ef] p-4 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:p-6">
+          <label
+            htmlFor="menu-product-search"
+            className="text-sm font-semibold text-[#2f180d]"
+          >
+            Find something on the menu
+          </label>
+          <div className="mt-2 flex gap-3">
+            <input
+              id="menu-product-search"
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSearchVisibleCount(INITIAL_CATEGORY_ITEMS);
+              }}
+              placeholder="Search food, drinks or categories"
+              className="min-w-0 flex-1 rounded-full border border-[#d6c1ab] bg-white px-5 py-3 text-base text-[#2f180d] placeholder:text-[#7b6557] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a36a33]"
+            />
+            {isSearching ? (
+              <Button
+                type="button"
+                onClick={() => setSearch("")}
+                className="rounded-full px-5 py-3"
+              >
+                Clear
+              </Button>
+            ) : null}
+          </div>
+          {isSearching ? (
+            <p role="status" className="mt-3 text-sm text-[#6c5a4f]">
+              {searchResults.length}{" "}
+              {searchResults.length === 1 ? "product" : "products"} found across
+              all categories
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      {!isSearching ? (
+        <MenuCategoryTabs
+          categories={data.categories}
+          selectedCategory={menuState.selectedCategory}
+          onOpenCategory={openCategory}
+        />
+      ) : null}
 
       <MenuProductSection
         visibleProducts={visibleProducts}
         remainingProductCount={remainingProductCount}
         onLoadMore={loadMoreProducts}
+        searchTerm={isSearching ? search.trim() : null}
       />
 
-      {hasFeaturedItems ? <FeaturedSection items={data.featuredItems} /> : null}
+      {hasFeaturedItems && !isSearching ? (
+        <FeaturedSection items={data.featuredItems} />
+      ) : null}
 
       <MenuFooter cafeName={data.cafeName} />
 
@@ -497,10 +558,12 @@ function MenuProductSection({
   visibleProducts,
   remainingProductCount,
   onLoadMore,
+  searchTerm,
 }: {
   visibleProducts: MenuProduct[];
   remainingProductCount: number;
   onLoadMore: () => void;
+  searchTerm: string | null;
 }) {
   return (
     <section
@@ -517,11 +580,12 @@ function MenuProductSection({
             fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
           }}
         >
-          What We Serve
+          {searchTerm ? "Search results" : "What We Serve"}
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#7b6557] sm:text-lg">
-          From warm drinks to fresh meals and sweet treats, explore something
-          delicious made just for you.
+          {searchTerm
+            ? `Showing menu products matching “${searchTerm}” across all categories.`
+            : "From warm drinks to fresh meals and sweet treats, explore something delicious made just for you."}
         </p>
       </div>
 
@@ -538,11 +602,12 @@ function MenuProductSection({
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
-              Menu updating
+              {searchTerm ? "No matching products" : "Menu updating"}
             </p>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#7b6557] sm:text-base">
-              No active menu products are available right now. Please check back
-              soon or place an order from the customer screen.
+              {searchTerm
+                ? "Try another name, ingredient description or category."
+                : "No active menu products are available right now. Please check back soon or place an order from the customer screen."}
             </p>
             <Link
               href="/customer"
