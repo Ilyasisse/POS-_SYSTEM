@@ -37,7 +37,9 @@ export default function NotFound() {
         </p>
 
         <Button asChild variant="outline" className="mt-4 min-h-12 rounded-2xl">
-          <Link prefetch={false} href="/">Head back</Link>
+          <Link prefetch={false} href="/">
+            Head back
+          </Link>
         </Button>
       </Card>
     </main>

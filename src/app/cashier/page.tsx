@@ -51,6 +51,12 @@ function getPaymentStatusMessage(paymentStatus?: string) {
         tone: "error" as const,
         message: "This table no longer has open orders.",
       };
+    case "table_owned_elsewhere":
+      return {
+        tone: "error" as const,
+        message:
+          "This table belongs to another cashier. Refresh and select one of your tables.",
+      };
     case "payment_failed":
       return {
         tone: "error" as const,
@@ -88,6 +94,9 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   const tables = await prisma.table.findMany({
     where: {
       isActive: true,
+      ...(currentUser.role === "CASHIER"
+        ? { ownerCashierId: currentUser.id }
+        : {}),
       orders: {
         some: {
           status: "OPEN",
@@ -150,7 +159,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
   return (
     <main className="min-h-screen bg-muted/35 p-4 text-foreground sm:p-6">
-      <CashierLiveSync />
+      <CashierLiveSync currentUserId={currentUser.id} role={currentUser.role} />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Cashier table settlement</h1>
@@ -207,11 +216,14 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         {tables.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground shadow-sm md:col-span-2 xl:col-span-3">
             <h2 className="text-lg font-bold text-foreground">
-              No occupied tables
+              {currentUser.role === "CASHIER"
+                ? "No tables assigned to you"
+                : "No occupied tables"}
             </h2>
             <p className="mt-2">
-              Tables appear here only after an unpaid table order is sent. Use
-              New table order to start service for an active table.
+              {currentUser.role === "CASHIER"
+                ? "Open an available table to start service. Your occupied tables will appear here."
+                : "Tables appear here after an unpaid table order is sent."}
             </p>
           </div>
         ) : (

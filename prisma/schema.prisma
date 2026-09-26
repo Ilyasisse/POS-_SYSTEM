@@ -21,6 +21,7 @@ model Staff {
   stockEventsCreated                  StockEvent[]                     @relation("StockEventActor")
   auditLogsCreated                    AuditLog[]                       @relation("AuditLogActor")
   orders                              Order[]                          @relation("Cashier")
+  ownedTables                         Table[]                          @relation("TableOwner")
   waiterOrders                        Order[]                          @relation("WaiterOrders")
   assignedItems                       OrderItem[]                      @relation("AssignedOrderItems")
   claimedKitchenTickets               KitchenTicketState[]             @relation("KitchenTicketClaimant")
@@ -570,14 +571,17 @@ model Table {
   id               String            @id @default(cuid())
   name             String            @unique
   isActive         Boolean           @default(true)
+  ownerCashierId   String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  ownerCashier     Staff?            @relation("TableOwner", fields: [ownerCashierId], references: [id], onDelete: SetNull)
   orders           Order[]
   tableChecks      TableCheck[]
   paymentRequests  PaymentRequest[]
   paymentDeferrals PaymentDeferral[]
 
   @@index([isActive])
+  @@index([ownerCashierId, isActive])
 }
 
 /// Customer-facing table bill. Each kitchen submission remains a separate

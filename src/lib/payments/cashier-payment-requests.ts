@@ -1,6 +1,8 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { lockCashierTable } from "@/lib/cashier/table-ownership";
+import type { UserRole } from "@prisma/client";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
@@ -35,7 +37,7 @@ export async function getOpenTableBalance(tableId: string) {
 export async function createPaymentRequestBatch(input: {
   batchKey: string;
   tableId: string;
-  cashier: { id: string; fullName: string };
+  cashier: { id: string; fullName: string; role: UserRole };
   method: PaymentMethod;
   lines: PaymentRequestLineInput[];
   payLater: boolean;
@@ -44,7 +46,12 @@ export async function createPaymentRequestBatch(input: {
     where: { batchKey: input.batchKey },
     orderBy: { lineIndex: "asc" },
   });
-  if (existing.length) return existing;
+  if (existing.length) {
+    if (existing.some((request) => request.cashierId !== input.cashier.id)) {
+      throw new Error("This payment batch belongs to another cashier.");
+    }
+    return existing;
+  }
   const dueCents = await getOpenTableBalance(input.tableId);
   if (dueCents <= 0)
     throw new Error("This table no longer has an unpaid balance.");
@@ -70,6 +77,7 @@ export async function createPaymentRequestBatch(input: {
     );
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
   return prisma.$transaction(async (tx) => {
+    await lockCashierTable(tx, input.tableId, input.cashier, true);
     const requests = await Promise.all(
       lines.map((line, lineIndex) =>
         tx.paymentRequest.create({

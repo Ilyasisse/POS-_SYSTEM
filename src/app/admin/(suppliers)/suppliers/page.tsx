@@ -111,7 +111,9 @@ export default async function SuppliersPage() {
       description="Manage supplier contacts, catalogs, purchase orders, and invoice history."
       action={
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/admin/supplier-invoices">View supplier invoices</Link>
+          <Link prefetch={false} href="/admin/supplier-invoices">
+            View supplier invoices
+          </Link>
         </Button>
       }
     >
@@ -205,7 +207,10 @@ export default async function SuppliersPage() {
                       size="sm"
                       className="mt-2"
                     >
-                      <Link prefetch={false} href={`/admin/suppliers/${supplier.id}`}>
+                      <Link
+                        prefetch={false}
+                        href={`/admin/suppliers/${supplier.id}`}
+                      >
                         Manage catalog
                       </Link>
                     </Button>
