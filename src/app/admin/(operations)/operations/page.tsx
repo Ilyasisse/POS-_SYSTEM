@@ -1,4 +1,5 @@
 import { AdminPage, Card, ToneBadge } from "@/components/admin/shared";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PERMISSIONS, hasPermission } from "@/lib/auth/permissions";
@@ -62,6 +63,12 @@ export default async function OperationsPage() {
       title="Kitchen & Operations"
       description="Preparation targets, quality incidents, operational outages, and cleaning evidence"
     >
+      <Link
+        href="/admin/operations/opening"
+        className="mb-5 inline-block rounded-lg border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+      >
+        Today&apos;s opening readiness checklist →
+      </Link>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="space-y-4 p-5">
           <h2 className="text-lg font-black">Preparation targets</h2>

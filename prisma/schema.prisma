@@ -71,6 +71,9 @@ model Staff {
   cleaningRunsAssigned                CleaningChecklistRun[]           @relation("CleaningRunAssignee")
   cleaningRunsCompleted               CleaningChecklistRun[]           @relation("CleaningRunCompletedBy")
   cleaningTasksCompleted              CleaningChecklistRunTask[]       @relation("CleaningTaskCompletedBy")
+  openingReadinessDaysStarted          OpeningReadinessDay[]           @relation("OpeningReadinessStarter")
+  openingReadinessDaysSigned           OpeningReadinessDay[]           @relation("OpeningReadinessSigner")
+  openingReadinessTasksChecked         OpeningReadinessTask[]          @relation("OpeningReadinessChecker")
   dailyCashSupplyPaymentsRecorded     DailyCashSupplyPayment[]         @relation("DailyCashSupplyPaymentRecordedBy")
   dailyCashSavingsDepositsRecorded    DailyCashSavingsDeposit[]        @relation("DailyCashSavingsDepositRecordedBy")
   employmentProfile                   EmploymentProfile?
@@ -926,6 +929,33 @@ model OperationalIncident {
   @@index([type, status, startedAt])
   @@index([severity, status])
   @@index([assignedToUserId, status])
+}
+
+/// Manager acknowledgement of fixed opening-readiness tasks for one café day.
+model OpeningReadinessDay {
+  businessDate    DateTime               @id @db.Date
+  startedByUserId String
+  startedAt       DateTime               @default(now())
+  signedByUserId  String?
+  signedAt        DateTime?
+  startedBy       Staff                  @relation("OpeningReadinessStarter", fields: [startedByUserId], references: [id], onDelete: Restrict)
+  signedBy        Staff?                 @relation("OpeningReadinessSigner", fields: [signedByUserId], references: [id], onDelete: Restrict)
+  tasks           OpeningReadinessTask[]
+
+  @@index([signedAt])
+}
+
+model OpeningReadinessTask {
+  businessDate    DateTime             @db.Date
+  key             String
+  label           String
+  checkedAt       DateTime?
+  checkedByUserId String?
+  day             OpeningReadinessDay @relation(fields: [businessDate], references: [businessDate], onDelete: Cascade)
+  checkedBy       Staff?              @relation("OpeningReadinessChecker", fields: [checkedByUserId], references: [id], onDelete: Restrict)
+
+  @@id([businessDate, key])
+  @@index([checkedByUserId])
 }
 
 model CleaningChecklistTemplate {
