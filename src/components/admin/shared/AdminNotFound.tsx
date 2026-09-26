@@ -23,7 +23,7 @@ export function AdminNotFound({
         description={description}
         action={
           <Button asChild>
-            <Link href={href}>{linkLabel}</Link>
+            <Link prefetch={false} href={href}>{linkLabel}</Link>
           </Button>
         }
       />

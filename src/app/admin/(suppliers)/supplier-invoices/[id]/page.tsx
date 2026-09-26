@@ -236,6 +236,7 @@ function InvoiceInstallmentSchedule({
       {invoice.bill ? (
         <Button asChild variant="outline" className="w-fit">
           <Link
+            prefetch={false}
             href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
           >
             Manage installments and payments
@@ -303,6 +304,7 @@ function InvoiceAuditCard({ invoice }: { invoice: SupplierInvoiceDetail }) {
       {invoice.bill ? (
         <Button asChild variant="outline" className="mt-2 w-fit">
           <Link
+            prefetch={false}
             href={`/admin/reports/supplier-bills?supplier=${invoice.supplierId}`}
           >
             Open supplier bill
@@ -346,7 +348,7 @@ function RecurringDraftSourceCard({
         This draft was generated from a recurring supplier invoice template.
       </p>
       <Button asChild variant="outline" className="w-fit">
-        <Link href={`/admin/supplier-invoices/${sourceInvoice.id}`}>
+        <Link prefetch={false} href={`/admin/supplier-invoices/${sourceInvoice.id}`}>
           Open source invoice
           {` ${formatSupplierInvoiceNumber(sourceInvoice.invoiceNumber)}`}
         </Link>
@@ -436,6 +438,7 @@ export default async function SupplierInvoiceDetailPage({
         <>
           <Button asChild>
             <Link
+              prefetch={false}
               href={`/print/supplier-invoices/${invoice.id}`}
               target="_blank"
               rel="noreferrer"
@@ -446,6 +449,7 @@ export default async function SupplierInvoiceDetailPage({
           {invoice.purchaseOrder ? (
             <Button asChild variant="outline">
               <Link
+                prefetch={false}
                 href={`/admin/supplier-purchase-orders/${invoice.purchaseOrder.id}`}
               >
                 Open purchase order

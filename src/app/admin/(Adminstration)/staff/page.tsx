@@ -110,7 +110,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               {description}
             </p>
             <Button asChild variant="outline" className="mt-4">
-              <Link href={href}>Open {title}</Link>
+              <Link prefetch={false} href={href}>Open {title}</Link>
             </Button>
           </Card>
         ))}

@@ -155,6 +155,7 @@ export default function Status({
           )}
         </div>
         <Link
+          prefetch={false}
           href="/admin/orders"
           className="mt-4 inline-flex items-center gap-2 border-t border-slate-100 pt-4 text-sm font-black text-blue-600 hover:text-blue-700"
         >

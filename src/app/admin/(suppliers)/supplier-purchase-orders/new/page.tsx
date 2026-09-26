@@ -92,7 +92,7 @@ export default async function NewSupplierPurchaseOrderPage({
       description="Select a supplier, add items from its active catalog, and record the order you place by phone."
       action={
         <Button asChild variant="outline">
-          <Link href="/admin/supplier-purchase-orders">
+          <Link prefetch={false} href="/admin/supplier-purchase-orders">
             Back to purchase orders
           </Link>
         </Button>

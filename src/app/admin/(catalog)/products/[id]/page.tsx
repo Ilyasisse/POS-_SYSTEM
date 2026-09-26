@@ -52,6 +52,7 @@ export default async function ProductDetailsPage({
           </div>
 
           <Link
+            prefetch={false}
             href="/admin/products"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >
