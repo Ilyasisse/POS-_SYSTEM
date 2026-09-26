@@ -174,6 +174,12 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         >
           Customer payment review
         </Link>
+        <Link
+          href="/cashier/shift"
+          className="rounded-xl border px-4 py-2 text-sm font-semibold hover:bg-muted"
+        >
+          Open or close your register
+        </Link>
       </div>
 
       {notice ? (
