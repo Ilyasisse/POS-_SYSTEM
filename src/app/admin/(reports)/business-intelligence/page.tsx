@@ -56,6 +56,17 @@ export default async function BusinessIntelligencePage() {
             </Link>
           ))}
       </section>
+      {hasPermission(user, PERMISSIONS.REPORT_CUSTOMER_VIEW) ? (
+        <Link
+          href="/admin/reports/customer-preferences"
+          className="block rounded-lg border bg-card p-4 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2"
+        >
+          <h2 className="font-medium">Customer product preferences</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Search for a customer and review their most purchased products.
+          </p>
+        </Link>
+      ) : null}
       <section className="rounded-lg border p-4 text-sm">
         <h2 className="font-medium">Operational controls</h2>
         <p className="mt-1 text-muted-foreground">
