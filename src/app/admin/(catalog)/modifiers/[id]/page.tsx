@@ -117,6 +117,28 @@ export default async function ModifierDetailsPage({
 
             <div>
               <label
+                htmlFor="modifier-allergens"
+                className="mb-1 block text-sm font-medium"
+              >
+                Allergen information (optional)
+              </label>
+              <textarea
+                id="modifier-allergens"
+                name="allergenInfo"
+                defaultValue={modifier.allergenInfo ?? ""}
+                maxLength={240}
+                rows={3}
+                placeholder="For example: Contains milk"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              />
+              <p className="mt-1 text-xs text-slate-600">
+                Verify ingredients and preparation practices with the kitchen.
+                Blank does not mean allergen-free.
+              </p>
+            </div>
+
+            <div>
+              <label
                 htmlFor="modifier-product"
                 className="mb-1 block text-sm font-medium"
               >

@@ -235,6 +235,11 @@ function ModifierGroupList({
                         <p className="break-words font-semibold text-foreground">
                           {option.name}
                         </p>
+                        <p className="mt-1 text-xs font-semibold leading-5 text-amber-800">
+                          {option.allergenInfo
+                            ? `Allergen information: ${option.allergenInfo}`
+                            : "Allergen details not provided. Ask staff if needed."}
+                        </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {Number(option.price) > 0
                             ? `+${formatCurrency(Number(option.price))}`
