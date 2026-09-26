@@ -90,6 +90,11 @@ export default async function SupplierPurchaseOrdersPage({
               WhatsApp schedules
             </Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-purchase-orders/on-time">
+              On-time delivery
+            </Link>
+          </Button>
         </>
       }
     >
