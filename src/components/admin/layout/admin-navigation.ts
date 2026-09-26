@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Wrench,
   MessageCircle,
+  ContactRound,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -169,6 +170,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Reports",
     icon: ChartNoAxesCombined,
     permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "customers",
+    href: "/admin/customers",
+    label: "Customers",
+    icon: ContactRound,
+    permission: PERMISSIONS.REPORT_CUSTOMER_VIEW,
   },
   {
     key: "business-intelligence",
