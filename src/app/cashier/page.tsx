@@ -13,6 +13,7 @@ import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
 import { ToastOnMount } from "@/components/ui/toast";
+import { fireHeldCourseAction } from "@/app/cashier/held-course-actions";
 
 type CashierPageProps = {
   searchParams?: Promise<{
@@ -82,7 +83,23 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           tone: "success" as const,
           message: "The table order was sent to the kitchen.",
         }
-      : null;
+      : params?.orderStatus === "held"
+        ? {
+            tone: "success" as const,
+            message: "The round is held until you fire it.",
+          }
+        : params?.orderStatus === "course_fired"
+          ? {
+              tone: "success" as const,
+              message: "The round was fired to the kitchen.",
+            }
+          : params?.orderStatus === "fire_failed"
+            ? {
+                tone: "error" as const,
+                message:
+                  "Unable to fire this round. Refresh and check its status.",
+              }
+            : null;
   const notice = paymentNotice ?? orderNotice;
 
   const tables = await prisma.table.findMany({
@@ -106,6 +123,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         include: {
           cashier: { select: { fullName: true } },
           tableCheck: { select: { checkNumber: true } },
+          kitchenTicketState: { select: { isHeld: true, courseLabel: true } },
           orderItems: {
             select: {
               id: true,
@@ -117,6 +135,21 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           payments: {
             select: { amountPaid: true },
           },
+        },
+      },
+    },
+  });
+
+  const paidHeldRounds = await prisma.kitchenTicketState.findMany({
+    where: { isHeld: true, order: { status: "PAID", type: "DINE_IN" } },
+    orderBy: { createdAt: "asc" },
+    select: {
+      orderId: true,
+      courseLabel: true,
+      order: {
+        select: {
+          orderNumber: true,
+          table: { select: { name: true } },
         },
       },
     },
@@ -142,6 +175,8 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           ),
           createdAt: order.createdAt,
           cashierName: order.cashier?.fullName ?? null,
+          isHeld: order.kitchenTicketState?.isHeld ?? false,
+          courseLabel: order.kitchenTicketState?.courseLabel ?? null,
           items: order.orderItems,
         })),
       ),
@@ -178,6 +213,36 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
       {notice ? (
         <ToastOnMount tone={notice.tone} description={notice.message} />
+      ) : null}
+
+      {paidHeldRounds.length > 0 ? (
+        <section className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+          <h2 className="font-bold">Paid rounds still held for the kitchen</h2>
+          <p className="mt-1 text-xs">
+            Payment does not fire a course automatically.
+          </p>
+          <div className="mt-3 space-y-2">
+            {paidHeldRounds.map((round) => (
+              <form
+                key={round.orderId}
+                action={fireHeldCourseAction}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white p-3 text-sm"
+              >
+                <span>
+                  {round.order.table?.name ?? "Table"} · Order #
+                  {round.order.orderNumber} · {round.courseLabel}
+                </span>
+                <input type="hidden" name="orderId" value={round.orderId} />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800"
+                >
+                  Fire course
+                </button>
+              </form>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {/*
@@ -284,6 +349,31 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                                 )
                                 .join(", ")}
                             </p>
+                            {round.isHeld ? (
+                              <form
+                                action={fireHeldCourseAction}
+                                className="mt-2 flex flex-wrap items-center justify-between gap-2"
+                              >
+                                <span className="text-xs font-semibold text-amber-800">
+                                  Held · {round.courseLabel}
+                                </span>
+                                <input
+                                  type="hidden"
+                                  name="orderId"
+                                  value={round.id}
+                                />
+                                <button
+                                  type="submit"
+                                  className="rounded-lg bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800"
+                                >
+                                  Fire course
+                                </button>
+                              </form>
+                            ) : round.courseLabel ? (
+                              <p className="mt-2 text-xs font-semibold text-emerald-700">
+                                Fired · {round.courseLabel}
+                              </p>
+                            ) : null}
                           </div>
                         ))}
                       </div>
