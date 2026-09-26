@@ -447,6 +447,7 @@ model Product {
   name String
 
   description                 String?
+  allergenInfo                String?              @db.VarChar(240)
   imageUrl                    String?
   pronunciationAudioUrl       String?
   isActive                    Boolean               @default(true)
