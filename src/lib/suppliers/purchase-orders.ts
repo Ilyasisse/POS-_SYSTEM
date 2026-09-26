@@ -77,6 +77,22 @@ export function getSupplierPurchaseTodayDateKey(now = new Date()) {
   return dateKeyInNairobi(now);
 }
 
+export function getSupplierOverdueCutoff(now = new Date()) {
+  return supplierPurchaseDateKeyToDatabaseDate(
+    getSupplierPurchaseTodayDateKey(now),
+  )!;
+}
+
+export function isSupplierPurchaseOrderOverdue(
+  order: { status: string; expectedDeliveryDate: Date },
+  now = new Date(),
+) {
+  return (
+    order.status === "OPEN" &&
+    order.expectedDeliveryDate < getSupplierOverdueCutoff(now)
+  );
+}
+
 export function getSupplierBillDefaultDueDateKey(now = new Date()) {
   const today = getSupplierPurchaseTodayDateKey(now);
   const date = supplierPurchaseDateKeyToDatabaseDate(today);
