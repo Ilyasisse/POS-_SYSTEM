@@ -25,6 +25,7 @@ model Staff {
   assignedItems                       OrderItem[]                      @relation("AssignedOrderItems")
   claimedKitchenTickets               KitchenTicketState[]             @relation("KitchenTicketClaimant")
   payments                            Payment[]
+  cashDrawerMovements                 CashDrawerMovement[]             @relation("CashDrawerMovementActor")
   paymentRequests                     PaymentRequest[]                 @relation("PaymentRequestCashier")
   paymentDeferrals                    PaymentDeferral[]                @relation("PaymentDeferralCashier")
   mobileMoneyReceiptsAssigned         MobileMoneyReceipt[]             @relation("MobileMoneyReceiptAssignee")
@@ -1035,6 +1036,27 @@ model Payment {
   @@index([cashierId, createdAt])
   @@index([paymentRequestId])
   @@index([mobileMoneyReceiptId])
+}
+
+/// Physical cash placed into or removed from the till outside customer payments.
+/// This does not affect sales, daily cash funding, or the payment ledger.
+model CashDrawerMovement {
+  id             String              @id @default(cuid())
+  idempotencyKey String              @unique
+  direction      CashDrawerDirection
+  amount         Decimal             @db.Decimal(14, 2)
+  reason         String
+  recordedById   String
+  createdAt      DateTime            @default(now())
+  recordedBy     Staff               @relation("CashDrawerMovementActor", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([recordedById, createdAt])
+}
+
+enum CashDrawerDirection {
+  IN
+  OUT
 }
 
 model PaymentRequest {
