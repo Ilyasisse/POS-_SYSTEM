@@ -14,32 +14,41 @@ export default async function CashierOrderPage({
 }: CashierOrderPageProps) {
   const params = await searchParams;
   const requestedTableId = params?.tableId?.trim() ?? "";
-  const [, tables] = await Promise.all([
-    requirePermission(PERMISSIONS.ORDER_CREATE),
-    prisma.table.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          {
-            orders: {
-              none: {
-                status: "OPEN",
-                type: "DINE_IN",
-              },
+  const currentUser = await requirePermission(PERMISSIONS.ORDER_MANAGE);
+  const tables = await prisma.table.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        {
+          orders: {
+            none: {
+              status: "OPEN",
+              type: "DINE_IN",
             },
           },
-          ...(requestedTableId ? [{ id: requestedTableId }] : []),
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: "asc",
-      },
-    }),
-  ]);
+        },
+        ...(requestedTableId
+          ? [
+              {
+                id: requestedTableId,
+                ...(currentUser.role === "CASHIER"
+                  ? {
+                      ownerCashierId: currentUser.id,
+                    }
+                  : {}),
+              },
+            ]
+          : []),
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
 
   return (
     <CashierOrderExperience tables={tables} initialTableId={requestedTableId} />
