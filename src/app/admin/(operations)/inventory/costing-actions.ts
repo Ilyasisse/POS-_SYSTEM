@@ -104,6 +104,7 @@ export async function mapLegacySupplyUnitAction(formData: FormData) {
       data: {
         stockQty: supply.stockQty.mul(factor),
         lowStockThreshold: supply.lowStockThreshold.mul(factor),
+        parLevel: supply.parLevel?.mul(factor) ?? null,
         canonicalUnit,
         quantityCoverage: "COMPLETE",
       },
@@ -119,11 +120,13 @@ export async function mapLegacySupplyUnitAction(formData: FormData) {
           unit: supply.unit,
           stockQty: supply.stockQty.toString(),
           lowStockThreshold: supply.lowStockThreshold.toString(),
+          parLevel: supply.parLevel?.toString() ?? null,
           coverage: supply.quantityCoverage,
         },
         newValue: {
           canonicalUnit,
           factor: factor.toString(),
+          parLevel: supply.parLevel?.mul(factor).toString() ?? null,
           coverage: "COMPLETE",
         },
       },
