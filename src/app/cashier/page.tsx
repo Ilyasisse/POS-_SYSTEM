@@ -111,6 +111,10 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
               id: true,
               productName: true,
               qty: true,
+              lineTotal: true,
+              modifiers: {
+                select: { modifierName: true, qty: true },
+              },
             },
             orderBy: { createdAt: "asc" },
           },
@@ -142,7 +146,13 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           ),
           createdAt: order.createdAt,
           cashierName: order.cashier?.fullName ?? null,
-          items: order.orderItems,
+          items: order.orderItems.map((item) => ({
+            id: item.id,
+            productName: item.productName,
+            qty: item.qty,
+            lineTotal: Number(item.lineTotal),
+            modifiers: item.modifiers,
+          })),
         })),
       ),
     ]),
@@ -277,16 +287,43 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                                 ? ` by ${round.cashierName}`
                                 : ""}
                             </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {round.items
-                                .map(
-                                  (item) => `${item.qty}x ${item.productName}`,
-                                )
-                                .join(", ")}
-                            </p>
+                            <ul
+                              className="mt-2 space-y-2"
+                              aria-label={`Items in round ${round.tableCheckRound ?? 1}`}
+                            >
+                              {round.items.map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="flex justify-between gap-3 text-sm"
+                                >
+                                  <span>
+                                    {item.qty}× {item.productName}
+                                    {item.modifiers?.length ? (
+                                      <span className="block pl-5 text-xs text-muted-foreground">
+                                        {item.modifiers
+                                          .map(
+                                            (modifier) =>
+                                              `${modifier.qty}× ${modifier.modifierName}`,
+                                          )
+                                          .join(", ")}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  {item.lineTotal !== undefined ? (
+                                    <span className="shrink-0 font-medium">
+                                      {formatMoney(item.lineTotal)}
+                                    </span>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         ))}
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Item prices show the original sale. The balance above
+                        includes later payments and adjustments.
+                      </p>
                     </div>
                   ))}
                 </div>
