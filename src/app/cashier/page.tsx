@@ -111,6 +111,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
               id: true,
               productName: true,
               qty: true,
+              lineTotal: true,
             },
             orderBy: { createdAt: "asc" },
           },
@@ -302,6 +303,13 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     tableName={table.name}
                     amountDue={tableTotal}
                     showEqualSplit={showEqualSplit}
+                    billItems={table.orders.flatMap((order) =>
+                      order.orderItems.map((item) => ({
+                        id: item.id,
+                        label: `${item.qty}× ${item.productName}`,
+                        amount: Number(item.lineTotal),
+                      })),
+                    )}
                   />
                 </div>
               </article>
