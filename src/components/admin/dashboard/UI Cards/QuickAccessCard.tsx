@@ -19,6 +19,7 @@ export default function QuickAccessCard({
   const toneClasses = getToneClasses(tone);
   return (
     <Link
+      prefetch={false}
       href={href}
       className="group flex min-h-32 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
     >

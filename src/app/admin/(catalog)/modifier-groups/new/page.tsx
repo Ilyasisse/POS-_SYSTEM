@@ -84,6 +84,7 @@ export default function NewModifierGroupPage() {
               </Button>
 
               <Link
+                prefetch={false}
                 href="/admin/modifier-groups"
                 className="border px-4 py-2 rounded"
               >

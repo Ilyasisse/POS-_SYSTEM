@@ -295,12 +295,14 @@ function MenuHeader({
 
             <nav className="hidden items-center gap-2 text-sm font-medium text-white/78 lg:flex">
               <Link
+                prefetch={false}
                 href="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
                 Home
               </Link>
               <Link
+                prefetch={false}
                 href="/menu"
                 className="rounded-full border border-[#d7aa6a]/60 bg-[#d7aa6a]/12 px-4 py-2 text-white"
               >
@@ -308,6 +310,7 @@ function MenuHeader({
               </Link>
 
               <Link
+                prefetch={false}
                 href="#contact"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
@@ -318,6 +321,7 @@ function MenuHeader({
             <div className="flex items-center gap-3">
               <ModeToggle />
               <Link
+                prefetch={false}
                 href="/customer"
                 className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] lg:inline-flex"
               >
@@ -354,6 +358,7 @@ function MenuHeader({
             >
               <div className="grid gap-2">
                 <Link
+                  prefetch={false}
                   href="/"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
@@ -361,6 +366,7 @@ function MenuHeader({
                   Home
                 </Link>
                 <Link
+                  prefetch={false}
                   href="/menu"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] border border-[#d7aa6a]/30 bg-[#d7aa6a]/12 px-4 py-3 text-sm font-medium text-white"
@@ -369,6 +375,7 @@ function MenuHeader({
                 </Link>
 
                 <Link
+                  prefetch={false}
                   href="#contact"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
@@ -376,6 +383,7 @@ function MenuHeader({
                   Contact
                 </Link>
                 <Link
+                  prefetch={false}
                   href="/customer"
                   onClick={onCloseMobileNav}
                   className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition "
@@ -430,12 +438,14 @@ function MenuHero({ heroImage }: { heroImage: string }) {
 
             <div className="mt-8 flex flex-wrap gap-4 md:flex-nowrap">
               <Link
+                prefetch={false}
                 href="#menu-grid"
                 className="w-full rounded-full bg-white px-6 py-3.5 text-center text-md font-semibold tracking-widest text-[#24140c] transition hover:bg-[#f8efe4] sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
               >
                 Explore Menu
               </Link>
               <Link
+                prefetch={false}
                 href="/customer"
                 className="w-full rounded-full border border-white/16 bg-white/6 px-6 py-3.5 text-center text-xl font-semibold tracking-widest text-white transition hover:bg-white/12 sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
               >
@@ -545,6 +555,7 @@ function MenuProductSection({
               soon or place an order from the customer screen.
             </p>
             <Link
+              prefetch={false}
               href="/customer"
               className="mt-6 inline-flex rounded-full bg-[#2a170d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3d2417]"
             >
@@ -600,6 +611,7 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
             ))}
           </div>
           <Link
+            prefetch={false}
             href="/customer"
             className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#2a170d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3d2417]"
           >

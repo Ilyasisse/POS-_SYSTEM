@@ -65,6 +65,7 @@ export default async function ModifierDetailsPage({
           </div>
 
           <Link
+            prefetch={false}
             href="/admin/modifiers"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >

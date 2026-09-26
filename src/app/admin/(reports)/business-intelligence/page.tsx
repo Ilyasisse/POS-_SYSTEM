@@ -45,6 +45,7 @@ export default async function BusinessIntelligencePage() {
           .filter(([, , permission]) => hasPermission(user, permission))
           .map(([name, href]) => (
             <Link
+              prefetch={false}
               key={name}
               href={href}
               className="rounded-lg border bg-card p-4 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2"
