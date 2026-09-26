@@ -12,7 +12,10 @@ import {
   ToneBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
-import { createActiveTableFromAdmin } from "./actions";
+import {
+  createActiveTableFromAdmin,
+  updateTableCleaningStatus,
+} from "./actions";
 import { ToastOnMount } from "@/components/ui/toast";
 
 type TablePageProps = {
@@ -22,10 +25,16 @@ type TablePageProps = {
   }>;
 };
 
-function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
+function getTableStatus(table: {
+  isActive: boolean;
+  needsCleaning: boolean;
+  orders: unknown[];
+}) {
   if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
   if (table.orders.length > 0)
     return { label: "Occupied", tone: "red" as const };
+  if (table.needsCleaning)
+    return { label: "Needs cleaning", tone: "amber" as const };
   return { label: "Available", tone: "green" as const };
 }
 
@@ -50,6 +59,28 @@ function getTableStatusMessage(tableStatus?: string) {
       return {
         tone: "error" as const,
         message: "The table could not be created.",
+      };
+    case "table_cleaned":
+      return {
+        tone: "success" as const,
+        message: "Table is ready for guests.",
+      };
+    case "table_needs_cleaning":
+      return {
+        tone: "success" as const,
+        message: "Table marked for cleaning.",
+      };
+    case "cleaning_unavailable":
+      return {
+        tone: "warning" as const,
+        message:
+          "Only an empty active table can change cleaning status. Refresh and check its open orders.",
+      };
+    case "invalid_cleaning_action":
+    case "cleaning_failed":
+      return {
+        tone: "error" as const,
+        message: "Could not update the table. Try again.",
       };
     default:
       return null;
@@ -84,9 +115,8 @@ export default async function TablePage({ searchParams }: TablePageProps) {
     })
   ).filter((table) => !q || table.name.toLowerCase().includes(q));
 
-  const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter(
-    (table) => table.orders.length > 0,
+  const availableTables = tables.filter(
+    (table) => table.isActive && !table.needsCleaning && !table.orders.length,
   ).length;
   const openOrders = tables.reduce(
     (sum, table) => sum + table.orders.length,
@@ -104,7 +134,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Total Tables" value={tables.length} />
-        <MetricCard label="Available" value={activeTables - occupiedTables} />
+        <MetricCard label="Available" value={availableTables} />
         <MetricCard label="Open Orders" value={openOrders} />
       </section>
 
@@ -145,12 +175,13 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Open Orders</TableHead>
+                <TableHead>Cleaning</TableHead>
               </tr>
             </thead>
             <tbody>
               {tables.length === 0 ? (
                 <tr>
-                  <TableCell colSpan={6} className="py-10 text-center">
+                  <TableCell colSpan={7} className="py-10 text-center">
                     No tables found.
                   </TableCell>
                 </tr>
@@ -173,6 +204,29 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                         {index % 2 === 0 ? "Main Floor" : "Outdoor"}
                       </TableCell>
                       <TableCell>{table.orders.length}</TableCell>
+                      <TableCell>
+                        {table.isActive && table.orders.length === 0 ? (
+                          <form action={updateTableCleaningStatus}>
+                            <input
+                              type="hidden"
+                              name="tableId"
+                              value={table.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="nextStatus"
+                              value={
+                                table.needsCleaning ? "clean" : "needs_cleaning"
+                              }
+                            />
+                            <Button type="submit" variant="outline" size="sm">
+                              {table.needsCleaning
+                                ? "Mark clean"
+                                : "Needs cleaning"}
+                            </Button>
+                          </form>
+                        ) : null}
+                      </TableCell>
                     </tr>
                   );
                 })
@@ -207,7 +261,9 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                   ? "bg-emerald-500"
                   : status.tone === "red"
                     ? "bg-red-500"
-                    : "bg-slate-400";
+                    : status.tone === "amber"
+                      ? "bg-amber-500"
+                      : "bg-slate-400";
 
               return (
                 <div
@@ -220,6 +276,10 @@ export default async function TablePage({ searchParams }: TablePageProps) {
             })}
           </div>
           <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+            <span className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-amber-500" />
+              Needs cleaning
+            </span>
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-500" />
               Available
