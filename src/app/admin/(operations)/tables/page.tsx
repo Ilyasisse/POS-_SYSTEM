@@ -1,7 +1,6 @@
 ﻿import { Input } from "@/components/ui/input";
 import {
   Button,
-  Card,
   AdminPage,
   SearchToolbar,
   MetricCard,
@@ -14,6 +13,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createActiveTableFromAdmin } from "./actions";
 import { ToastOnMount } from "@/components/ui/toast";
+import TableFloorPlan from "./TableFloorPlan";
 
 type TablePageProps = {
   searchParams?: Promise<{
@@ -181,59 +181,16 @@ export default async function TablePage({ searchParams }: TablePageProps) {
           </Table>
         </DataTableCard>
 
-        <Card className="p-5">
-          <h2 className="text-lg font-black text-slate-950">Floor Plan</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">
-            Visual status map based on live table availability.
-          </p>
-          {/* REVIEW: This floor plan uses generated positions until editable table layout data is added. */}
-          <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-            <div className="absolute inset-x-8 top-8 h-20 rounded-xl border border-slate-200 bg-white" />
-            <div className="absolute bottom-8 right-8 h-32 w-20 rounded-xl border border-slate-200 bg-white" />
-            {tables.slice(0, 8).map((table, index) => {
-              const status = getTableStatus(table);
-              const positions = [
-                "left-[14%] top-[22%]",
-                "left-[42%] top-[20%]",
-                "left-[70%] top-[28%]",
-                "left-[18%] top-[55%]",
-                "left-[48%] top-[54%]",
-                "left-[72%] top-[62%]",
-                "left-[30%] top-[78%]",
-                "left-[58%] top-[80%]",
-              ];
-              const color =
-                status.tone === "green"
-                  ? "bg-emerald-500"
-                  : status.tone === "red"
-                    ? "bg-red-500"
-                    : "bg-slate-400";
-
-              return (
-                <div
-                  key={table.id}
-                  className={`absolute grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-lg ${color} text-xs font-black text-white shadow-lg ${positions[index]}`}
-                >
-                  {index + 1}
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
-            <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              Available
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-red-500" />
-              Occupied
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-slate-400" />
-              Hidden
-            </span>
-          </div>
-        </Card>
+        <TableFloorPlan
+          tables={tables.map((table) => ({
+            id: table.id,
+            name: table.name,
+            isActive: table.isActive,
+            occupied: table.orders.length > 0,
+            floorX: table.floorX,
+            floorY: table.floorY,
+          }))}
+        />
       </section>
     </AdminPage>
   );
