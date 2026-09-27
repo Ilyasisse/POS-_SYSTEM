@@ -821,6 +821,9 @@ model SalesAdjustment {
 model KitchenTicketState {
   orderId             String                      @id
   pickupStatus        KitchenPickupStatus         @default(PREPARING)
+  isHeld              Boolean                     @default(false)
+  courseLabel         String?
+  firedAt             DateTime?
   customerName        String?
   claimedByWaiterId   String?
   claimedByWaiterName String?
@@ -833,6 +836,7 @@ model KitchenTicketState {
   qualityEvents       KitchenQualityEvent[]
 
   @@index([pickupStatus, updatedAt])
+  @@index([isHeld, pickupStatus, updatedAt])
   @@index([claimedByWaiterId])
 }
 

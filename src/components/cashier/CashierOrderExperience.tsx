@@ -196,6 +196,8 @@ export default function CashierOrderExperience({
   initialTableId = "",
 }: Props) {
   const router = useRouter();
+  const [holdForCourse, setHoldForCourse] = useState(false);
+  const [courseLabel, setCourseLabel] = useState("");
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
     tableId: tables.some((table) => table.id === initialTableId)
@@ -338,6 +340,13 @@ export default function CashierOrderExperience({
       });
       return;
     }
+    if (holdForCourse && !courseLabel.trim()) {
+      dispatch({
+        type: "failed",
+        error: "Name the course before holding this round.",
+      });
+      return;
+    }
     try {
       dispatch({ type: "submitting" });
       const response = await fetch("/api/orders/table", {
@@ -346,6 +355,8 @@ export default function CashierOrderExperience({
         body: JSON.stringify({
           tableId: state.tableId,
           notes: state.orderNote,
+          holdForCourse,
+          courseLabel: holdForCourse ? courseLabel.trim() : undefined,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -361,7 +372,7 @@ export default function CashierOrderExperience({
       if (!response.ok)
         throw new Error(data?.error || "The table order could not be sent.");
       clearCart();
-      router.push("/cashier?orderStatus=sent");
+      router.push(`/cashier?orderStatus=${holdForCourse ? "held" : "sent"}`);
       router.refresh();
     } catch (error) {
       dispatch({
@@ -400,6 +411,35 @@ export default function CashierOrderExperience({
           }}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
         />
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          <label className="flex cursor-pointer items-center gap-2 font-semibold">
+            <input
+              type="checkbox"
+              checked={holdForCourse}
+              onChange={(event) => setHoldForCourse(event.target.checked)}
+              className="size-4 accent-amber-700"
+            />
+            Hold this round until it is time to prepare it
+          </label>
+          {holdForCourse ? (
+            <label className="mt-2 block text-xs font-semibold">
+              Course name
+              <input
+                type="text"
+                maxLength={40}
+                required
+                value={courseLabel}
+                onChange={(event) => setCourseLabel(event.target.value)}
+                placeholder="e.g. Desserts"
+                className="mt-1 w-full rounded-lg border border-amber-400 bg-white px-3 py-2 text-sm text-foreground"
+              />
+            </label>
+          ) : null}
+          <p className="mt-1 text-xs">
+            Held rounds stay off kitchen screens until fired from the cashier
+            table view.
+          </p>
+        </div>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
             <MenuBrowserPanel
