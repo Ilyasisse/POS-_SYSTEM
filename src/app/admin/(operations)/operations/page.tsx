@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AdminPage, Card, ToneBadge } from "@/components/admin/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,13 @@ export default async function OperationsPage() {
     <AdminPage
       title="Kitchen & Operations"
       description="Preparation targets, quality incidents, operational outages, and cleaning evidence"
+      action={
+        hasPermission(user, PERMISSIONS.COMPLAINT_MANAGE) ? (
+          <Button asChild variant="outline">
+            <Link href="/admin/operations/complaints">Customer complaints</Link>
+          </Button>
+        ) : null
+      }
     >
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="space-y-4 p-5">
