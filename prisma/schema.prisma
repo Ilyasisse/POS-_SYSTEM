@@ -553,6 +553,7 @@ model Modifier {
   productId             String
   modifierGroupId       String
   name                  String
+  allergenInfo          String?             @db.VarChar(240)
   price                 Decimal
   pronunciationAudioUrl String?
   isActive              Boolean             @default(true)
