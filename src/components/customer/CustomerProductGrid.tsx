@@ -109,6 +109,15 @@ function ProductCard({
             "Freshly prepared with a warm cafe finish and ready to customize."}
         </p>
 
+        <p className="text-xs font-semibold leading-5 text-amber-800 dark:text-amber-200">
+          {product.allergenInfo
+            ? `Allergen information: ${product.allergenInfo}`
+            : "Allergen information unavailable. Ask staff before ordering."}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Ask staff about modifiers and shared equipment.
+        </p>
+
         <div className="flex flex-wrap gap-2">
           {modifierGroups.length > 0 ? (
             <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground">

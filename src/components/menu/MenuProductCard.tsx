@@ -52,6 +52,16 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
           {product.description}
         </p>
 
+        <p className="break-words text-sm font-semibold leading-6 text-amber-900 dark:text-amber-200">
+          {product.allergenInfo
+            ? `Allergen information: ${product.allergenInfo}`
+            : "Allergen information unavailable. Ask staff before ordering."}
+        </p>
+        <p className="text-xs text-[#6c5a4f]">
+          Ingredients and preparation can change. Ask staff about shared
+          equipment.
+        </p>
+
         {/* Product price */}
         <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] lg:text-2xl xl:text-3xl">
           {formatPrice(product.price)}

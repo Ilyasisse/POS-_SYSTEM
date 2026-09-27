@@ -48,6 +48,11 @@ export default function ProductGrid({
                   {item.description}
                 </p>
               ) : null}
+              <p className="text-xs font-semibold leading-5 text-amber-800">
+                {item.allergenInfo
+                  ? `Allergen information: ${item.allergenInfo}`
+                  : "Allergen information unavailable. Ask the kitchen."}
+              </p>
             </div>
           </Button>
 

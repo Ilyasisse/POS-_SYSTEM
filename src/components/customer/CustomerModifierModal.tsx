@@ -156,6 +156,15 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
               {product.description?.trim() ||
                 "Choose the details that make this item exactly how you want it."}
             </p>
+            <p className="mt-3 text-sm font-semibold leading-6 text-amber-100">
+              {product.allergenInfo
+                ? `Allergen information: ${product.allergenInfo}`
+                : "Allergen information unavailable. Ask staff before ordering."}
+            </p>
+            <p className="mt-1 text-xs text-stone-100/80">
+              Modifiers and shared equipment can change allergen exposure. Ask
+              staff before ordering.
+            </p>
             <p className="mt-4 text-sm uppercase tracking-[0.22em] text-amber-100/70 ">
               Base price
             </p>

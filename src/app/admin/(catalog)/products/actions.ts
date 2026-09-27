@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { availabilityRestorationTime } from "@/lib/products/availability";
+import { parseAllergenInfo } from "@/lib/products/allergen-info";
 
 const ALLOWED_DURATIONS = new Set([60, 180, 720, 1440]);
 
@@ -86,6 +87,7 @@ export async function setProductAvailability(formData: FormData) {
 
 export async function createProduct(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const allergenInfo = parseAllergenInfo(formData.get("allergenInfo"));
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
   const trackStock = formData.get("trackStock") === "on";
@@ -109,6 +111,7 @@ export async function createProduct(formData: FormData) {
   await prisma.product.create({
     data: {
       name,
+      allergenInfo,
       price,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
@@ -119,11 +122,16 @@ export async function createProduct(formData: FormData) {
   });
 
   revalidatePath("/admin/products");
+  revalidatePath("/menu");
+  revalidatePath("/customer");
+  revalidatePath("/api/GET/Product/all");
+  revalidatePath("/api/GET/Product");
   redirect("/admin/products");
 }
 
 export async function updateProduct(formData: FormData) {
-  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const actor = await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const allergenInfo = parseAllergenInfo(formData.get("allergenInfo"));
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
@@ -149,21 +157,43 @@ export async function updateProduct(formData: FormData) {
     throw new Error("Category is required.");
   }
 
-  await prisma.product.update({
-    where: { id },
-    data: {
-      name,
-      price,
-      trackStock,
-      pronunciationAudioUrl: pronunciationAudioUrl || null,
-      category: {
-        connect: { id: categoryId },
+  await prisma.$transaction(async (tx) => {
+    const previous = await tx.product.findUnique({
+      where: { id },
+      select: { allergenInfo: true },
+    });
+    if (!previous) throw new Error("Product not found.");
+    await tx.product.update({
+      where: { id },
+      data: {
+        name,
+        allergenInfo,
+        price,
+        trackStock,
+        pronunciationAudioUrl: pronunciationAudioUrl || null,
+        category: { connect: { id: categoryId } },
       },
-    },
+    });
+    if (previous.allergenInfo !== allergenInfo) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: "product.allergen_info.updated",
+          entityType: "Product",
+          entityId: id,
+          reason: "Catalog allergen information changed",
+          previousValue: { allergenInfo: previous.allergenInfo },
+          newValue: { allergenInfo },
+        },
+      });
+    }
   });
 
   revalidatePath("/admin/products");
-  revalidatePath(`/admin/products`);
+  revalidatePath("/menu");
+  revalidatePath("/customer");
+  revalidatePath("/api/GET/Product/all");
+  revalidatePath("/api/GET/Product");
   redirect(`/admin/products`);
 }
 
