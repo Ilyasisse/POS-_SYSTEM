@@ -55,6 +55,7 @@ export type KitchenTicket = {
   stationStatuses: KitchenTicketStationStatuses;
   stationMetrics: KitchenTicketStationMetrics;
   pickupStatus: KitchenTicketPickupStatus;
+  readyAt?: string | null;
   tableId?: string | null;
   tableName?: string | null;
   cashierId?: string | null;
@@ -401,6 +402,10 @@ export function normalizeKitchenTicket(
     pickupStatus: isKitchenTicketPickupStatus(ticket.pickupStatus)
       ? ticket.pickupStatus
       : "preparing",
+    readyAt:
+      ticket.readyAt && !Number.isNaN(Date.parse(ticket.readyAt))
+        ? new Date(ticket.readyAt).toISOString()
+        : null,
     tableId: ticket.tableId ? String(ticket.tableId) : null,
     tableName: ticket.tableName ? String(ticket.tableName) : null,
     cashierId: ticket.cashierId ? String(ticket.cashierId) : null,
