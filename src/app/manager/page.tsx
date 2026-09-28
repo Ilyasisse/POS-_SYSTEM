@@ -1,8 +1,9 @@
 ﻿import { Table } from "@/components/ui/table";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { ToastOnMount } from "@/components/ui/toast";
@@ -824,6 +825,14 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
         fullName={currentUser.fullName}
         businessDayLabel={businessDayLabel}
       />
+      {hasPermission(currentUser, PERMISSIONS.PAYMENT_RECEIPT_MANAGE) ? (
+        <Link
+          href="/manager/payment-receipts"
+          className="mb-5 inline-block text-sm font-semibold text-blue-700 underline"
+        >
+          Browse payment receipt history
+        </Link>
+      ) : null}
 
       {balanceNotice ? (
         <ToastOnMount
