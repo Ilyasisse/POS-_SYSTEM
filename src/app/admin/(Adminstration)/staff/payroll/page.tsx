@@ -67,6 +67,7 @@ export default async function PayrollPage() {
         <MetricCard label="Finalized total" value={`$${paid.toFixed(2)}`} />
       </section>
       <Link
+        prefetch={false}
         className="inline-block text-sm font-semibold text-blue-700 underline"
         href="/admin/staff/payroll/runs"
       >

@@ -46,6 +46,7 @@ export default async function PayrollRunsPage({ searchParams }: Props) {
       description="Review every payroll draft, approval, finalized run, and voided run."
     >
       <Link
+        prefetch={false}
         className="text-sm font-semibold text-blue-700 underline"
         href="/admin/staff/payroll"
       >
@@ -55,6 +56,7 @@ export default async function PayrollRunsPage({ searchParams }: Props) {
         {payrollRunStatuses.map((status) => (
           <Link
             key={status}
+            prefetch={false}
             href={`/admin/staff/payroll/runs?status=${status}`}
             aria-current={requested.status === status ? "page" : undefined}
             className={`rounded-lg border px-3 py-2 text-sm ${requested.status === status ? "border-blue-600 bg-blue-50 font-semibold" : "border-slate-200"}`}
@@ -162,6 +164,7 @@ export default async function PayrollRunsPage({ searchParams }: Props) {
       >
         {page > 1 ? (
           <Link
+            prefetch={false}
             className="font-semibold text-blue-700 underline"
             href={href(page - 1)}
           >
@@ -170,6 +173,7 @@ export default async function PayrollRunsPage({ searchParams }: Props) {
         ) : null}
         {page < pages ? (
           <Link
+            prefetch={false}
             className="font-semibold text-blue-700 underline"
             href={href(page + 1)}
           >
