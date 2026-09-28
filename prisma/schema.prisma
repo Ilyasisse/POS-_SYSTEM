@@ -511,6 +511,17 @@ model InventorySupply {
   @@index([standardCostUpdatedByUserId])
 }
 
+/// One claim per Nairobi calendar day. A failed or uncertain send is held for
+/// manual review rather than retried automatically and possibly duplicated.
+model InventoryWhatsAppDigest {
+  digestDate DateTime @id @db.Date
+  status     String   @default("PENDING")
+  messageSid String?
+  summary    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 /// Supply-only inventory history.
 /// Product stock still lives on Product, but product changes are no longer written here
 /// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
