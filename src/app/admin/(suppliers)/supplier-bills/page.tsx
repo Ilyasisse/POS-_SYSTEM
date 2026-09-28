@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import {
   AdminPage,
   Button,
@@ -14,6 +15,10 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { isValidDateKey } from "@/lib/admin/admin-filters";
 import { prisma } from "@/lib/prisma";
+import {
+  summarizeBillStatusGroups,
+  supplierBillReportWhere,
+} from "@/lib/suppliers/bill-report-summary";
 import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { getSupplierBillDueCutoffDate } from "@/lib/suppliers/supplier-bills";
@@ -230,19 +235,40 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
       ? undefined
       : requestedPaymentStatus;
 
-  const [bills, suppliers, nonFinalInvoices] = await Promise.all([
+  const billWhere = supplierBillReportWhere({
+    supplierId: params.supplier || undefined,
+    selectedStatus: selectedPaymentStatus,
+    dueThroughTomorrow: showingDueThroughTomorrow,
+    dueCutoff,
+    from,
+    to,
+  });
+  const nonFinalWhere: Prisma.SupplierInvoiceWhereInput = {
+    supplierId: params.supplier || undefined,
+    submittedAt: showingDueThroughTomorrow ? undefined : { gte: from, lte: to },
+    status: { in: ["DRAFT", "VOID"] },
+  };
+  const dayStart = startOfDay(now);
+  const weekStart = startOfDay(
+    new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - ((now.getDay() + 6) % 7),
+    ),
+  );
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    bills,
+    suppliers,
+    billStatusGroups,
+    nonFinalGroups,
+    todayTotal,
+    weekTotal,
+    monthTotal,
+  ] = await Promise.all([
     prisma.supplierBill.findMany({
-      where: {
-        supplierId: params.supplier || undefined,
-        ...(showingDueThroughTomorrow
-          ? {
-              status: { in: ["UNPAID", "PARTIAL"] },
-              dueDate: { lte: dueCutoff },
-            }
-          : {
-              createdAt: { gte: from, lte: to },
-            }),
-      },
+      where: billWhere,
       select: {
         id: true,
         totalAmount: true,
@@ -330,16 +356,29 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
         },
       },
     }),
-    prisma.supplierInvoice.findMany({
-      where: {
-        supplierId: params.supplier || undefined,
-        submittedAt: showingDueThroughTomorrow
-          ? undefined
-          : { gte: from, lte: to },
-        status: { in: ["DRAFT", "VOID"] },
-      },
-      select: { status: true, totalAmount: true },
-      take: 500,
+    prisma.supplierBill.groupBy({
+      by: ["status"],
+      where: billWhere,
+      _count: { _all: true },
+      _sum: { totalAmount: true, paidAmount: true },
+    }),
+    prisma.supplierInvoice.groupBy({
+      by: ["status"],
+      where: nonFinalWhere,
+      _count: { _all: true },
+      _sum: { totalAmount: true },
+    }),
+    prisma.supplierBill.aggregate({
+      where: { AND: [billWhere, { createdAt: { gte: dayStart } }] },
+      _sum: { totalAmount: true },
+    }),
+    prisma.supplierBill.aggregate({
+      where: { AND: [billWhere, { createdAt: { gte: weekStart } }] },
+      _sum: { totalAmount: true },
+    }),
+    prisma.supplierBill.aggregate({
+      where: { AND: [billWhere, { createdAt: { gte: monthStart } }] },
+      _sum: { totalAmount: true },
     }),
   ]);
 
@@ -423,13 +462,11 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
     })),
   );
 
-  const unpaid = bills
-    .filter((bill) => bill.status !== "PAID")
-    .reduce(
-      (sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount),
-      0,
-    );
-  const paid = bills.reduce((sum, bill) => sum + Number(bill.paidAmount), 0);
+  const {
+    unpaid,
+    paid,
+    count: matchingBillCount,
+  } = summarizeBillStatusGroups(billStatusGroups);
   const supplierCredit = suppliers.reduce(
     (sum, supplier) =>
       sum +
@@ -455,25 +492,12 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
       ),
     0,
   );
-  const draftValue = nonFinalInvoices
-    .filter((invoice) => invoice.status === "DRAFT")
-    .reduce((sum, invoice) => sum + Number(invoice.totalAmount), 0);
-  const voidCount = nonFinalInvoices.filter(
-    (invoice) => invoice.status === "VOID",
-  ).length;
-  const dayStart = startOfDay(now);
-  const weekStart = startOfDay(
-    new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - ((now.getDay() + 6) % 7),
-    ),
+  const draftValue = Number(
+    nonFinalGroups.find((group) => group.status === "DRAFT")?._sum
+      .totalAmount ?? 0,
   );
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const totalSince = (date: Date) =>
-    bills
-      .filter((bill) => bill.createdAt >= date)
-      .reduce((sum, bill) => sum + Number(bill.totalAmount), 0);
+  const voidCount =
+    nonFinalGroups.find((group) => group.status === "VOID")?._count._all ?? 0;
   const supplierAccounts = suppliers.map((supplier) => {
     const outstanding = supplier.bills.reduce(
       (sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount),
@@ -506,9 +530,10 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
     supplierCashPaid,
     draftValue,
     voidCount,
-    today: totalSince(dayStart),
-    thisWeek: totalSince(weekStart),
-    thisMonth: totalSince(monthStart),
+    today: Number(todayTotal._sum.totalAmount ?? 0),
+    thisWeek: Number(weekTotal._sum.totalAmount ?? 0),
+    thisMonth: Number(monthTotal._sum.totalAmount ?? 0),
+    matchingBillCount,
     supplierAccounts,
     rows,
     now,
@@ -562,6 +587,12 @@ export default async function SupplierBillsReportPage({
         thisMonth={report.thisMonth}
         supplierAccounts={report.supplierAccounts}
       />
+      {report.matchingBillCount > report.rows.length ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Showing {report.rows.length} of {report.matchingBillCount} matching
+          bill details. The summary totals include all matching bills.
+        </p>
+      ) : null}
       <SupplierBillsTable rows={report.rows} now={report.now} />
     </AdminPage>
   );
