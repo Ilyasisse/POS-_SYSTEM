@@ -1,4 +1,5 @@
 ﻿import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+import Link from "next/link";
 import {
   AdminPage,
   SearchToolbar,
@@ -11,12 +12,17 @@ import {
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
+import {
+  ORDER_HISTORY_PAGE_SIZE,
+  orderHistoryPage,
+} from "@/lib/admin/order-history-pagination";
 
 type AdminOrdersPageProps = {
   searchParams?: Promise<{
     q?: string;
     status?: string;
     date?: string;
+    page?: string;
   }>;
 };
 
@@ -76,36 +82,8 @@ export default async function AdminOrdersPage({
       : {}),
   };
 
-  const [recentOrders, ordersToday] = await Promise.all([
-    prisma.order.findMany({
-      where,
-      take: 20,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        table: {
-          select: {
-            name: true,
-          },
-        },
-        waiter: {
-          select: {
-            fullName: true,
-          },
-        },
-        cashier: {
-          select: {
-            fullName: true,
-          },
-        },
-        _count: {
-          select: {
-            orderItems: true,
-          },
-        },
-      },
-    }),
+  const [orderCount, ordersToday] = await Promise.all([
+    prisma.order.count({ where }),
     prisma.order.findMany({
       where: {
         createdAt: {
@@ -118,6 +96,43 @@ export default async function AdminOrdersPage({
       },
     }),
   ]);
+  const pagination = orderHistoryPage(params?.page, orderCount);
+  const recentOrders = await prisma.order.findMany({
+    where,
+    skip: pagination.skip,
+    take: ORDER_HISTORY_PAGE_SIZE,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    include: {
+      table: {
+        select: {
+          name: true,
+        },
+      },
+      waiter: {
+        select: {
+          fullName: true,
+        },
+      },
+      cashier: {
+        select: {
+          fullName: true,
+        },
+      },
+      _count: {
+        select: {
+          orderItems: true,
+        },
+      },
+    },
+  });
+  function pageHref(page: number) {
+    const search = new URLSearchParams();
+    if (q) search.set("q", q);
+    if (status !== "all") search.set("status", status);
+    if (date !== "today") search.set("date", date);
+    search.set("page", String(page));
+    return `/admin/orders?${search.toString()}`;
+  }
 
   const openToday = ordersToday.filter(
     (order) => order.status === "OPEN",
@@ -143,9 +158,28 @@ export default async function AdminOrdersPage({
 
       <DataTableCard
         footer={
-          <p className="text-sm font-medium text-slate-500">
-            Showing 1 to {recentOrders.length} orders
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-slate-500">
+            <p>
+              Showing {pagination.first} to {pagination.last} of {orderCount}{" "}
+              orders
+            </p>
+            {pagination.pageCount > 1 ? (
+              <nav
+                aria-label="Order history pages"
+                className="flex items-center gap-3"
+              >
+                {pagination.page > 1 ? (
+                  <Link href={pageHref(pagination.page - 1)}>Previous</Link>
+                ) : null}
+                <span>
+                  Page {pagination.page} of {pagination.pageCount}
+                </span>
+                {pagination.page < pagination.pageCount ? (
+                  <Link href={pageHref(pagination.page + 1)}>Next</Link>
+                ) : null}
+              </nav>
+            ) : null}
+          </div>
         }
       >
         <SearchToolbar
@@ -189,7 +223,7 @@ export default async function AdminOrdersPage({
               recentOrders.map((order, index) => (
                 <tr key={order.id} className="border-b border-slate-50">
                   <TableCell className="font-bold text-slate-400">
-                    {index + 1}
+                    {pagination.first + index}
                   </TableCell>
                   <TableCell className="font-black text-slate-950">
                     #{order.orderNumber}
