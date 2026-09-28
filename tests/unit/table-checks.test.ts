@@ -1,9 +1,73 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  closeSettledTableChecks,
   groupCashierOpenOrders,
   resolveTableCheckIdentity,
 } from "../../src/lib/cashier/table-checks";
+import type { Prisma } from "@prisma/client";
+
+test("settling the final table check queues the empty table for cleaning", async () => {
+  const calls: Array<{ operation: string; args: unknown }> = [];
+  const tx = {
+    tableCheck: {
+      updateMany: async (args: unknown) => {
+        calls.push({ operation: "close", args });
+        return { count: 1 };
+      },
+      findMany: async () => [{ tableId: "table-1" }],
+    },
+    table: {
+      updateMany: async (args: unknown) => {
+        calls.push({ operation: "dirty", args });
+        return { count: 1 };
+      },
+    },
+  } as unknown as Pick<Prisma.TransactionClient, "tableCheck" | "table">;
+
+  const closedAt = new Date("2026-09-24T12:00:00Z");
+  await closeSettledTableChecks(tx, ["check-1", "check-1"], closedAt);
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0]?.args, {
+    where: {
+      id: { in: ["check-1"] },
+      closedAt: null,
+      orders: { none: { status: "OPEN" } },
+    },
+    data: { closedAt },
+  });
+  assert.deepEqual(calls[1], {
+    operation: "dirty",
+    args: {
+      where: {
+        id: { in: ["table-1"] },
+        needsCleaning: false,
+        orders: { none: { status: "OPEN", type: "DINE_IN" } },
+      },
+      data: { needsCleaning: true },
+    },
+  });
+});
+
+test("an open check does not queue its table for cleaning", async () => {
+  let markedForCleaning = false;
+  const tx = {
+    tableCheck: {
+      updateMany: async () => ({ count: 0 }),
+      findMany: async () => [],
+    },
+    table: {
+      updateMany: async () => {
+        markedForCleaning = true;
+        return { count: 1 };
+      },
+    },
+  } as unknown as Pick<Prisma.TransactionClient, "tableCheck" | "table">;
+
+  await closeSettledTableChecks(tx, ["open-check"], new Date());
+  assert.equal(markedForCleaning, false);
+});
 
 test("table-check identity keeps the customer number while exposing each ticket", () => {
   assert.deepEqual(
