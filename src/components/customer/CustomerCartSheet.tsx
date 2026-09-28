@@ -244,7 +244,23 @@ function CartBody({
                 className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
               />
             </>
-          ) : null}
+          ) : (
+            <div className="md:col-span-2">
+              <Input
+                aria-label="Registered customer account email or phone"
+                value={customerPhone}
+                onChange={(event) => onCustomerPhoneChange(event.target.value)}
+                maxLength={254}
+                placeholder="Customer account email or exact phone (optional)"
+                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Enter an existing customer account. Use the exact saved phone
+                number, including its country code. Leave blank for an anonymous
+                order.
+              </p>
+            </div>
+          )}
           <div className="md:col-span-2">
             <Textarea
               aria-label="Special requests or notes"

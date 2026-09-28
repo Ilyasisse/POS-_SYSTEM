@@ -45,6 +45,7 @@ type State = {
   categoryId: string;
   searchTerm: string;
   orderNote: string;
+  customerIdentifier: string;
   selectedProduct: Product | null;
   modifierOpen: boolean;
   cartOpen: boolean;
@@ -57,6 +58,7 @@ type Action =
   | { type: "category"; value: string }
   | { type: "search"; value: string }
   | { type: "note"; value: string }
+  | { type: "customerIdentifier"; value: string }
   | { type: "modifierOpen"; product: Product }
   | { type: "modifierClose" }
   | { type: "cartOpen" }
@@ -77,6 +79,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, searchTerm: action.value };
     case "note":
       return { ...state, orderNote: action.value };
+    case "customerIdentifier":
+      return { ...state, customerIdentifier: action.value, error: "" };
     case "modifierOpen":
       return { ...state, selectedProduct: action.product, modifierOpen: true };
     case "modifierClose":
@@ -86,7 +90,13 @@ function reducer(state: State, action: Action): State {
     case "cartClose":
       return { ...state, cartOpen: false };
     case "cleared":
-      return { ...state, orderNote: "", message: "", error: "" };
+      return {
+        ...state,
+        orderNote: "",
+        customerIdentifier: "",
+        message: "",
+        error: "",
+      };
     case "added":
       return { ...state, cartOpen: true, message: "", error: "" };
     case "submitting":
@@ -204,6 +214,7 @@ export default function CashierOrderExperience({
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
+    customerIdentifier: "",
     selectedProduct: null,
     modifierOpen: false,
     cartOpen: false,
@@ -346,6 +357,7 @@ export default function CashierOrderExperience({
         body: JSON.stringify({
           tableId: state.tableId,
           notes: state.orderNote,
+          customerIdentifier: state.customerIdentifier.trim(),
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -429,7 +441,7 @@ export default function CashierOrderExperience({
             tableName={tableName}
             cart={cart}
             customerName=""
-            customerPhone=""
+            customerPhone={state.customerIdentifier}
             orderNote={state.orderNote}
             cartSubtotal={cartSubtotal}
             cartCount={cartCount}
@@ -438,7 +450,9 @@ export default function CashierOrderExperience({
             submitError={state.error}
             onClose={() => dispatch({ type: "cartClose" })}
             onCustomerNameChange={() => undefined}
-            onCustomerPhoneChange={() => undefined}
+            onCustomerPhoneChange={(value) =>
+              dispatch({ type: "customerIdentifier", value })
+            }
             onOrderNoteChange={(value) => dispatch({ type: "note", value })}
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
@@ -463,7 +477,7 @@ export default function CashierOrderExperience({
         open={state.cartOpen && !isDesktopCartPanel}
         cart={cart}
         customerName=""
-        customerPhone=""
+        customerPhone={state.customerIdentifier}
         orderNote={state.orderNote}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
@@ -472,7 +486,9 @@ export default function CashierOrderExperience({
         submitError={state.error}
         onClose={() => dispatch({ type: "cartClose" })}
         onCustomerNameChange={() => undefined}
-        onCustomerPhoneChange={() => undefined}
+        onCustomerPhoneChange={(value) =>
+          dispatch({ type: "customerIdentifier", value })
+        }
         onOrderNoteChange={(value) => dispatch({ type: "note", value })}
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
