@@ -122,6 +122,7 @@ export default async function EmploymentPage({ searchParams }: Props) {
         {employmentReviewFilters.map((filter) => (
           <Link
             key={filter}
+            prefetch={false}
             href={
               filter === "all"
                 ? "/admin/staff/employment"
