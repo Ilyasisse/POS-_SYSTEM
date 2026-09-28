@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AdminPage,
   Button,
@@ -14,44 +15,57 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 import {
+  ATTENDANCE_BACKLOG_PAGE_SIZE,
+  attendanceBacklogPage,
+} from "@/lib/staff/attendance-backlog-page";
+import {
   approveAttendanceAction,
   saveAttendancePolicyAction,
 } from "../actions";
 
 const label = "grid gap-1 text-sm font-semibold text-slate-700";
 
-export default async function AttendanceAdminPage() {
+export default async function AttendanceAdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ pendingPage?: string }>;
+}) {
   await requirePermission(PERMISSIONS.ATTENDANCE_APPROVE);
-  const [policy, shifts, records] = await Promise.all([
+  const params = await searchParams;
+  const pendingWhere = {
+    status: "SCHEDULED" as const,
+    startsAt: { lte: new Date() },
+    attendance: { is: null },
+  };
+  const [policy, pendingCount, statusCounts, records] = await Promise.all([
     prisma.attendancePolicy.findUnique({ where: { id: "default" } }),
-    prisma.scheduledShift.findMany({
-      where: { status: "SCHEDULED", startsAt: { lte: new Date() } },
-      include: { worker: { select: { fullName: true } }, attendance: true },
-      orderBy: { startsAt: "desc" },
-      take: 50,
-    }),
+    prisma.scheduledShift.count({ where: pendingWhere }),
+    prisma.attendanceRecord.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.attendanceRecord.findMany({
       include: { worker: { select: { fullName: true } } },
       orderBy: { businessDate: "desc" },
       take: 50,
     }),
   ]);
-  const pending = shifts.filter((shift) => !shift.attendance);
+  const pagination = attendanceBacklogPage(params?.pendingPage, pendingCount);
+  const pending = await prisma.scheduledShift.findMany({
+    where: pendingWhere,
+    include: { worker: { select: { fullName: true } } },
+    orderBy: [{ startsAt: "desc" }, { id: "desc" }],
+    skip: pagination.skip,
+    take: ATTENDANCE_BACKLOG_PAGE_SIZE,
+  });
+  const countStatus = (status: "PRESENT" | "ABSENT") =>
+    statusCounts.find((row) => row.status === status)?._count._all ?? 0;
   return (
     <AdminPage
       title="Attendance approval"
       description="Review clock evidence, lateness, absence and approved overtime."
     >
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Awaiting review" value={pending.length} />
-        <MetricCard
-          label="Approved present"
-          value={records.filter((row) => row.status === "PRESENT").length}
-        />
-        <MetricCard
-          label="Recorded absences"
-          value={records.filter((row) => row.status === "ABSENT").length}
-        />
+        <MetricCard label="Awaiting review" value={pendingCount} />
+        <MetricCard label="Approved present" value={countStatus("PRESENT")} />
+        <MetricCard label="Recorded absences" value={countStatus("ABSENT")} />
       </section>
       <Card className="p-5">
         <h2 className="mb-4 font-bold">Attendance policy</h2>
@@ -142,6 +156,30 @@ export default async function AttendanceAdminPage() {
             <p className="text-sm text-slate-500">No shifts await approval.</p>
           )}
         </div>
+        {pagination.pageCount > 1 ? (
+          <nav
+            aria-label="Pending attendance pages"
+            className="mt-4 flex items-center gap-4 text-sm font-semibold text-blue-700"
+          >
+            {pagination.page > 1 ? (
+              <Link
+                href={`/admin/staff/attendance?pendingPage=${pagination.page - 1}`}
+              >
+                Previous
+              </Link>
+            ) : null}
+            <span className="text-slate-600">
+              Page {pagination.page} of {pagination.pageCount}
+            </span>
+            {pagination.page < pagination.pageCount ? (
+              <Link
+                href={`/admin/staff/attendance?pendingPage=${pagination.page + 1}`}
+              >
+                Next
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
       </Card>
       <DataTableCard>
         <Table>
