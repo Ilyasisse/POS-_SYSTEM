@@ -14,19 +14,29 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createActiveTableFromAdmin } from "./actions";
 import { ToastOnMount } from "@/components/ui/toast";
+import {
+  filterTables,
+  parseTableView,
+  tableStatus,
+} from "@/lib/tables/table-status-filter";
 
 type TablePageProps = {
   searchParams?: Promise<{
     tableStatus?: string;
     q?: string;
+    view?: string;
   }>;
 };
 
 function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
-  if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
-  if (table.orders.length > 0)
-    return { label: "Occupied", tone: "red" as const };
-  return { label: "Available", tone: "green" as const };
+  switch (tableStatus(table)) {
+    case "hidden":
+      return { label: "Hidden", tone: "slate" as const };
+    case "occupied":
+      return { label: "Occupied", tone: "red" as const };
+    default:
+      return { label: "Available", tone: "green" as const };
+  }
 }
 
 function getTableStatusMessage(tableStatus?: string) {
@@ -58,37 +68,36 @@ function getTableStatusMessage(tableStatus?: string) {
 
 export default async function TablePage({ searchParams }: TablePageProps) {
   const params = await searchParams;
-  const q = params?.q?.trim().toLowerCase() ?? "";
+  const q = params?.q?.trim().slice(0, 80) ?? "";
+  const view = parseTableView(params?.view);
   const notice = getTableStatusMessage(params?.tableStatus);
-  const tables = (
-    await prisma.table.findMany({
-      orderBy: {
-        name: "asc",
-      },
-      include: {
-        orders: {
-          where: {
-            status: "OPEN",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          select: {
-            id: true,
-            orderNumber: true,
-            createdAt: true,
-            total: true,
-          },
+  const allTables = await prisma.table.findMany({
+    orderBy: {
+      name: "asc",
+    },
+    include: {
+      orders: {
+        where: {
+          status: "OPEN",
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          createdAt: true,
+          total: true,
         },
       },
-    })
-  ).filter((table) => !q || table.name.toLowerCase().includes(q));
+    },
+  });
+  const tables = filterTables(allTables, q, view);
 
-  const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter(
-    (table) => table.orders.length > 0,
+  const availableTables = allTables.filter(
+    (table) => tableStatus(table) === "available",
   ).length;
-  const openOrders = tables.reduce(
+  const openOrders = allTables.reduce(
     (sum, table) => sum + table.orders.length,
     0,
   );
@@ -103,8 +112,8 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Total Tables" value={tables.length} />
-        <MetricCard label="Available" value={activeTables - occupiedTables} />
+        <MetricCard label="Total Tables" value={allTables.length} />
+        <MetricCard label="Available" value={availableTables} />
         <MetricCard label="Open Orders" value={openOrders} />
       </section>
 
@@ -126,16 +135,30 @@ export default async function TablePage({ searchParams }: TablePageProps) {
         <DataTableCard
           footer={
             <p className="text-sm font-medium text-slate-500">
-              Showing 1 to {tables.length} of {tables.length} tables
+              Showing {tables.length} of {allTables.length} tables
             </p>
           }
         >
           <SearchToolbar
             placeholder="Search tables..."
-            defaultValue={params?.q ?? ""}
-            hasActiveFilters={Boolean(q)}
+            defaultValue={q}
+            hasActiveFilters={Boolean(q || view !== "all")}
             clearHref="/admin/tables"
-          />
+          >
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <span>Status</span>
+              <select
+                name="view"
+                defaultValue={view}
+                className="h-10 rounded-md border border-slate-300 bg-white px-3"
+              >
+                <option value="all">All tables</option>
+                <option value="available">Available</option>
+                <option value="occupied">Occupied</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+          </SearchToolbar>
           <Table>
             <thead>
               <tr>
