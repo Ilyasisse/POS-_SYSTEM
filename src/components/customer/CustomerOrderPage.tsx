@@ -40,6 +40,13 @@ import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
 import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
+import {
+  MAX_MENU_FAVORITES,
+  MENU_FAVORITES_KEY,
+  parseMenuFavorites,
+  toggleMenuFavorite,
+} from "@/lib/customer/menu-favorites";
+import { useToast } from "@/components/ui/toast";
 
 const posthogConfigured = Boolean(
   process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
@@ -270,6 +277,46 @@ export default function CustomerOrderPage({
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favoritesReady, setFavoritesReady] = useState(false);
+  const { toast } = useToast();
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        setFavoriteIds(
+          parseMenuFavorites(window.localStorage.getItem(MENU_FAVORITES_KEY)),
+        );
+      } catch {
+        // Browser storage can be unavailable; favorites still work for this visit.
+      }
+      setFavoritesReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  function toggleFavorite(productId: string) {
+    const next = toggleMenuFavorite(favoriteIds, productId);
+    if (
+      next.length === favoriteIds.length &&
+      !favoriteIds.includes(productId)
+    ) {
+      toast({
+        tone: "warning",
+        description: `You can save up to ${MAX_MENU_FAVORITES} items. Remove one before saving another.`,
+      });
+      return;
+    }
+    setFavoriteIds(next);
+    try {
+      window.localStorage.setItem(MENU_FAVORITES_KEY, JSON.stringify(next));
+    } catch {
+      toast({
+        tone: "warning",
+        description:
+          "Favorites could not be saved on this device. Enable site storage to keep them between visits.",
+      });
+    }
+  }
   const restoredRef = useRef(false);
   const checkoutKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -296,6 +343,7 @@ export default function CustomerOrderPage({
       })),
     [productsAll],
   );
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const categoryChips = useMemo(
     () => [
@@ -303,6 +351,12 @@ export default function CustomerOrderPage({
         id: "all",
         name: "All",
         count: kioskProducts.length,
+      },
+      {
+        id: "favorites",
+        name: "Saved on this device",
+        count: kioskProducts.filter((product) => favoriteSet.has(product.id))
+          .length,
       },
       ...kioskCategories.map((category) => ({
         id: category.id,
@@ -312,7 +366,7 @@ export default function CustomerOrderPage({
         ).length,
       })),
     ],
-    [kioskCategories, kioskProducts],
+    [favoriteSet, kioskCategories, kioskProducts],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
@@ -327,7 +381,10 @@ export default function CustomerOrderPage({
 
     return kioskProducts.filter((product) => {
       const matchesCategory =
-        selectedCategory === "all" || product.category?.id === selectedCategory;
+        selectedCategory === "all" ||
+        (selectedCategory === "favorites"
+          ? favoriteSet.has(product.id)
+          : product.category?.id === selectedCategory);
       const matchesSearch =
         !term ||
         product.name.toLowerCase().includes(term) ||
@@ -335,7 +392,7 @@ export default function CustomerOrderPage({
 
       return matchesCategory && matchesSearch;
     });
-  }, [deferredSearch, kioskProducts, selectedCategory]);
+  }, [deferredSearch, favoriteSet, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
     categoryChips.find((category) => category.id === selectedCategory)?.name ??
@@ -624,6 +681,9 @@ export default function CustomerOrderPage({
           selectedCategoryName={selectedCategoryName}
           isFiltering={isFiltering}
           onProductClick={handleProductClick}
+          favoriteIds={favoriteSet}
+          favoritesReady={favoritesReady}
+          onToggleFavorite={toggleFavorite}
         />
       </div>
 

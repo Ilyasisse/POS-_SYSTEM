@@ -11,6 +11,9 @@ type ProductGridPanelProps = {
   selectedCategoryName: string;
   isFiltering: boolean;
   onProductClick: (product: Product) => void;
+  favoriteIds?: ReadonlySet<string>;
+  favoritesReady?: boolean;
+  onToggleFavorite?: (productId: string) => void;
 };
 
 export default function ProductGridPanel({
@@ -20,6 +23,9 @@ export default function ProductGridPanel({
   selectedCategoryName,
   isFiltering,
   onProductClick,
+  favoriteIds,
+  favoritesReady,
+  onToggleFavorite,
 }: ProductGridPanelProps) {
   return (
     <section
@@ -53,6 +59,9 @@ export default function ProductGridPanel({
           selectedCategoryName={selectedCategoryName}
           isFiltering={isFiltering}
           onProductClick={onProductClick}
+          favoriteIds={favoriteIds}
+          favoritesReady={favoritesReady}
+          onToggleFavorite={onToggleFavorite}
         />
       </div>
     </section>
