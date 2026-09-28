@@ -5,6 +5,7 @@ import {
   ClearFiltersLink,
   DataTableCard,
   MetricCard,
+  PaginationBar,
   Table,
   TableCell,
   TableHead,
@@ -15,6 +16,11 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import {
+  SUPPLIER_INVOICE_PAGE_SIZE,
+  supplierInvoiceFilterQuery,
+  supplierInvoicePage,
+} from "@/lib/suppliers/invoice-pagination";
 import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import {
   getSupplierInvoiceDisplayStatus,
@@ -36,7 +42,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
 export default async function SupplierInvoicesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ supplier?: string; status?: string }>;
+  searchParams?: Promise<{ supplier?: string; status?: string; page?: string }>;
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
@@ -46,45 +52,52 @@ export default async function SupplierInvoicesPage({
     ? (query.status as SupplierInvoiceDisplayStatus)
     : undefined;
   const now = new Date();
-  const [invoices, suppliers] = await Promise.all([
-    prisma.supplierInvoice.findMany({
-      where: {
-        supplierId: query.supplier || undefined,
-        ...(status ? getSupplierInvoiceDisplayStatusWhere(status, now) : {}),
-      },
-      include: {
-        supplier: { select: { name: true } },
-        purchaseOrder: { select: { orderNumber: true } },
-        generatedByRecurrence: {
-          select: { sourceInvoice: { select: { id: true } } },
-        },
-        bill: {
-          select: {
-            status: true,
-            totalAmount: true,
-            paidAmount: true,
-            dueDate: true,
-          },
-        },
-        installments: {
-          select: {
-            dueDate: true,
-            status: true,
-            amount: true,
-            paidAmount: true,
-          },
-          orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
-        },
-        _count: { select: { items: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-    }),
+  const where = {
+    supplierId: query.supplier || undefined,
+    ...(status ? getSupplierInvoiceDisplayStatusWhere(status, now) : {}),
+  };
+  const [totalInvoices, suppliers] = await Promise.all([
+    prisma.supplierInvoice.count({ where }),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
   ]);
+  const { page, totalPages, skip } = supplierInvoicePage(
+    query.page,
+    totalInvoices,
+  );
+  const invoices = await prisma.supplierInvoice.findMany({
+    where,
+    include: {
+      supplier: { select: { name: true } },
+      purchaseOrder: { select: { orderNumber: true } },
+      generatedByRecurrence: {
+        select: { sourceInvoice: { select: { id: true } } },
+      },
+      bill: {
+        select: {
+          status: true,
+          totalAmount: true,
+          paidAmount: true,
+          dueDate: true,
+        },
+      },
+      installments: {
+        select: {
+          dueDate: true,
+          status: true,
+          amount: true,
+          paidAmount: true,
+        },
+        orderBy: [{ dueDate: "asc" }, { sequence: "asc" }],
+      },
+      _count: { select: { items: true } },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip,
+    take: SUPPLIER_INVOICE_PAGE_SIZE,
+  });
   const invoiceRows = invoices.map((invoice) => ({
     ...invoice,
     displayStatus: getSupplierInvoiceDisplayStatus(invoice, now),
@@ -111,10 +124,14 @@ export default async function SupplierInvoicesPage({
       action={
         <>
           <Button asChild>
-            <Link prefetch={false} href="/admin/supplier-invoices/new">Create invoice</Link>
+            <Link prefetch={false} href="/admin/supplier-invoices/new">
+              Create invoice
+            </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link prefetch={false} href="/admin/supplier-purchase-orders">Purchase orders</Link>
+            <Link prefetch={false} href="/admin/supplier-purchase-orders">
+              Purchase orders
+            </Link>
           </Button>
         </>
       }
@@ -156,16 +173,22 @@ export default async function SupplierInvoicesPage({
       </form>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Draft invoices" value={countStatus("DRAFT")} />
-        <MetricCard label="Pending invoices" value={countStatus("PENDING")} />
+        <MetricCard label="Draft on this page" value={countStatus("DRAFT")} />
         <MetricCard
-          label="Partially paid"
+          label="Pending on this page"
+          value={countStatus("PENDING")}
+        />
+        <MetricCard
+          label="Partially paid on this page"
           value={countStatus("PARTIALLY_PAID")}
         />
-        <MetricCard label="Overdue invoices" value={countStatus("OVERDUE")} />
-        <MetricCard label="Paid invoices" value={countStatus("PAID")} />
         <MetricCard
-          label="Outstanding balance"
+          label="Overdue on this page"
+          value={countStatus("OVERDUE")}
+        />
+        <MetricCard label="Paid on this page" value={countStatus("PAID")} />
+        <MetricCard
+          label="Outstanding on this page"
           value={formatMoney(outstandingBalance)}
         />
       </section>
@@ -270,6 +293,14 @@ export default async function SupplierInvoicesPage({
             )}
           </tbody>
         </Table>
+        <div className="border-t p-4">
+          <PaginationBar
+            currentPage={page}
+            totalPages={totalPages}
+            totalLabel={`Showing ${totalInvoices ? skip + 1 : 0}–${skip + invoiceRows.length} of ${totalInvoices} supplier invoices`}
+            baseQuery={supplierInvoiceFilterQuery(query.supplier, status)}
+          />
+        </div>
       </DataTableCard>
     </AdminPage>
   );
