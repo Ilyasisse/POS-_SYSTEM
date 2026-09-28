@@ -1,4 +1,5 @@
 ﻿import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -361,9 +362,17 @@ function RecentInventoryActivity({
 }) {
   return (
     <Card className="p-5">
-      <h2 className="text-lg font-black text-slate-950">
-        Recent Inventory Activity
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-black text-slate-950">
+          Recent Inventory Activity
+        </h2>
+        <Link
+          href="/admin/inventory/activity"
+          className="text-sm font-semibold text-blue-700 underline"
+        >
+          View all activity
+        </Link>
+      </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {movements.length === 0 ? (
           <p className="text-sm font-medium text-slate-500">
