@@ -95,8 +95,29 @@ function Fields({
   );
 }
 
-export default async function SuppliersPage() {
+export default async function SuppliersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string; status?: string }>;
+}) {
+  const params = await searchParams;
+  const q = typeof params?.q === "string" ? params.q.trim().slice(0, 80) : "";
+  const status =
+    params?.status === "active" || params?.status === "inactive"
+      ? params.status
+      : "all";
   const suppliers = await prisma.supplier.findMany({
+    where: {
+      isActive: status === "all" ? undefined : status === "active",
+      OR: q
+        ? [
+            { name: { contains: q, mode: "insensitive" } },
+            { contactName: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+          ]
+        : undefined,
+    },
     orderBy: { name: "asc" },
     include: {
       _count: {
@@ -111,7 +132,9 @@ export default async function SuppliersPage() {
       description="Manage supplier contacts, catalogs, purchase orders, and invoice history."
       action={
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/admin/supplier-invoices">View supplier invoices</Link>
+          <Link prefetch={false} href="/admin/supplier-invoices">
+            View supplier invoices
+          </Link>
         </Button>
       }
     >
@@ -129,6 +152,45 @@ export default async function SuppliersPage() {
       </Card>
 
       <DataTableCard>
+        <form
+          method="get"
+          className="flex flex-wrap items-end gap-3 border-b border-border p-4"
+        >
+          <label className="min-w-44 flex-1 text-sm font-semibold">
+            Search suppliers
+            <Input
+              type="search"
+              name="q"
+              defaultValue={q}
+              maxLength={80}
+              placeholder="Name, contact, phone, or email"
+              className="mt-1"
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            Status
+            <select
+              name="status"
+              defaultValue={status}
+              className="mt-1 block h-10 rounded-md border border-border bg-background px-3"
+            >
+              <option value="all">All suppliers</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <Button type="submit">Search</Button>
+          {q || status !== "all" ? (
+            <Button asChild variant="outline">
+              <Link prefetch={false} href="/admin/suppliers">
+                Clear filters
+              </Link>
+            </Button>
+          ) : null}
+          <p role="status" className="w-full text-sm text-muted-foreground">
+            Showing {suppliers.length} supplier(s)
+          </p>
+        </form>
         <Table>
           <thead>
             <tr>
@@ -205,7 +267,10 @@ export default async function SuppliersPage() {
                       size="sm"
                       className="mt-2"
                     >
-                      <Link prefetch={false} href={`/admin/suppliers/${supplier.id}`}>
+                      <Link
+                        prefetch={false}
+                        href={`/admin/suppliers/${supplier.id}`}
+                      >
                         Manage catalog
                       </Link>
                     </Button>
@@ -217,7 +282,11 @@ export default async function SuppliersPage() {
               ))
             ) : (
               <tr>
-                <TableCell colSpan={6}>No suppliers have been added.</TableCell>
+                <TableCell colSpan={6}>
+                  {q || status !== "all"
+                    ? "No suppliers match these filters."
+                    : "No suppliers have been added."}
+                </TableCell>
               </tr>
             )}
           </tbody>
