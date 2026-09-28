@@ -1,4 +1,5 @@
 ﻿import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import {
   Button,
   Card,
@@ -15,6 +16,7 @@ import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { ToastOnMount, type ToastTone } from "@/components/ui/toast";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
+import { paginateInventorySupplies } from "@/lib/admin/inventory-pagination";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import { canonicalUnitLabel } from "@/lib/inventory/inventory-domain";
 import {
@@ -55,6 +57,7 @@ type AdminInventoryPageProps = {
     inventoryEmail?: string;
     q?: string;
     status?: string;
+    page?: string;
   }>;
 };
 
@@ -213,18 +216,52 @@ function InventorySuppliesTable({
   totalSupplies,
   searchQuery,
   statusFilter,
+  page,
+  pageCount,
+  first,
+  last,
 }: {
   visibleSupplies: InventorySupplyRow[];
   totalSupplies: number;
   searchQuery: string;
   statusFilter: string;
+  page: number;
+  pageCount: number;
+  first: number;
+  last: number;
 }) {
+  function pageHref(nextPage: number) {
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    params.set("page", String(nextPage));
+    return `/admin/inventory?${params.toString()}`;
+  }
+
   return (
     <DataTableCard
       footer={
-        <p className="text-sm font-medium text-slate-500">
-          Showing 1 to {visibleSupplies.length} of {totalSupplies} items
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-medium text-slate-500">
+          <p>
+            Showing {first} to {last} of {totalSupplies} matching items
+          </p>
+          {pageCount > 1 ? (
+            <nav
+              aria-label="Inventory pages"
+              className="flex items-center gap-3"
+            >
+              {page > 1 ? (
+                <Link href={pageHref(page - 1)}>Previous</Link>
+              ) : null}
+              <span>
+                Page {page} of {pageCount}
+              </span>
+              {page < pageCount ? (
+                <Link href={pageHref(page + 1)}>Next</Link>
+              ) : null}
+            </nav>
+          ) : null}
+        </div>
       }
     >
       <SearchToolbar
@@ -264,7 +301,7 @@ function InventorySuppliesTable({
               <InventorySupplyTableRow
                 key={supply.id}
                 supply={supply}
-                rowNumber={index + 1}
+                rowNumber={first + index}
               />
             ))
           )}
@@ -465,6 +502,7 @@ export default async function AdminInventoryPage({
       statusFilter === "all" || supply.status.toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
+  const supplyPage = paginateInventorySupplies(visibleSupplies, params?.page);
   const summary = enrichedSupplies.reduce<StatusSummary>(
     (accumulator, supply) => {
       addStatus(accumulator, supply.status);
@@ -485,10 +523,14 @@ export default async function AdminInventoryPage({
       />
       <CreateSupplyForm />
       <InventorySuppliesTable
-        visibleSupplies={visibleSupplies}
-        totalSupplies={enrichedSupplies.length}
+        visibleSupplies={supplyPage.items}
+        totalSupplies={visibleSupplies.length}
         searchQuery={params?.q ?? ""}
         statusFilter={statusFilter}
+        page={supplyPage.page}
+        pageCount={supplyPage.pageCount}
+        first={supplyPage.first}
+        last={supplyPage.last}
       />
       <RecentInventoryActivity
         movements={movements.map((movement) => ({
