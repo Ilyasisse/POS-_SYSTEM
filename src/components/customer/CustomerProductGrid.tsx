@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
 
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -20,16 +21,25 @@ type CustomerProductGridProps = {
   selectedCategoryName: string;
   isFiltering?: boolean;
   onProductClick: (product: Product) => void;
+  favoriteIds?: ReadonlySet<string>;
+  favoritesReady?: boolean;
+  onToggleFavorite?: (productId: string) => void;
 };
 
 function ProductCard({
   product,
   unavailable,
   onProductClick,
+  isFavorite,
+  favoritesReady,
+  onToggleFavorite,
 }: {
   product: Product;
   unavailable: boolean;
   onProductClick: (product: Product) => void;
+  isFavorite: boolean;
+  favoritesReady?: boolean;
+  onToggleFavorite?: (productId: string) => void;
 }) {
   const modifierGroups = getProductModifierGroups(product);
   const ctaLabel =
@@ -123,6 +133,25 @@ function ProductCard({
           ) : null}
         </div>
 
+        {onToggleFavorite ? (
+          <Button
+            type="button"
+            variant="outline"
+            aria-pressed={isFavorite}
+            aria-label={`${isFavorite ? "Remove" : "Save"} ${product.name} ${isFavorite ? "from" : "to"} favorites on this device`}
+            disabled={!favoritesReady}
+            onClick={() => onToggleFavorite(product.id)}
+            className="w-full rounded-full border-amber-300 text-sm font-semibold"
+          >
+            <Heart
+              className={
+                isFavorite ? "fill-rose-500 text-rose-500" : "text-rose-500"
+              }
+            />
+            {isFavorite ? "Saved on this device" : "Save for later"}
+          </Button>
+        ) : null}
+
         <Button
           type="button"
           onClick={() => onProductClick(product)}
@@ -159,6 +188,9 @@ export default function CustomerProductGrid({
   selectedCategoryName,
   isFiltering = false,
   onProductClick,
+  favoriteIds,
+  favoritesReady,
+  onToggleFavorite,
 }: CustomerProductGridProps) {
   if (loading || isFiltering) {
     return <ProductGridSkeleton />;
@@ -187,6 +219,9 @@ export default function CustomerProductGrid({
             product={product}
             unavailable={unavailable}
             onProductClick={onProductClick}
+            isFavorite={favoriteIds?.has(product.id) ?? false}
+            favoritesReady={favoritesReady}
+            onToggleFavorite={onToggleFavorite}
           />
         );
       })}
