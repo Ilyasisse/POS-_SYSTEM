@@ -131,13 +131,17 @@ export default async function StaffSchedulesPage({
                 className="flex items-center gap-3"
               >
                 {pagination.page > 1 ? (
-                  <Link href={pageHref(pagination.page - 1)}>Previous</Link>
+                  <Link prefetch={false} href={pageHref(pagination.page - 1)}>
+                    Previous
+                  </Link>
                 ) : null}
                 <span>
                   Page {pagination.page} of {pagination.pageCount}
                 </span>
                 {pagination.page < pagination.pageCount ? (
-                  <Link href={pageHref(pagination.page + 1)}>Next</Link>
+                  <Link prefetch={false} href={pageHref(pagination.page + 1)}>
+                    Next
+                  </Link>
                 ) : null}
               </nav>
             ) : null}
