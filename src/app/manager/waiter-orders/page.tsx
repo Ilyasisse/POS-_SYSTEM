@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { findWaiterOrders } from "@/lib/manager/waiter-order-lookup";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   formatCashierBusinessDayRange,
@@ -25,6 +26,7 @@ import {
 type CashierWaiterOrdersPageProps = {
   searchParams?: Promise<{
     waiterId?: string;
+    q?: string;
   }>;
 };
 
@@ -68,6 +70,8 @@ type WaiterOrdersTableProps = {
   orders: WaiterOrderRow[];
   selectedWaiter: WaiterOption | null;
   selectedWaiterId: string;
+  search: string;
+  totalOrders: number;
 };
 
 function formatMoney(value: number) {
@@ -253,11 +257,41 @@ function WaiterOrdersTable({
   orders,
   selectedWaiter,
   selectedWaiterId,
+  search,
+  totalOrders,
 }: WaiterOrdersTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-4 py-3">
         <h2 className="font-semibold">Dalabyada waiter-ka la doortay</h2>
+        <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
+          <Input type="hidden" name="waiterId" value={selectedWaiterId} />
+          <label className="min-w-44 flex-1 text-sm font-medium">
+            Find order or table
+            <Input
+              name="q"
+              type="search"
+              defaultValue={search}
+              maxLength={80}
+              placeholder="Order number or table"
+              className="mt-1"
+            />
+          </label>
+          <Button type="submit">Search</Button>
+          {search ? (
+            <Link
+              prefetch={false}
+              href={`/manager/waiter-orders?waiterId=${encodeURIComponent(selectedWaiterId)}`}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted"
+            >
+              Clear
+            </Link>
+          ) : null}
+        </form>
+        <p role="status" className="mt-2 text-sm text-muted-foreground">
+          Showing {orders.length} of {totalOrders} orders for the selected
+          waiter
+        </p>
       </div>
 
       {selectedWaiter === null ? (
@@ -266,7 +300,9 @@ function WaiterOrdersTable({
         </div>
       ) : orders.length === 0 ? (
         <div className="p-6 text-sm text-muted-foreground">
-          Dalabyo looma helin {selectedWaiter.fullName}
+          {search
+            ? `No orders match that table or order number for ${selectedWaiter.fullName}.`
+            : `Dalabyo looma helin ${selectedWaiter.fullName}`}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -275,6 +311,9 @@ function WaiterOrdersTable({
               <tr>
                 <th className="px-4 py-3 font-semibold text-foreground">
                   Order
+                </th>
+                <th className="px-4 py-3 font-semibold text-foreground">
+                  Table
                 </th>
                 <th className="px-4 py-3 font-semibold text-foreground">
                   La sameeyay
@@ -321,6 +360,9 @@ function WaiterOrderRow({
   return (
     <tr className="border-t border-border">
       <td className="px-4 py-3 font-medium">#{order.orderNumber}</td>
+      <td className="px-4 py-3 text-muted-foreground">
+        {order.table?.name ?? "—"}
+      </td>
       <td className="px-4 py-3 text-muted-foreground">
         {formatDateTime(order.createdAt)}
       </td>
@@ -417,6 +459,7 @@ export default async function CashierWaiterOrdersPage({
 
   const selectedWaiter =
     waiters.find((waiter) => waiter.id === selectedWaiterId) ?? null;
+  const search = params?.q?.trim().slice(0, 80) ?? "";
 
   const orders = selectedWaiterId
     ? await prisma.order.findMany({
@@ -456,6 +499,7 @@ export default async function CashierWaiterOrdersPage({
     (sum, order) => sum + Number(order.total),
     0,
   );
+  const visibleOrders = findWaiterOrders(orders, search);
 
   return (
     <div className="p-6">
@@ -475,9 +519,11 @@ export default async function CashierWaiterOrdersPage({
       />
 
       <WaiterOrdersTable
-        orders={orders}
+        orders={visibleOrders}
         selectedWaiter={selectedWaiter}
         selectedWaiterId={selectedWaiterId}
+        search={search}
+        totalOrders={totalOrders}
       />
     </div>
   );
