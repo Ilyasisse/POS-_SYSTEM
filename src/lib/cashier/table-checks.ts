@@ -24,6 +24,8 @@ export type CashierOpenOrderRound = TableCheckIdentityOrder & {
     id: string;
     productName: string;
     qty: number;
+    lineTotal?: number;
+    modifiers?: Array<{ modifierName: string; qty: number }>;
   }>;
 };
 
