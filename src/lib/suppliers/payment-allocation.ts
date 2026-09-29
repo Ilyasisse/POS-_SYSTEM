@@ -58,12 +58,7 @@ export function planSupplierPaymentAllocations(input: {
   const targets = [...input.targets]
     .filter((target) => target.remainingAmount.gt(0))
     .sort((first, second) =>
-      compareTargets(
-        first,
-        second,
-        preferredBillId,
-        preferredInstallmentId,
-      ),
+      compareTargets(first, second, preferredBillId, preferredInstallmentId),
     );
 
   let unallocatedAmount = paymentAmount;

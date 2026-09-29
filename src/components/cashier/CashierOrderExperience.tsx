@@ -1,6 +1,13 @@
 "use client";
 
-import { useDeferredValue, useMemo, useReducer, useTransition } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +25,9 @@ import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
 import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet from "@/components/customer/CustomerCartSheet";
+import CustomerCartSheet, {
+  CustomerCartPanel,
+} from "@/components/customer/CustomerCartSheet";
 import {
   bodyFont,
   displayFont,
@@ -118,6 +127,21 @@ function getCategories(categories: Category[], products: Product[]) {
   );
 }
 
+function useDesktopCartPanel() {
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateMatch = () => setIsDesktop(mediaQuery.matches);
+
+    updateMatch();
+    mediaQuery.addEventListener("change", updateMatch);
+    return () => mediaQuery.removeEventListener("change", updateMatch);
+  }, []);
+
+  return isDesktop;
+}
+
 function TablePicker({
   open,
   tables,
@@ -172,6 +196,7 @@ export default function CashierOrderExperience({
   initialTableId = "",
 }: Props) {
   const router = useRouter();
+  const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
     tableId: tables.some((table) => table.id === initialTableId)
       ? initialTableId
@@ -368,32 +393,62 @@ export default function CashierOrderExperience({
           cartLabel="Order"
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
+          hideCartOnDesktop
           onReset={() => {
             clearCart();
             dispatch({ type: "cleared" });
           }}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
         />
-        <MenuBrowserPanel
-          searchTerm={state.searchTerm}
-          categoryChips={categoryChips}
-          selectedCategory={selectedCategory}
-          onSearchChange={(value) => dispatch({ type: "search", value })}
-          onCategorySelect={(value) =>
-            startFiltering(() => dispatch({ type: "category", value }))
-          }
-        />
-        <ProductGridPanel
-          loading={loading}
-          filteredProducts={filteredProducts}
-          baristas={baristas}
-          selectedCategoryName={
-            categoryChips.find((category) => category.id === selectedCategory)
-              ?.name ?? "All"
-          }
-          isFiltering={isFiltering}
-          onProductClick={addProduct}
-        />
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
+          <div className="min-w-0">
+            <MenuBrowserPanel
+              searchTerm={state.searchTerm}
+              categoryChips={categoryChips}
+              selectedCategory={selectedCategory}
+              onSearchChange={(value) => dispatch({ type: "search", value })}
+              onCategorySelect={(value) =>
+                startFiltering(() => dispatch({ type: "category", value }))
+              }
+            />
+            <ProductGridPanel
+              loading={loading}
+              filteredProducts={filteredProducts}
+              baristas={baristas}
+              selectedCategoryName={
+                categoryChips.find(
+                  (category) => category.id === selectedCategory,
+                )?.name ?? "All"
+              }
+              isFiltering={isFiltering}
+              onProductClick={addProduct}
+            />
+          </div>
+          <CustomerCartPanel
+            mode="cashier"
+            tableName={tableName}
+            cart={cart}
+            customerName=""
+            customerPhone=""
+            orderNote={state.orderNote}
+            cartSubtotal={cartSubtotal}
+            cartCount={cartCount}
+            isSubmitting={state.submitting}
+            submitMessage={state.message}
+            submitError={state.error}
+            onClose={() => dispatch({ type: "cartClose" })}
+            onCustomerNameChange={() => undefined}
+            onCustomerPhoneChange={() => undefined}
+            onOrderNoteChange={(value) => dispatch({ type: "note", value })}
+            onChangeQuantity={changeQuantity}
+            onRemove={removeFromCart}
+            onClearCart={() => {
+              clearCart();
+              dispatch({ type: "cleared" });
+            }}
+            onCheckout={sendOrder}
+          />
+        </div>
       </div>
       <CustomerModifierModal
         open={state.modifierOpen}
@@ -405,7 +460,7 @@ export default function CashierOrderExperience({
       <CustomerCartSheet
         mode="cashier"
         tableName={tableName}
-        open={state.cartOpen}
+        open={state.cartOpen && !isDesktopCartPanel}
         cart={cart}
         customerName=""
         customerPhone=""
