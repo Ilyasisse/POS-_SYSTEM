@@ -1,5 +1,9 @@
 export type KitchenMetricEvent = {
-  type: "STATION_CREATED" | "STATION_STARTED" | "STATION_COMPLETED" | "STATION_REOPENED";
+  type:
+    | "STATION_CREATED"
+    | "STATION_STARTED"
+    | "STATION_COMPLETED"
+    | "STATION_REOPENED";
   occurredAt: Date;
   targetMinutesSnapshot: number | null;
 };
@@ -20,8 +24,9 @@ export function calculateKitchenPreparationMetric(
   const ordered = [...events].sort(
     (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime(),
   );
-  const started = ordered.find((event) => event.type === "STATION_STARTED") ?? null;
-  const finalEvent = started ? ordered.at(-1) ?? null : null;
+  const started =
+    ordered.find((event) => event.type === "STATION_STARTED") ?? null;
+  const finalEvent = started ? (ordered.at(-1) ?? null) : null;
   const completed =
     finalEvent?.type === "STATION_COMPLETED" ? finalEvent : null;
   const targetMinutes =
@@ -52,9 +57,7 @@ export function calculateKitchenPreparationMetric(
     preparationSeconds,
     targetMinutes,
     isLate:
-      targetMinutes == null
-        ? null
-        : preparationSeconds > targetMinutes * 60,
+      targetMinutes == null ? null : preparationSeconds > targetMinutes * 60,
     coverage: completed ? "COMPLETE" : "IN_PROGRESS",
   };
 }
@@ -69,7 +72,10 @@ export function formatPreparationDuration(seconds: number | null) {
 export function canCompleteCleaningRun(
   tasks: readonly { isRequired: boolean; completed: boolean }[],
 ) {
-  return tasks.length > 0 && tasks.every((task) => !task.isRequired || task.completed);
+  return (
+    tasks.length > 0 &&
+    tasks.every((task) => !task.isRequired || task.completed)
+  );
 }
 
 export function calculateIncidentDurationSeconds(
@@ -77,7 +83,10 @@ export function calculateIncidentDurationSeconds(
   resolvedAt: Date | null,
   now = new Date(),
 ) {
-  return Math.max(0, Math.floor(((resolvedAt ?? now).getTime() - startedAt.getTime()) / 1000));
+  return Math.max(
+    0,
+    Math.floor(((resolvedAt ?? now).getTime() - startedAt.getTime()) / 1000),
+  );
 }
 
 export function isCleaningRunOverdue(

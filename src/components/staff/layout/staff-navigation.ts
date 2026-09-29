@@ -80,7 +80,15 @@ const navigationGroups: readonly {
     key: "admin-operations",
     label: "Operations",
     icon: ClipboardList,
-    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash", "operations"],
+    itemKeys: [
+      "inventory",
+      "supplies",
+      "tables",
+      "orders",
+      "waiter-balances",
+      "daily-cash",
+      "operations",
+    ],
   },
   {
     key: "suppliers",
@@ -176,7 +184,10 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     href: "/cashier/order",
     label: "New order",
     icon: ClipboardList,
-    requiredPermissions: [PERMISSIONS.ORDER_MANAGE, PERMISSIONS.ORDER_CREATE] as const,
+    requiredPermissions: [
+      PERMISSIONS.ORDER_MANAGE,
+      PERMISSIONS.ORDER_CREATE,
+    ] as const,
     section: "operations",
   },
   {

@@ -53,12 +53,7 @@ function businessDateAtHour(
   date: Pick<BusinessDayDateParts, "year" | "month" | "day">,
   hour: number,
 ) {
-  const desiredWallClock = Date.UTC(
-    date.year,
-    date.month - 1,
-    date.day,
-    hour,
-  );
+  const desiredWallClock = Date.UTC(date.year, date.month - 1, date.day, hour);
   let candidate = new Date(desiredWallClock);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -104,6 +99,34 @@ export function getCashierBusinessDayRange(now: Date = new Date()) {
   const end = businessDateAtHour(endDate, 5);
 
   return { start, end };
+}
+
+export function getPaymentReceiptBusinessDayRange(now: Date = new Date()) {
+  const current = getBusinessDayDateParts(now);
+  const businessDate = new Date(
+    Date.UTC(current.year, current.month - 1, current.day),
+  );
+
+  if (current.hour < 7) {
+    businessDate.setUTCDate(businessDate.getUTCDate() - 1);
+  }
+
+  const startDate = {
+    year: businessDate.getUTCFullYear(),
+    month: businessDate.getUTCMonth() + 1,
+    day: businessDate.getUTCDate(),
+  };
+  businessDate.setUTCDate(businessDate.getUTCDate() + 1);
+  const endDate = {
+    year: businessDate.getUTCFullYear(),
+    month: businessDate.getUTCMonth() + 1,
+    day: businessDate.getUTCDate(),
+  };
+
+  return {
+    start: businessDateAtHour(startDate, 7),
+    end: businessDateAtHour(endDate, 7),
+  };
 }
 
 export function formatCashierBusinessDayRange(start: Date, end: Date) {

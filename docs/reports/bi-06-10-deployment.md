@@ -8,9 +8,9 @@ Rollback application code first. Do not delete payroll, expense, attendance, rec
 
 Historical coverage begins only when each source feature was introduced. Reports return coverage metadata rather than fabricated values. Customer metrics include only explicitly identified paid orders.
 
-| Requirement | Primary files | Verification |
-| --- | --- | --- |
-| Attendance/payroll | `EmploymentProfile`, `AttendanceRecord`, `PayrollRun`, `payroll-service.ts` | `payroll-service.test.ts` |
+| Requirement                 | Primary files                                                                 | Verification                                    |
+| --------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------- |
+| Attendance/payroll          | `EmploymentProfile`, `AttendanceRecord`, `PayrollRun`, `payroll-service.ts`   | `payroll-service.test.ts`                       |
 | Finance/suppliers/customers | `ExpenseTransaction`, `OwnerWithdrawal`, `SupplierReceiving`, `ComplaintCase` | report endpoint authorization and service tests |
-| Advanced reports | `advanced-report-service.ts`, `/api/admin/reports/*` | TypeScript + report tests |
-| Export/realtime | `export-service.ts`, `report-realtime.ts` | format and payload-privacy tests |
+| Advanced reports            | `advanced-report-service.ts`, `/api/admin/reports/*`                          | TypeScript + report tests                       |
+| Export/realtime             | `export-service.ts`, `report-realtime.ts`                                     | format and payload-privacy tests                |

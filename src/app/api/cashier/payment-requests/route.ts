@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createPaymentRequestBatch } from "@/lib/payments/cashier-payment-requests";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const METHODS = new Set<PaymentMethod>([
   "MYCASH",
@@ -18,7 +19,7 @@ async function currentCashier() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const cashier = await prisma.user.findUnique({
+  const cashier = await prisma.staff.findUnique({
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });
@@ -53,6 +54,20 @@ export async function POST(request: Request) {
           }))
         : [],
     });
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: cashier.id,
+        event: "payment_check_started",
+        properties: {
+          payment_method: method,
+          payer_count: requests.length,
+          pay_later: body.payLater === true,
+          cashier_role: cashier.role,
+        },
+      });
+      await posthog.flush();
+    }
     return NextResponse.json({
       ok: true,
       batchKey: requests[0]?.batchKey,
@@ -90,16 +105,25 @@ export async function GET(request: Request) {
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },
+    include: { payments: { select: { amountPaid: true } } },
   });
   return NextResponse.json({
     ok: true,
-    requests: requests.map((item) => ({
-      id: item.id,
-      payerName: item.payerName,
-      payerPhone: item.payerPhone,
-      amount: Number(item.expectedAmount),
-      status: item.status,
-      reference: item.providerReference,
-    })),
+    requests: requests.map((item) => {
+      const paidAmount = item.payments.reduce(
+        (sum, payment) => sum + Number(payment.amountPaid),
+        0,
+      );
+      return {
+        id: item.id,
+        payerName: item.payerName,
+        payerPhone: item.payerPhone,
+        amount: Number(item.expectedAmount),
+        paidAmount,
+        remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
+        status: item.status,
+        reference: item.providerReference,
+      };
+    }),
   });
 }

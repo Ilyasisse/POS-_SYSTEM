@@ -13,6 +13,7 @@ type CustomerOrderHeaderProps = {
   subtitle?: string;
   resetLabel?: string;
   cartLabel?: string;
+  hideCartOnDesktop?: boolean;
 };
 
 export default function CustomerOrderHeader({
@@ -24,6 +25,7 @@ export default function CustomerOrderHeader({
   subtitle,
   resetLabel = "Start Over",
   cartLabel = "Cart",
+  hideCartOnDesktop = false,
 }: CustomerOrderHeaderProps) {
   return (
     <header
@@ -69,7 +71,7 @@ export default function CustomerOrderHeader({
           <Button
             type="button"
             onClick={onOpenCart}
-            className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+            className={`rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 ${hideCartOnDesktop ? "lg:hidden" : ""}`}
           >
             {cartLabel} {formatCurrency(cartSubtotal)} ({cartCount})
           </Button>
