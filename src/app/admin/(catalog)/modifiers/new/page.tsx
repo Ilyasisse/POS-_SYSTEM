@@ -35,6 +35,7 @@ export default async function NewModifierPage() {
           </div>
 
           <Link
+            prefetch={false}
             href="/admin/modifiers"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >
@@ -160,6 +161,7 @@ export default async function NewModifierPage() {
               </Button>
 
               <Link
+                prefetch={false}
                 href="/admin/modifiers"
                 className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-50"
               >

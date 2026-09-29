@@ -78,15 +78,15 @@ export default async function SupplierPurchaseOrdersPage({
       action={
         <>
           <Button asChild>
-            <Link href="/admin/supplier-purchase-orders/new">
+            <Link prefetch={false} href="/admin/supplier-purchase-orders/new">
               Create purchase order
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/admin/supplier-invoices">View invoices</Link>
+            <Link prefetch={false} href="/admin/supplier-invoices">View invoices</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/admin/supplier-order-schedules">
+            <Link prefetch={false} href="/admin/supplier-order-schedules">
               WhatsApp schedules
             </Link>
           </Button>
@@ -153,6 +153,7 @@ export default async function SupplierPurchaseOrdersPage({
                 <tr key={order.id} className="border-t">
                   <TableCell>
                     <Link
+                      prefetch={false}
                       href={`/admin/supplier-purchase-orders/${order.id}`}
                       className="font-semibold text-primary hover:underline"
                     >

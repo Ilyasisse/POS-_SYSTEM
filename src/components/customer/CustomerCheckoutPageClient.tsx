@@ -158,7 +158,7 @@ export default function CustomerCheckoutPageClient({
     return (
       <main className="mx-auto max-w-xl p-6">
         <p role="alert">{error || "Checkout not found."}</p>
-        <Link href="/customer">Return to menu</Link>
+        <Link prefetch={false} href="/customer">Return to menu</Link>
       </main>
     );
   }
@@ -274,7 +274,7 @@ export default function CustomerCheckoutPageClient({
         ) : null}
         {checkout.status === "PAID" ? (
           <Button asChild className="w-full">
-            <Link href="/customer">Back to menu</Link>
+            <Link prefetch={false} href="/customer">Back to menu</Link>
           </Button>
         ) : null}
         {checkout.status === "EXPIRED" || checkout.status === "NEEDS_HELP" ? (

@@ -104,7 +104,7 @@ export default async function SupplierOrderScheduleDetailPage({
             scheduleName={schedule.name}
           />
           <Button asChild variant="outline">
-            <Link href="/admin/supplier-order-schedules">
+            <Link prefetch={false} href="/admin/supplier-order-schedules">
               Back to schedules
             </Link>
           </Button>
@@ -165,6 +165,7 @@ export default async function SupplierOrderScheduleDetailPage({
                       <TableCell>
                         {run.purchaseOrder ? (
                           <Link
+                            prefetch={false}
                             className="font-semibold text-primary hover:underline"
                             href={`/admin/supplier-purchase-orders/${run.purchaseOrder.id}`}
                           >

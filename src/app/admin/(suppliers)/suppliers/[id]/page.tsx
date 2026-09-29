@@ -357,13 +357,14 @@ export default async function SupplierCatalogPage({
         <>
           <Button asChild>
             <Link
+              prefetch={false}
               href={`/admin/supplier-purchase-orders/new?supplier=${encodeURIComponent(supplier.id)}`}
             >
               Create purchase order
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/admin/suppliers">Back to suppliers</Link>
+            <Link prefetch={false} href="/admin/suppliers">Back to suppliers</Link>
           </Button>
         </>
       }

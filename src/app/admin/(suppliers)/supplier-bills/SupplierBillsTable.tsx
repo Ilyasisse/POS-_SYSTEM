@@ -109,6 +109,7 @@ export default function SupplierBillsTable({
                 >
                   <TableCell>
                     <Link
+                      prefetch={false}
                       href={`/admin/supplier-invoices/${invoice.id}`}
                       className="font-bold text-blue-600"
                     >

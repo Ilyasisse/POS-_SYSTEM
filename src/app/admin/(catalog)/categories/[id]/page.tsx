@@ -42,6 +42,7 @@ export default async function CategoryDetailsPage({
           </div>
 
           <Link
+            prefetch={false}
             href="/admin/categories"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >

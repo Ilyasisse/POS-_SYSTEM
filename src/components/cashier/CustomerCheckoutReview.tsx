@@ -153,7 +153,7 @@ export default function CustomerCheckoutReview() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href="/cashier">Back to cashier</Link>
+          <Link prefetch={false} href="/cashier">Back to cashier</Link>
         </Button>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">

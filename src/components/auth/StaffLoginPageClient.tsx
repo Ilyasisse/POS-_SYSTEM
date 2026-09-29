@@ -260,6 +260,7 @@ export default function StaffLoginPageClient() {
 
         <div className="mt-5">
           <Link
+            prefetch={false}
             href="/login"
             data-aos="fade-up"
             data-aos-delay="220"

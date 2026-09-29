@@ -196,6 +196,7 @@ export default function SupplierAccountSection({
                         >
                           {formatMoney(Number(allocation.amount))} →{" "}
                           <Link
+                            prefetch={false}
                             className="underline"
                             href={`/admin/supplier-invoices/${allocation.bill.invoice.id}`}
                           >

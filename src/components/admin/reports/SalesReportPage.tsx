@@ -89,7 +89,7 @@ export async function SalesReportPage({
       <nav className="flex flex-wrap gap-2" aria-label="Report sections">
         {links.map(([label, href]) => (
           <Button key={href} variant="outline" asChild>
-            <Link href={href}>{label}</Link>
+            <Link prefetch={false} href={href}>{label}</Link>
           </Button>
         ))}
       </nav>

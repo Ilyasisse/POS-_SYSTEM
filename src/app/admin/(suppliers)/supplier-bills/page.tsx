@@ -543,7 +543,7 @@ export default async function SupplierBillsReportPage({
             tomorrow, regardless of invoice date.
           </p>
           <Button asChild variant="outline" size="sm">
-            <Link href="/admin/reports/supplier-bills">
+            <Link prefetch={false} href="/admin/reports/supplier-bills">
               View date-range report
             </Link>
           </Button>
