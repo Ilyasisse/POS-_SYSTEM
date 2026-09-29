@@ -47,7 +47,10 @@ test("pays the selected target, then its invoice, then older open bills", () => 
 });
 
 test("a payment without invoices remains entirely as supplier credit", () => {
-  const result = planSupplierPaymentAllocations({ amount: "75.25", targets: [] });
+  const result = planSupplierPaymentAllocations({
+    amount: "75.25",
+    targets: [],
+  });
   assert.deepEqual(result.allocations, []);
   assert.equal(result.unallocatedAmount.toFixed(2), "75.25");
 });

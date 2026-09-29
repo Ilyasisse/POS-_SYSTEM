@@ -4,6 +4,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { Button, Card, AdminPage, ToneBadge } from "@/components/admin/shared";
 import { updateAdminProfile } from "./actions";
+import { ToastOnMount } from "@/components/ui/toast";
 
 type ProfilePageProps = {
   searchParams?: Promise<{
@@ -34,14 +35,10 @@ export default async function AdminProfilePage({
   return (
     <AdminPage title="My Profile" description="Manage your profile information">
       {status === "updated" ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
-          Profile updated.
-        </div>
+        <ToastOnMount tone="success" description="Profile updated." />
       ) : null}
       {status === "invalid_name" ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-          Full name is required.
-        </div>
+        <ToastOnMount tone="error" description="Full name is required." />
       ) : null}
 
       <section className="grid gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
