@@ -352,7 +352,10 @@ test("manual invoice validation allows catalog lines only", () => {
     "31",
   );
   assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft(), { allowCustomLines: false }),
+    () =>
+      validateSupplierInvoiceDraftInput(validDraft(), {
+        allowCustomLines: false,
+      }),
     /only use supplier catalog items/,
   );
 });
