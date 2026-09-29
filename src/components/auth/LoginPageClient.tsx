@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useAos } from "@/components/AosInitializer";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { customerReturnPath } from "@/lib/auth/customer-return-path";
 
 function loginErrorMessage(error: string | null) {
   if (error === "customer-login-required") {
@@ -27,6 +28,7 @@ function loginErrorMessage(error: string | null) {
 
 export default function LoginPageClient() {
   const searchParams = useSearchParams();
+  const next = customerReturnPath(searchParams.get("next"));
   const [runtimeError, setRuntimeError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const error = runtimeError || loginErrorMessage(searchParams.get("error"));
@@ -38,7 +40,9 @@ export default function LoginPageClient() {
     setGoogleLoading(true);
 
     try {
-      window.location.assign("/auth/google/start");
+      window.location.assign(
+        next ? "/auth/google/start?next=%2Fcustomer" : "/auth/google/start",
+      );
     } catch (err) {
       setGoogleLoading(false);
       setRuntimeError(
@@ -70,7 +74,8 @@ export default function LoginPageClient() {
             Customer login
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-            Sign in with Google to browse the menu and continue your order.
+            Browse the menu freely. Sign in with Google when you are ready to
+            place your order.
           </p>
         </div>
 
