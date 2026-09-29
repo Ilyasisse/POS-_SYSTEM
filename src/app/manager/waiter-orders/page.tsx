@@ -101,6 +101,7 @@ function WaiterOrdersHeader({
       </div>
 
       <Link
+        prefetch={false}
         href="/manager"
         className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
       >
@@ -383,7 +384,7 @@ export default async function CashierWaiterOrdersPage({
     requirePermission(PERMISSIONS.ORDER_MANAGE),
     searchParams,
     cookies(),
-    prisma.user.findMany({
+    prisma.staff.findMany({
       where: {
         role: "WAITER",
         isActive: true,

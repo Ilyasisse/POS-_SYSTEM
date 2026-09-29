@@ -1,9 +1,6 @@
 import "server-only";
 
-import {
-  Prisma,
-  SalesAdjustmentType,
-} from "@prisma/client";
+import { Prisma, SalesAdjustmentType } from "@prisma/client";
 import { z } from "zod";
 import {
   adjustmentReducesAmountDue,
@@ -21,7 +18,11 @@ const adjustmentSchema = z.object({
   orderItemId: z.string().trim().min(1).nullable().optional(),
   type: z.enum(SalesAdjustmentType),
   amount: z.string().regex(/^\d+(?:\.\d{1,2})?$/),
-  quantity: z.string().regex(/^\d+(?:\.\d{1,3})?$/).nullable().optional(),
+  quantity: z
+    .string()
+    .regex(/^\d+(?:\.\d{1,3})?$/)
+    .nullable()
+    .optional(),
   reason: z.string().trim().min(3).max(500),
   actorUserId: z.string().trim().min(1),
   approvedByUserId: z.string().trim().min(1),
@@ -30,7 +31,10 @@ const adjustmentSchema = z.object({
 export type CreateSalesAdjustmentInput = z.input<typeof adjustmentSchema>;
 
 export class SalesAdjustmentError extends Error {
-  constructor(message: string, public readonly status: 400 | 404 | 409) {
+  constructor(
+    message: string,
+    public readonly status: 400 | 404 | 409,
+  ) {
     super(message);
     this.name = "SalesAdjustmentError";
   }
@@ -41,10 +45,15 @@ export async function createSalesAdjustment(
   rawInput: CreateSalesAdjustmentInput,
 ) {
   const parsed = adjustmentSchema.safeParse(rawInput);
-  if (!parsed.success) throw new SalesAdjustmentError("Invalid sales adjustment.", 400);
+  if (!parsed.success)
+    throw new SalesAdjustmentError("Invalid sales adjustment.", 400);
   const input = parsed.data;
   const amount = new Prisma.Decimal(input.amount);
-  if (amount.lte(0)) throw new SalesAdjustmentError("Adjustment amount must be greater than zero.", 400);
+  if (amount.lte(0))
+    throw new SalesAdjustmentError(
+      "Adjustment amount must be greater than zero.",
+      400,
+    );
 
   const order = await tx.order.findUnique({
     where: { id: input.orderId },
@@ -71,17 +80,29 @@ export async function createSalesAdjustment(
     ? order.orderItems.find((item) => item.id === input.orderItemId)
     : null;
   if (input.orderItemId && !orderItem) {
-    throw new SalesAdjustmentError("Order item does not belong to this order.", 400);
+    throw new SalesAdjustmentError(
+      "Order item does not belong to this order.",
+      400,
+    );
   }
   if (orderItem && amount.gt(orderItem.lineTotal)) {
-    throw new SalesAdjustmentError("Adjustment exceeds the selected line total.", 400);
+    throw new SalesAdjustmentError(
+      "Adjustment exceeds the selected line total.",
+      400,
+    );
   }
 
   const previousSameType = order.salesAdjustments
     .filter((adjustment) => adjustment.type === input.type)
-    .reduce<Prisma.Decimal>((sum, adjustment) => sum.plus(adjustment.amount), new Prisma.Decimal(0));
+    .reduce<Prisma.Decimal>(
+      (sum, adjustment) => sum.plus(adjustment.amount),
+      new Prisma.Decimal(0),
+    );
   if (input.type === "REFUND") {
-    const paid = order.payments.reduce<Prisma.Decimal>((sum, payment) => sum.plus(payment.amountPaid), new Prisma.Decimal(0));
+    const paid = order.payments.reduce<Prisma.Decimal>(
+      (sum, payment) => sum.plus(payment.amountPaid),
+      new Prisma.Decimal(0),
+    );
     if (previousSameType.plus(amount).gt(paid)) {
       throw new SalesAdjustmentError("Refund exceeds the amount paid.", 400);
     }
@@ -104,9 +125,15 @@ export async function createSalesAdjustment(
   });
 
   if (input.type === "VOID") {
-    await tx.order.update({ where: { id: order.id }, data: { status: "CANCELLED", closedAt: new Date() } });
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: "CANCELLED", closedAt: new Date() },
+    });
   } else if (adjustmentReducesAmountDue(input.type)) {
-    await tx.order.update({ where: { id: order.id }, data: { total: order.total.minus(effectiveAmount) } });
+    await tx.order.update({
+      where: { id: order.id },
+      data: { total: order.total.minus(effectiveAmount) },
+    });
   }
 
   await tx.auditLog.create({
