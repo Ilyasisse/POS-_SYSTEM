@@ -48,7 +48,6 @@ export function isExpectedMacrodroidSender(
   env: MacrodroidEnvironment = process.env,
 ) {
   return (
-    sender.trim().toUpperCase() ===
-    expectedMacrodroidSender(env).toUpperCase()
+    sender.trim().toUpperCase() === expectedMacrodroidSender(env).toUpperCase()
   );
 }

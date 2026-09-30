@@ -293,14 +293,16 @@ function MenuHeader({
               </div>
             </div>
 
-            <nav className="hidden items-center gap-2 text-sm font-medium text-white/78 md:flex">
+            <nav className="hidden items-center gap-2 text-sm font-medium text-white/78 lg:flex">
               <Link
+                prefetch={false}
                 href="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
                 Home
               </Link>
               <Link
+                prefetch={false}
                 href="/menu"
                 className="rounded-full border border-[#d7aa6a]/60 bg-[#d7aa6a]/12 px-4 py-2 text-white"
               >
@@ -308,6 +310,7 @@ function MenuHeader({
               </Link>
 
               <Link
+                prefetch={false}
                 href="#contact"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
@@ -318,8 +321,9 @@ function MenuHeader({
             <div className="flex items-center gap-3">
               <ModeToggle />
               <Link
+                prefetch={false}
                 href="/customer"
-                className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] md:inline-flex"
+                className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] lg:inline-flex"
               >
                 Order Now
               </Link>
@@ -329,7 +333,7 @@ function MenuHeader({
                 onClick={onToggleMobileNav}
                 aria-expanded={mobileNavOpen}
                 aria-label="Toggle navigation"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white transition hover:bg-white/12 md:hidden"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white transition hover:bg-white/12 lg:hidden"
               >
                 <span className="flex flex-col gap-1.5">
                   <span
@@ -350,10 +354,11 @@ function MenuHeader({
             <div
               data-aos="fade-down"
               data-aos-duration="180"
-              className="mt-3 rounded-[24px] border border-white/10 bg-[#1a0d08]/95 p-3 text-white shadow-[0_20px_50px_rgba(12,7,4,0.32)] md:hidden"
+              className="mt-3 rounded-[24px] border border-white/10 bg-[#1a0d08]/95 p-3 text-white shadow-[0_20px_50px_rgba(12,7,4,0.32)] lg:hidden"
             >
               <div className="grid gap-2">
                 <Link
+                  prefetch={false}
                   href="/"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
@@ -361,6 +366,7 @@ function MenuHeader({
                   Home
                 </Link>
                 <Link
+                  prefetch={false}
                   href="/menu"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] border border-[#d7aa6a]/30 bg-[#d7aa6a]/12 px-4 py-3 text-sm font-medium text-white"
@@ -369,6 +375,7 @@ function MenuHeader({
                 </Link>
 
                 <Link
+                  prefetch={false}
                   href="#contact"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
@@ -376,6 +383,7 @@ function MenuHeader({
                   Contact
                 </Link>
                 <Link
+                  prefetch={false}
                   href="/customer"
                   onClick={onCloseMobileNav}
                   className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition "
@@ -428,16 +436,18 @@ function MenuHero({ heroImage }: { heroImage: string }) {
               youâ€™re ready.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-4  ">
+            <div className="mt-8 flex flex-wrap gap-4 md:flex-nowrap">
               <Link
+                prefetch={false}
                 href="#menu-grid"
-                className="rounded-full bg-white px-6 py-3.5 text-md tracking-widest font-semibold text-[#24140c] transition hover:bg-[#f8efe4] w-full text-center sm:max-w-[60%] "
+                className="w-full rounded-full bg-white px-6 py-3.5 text-center text-md font-semibold tracking-widest text-[#24140c] transition hover:bg-[#f8efe4] sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
               >
                 Explore Menu
               </Link>
               <Link
+                prefetch={false}
                 href="/customer"
-                className="rounded-full border border-white/16 tracking-widest uppercerase bg-white/6 px-6 py-3.5 text-xl font-semibold text-white transition hover:bg-white/12 w-full text-center sm:max-w-[60%] "
+                className="w-full rounded-full border border-white/16 bg-white/6 px-6 py-3.5 text-center text-xl font-semibold tracking-widest text-white transition hover:bg-white/12 sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
               >
                 Order Now
               </Link>
@@ -461,7 +471,7 @@ function MenuCategoryTabs({
   return (
     <section className="relative z-10 -mt-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <div className="rounded-[32px] border border-[#ead8c6] bg-[#fbf6ef] px-4 py-5 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-6">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 md:justify-center">
           {categories.length > 0 ? (
             categories.map((category) => {
               const active = selectedCategory === category.slug;
@@ -525,13 +535,13 @@ function MenuProductSection({
         </p>
       </div>
 
-      <div className="mt-10 grid sm:grid-cols-2 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {visibleProducts.length > 0 ? (
           visibleProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))
         ) : (
-          <div className="rounded-[28px] border border-[#ead8c6] bg-white/80 p-8 text-center shadow-[0_18px_46px_rgba(67,39,20,0.06)] md:col-span-2 xl:col-span-3">
+          <div className="rounded-[28px] border border-[#ead8c6] bg-white/80 p-8 text-center shadow-[0_18px_46px_rgba(67,39,20,0.06)] sm:col-span-2 lg:col-span-3">
             <p
               className="text-3xl text-[#2f180d]"
               style={{
@@ -545,6 +555,7 @@ function MenuProductSection({
               soon or place an order from the customer screen.
             </p>
             <Link
+              prefetch={false}
               href="/customer"
               className="mt-6 inline-flex rounded-full bg-[#2a170d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3d2417]"
             >
@@ -575,7 +586,7 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
       className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20"
     >
       <div className="rounded-[36px] border border-[#ead8c6] bg-[linear-gradient(135deg,#f3e3d0_0%,#f9f2e9_52%,#efe0cb_100%)] px-6 py-8 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-8 lg:px-10 lg:py-10">
-        <div className="grid gap-8 lg:grid-cols-[290px_minmax(0,1fr)] lg:items-center">
+        <div className="grid gap-8 xl:grid-cols-[290px_minmax(0,1fr)] xl:items-center">
           <div data-aos="fade-right">
             <p className="text-lg font-semibold uppercase tracking-[0.3em] text-[#b07b45] text-center">
               Our favorites
@@ -600,6 +611,7 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
             ))}
           </div>
           <Link
+            prefetch={false}
             href="/customer"
             className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#2a170d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3d2417]"
           >
@@ -614,7 +626,7 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
 function MenuFooter({ cafeName }: { cafeName: string }) {
   return (
     <footer id="contact" className="bg-[#201108] text-[#f8eee3]">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
         <div>
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#d09a59]">
