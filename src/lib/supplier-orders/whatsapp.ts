@@ -33,11 +33,7 @@ export type TwilioStatusUpdate = {
 };
 
 export type StoredWhatsAppStatus =
-  | "PENDING"
-  | "ACCEPTED"
-  | "DELIVERED"
-  | "READ"
-  | "FAILED";
+  "PENDING" | "ACCEPTED" | "DELIVERED" | "READ" | "FAILED";
 
 function required(env: NodeJS.ProcessEnv, key: string) {
   const value = env[key]?.trim();
@@ -80,18 +76,14 @@ export function readWhatsAppConfig(
       env,
       "TWILIO_EMPLOYEE_INVITATION_CONTENT_SID",
     ),
-    reminderContentSid: required(
-      env,
-      "TWILIO_EMPLOYEE_REMINDER_CONTENT_SID",
-    ),
-    supplierOrderContentSid: required(
-      env,
-      "TWILIO_SUPPLIER_ORDER_CONTENT_SID",
-    ),
+    reminderContentSid: required(env, "TWILIO_EMPLOYEE_REMINDER_CONTENT_SID"),
+    supplierOrderContentSid: required(env, "TWILIO_SUPPLIER_ORDER_CONTENT_SID"),
   };
 }
 
-export function createWhatsAppClient(config: WhatsAppConfig): TwilioMessageClient {
+export function createWhatsAppClient(
+  config: WhatsAppConfig,
+): TwilioMessageClient {
   return twilio(config.apiKeySid, config.apiKeySecret, {
     accountSid: config.accountSid,
   }) as TwilioMessageClient;
@@ -192,7 +184,11 @@ export function extractTwilioStatusUpdate(
     return { messageId, status: "read" };
   }
 
-  const rawStatus = (params.MessageStatus || params.SmsStatus || "").toLowerCase();
+  const rawStatus = (
+    params.MessageStatus ||
+    params.SmsStatus ||
+    ""
+  ).toLowerCase();
   const error =
     params.ChannelStatusMessage ||
     params.ErrorMessage ||

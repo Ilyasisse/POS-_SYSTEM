@@ -45,7 +45,9 @@ export type PaymentWebhookStore = {
     provider: MycashGolisProvider,
     reference: string,
   ): Promise<PaymentWebhookExistingPayment | null>;
-  findOrder(event: MycashGolisWebhookEvent): Promise<PaymentWebhookOrder | null>;
+  findOrder(
+    event: MycashGolisWebhookEvent,
+  ): Promise<PaymentWebhookOrder | null>;
   markOrderPaid(input: {
     event: MycashGolisWebhookEvent;
     order: PaymentWebhookOrder;
@@ -201,9 +203,7 @@ export function readPaymentWebhookConfig(
   };
 }
 
-export function normalizeMycashGolisWebhookPayload(
-  payload: unknown,
-):
+export function normalizeMycashGolisWebhookPayload(payload: unknown):
   | {
       ok: true;
       event: MycashGolisWebhookEvent;

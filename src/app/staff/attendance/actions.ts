@@ -13,8 +13,15 @@ export async function recordOwnClockAction(formData: FormData) {
   try {
     await recordClockEvent({
       workerId: worker.id,
-      type: z.enum(["IN", "BREAK_START", "BREAK_END", "OUT"]).parse(formData.get("type")),
-      note: z.string().trim().max(250).parse(String(formData.get("note") ?? "")) || null,
+      type: z
+        .enum(["IN", "BREAK_START", "BREAK_END", "OUT"])
+        .parse(formData.get("type")),
+      note:
+        z
+          .string()
+          .trim()
+          .max(250)
+          .parse(String(formData.get("note") ?? "")) || null,
     });
     revalidatePath("/staff/attendance");
     revalidatePath("/admin/staff/attendance");
