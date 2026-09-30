@@ -23,8 +23,7 @@ const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
 // Renders the admin dashboard page with live Prisma-backed metrics.
 export default async function AdminPage() {
   const now = new Date();
-  const { start: todayStart, end: tomorrowStart } =
-    getBusinessDayRange(now);
+  const { start: todayStart, end: tomorrowStart } = getBusinessDayRange(now);
   const { start: weekStart, end: weekEnd } = getReportingWeekRange(now);
 
   const [
@@ -57,13 +56,7 @@ export default async function AdminPage() {
     prisma.category.count(),
     prisma.product.count(),
     prisma.modifier.count(),
-    prisma.user.count({
-      where: {
-        role: {
-          not: "CUSTOMER",
-        },
-      },
-    }),
+    prisma.staff.count(),
 
     prisma.order.findMany({
       where: {
@@ -136,9 +129,8 @@ export default async function AdminPage() {
         createdAt: true,
       },
     }),
-    prisma.user.count({
+    prisma.customer.count({
       where: {
-        role: "CUSTOMER",
         createdAt: {
           gte: weekStart,
           lt: weekEnd,
