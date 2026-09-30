@@ -89,6 +89,12 @@ export function useAos(
       cancelled = true;
       cancelSchedule();
     };
-  }, [dependencyA, dependencyB, dependencyC, dependencyD, dependencyE, dependencyF]);
+  }, [
+    dependencyA,
+    dependencyB,
+    dependencyC,
+    dependencyD,
+    dependencyE,
+    dependencyF,
+  ]);
 }
-

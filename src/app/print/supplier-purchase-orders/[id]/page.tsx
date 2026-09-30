@@ -55,7 +55,9 @@ export default async function PrintableSupplierPurchaseOrderPage({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-semibold">PO #{order.orderNumber}</div>
+            <div className="text-2xl font-semibold">
+              PO #{order.orderNumber}
+            </div>
             <div className="text-sm text-muted-foreground">{order.status}</div>
           </div>
         </header>
@@ -67,16 +69,22 @@ export default async function PrintableSupplierPurchaseOrderPage({
             </h2>
             <p className="mt-1 text-xl font-semibold">{order.supplier.name}</p>
             <p className="text-sm">{order.supplier.contactName || ""}</p>
-            <p className="text-sm">{order.supplier.phone || order.supplier.email || ""}</p>
+            <p className="text-sm">
+              {order.supplier.phone || order.supplier.email || ""}
+            </p>
           </div>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <dt className="text-muted-foreground">Created</dt>
-              <dd className="font-medium">{DATE_FORMATTER.format(order.createdAt)}</dd>
+              <dd className="font-medium">
+                {DATE_FORMATTER.format(order.createdAt)}
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Expected delivery</dt>
-              <dd className="font-medium">{DATE_FORMATTER.format(order.expectedDeliveryDate)}</dd>
+              <dd className="font-medium">
+                {DATE_FORMATTER.format(order.expectedDeliveryDate)}
+              </dd>
             </div>
             <div className="col-span-2">
               <dt className="text-muted-foreground">Prepared by</dt>
