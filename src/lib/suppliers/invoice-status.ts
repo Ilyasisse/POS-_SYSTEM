@@ -4,9 +4,7 @@ import type {
   SupplierInvoiceStatus,
   SupplierPaymentStatus,
 } from "@prisma/client";
-import {
-  getSupplierBillDueState,
-} from "@/lib/suppliers/supplier-bills";
+import { getSupplierBillDueState } from "@/lib/suppliers/supplier-bills";
 import {
   getSupplierPurchaseTodayDateKey,
   supplierPurchaseDateKeyToDatabaseDate,
@@ -25,11 +23,7 @@ export type SupplierInvoiceDisplayStatus =
   (typeof SUPPLIER_INVOICE_DISPLAY_STATUSES)[number];
 
 export type SupplierInvoiceDisplayStatusTone =
-  | "amber"
-  | "blue"
-  | "green"
-  | "red"
-  | "slate";
+  "amber" | "blue" | "green" | "red" | "slate";
 
 export const SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS: Record<
   SupplierInvoiceDisplayStatus,

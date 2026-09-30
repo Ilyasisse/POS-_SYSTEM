@@ -33,7 +33,9 @@ function pdfResponse(pdf: Uint8Array, filename: string, sample = false) {
     status: 200,
     headers: {
       ...securityHeaders,
-      "Cache-Control": sample ? "public, max-age=3600" : securityHeaders["Cache-Control"],
+      "Cache-Control": sample
+        ? "public, max-age=3600"
+        : securityHeaders["Cache-Control"],
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${filename}"`,
     },
