@@ -66,12 +66,13 @@ function CartLineItems({
               <p className="break-words text-lg font-semibold text-foreground">
                 {item.name}
               </p>
-              <p className="mt-1 text-sm font-semibold text-emerald-700">
+              <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                 {formatCurrency(Number(item.finalPrice ?? item.price))}
               </p>
             </div>
 
             <Button
+              variant="outline"
               type="button"
               onClick={() => onRemove(item.cartKey)}
               className="rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-foreground"
@@ -142,7 +143,7 @@ function CartHeader({
   onClose: () => void;
 }) {
   return (
-    <div className="shrink-0 border-b border-border bg-[linear-gradient(145deg,#20140f_0%,#4a281a_42%,#8c5b34_100%)] px-4 py-4 text-white sm:px-6 sm:py-5">
+    <div className="shrink-0 border-b border-border bg-[linear-gradient(145deg,#20140f_0%,#4a281a_42%,#8c5b34_100%)] dark:bg-none dark:bg-secondary px-4 py-4 text-white sm:px-6 sm:py-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.3em] text-amber-200/90">
@@ -163,9 +164,10 @@ function CartHeader({
         </div>
         {showCloseButton ? (
           <Button
+            variant="outline"
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-full border border-white/15 bg-card/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-card/15"
+            className="shrink-0 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 hover:text-white dark:bg-white/10 dark:hover:bg-white/15"
           >
             Close
           </Button>
@@ -228,7 +230,7 @@ function CartBody({
                 value={customerName}
                 onChange={(event) => onCustomerNameChange(event.target.value)}
                 placeholder="Name for the order"
-                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
+                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-ring"
               />
               <Input
                 aria-label={
@@ -241,7 +243,7 @@ function CartBody({
                     ? "Phone number (optional)"
                     : "Phone sending mobile money payment"
                 }
-                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-stone-400"
+                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-ring"
               />
             </>
           ) : null}
@@ -252,7 +254,7 @@ function CartBody({
               onChange={(event) => onOrderNoteChange(event.target.value)}
               placeholder="Special requests or notes"
               rows={4}
-              className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-stone-400"
+              className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
             />
           </div>
         </div>
@@ -272,7 +274,7 @@ function CartMessages({ message, error }: { message: string; error: string }) {
       {message ? (
         <div
           role="status"
-          className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800"
+          className="rounded-[1.25rem] border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-semibold text-emerald-800 dark:text-emerald-300"
         >
           {message}
         </div>
@@ -280,7 +282,7 @@ function CartMessages({ message, error }: { message: string; error: string }) {
       {error ? (
         <div
           role="alert"
-          className="rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700"
+          className="rounded-[1.25rem] border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300"
         >
           {error}
         </div>
@@ -319,11 +321,12 @@ function CartFooter({
           type="button"
           onClick={onCheckout}
           disabled={isSubmitting || cartIsEmpty}
-          className="rounded-full bg-stone-950 px-6 py-4 text-base font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+          className="rounded-full bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {checkoutLabel}
         </Button>
         <Button
+          variant="outline"
           type="button"
           onClick={onClearCart}
           disabled={cartIsEmpty || isSubmitting}
@@ -369,7 +372,7 @@ export function CustomerCartPanel(props: Omit<CustomerCartSheetProps, "open">) {
   return (
     <aside
       aria-label="Current table order"
-      className="hidden max-h-[calc(100dvh-8.75rem)] min-h-[36rem] overflow-hidden rounded-[1.75rem] border border-white/80 bg-[#fffaf5] text-foreground shadow-[0_22px_65px_rgba(44,28,17,0.14)] dark:bg-card dark:text-foreground lg:sticky lg:top-[7.75rem] lg:flex"
+      className="hidden max-h-[calc(100dvh-8.75rem)] min-h-[36rem] overflow-hidden rounded-[1.75rem] border border-border bg-card text-foreground shadow-[0_22px_65px_rgba(44,28,17,0.14)] dark:bg-card dark:text-foreground lg:sticky lg:top-[7.75rem] lg:flex"
     >
       <CustomerCartContent {...props} showCloseButton={false} />
     </aside>
@@ -384,7 +387,7 @@ export default function CustomerCartSheet(props: CustomerCartSheetProps) {
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="flex w-full gap-0 overflow-hidden border-l border-white/10 bg-[#fffaf5] p-0 text-foreground dark:bg-card dark:text-foreground sm:max-w-xl"
+        className="flex w-full gap-0 overflow-hidden border-l border-border bg-card p-0 text-foreground dark:bg-card dark:text-foreground sm:max-w-xl"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Your cart</SheetTitle>

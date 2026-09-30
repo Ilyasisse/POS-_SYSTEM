@@ -180,7 +180,7 @@ export default function SupplierAccountSection({
                     <TableCell className="tabular-nums">
                       {formatMoney(allocated)}
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums text-emerald-700">
+                    <TableCell className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
                       {formatMoney(unused)}
                     </TableCell>
                     <TableCell className="text-xs">
