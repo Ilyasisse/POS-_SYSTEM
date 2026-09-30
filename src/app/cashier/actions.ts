@@ -11,6 +11,7 @@ import {
   isPosPaymentMethod,
   remainingPaymentAmount,
 } from "@/lib/payments/payment-methods";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 function toDecimal(value: number) {
   return new Prisma.Decimal(value);
@@ -129,6 +130,19 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
       paymentStatus = "order_not_open";
     } else {
       refreshCashierTableViews();
+      const posthog = getPostHogClient();
+      if (posthog) {
+        posthog.capture({
+          distinctId: currentUser.id,
+          event: "table_orders_paid_from_cashier",
+          properties: {
+            payment_method: paymentMethod,
+            order_count: paidOrderCount,
+            cashier_role: currentUser.role,
+          },
+        });
+        await posthog.flush();
+      }
     }
   } catch (error) {
     console.error("Failed to pay open table orders:", error);

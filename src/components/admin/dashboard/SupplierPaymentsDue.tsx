@@ -39,7 +39,7 @@ export default function SupplierPaymentsDue({
           </div>
         </div>
         <Button asChild variant="outline">
-          <Link href="/admin/reports/supplier-bills?scope=due-through-tomorrow">
+          <Link prefetch={false} href="/admin/reports/supplier-bills?scope=due-through-tomorrow">
             View bills
             <ArrowRight data-icon="inline-end" />
           </Link>
@@ -72,6 +72,7 @@ export default function SupplierPaymentsDue({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
+                    prefetch={false}
                     href={`/admin/reports/supplier-bills?scope=due-through-tomorrow&supplier=${supplier.supplierId}`}
                     className="font-black text-slate-950 hover:text-blue-700"
                   >

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createPaymentRequestBatch } from "@/lib/payments/cashier-payment-requests";
 import { isReceiptMatchPaymentMethod } from "@/lib/payments/payment-methods";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 async function currentCashier() {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ async function currentCashier() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const cashier = await prisma.user.findUnique({
+  const cashier = await prisma.staff.findUnique({
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });
@@ -47,6 +48,20 @@ export async function POST(request: Request) {
           }))
         : [],
     });
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: cashier.id,
+        event: "payment_check_started",
+        properties: {
+          payment_method: method,
+          payer_count: requests.length,
+          pay_later: body.payLater === true,
+          cashier_role: cashier.role,
+        },
+      });
+      await posthog.flush();
+    }
     return NextResponse.json({
       ok: true,
       batchKey: requests[0]?.batchKey,

@@ -59,9 +59,9 @@ export async function saveWaiterOpeningBalance(formData: FormData) {
           ? "shift_already_closed"
           : error.message.includes("one-time opening balance")
             ? "balance_not_initialized"
-          : error.message.includes("Waiter not found")
-            ? "waiter_not_found"
-            : "opening_failed"
+            : error.message.includes("Waiter not found")
+              ? "waiter_not_found"
+              : "opening_failed"
         : "opening_failed";
   }
 

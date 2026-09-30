@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApi } from "@/lib/auth/api-authorization";
-import {
-  canAccessStation,
-  PERMISSIONS,
-} from "@/lib/auth/permissions";
+import { canAccessStation, PERMISSIONS } from "@/lib/auth/permissions";
 import {
   KitchenTicketMutationError,
   updateKitchenTicketStation,
 } from "@/lib/kitchen/kitchen-tickets";
 import { normalizeKitchenStation } from "@/lib/kitchen/kitchen-socket";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const KITCHEN_STATUSES = new Set(["new", "in_progress", "done"]);
 
@@ -20,7 +18,10 @@ export async function PATCH(
   if (!authorization.ok) return authorization.response;
 
   try {
-    const body = (await request.json()) as { station?: unknown; status?: unknown };
+    const body = (await request.json()) as {
+      station?: unknown;
+      status?: unknown;
+    };
     const station = normalizeKitchenStation(
       typeof body.station === "string" ? body.station : null,
     );
@@ -45,13 +46,34 @@ export async function PATCH(
       actorUserId: authorization.user.id,
     });
 
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: authorization.user.id,
+        event: "kitchen_ticket_status_updated",
+        properties: {
+          order_id: orderId,
+          station,
+          status,
+          staff_role: authorization.user.role,
+        },
+      });
+      await posthog.flush();
+    }
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof KitchenTicketMutationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
 
     console.error("Kitchen station update failed:", error);
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body." },
+      { status: 400 },
+    );
   }
 }
