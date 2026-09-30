@@ -44,7 +44,10 @@ export function parseBusinessDateKey(value: string) {
   return value;
 }
 
-export function shiftBusinessDateKey(businessDateKey: string, dayOffset: number) {
+export function shiftBusinessDateKey(
+  businessDateKey: string,
+  dayOffset: number,
+) {
   const parsed = parseBusinessDateKey(businessDateKey);
 
   if (!parsed) throw new Error("Invalid business date.");
@@ -120,5 +123,7 @@ export function assertLedgerBusinessDate(
 }
 
 export function isLedgerActive(now: Date = new Date()) {
-  return now >= getBusinessDayRangeForKey(WAITER_BALANCE_LEDGER_START_DATE).start;
+  return (
+    now >= getBusinessDayRangeForKey(WAITER_BALANCE_LEDGER_START_DATE).start
+  );
 }
