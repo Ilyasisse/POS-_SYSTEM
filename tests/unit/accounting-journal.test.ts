@@ -41,7 +41,7 @@ test("uses the Nairobi calendar date for timestamped activity", () => {
 
 test("uses POST for the audited journal download", () => {
   const route = readFileSync("src/app/api/admin/accounting/export/route.ts", "utf8");
-  const page = readFileSync("src/app/admin/accounting/page.tsx", "utf8");
+  const page = readFileSync("src/app/admin/(reports)/accounting/page.tsx", "utf8");
 
   assert.match(route, /export async function POST\(request: Request\)/);
   assert.doesNotMatch(route, /export async function GET/);

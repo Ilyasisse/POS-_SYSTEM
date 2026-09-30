@@ -4,7 +4,16 @@ export type DailyCashActionResult =
   | { ok: true }
   | { ok: false; code: "SAVINGS_CONFIRMATION_REQUIRED"; savingsAmount: string }
   | { ok: false; code: "INCOMPLETE_CONFIRMATION_REQUIRED"; message: string }
-  | { ok: false; code: "LOCKED" | "FUTURE_DATE" | "SALARY_NOT_CONFIGURED" | "STALE_OBLIGATION" | "VALIDATION_ERROR"; message: string };
+  | {
+      ok: false;
+      code:
+        | "LOCKED"
+        | "FUTURE_DATE"
+        | "SALARY_NOT_CONFIGURED"
+        | "STALE_OBLIGATION"
+        | "VALIDATION_ERROR";
+      message: string;
+    };
 
 export type SupplierObligation = {
   billId: string;

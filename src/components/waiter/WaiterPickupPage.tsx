@@ -36,11 +36,12 @@ export default function WaiterPickupPage({
   currentUserName,
   currentUserRole,
 }: WaiterPickupPageProps) {
-  const { activeTickets, statusMessage, updatePickupStatus } = useKitchenTickets({
-    currentUserId,
-    currentUserName,
-    currentUserRole,
-  });
+  const { activeTickets, statusMessage, updatePickupStatus } =
+    useKitchenTickets({
+      currentUserId,
+      currentUserName,
+      currentUserRole,
+    });
 
   return (
     <div
@@ -108,7 +109,7 @@ export default function WaiterPickupPage({
                         Order #{ticket.orderNumber}
                       </p>
                       <h2 className="mt-1 text-2xl font-bold text-foreground">
-                         {ticket.tableName ?? "-"}
+                        {ticket.tableName ?? "-"}
                       </h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Ready at {formatTime(ticket.createdAt)}

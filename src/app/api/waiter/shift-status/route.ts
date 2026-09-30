@@ -5,9 +5,7 @@ import { getWaiterBusinessDayShiftSummary } from "@/lib/waiter/waiter-shifts";
 
 export async function GET() {
   try {
-    const authorization = await authorizeApi(
-      PERMISSIONS.ORDER_VIEW_ASSIGNED,
-    );
+    const authorization = await authorizeApi(PERMISSIONS.ORDER_VIEW_ASSIGNED);
     if (!authorization.ok) return authorization.response;
     const user = authorization.user;
 
