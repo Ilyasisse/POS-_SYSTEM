@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Wrench,
   MessageCircle,
+  CalendarClock,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -105,6 +106,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     icon: TableProperties,
     permission: PERMISSIONS.TABLE_MANAGE,
     countKey: "tables",
+  },
+  {
+    key: "reservations",
+    href: "/admin/reservations",
+    label: "Reservations",
+    icon: CalendarClock,
+    permission: PERMISSIONS.TABLE_MANAGE,
   },
   {
     key: "orders",
