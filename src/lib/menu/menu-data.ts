@@ -1,3 +1,4 @@
+import { isProductAvailableAt } from "./product-availability";
 import { availableForSaleWhere } from "@/lib/products/availability";
 
 // Used for: The product cards, featured items, filtering, and sorting on /menu.
@@ -216,6 +217,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
 
   try {
     const { prisma } = await import("@/lib/prisma");
+    const now = new Date();
 
     // categoriesResult fetches active menu categories and only the product fields
     // needed by /menu. The explicit select avoids unused database columns breaking
@@ -249,6 +251,8 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
               price: true,
               imageUrl: true,
               isPopular: true,
+              availabilityStartMinute: true,
+              availabilityEndMinute: true,
             },
           },
         },
@@ -276,7 +280,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
     // Flattens category/product query results into the exact shape the menu UI uses.
     const products = categoriesResult
       .flatMap((category) =>
-        category.products.map((product) => {
+        category.products.filter((product) => isProductAvailableAt(product, now)).map((product) => {
           const categorySlug = slugify(category.name);
 
           return {

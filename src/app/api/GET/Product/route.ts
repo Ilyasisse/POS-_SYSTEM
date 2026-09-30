@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 import { availableForSaleWhere } from "@/lib/products/availability";
 
 export async function GET() {
@@ -26,7 +27,8 @@ export async function GET() {
       },
     });
 
-    const formattedProducts = products.map((product) => {
+    const now = new Date();
+    const formattedProducts = products.filter((product) => isProductAvailableAt(product, now)).map((product) => {
       type ModifierGroup = {
         id: string;
         name: string;

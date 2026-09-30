@@ -15,6 +15,7 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type TableOrderItemModifierInput = {
@@ -162,6 +163,8 @@ export async function POST(request: Request) {
           name: true,
           price: true,
           cost: true,
+          availabilityStartMinute: true,
+          availabilityEndMinute: true,
           availableForSale: true,
           availabilityRestoresAt: true,
           recipeVersions: {
@@ -217,8 +220,11 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
+    const now = new Date();
     const productMap = new Map(
-      products.map((product) => [product.id, product]),
+      products
+        .filter((product) => isProductAvailableAt(product, now))
+        .map((product) => [product.id, product]),
     );
     const modifierMap = new Map(
       modifierRecords.map((modifier) => [modifier.id, modifier]),
@@ -235,7 +241,7 @@ export async function POST(request: Request) {
 
       if (!product) {
         return NextResponse.json(
-          { error: `Product not found or inactive: ${item.productId}` },
+          { error: `Product not found, inactive, or unavailable now: ${item.productId}` },
           { status: 400 },
         );
       }
