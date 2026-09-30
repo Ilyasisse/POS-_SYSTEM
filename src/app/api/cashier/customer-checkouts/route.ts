@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   canTakePayment,
+  canManagePaymentReceipts,
   currentPaymentReceiptUser,
 } from "@/lib/payments/payment-receipt-route-auth";
 
@@ -9,10 +10,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await currentPaymentReceiptUser();
-  if (!user || !canTakePayment(user)) {
+  if (!user || (!canTakePayment(user) && !canManagePaymentReceipts(user))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [checkouts, receipts] = await Promise.all([
     prisma.customerCheckout.findMany({
       where: {
@@ -25,9 +25,9 @@ export async function GET() {
             "NEEDS_HELP",
           ],
         },
-        createdAt: { gte: since },
+
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
       take: 100,
       select: {
         id: true,
@@ -46,9 +46,9 @@ export async function GET() {
         direction: "INCOMING",
         method: "GOLIS",
         amount: { not: null },
-        receivedAt: { gte: since },
+        assignedPaymentRequestId: null,
       },
-      orderBy: { receivedAt: "desc" },
+      orderBy: { receivedAt: "asc" },
       take: 100,
       select: {
         id: true,
@@ -63,6 +63,7 @@ export async function GET() {
   ]);
   return NextResponse.json(
     {
+      canManage: canManagePaymentReceipts(user),
       checkouts: checkouts.map((checkout) => ({
         ...checkout,
         amount: Number(checkout.amount),

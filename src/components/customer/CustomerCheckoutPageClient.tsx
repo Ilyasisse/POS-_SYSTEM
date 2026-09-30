@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { CUSTOMER_ORDER_STAGES, type CustomerOrderStage } from "@/lib/customer/customer-order-progress";
 import {
   CheckCircle2,
   CircleAlert,
@@ -32,6 +34,9 @@ type Checkout = {
   expiresAt: string;
   orderNumber: number | null;
   paymentReceived: boolean;
+  orderType: "DINE_IN" | "TAKEOUT";
+  tableName: string | null;
+  stage: CustomerOrderStage;
 };
 
 export default function CustomerCheckoutPageClient({
@@ -40,6 +45,7 @@ export default function CustomerCheckoutPageClient({
   checkoutId: string;
 }) {
   const { toast } = useToast();
+  const router = useRouter();
   const [checkout, setCheckout] = useState<Checkout | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -101,6 +107,12 @@ export default function CustomerCheckoutPageClient({
   useEffect(() => {
     if (checkout?.status === "PAID") clearCustomerOrderDraft();
   }, [checkout?.status]);
+
+  useEffect(() => {
+    if (checkout?.stage !== "DELIVERED") return;
+    const timeout = window.setTimeout(() => router.replace("/customer"), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [checkout?.stage, router]);
 
   const code = useMemo(
     () => (checkout ? customerUssdCode(checkout.amount) : ""),
@@ -177,7 +189,7 @@ export default function CustomerCheckoutPageClient({
         : checkout.status === "PAYMENT_RECEIVED"
           ? "Payment received. Confirming your order…"
           : checkout.status === "PAID"
-            ? `Paid. Order #${checkout.orderNumber} is with the kitchen.`
+            ? checkout.stage === "DELIVERED" ? "Thank you! Your order has been delivered. Returning to the menu…" : `Paid. Order #${checkout.orderNumber}: ${CUSTOMER_ORDER_STAGES.find(stage => stage.key === checkout.stage)?.label ?? "Kitchen received"}.`
             : checkout.status === "NEEDS_HELP"
               ? "Payment received. Staff need to finish your order."
               : "This payment window expired. If you paid, ask staff to review your receipt.";
@@ -189,7 +201,8 @@ export default function CustomerCheckoutPageClient({
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800">
             Mobile money checkout
           </p>
-          <h1 className="mt-2 text-3xl font-bold">Pay for your order</h1>
+          <h1 className="mt-2 text-3xl font-bold">{checkout.status === "PAID" ? "Your order" : "Pay for your order"}</h1>
+          <p className="mt-2 font-semibold">{checkout.orderType === "DINE_IN" ? `Dine in · ${checkout.tableName ?? "Your table"}` : "To-go order"}</p>
           <p className="mt-2 text-sm text-stone-600">
             Use the phone number {checkout.payerPhone} to send the full amount.
           </p>
@@ -217,7 +230,7 @@ export default function CustomerCheckoutPageClient({
                 <Button asChild variant="outline">
                   <a href={androidDialerHref(code)}>
                     <PhoneCall className="mr-2 size-4" />
-                    Open dialer
+                    Pay Now
                   </a>
                 </Button>
               ) : null}
@@ -254,6 +267,22 @@ export default function CustomerCheckoutPageClient({
             </div>
           </div>
         </div>
+        {checkout.status === "PAID" ? <section aria-label="Order progress" className="space-y-3">
+          <div role="progressbar" aria-label="Order progress" aria-valuemin={0} aria-valuemax={5}
+            aria-valuenow={Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage))}
+            aria-valuetext={CUSTOMER_ORDER_STAGES.find(stage => stage.key === checkout.stage)?.label}
+            className="h-3 overflow-hidden rounded-full bg-stone-200">
+            <div className="h-full bg-emerald-600 transition-all" style={{ width: `${Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage)) * 20}%` }} />
+          </div>
+          <ol className="grid grid-cols-2 gap-2 text-sm">
+            {CUSTOMER_ORDER_STAGES.map((stage, index) => <li key={stage.key}
+              aria-current={stage.key === checkout.stage ? "step" : undefined}
+              className={index <= CUSTOMER_ORDER_STAGES.findIndex(value => value.key === checkout.stage) ? "font-semibold text-emerald-800" : "text-stone-500"}>
+              {index + 1}. {stage.label}
+            </li>)}
+          </ol>
+          {checkout.stage !== "DELIVERED" ? <p className="text-sm text-stone-600">Keep this page open to follow your order. It updates automatically and checks again when you return.</p> : null}
+        </section> : null}
         {error ? (
           <p role="alert" className="text-sm text-rose-700">
             {error}{" "}
@@ -262,7 +291,7 @@ export default function CustomerCheckoutPageClient({
             </Button>
           </p>
         ) : null}
-        {checkout.status === "PENDING" || checkout.status === "REVIEW" ? (
+        {checkout.status === "PENDING" || checkout.status === "REVIEW" || checkout.status === "EXPIRED" ? (
           <Button
             type="button"
             variant="outline"
@@ -272,7 +301,7 @@ export default function CustomerCheckoutPageClient({
             I paid — check again
           </Button>
         ) : null}
-        {checkout.status === "PAID" ? (
+        {checkout.stage === "DELIVERED" ? (
           <Button asChild className="w-full">
             <Link prefetch={false} href="/customer">Back to menu</Link>
           </Button>

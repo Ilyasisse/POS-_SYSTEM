@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
@@ -25,13 +26,15 @@ type Receipt = {
   transactionAt: string | null;
 };
 
-export default function CustomerCheckoutReview() {
+export default function CustomerCheckoutReview({ admin = false }: { admin?: boolean }) {
   const { toast } = useToast();
   const [checkouts, setCheckouts] = useState<Checkout[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [checkoutId, setCheckoutId] = useState("");
   const [receiptId, setReceiptId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [reason, setReason] = useState("");
+  const [canManage, setCanManage] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -41,9 +44,11 @@ export default function CustomerCheckoutReview() {
       });
       if (!response.ok) throw new Error("Could not load customer payments.");
       const data = (await response.json()) as {
+        canManage: boolean;
         checkouts: Checkout[];
         receipts: Receipt[];
       };
+      setCanManage(data.canManage);
       setCheckouts(data.checkouts);
       setReceipts(data.receipts);
     } catch (error) {
@@ -80,7 +85,7 @@ export default function CustomerCheckoutReview() {
   );
 
   async function submit() {
-    if (!selectedCheckout || !selectedReceipt || !confirmed || !amountMatches)
+    if (!selectedCheckout || !selectedReceipt || !confirmed || !amountMatches || reason.trim().length < 5)
       return;
     setBusy(true);
     try {
@@ -89,7 +94,7 @@ export default function CustomerCheckoutReview() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ receiptId: selectedReceipt.id }),
+          body: JSON.stringify({ receiptId: selectedReceipt.id, reason }),
         },
       );
       const data = (await response.json()) as { error?: string };
@@ -153,7 +158,7 @@ export default function CustomerCheckoutReview() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/cashier">Back to cashier</Link>
+          <Link prefetch={false} href={admin ? "/admin" : "/cashier"}>Back to workspace</Link>
         </Button>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
@@ -259,6 +264,14 @@ export default function CustomerCheckoutReview() {
               ? "Amounts match"
               : "Amounts differ — choose another receipt"}
           </p>
+          <p className="mt-2 text-sm">
+            Phone: {Array.isArray(selectedReceipt.counterpartyIdentifiers) && selectedReceipt.counterpartyIdentifiers.some(value => typeof value === "string" && normalizeSomaliPhone(value) === selectedCheckout.payerPhone) ? "matches" : "differs — manager review required"}.
+            {" "}Window: {selectedReceipt.transactionAt && new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) && new Date() <= new Date(selectedCheckout.expiresAt) ? "within 15 minutes" : "expired — manager review required"}.
+          </p>
+          <label className="mt-3 block text-sm">Review reason (required)
+            <input value={reason} onChange={event => setReason(event.target.value)} className="mt-1 block w-full rounded-lg border bg-background p-3" placeholder="Explain the evidence used to verify this payment" />
+          </label>
+          {canManage ? <p className="mt-2 text-xs text-muted-foreground">Admin/manager review can resolve phone or time exceptions. Amount and receipt uniqueness are always enforced.</p> : null}
           <label className="mt-3 flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -273,7 +286,7 @@ export default function CustomerCheckoutReview() {
           <Button
             type="button"
             className="mt-4"
-            disabled={!confirmed || !amountMatches || busy}
+            disabled={!confirmed || !amountMatches || reason.trim().length < 5 || busy}
             onClick={() => void submit()}
           >
             Assign receipt and finish paid order

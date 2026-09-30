@@ -75,6 +75,7 @@ function fixture(ambiguous = false, phone = "252905109687") {
         return { count: 1 };
       },
     },
+    auditLog: { create: async () => ({}) },
     $queryRaw: async () => [],
     $transaction: async (run: (tx: unknown) => Promise<unknown>) => {
       // Finalization is separately covered by the order flow; represent an
