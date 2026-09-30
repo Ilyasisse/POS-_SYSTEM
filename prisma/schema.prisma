@@ -200,6 +200,7 @@ model AttendanceRecord {
   clockInAt              DateTime?
   clockOutAt             DateTime?
   workedMinutes          Int              @default(0)
+  breakMinutes           Int              @default(0)
   lateMinutes            Int              @default(0)
   approvedOvertimeMinutes Int             @default(0)
   absenceReason          String?
@@ -2071,6 +2072,8 @@ enum ScheduledShiftStatus {
 
 enum ClockEventType {
   IN
+  BREAK_START
+  BREAK_END
   OUT
 }
 
