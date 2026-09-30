@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     const customerName = String(body.customerName ?? authorization.user.fullName).trim();
     const orderType = body.orderType ?? "TAKEOUT";
     const tableId = orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
-    const payerPhone = normalizeSomaliPhone(String(body.paymentPhone ?? ""));
+    const payerPhone = normalizeCustomerPaymentPhone(String(body.paymentPhone ?? ""));
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
 
     if (authorization.user.role !== "CUSTOMER") {

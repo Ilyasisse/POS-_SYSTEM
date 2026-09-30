@@ -7,21 +7,20 @@ export async function dispatchCustomerOrder(tx: Prisma.TransactionClient, input:
 }) {
   const now = new Date();
   const { start, end } = getCashierBusinessDayRange(now);
-  const waiter = await tx.staff.findFirst({
+  const [waiter, cashier] = await Promise.all([tx.staff.findFirst({
     where: {
       role: "WAITER", isActive: true,
       shifts: { some: { closedAt: null, openedAt: { gte: start, lt: end } } },
     },
     orderBy: { waiterOrders: { _count: "asc" } },
     select: { id: true },
-  });
-  const cashier = await tx.staff.findFirst({
+  }), tx.staff.findFirst({
     where: {
       role: "CASHIER", isActive: true, availability: "AVAILABLE",
       lastSeenAt: { gte: new Date(now.getTime() - 90_000) },
     },
     orderBy: { orders: { _count: "asc" } }, select: { id: true },
-  });
+  })]);
   await tx.order.update({
     where: { id: input.orderId }, data: { waiterId: waiter?.id ?? null, cashierId: cashier?.id ?? null },
   });

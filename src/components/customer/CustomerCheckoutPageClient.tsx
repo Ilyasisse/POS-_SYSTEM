@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CUSTOMER_ORDER_STAGES, type CustomerOrderStage } from "@/lib/customer/customer-order-progress";
@@ -51,8 +51,10 @@ export default function CustomerCheckoutPageClient({
   const [error, setError] = useState("");
   const [android, setAndroid] = useState(false);
   const [tick, setTick] = useState(0);
+  const requestSequence = useRef(0);
 
   const refresh = useCallback(async () => {
+    const sequence = ++requestSequence.current;
     try {
       const response = await fetch(
         `/api/customer/checkouts/${encodeURIComponent(checkoutId)}`,
@@ -67,16 +69,18 @@ export default function CustomerCheckoutPageClient({
       if (!response.ok || !data.checkout) {
         throw new Error(data.error || "Could not check payment status.");
       }
+      if (sequence !== requestSequence.current) return;
       setCheckout(data.checkout);
       setError("");
     } catch (cause) {
+      if (sequence !== requestSequence.current) return;
       setError(
         cause instanceof Error
           ? cause.message
           : "Could not check payment status.",
       );
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
   }, [checkoutId]);
 
@@ -97,6 +101,7 @@ export default function CustomerCheckoutPageClient({
     window.addEventListener("focus", onReturn);
     document.addEventListener("visibilitychange", onReturn);
     return () => {
+      requestSequence.current++;
       window.clearTimeout(initial);
       window.clearInterval(interval);
       window.removeEventListener("focus", onReturn);
@@ -272,7 +277,7 @@ export default function CustomerCheckoutPageClient({
             aria-valuenow={Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage))}
             aria-valuetext={CUSTOMER_ORDER_STAGES.find(stage => stage.key === checkout.stage)?.label}
             className="h-3 overflow-hidden rounded-full bg-stone-200">
-            <div className="h-full bg-emerald-600 transition-all" style={{ width: `${Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage)) * 20}%` }} />
+            <div className="h-full bg-emerald-600 transition-[width]" style={{ width: `${Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage)) * 20}%` }} />
           </div>
           <ol className="grid grid-cols-2 gap-2 text-sm">
             {CUSTOMER_ORDER_STAGES.map((stage, index) => <li key={stage.key}

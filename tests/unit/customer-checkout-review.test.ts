@@ -97,6 +97,8 @@ function fixture(ambiguous = false, phone = "252905109687") {
   });
   return {
     checkout,
+    receipt,
+    assign: (input: Record<string, unknown> = {}) => module.assignCustomerCheckoutReceipt({ checkoutId: checkout.id, receiptId: receipt.id, ...input }),
     retry: () => module.retryCustomerCheckoutPayment(checkout.id),
     claims: () => claims,
   };
@@ -155,4 +157,33 @@ test("review endpoint accepts repeated review and invokes reconciliation", async
   );
   await route.POST({}, { params: Promise.resolve({ id: "checkout" }) });
   assert.equal(retries, 1);
+});
+
+test("cashier review cannot bypass phone/time checks; admin exception needs a reason", async () => {
+  const wrongPhone = fixture(false, "252901234567");
+  await assert.rejects(wrongPhone.assign({ staff: { id: "cashier", fullName: "Cashier" }, reviewReason: "Verified SMS" }), /admin or manager/);
+  assert.equal(wrongPhone.claims(), 0);
+  await assert.rejects(wrongPhone.assign({ staff: { id: "admin", fullName: "Admin" }, allowExceptions: true, reviewReason: "" }), /admin or manager/);
+  assert.equal(wrongPhone.claims(), 0);
+  await wrongPhone.assign({ staff: { id: "admin", fullName: "Admin" }, allowExceptions: true, reviewReason: "Verified payer with customer" });
+  assert.equal(wrongPhone.claims(), 1);
+});
+test("manual review never reuses processed, outgoing or wrong-amount receipts", async () => {
+  for (const mutation of [
+    (f: ReturnType<typeof fixture>) => { f.receipt.status = "ASSIGNED"; },
+    (f: ReturnType<typeof fixture>) => { f.receipt.direction = "OUTGOING"; },
+    (f: ReturnType<typeof fixture>) => { f.receipt.amount = 25; },
+    (f: ReturnType<typeof fixture>) => { f.receipt.transactionAt = new Date(0); },
+  ]) {
+    const f = fixture();
+    mutation(f);
+    await assert.rejects(f.assign({ staff: { id: "admin", fullName: "Admin" }, allowExceptions: true, reviewReason: "Reviewed original receipt" }));
+    assert.equal(f.claims(), 0);
+  }
+});
+test("completed receipt assignment cannot be performed again", async () => {
+  const f = fixture();
+  await f.assign();
+  await assert.rejects(f.assign(), /already settled/);
+  assert.equal(f.claims(), 1);
 });
