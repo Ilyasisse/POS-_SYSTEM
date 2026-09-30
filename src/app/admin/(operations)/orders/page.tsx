@@ -170,14 +170,14 @@ export default async function AdminOrdersPage({
         <Table>
           <thead>
             <tr>
-              <TableHead>#</TableHead>
+              <TableHead className="hidden md:table-cell">#</TableHead>
               <TableHead>Order No.</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Time</TableHead>
-              <TableHead>Items</TableHead>
+              <TableHead className="hidden md:table-cell">Time</TableHead>
+              <TableHead className="hidden md:table-cell">Items</TableHead>
               <TableHead>Actions</TableHead>
             </tr>
           </thead>
@@ -191,7 +191,7 @@ export default async function AdminOrdersPage({
             ) : (
               recentOrders.map((order, index) => (
                 <tr key={order.id} className="border-b border-slate-50">
-                  <TableCell className="font-bold text-slate-400">
+                  <TableCell className="hidden font-bold text-slate-400 md:table-cell">
                     {index + 1}
                   </TableCell>
                   <TableCell className="font-black text-slate-950">
@@ -213,8 +213,12 @@ export default async function AdminOrdersPage({
                           : "Cancelled"}
                     </ToneBadge>
                   </TableCell>
-                  <TableCell>{formatDateTime(order.createdAt)}</TableCell>
-                  <TableCell>{order._count.orderItems}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {formatDateTime(order.createdAt)}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {order._count.orderItems}
+                  </TableCell>
                   <TableCell>
                     <Button asChild variant="outline" size="sm">
                       <Link href={`/admin/orders/${order.id}`}>Review</Link>
