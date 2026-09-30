@@ -2,21 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { PaymentMethod, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import {
+  isPosPaymentMethod,
+  remainingPaymentAmount,
+} from "@/lib/payments/payment-methods";
 import { getPostHogClient } from "@/lib/posthog-server";
-
-function isPaymentMethod(value: string): value is PaymentMethod {
-  return (
-    value === "MYCASH" ||
-    value === "GOLIS" ||
-    value === "Dahabshiil" ||
-    value === "OTHER"
-  );
-}
 
 function toDecimal(value: number) {
   return new Prisma.Decimal(value);
@@ -35,7 +30,7 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
   const tableId = String(formData.get("tableId") ?? "").trim();
   const paymentMethod = String(formData.get("paymentMethod") ?? "").trim();
 
-  if (!tableId || !isPaymentMethod(paymentMethod)) {
+  if (!tableId || !isPosPaymentMethod(paymentMethod)) {
     redirect("/cashier?paymentStatus=invalid_payment");
   }
 
@@ -57,21 +52,33 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
           id: true,
           total: true,
           tableCheckId: true,
+          payments: { select: { amountPaid: true } },
         },
       });
 
       if (orders.length === 0) return 0;
 
       const closedAt = new Date();
-      await tx.payment.createMany({
-        data: orders.map((order) => ({
-          orderId: order.id,
-          cashierId: currentUser.id,
-          cashierName: currentUser.fullName,
-          method: paymentMethod,
-          amountPaid: toDecimal(Number(order.total)),
-        })),
-      });
+      const settlements = orders
+        .map((order) => ({
+          ...order,
+          remaining: remainingPaymentAmount(
+            Number(order.total),
+            order.payments.map((payment) => Number(payment.amountPaid)),
+          ),
+        }))
+        .filter((order) => order.remaining > 0);
+      if (settlements.length > 0) {
+        await tx.payment.createMany({
+          data: settlements.map((order) => ({
+            orderId: order.id,
+            cashierId: currentUser.id,
+            cashierName: currentUser.fullName,
+            method: paymentMethod,
+            amountPaid: toDecimal(order.remaining),
+          })),
+        });
+      }
 
       await tx.order.updateMany({
         where: {
@@ -90,6 +97,31 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
         orders.map((order) => order.tableCheckId),
         closedAt,
       );
+
+      await tx.paymentRequest.updateMany({
+        where: {
+          tableId,
+          status: { in: ["PENDING", "PARTIALLY_MATCHED"] },
+        },
+        data: { status: "CANCELLED" },
+      });
+      await tx.paymentDeferral.updateMany({
+        where: { tableId, resolvedAt: null },
+        data: { resolvedAt: closedAt },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorUserId: currentUser.id,
+          action: "TABLE_PAYMENT_RECORDED",
+          entityType: "Table",
+          entityId: tableId,
+          newValue: {
+            method: paymentMethod,
+            orderIds: orders.map((order) => order.id),
+            amount: settlements.reduce((sum, order) => sum + order.remaining, 0),
+          },
+        },
+      });
 
       return orders.length;
     });

@@ -12,7 +12,9 @@ import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
 import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
+import CashSettlementButton from "@/components/cashier/CashSettlementButton";
 import { ToastOnMount } from "@/components/ui/toast";
+import { payOpenTableOrdersFromCashier } from "./actions";
 
 type CashierPageProps = {
   searchParams?: Promise<{
@@ -306,6 +308,11 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     amountDue={tableTotal}
                     showEqualSplit={showEqualSplit}
                   />
+                  <form action={payOpenTableOrdersFromCashier}>
+                    <input type="hidden" name="tableId" value={table.id} />
+                    <input type="hidden" name="paymentMethod" value="CASH" />
+                    <CashSettlementButton amount={formatMoney(tableTotal)} />
+                  </form>
                 </div>
               </article>
             );

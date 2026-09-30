@@ -5,6 +5,7 @@ import type { Station } from "./socket.types";
  * Supported payment methods recorded by the POS.
  */
 enum PaymentMethod {
+  CASH = "CASH",
   MYCASH = "MYCASH",
   GOLIS = "GOLIS",
   DAHABSHIIL = "Dahabshiil",

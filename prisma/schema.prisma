@@ -1890,6 +1890,7 @@ enum SalesAdjustmentType {
 }
 
 enum PaymentMethod {
+  CASH
   MYCASH
   GOLIS
   Dahabshiil
