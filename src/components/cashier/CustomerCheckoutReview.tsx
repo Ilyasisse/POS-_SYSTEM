@@ -33,22 +33,32 @@ export default function CustomerCheckoutReview({ admin = false }: { admin?: bool
   const [checkoutId, setCheckoutId] = useState("");
   const [receiptId, setReceiptId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [checkoutPage, setCheckoutPage] = useState(0);
+  const [receiptPage, setReceiptPage] = useState(0);
+  const [hasMoreCheckouts, setHasMoreCheckouts] = useState(false);
+  const [hasMoreReceipts, setHasMoreReceipts] = useState(false);
+  const [checkedAt, setCheckedAt] = useState(0);
   const [reason, setReason] = useState("");
   const [canManage, setCanManage] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch("/api/cashier/customer-checkouts", {
+      const response = await fetch(`/api/cashier/customer-checkouts?checkoutPage=${checkoutPage}&receiptPage=${receiptPage}`, {
         cache: "no-store",
       });
       if (!response.ok) throw new Error("Could not load customer payments.");
       const data = (await response.json()) as {
+        hasMoreCheckouts: boolean;
+        hasMoreReceipts: boolean;
         canManage: boolean;
         checkouts: Checkout[];
         receipts: Receipt[];
       };
+      setCheckedAt(Date.now());
       setCanManage(data.canManage);
+      setHasMoreCheckouts(data.hasMoreCheckouts);
+      setHasMoreReceipts(data.hasMoreReceipts);
       setCheckouts(data.checkouts);
       setReceipts(data.receipts);
     } catch (error) {
@@ -60,7 +70,7 @@ export default function CustomerCheckoutReview({ admin = false }: { admin?: bool
             : "Could not load customer payments.",
       });
     }
-  }, [toast]);
+  }, [toast, checkoutPage, receiptPage]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => void refresh(), 0);
@@ -164,6 +174,11 @@ export default function CustomerCheckoutReview({ admin = false }: { admin?: bool
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Customer checkouts</h2>
+          <div className="flex items-center gap-2 text-sm">
+            <Button variant="outline" disabled={checkoutPage === 0 || busy} onClick={() => { setCheckoutId(""); setConfirmed(false); setCheckoutPage(page => page - 1); }}>Previous</Button>
+            <span>Page {checkoutPage + 1}</span>
+            <Button variant="outline" disabled={!hasMoreCheckouts || busy} onClick={() => { setCheckoutId(""); setConfirmed(false); setCheckoutPage(page => page + 1); }}>Next</Button>
+          </div>
           {checkouts.length === 0 ? (
             <p className="rounded-xl border p-4">
               No pending customer checkouts.
@@ -212,6 +227,11 @@ export default function CustomerCheckoutReview({ admin = false }: { admin?: bool
           <h2 className="text-lg font-semibold">
             Unassigned incoming receipts
           </h2>
+          <div className="flex items-center gap-2 text-sm">
+            <Button variant="outline" disabled={receiptPage === 0 || busy} onClick={() => { setReceiptId(""); setConfirmed(false); setReceiptPage(page => page - 1); }}>Previous</Button>
+            <span>Page {receiptPage + 1}</span>
+            <Button variant="outline" disabled={!hasMoreReceipts || busy} onClick={() => { setReceiptId(""); setConfirmed(false); setReceiptPage(page => page + 1); }}>Next</Button>
+          </div>
           {receipts.length === 0 ? (
             <p className="rounded-xl border p-4">
               No unassigned incoming receipts. Check the manager review inbox
@@ -266,7 +286,7 @@ export default function CustomerCheckoutReview({ admin = false }: { admin?: bool
           </p>
           <p className="mt-2 text-sm">
             Phone: {Array.isArray(selectedReceipt.counterpartyIdentifiers) && selectedReceipt.counterpartyIdentifiers.some(value => typeof value === "string" && normalizeSomaliPhone(value) === selectedCheckout.payerPhone) ? "matches" : "differs — manager review required"}.
-            {" "}Window: {selectedReceipt.transactionAt && new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) && new Date() <= new Date(selectedCheckout.expiresAt) ? "within 15 minutes" : "expired — manager review required"}.
+            {" "}Window: {selectedReceipt.transactionAt && new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) && checkedAt <= new Date(selectedCheckout.expiresAt).getTime() ? "within 15 minutes" : "expired — manager review required"}.
           </p>
           <label className="mt-3 block text-sm">Review reason (required)
             <input value={reason} onChange={event => setReason(event.target.value)} className="mt-1 block w-full rounded-lg border bg-background p-3" placeholder="Explain the evidence used to verify this payment" />

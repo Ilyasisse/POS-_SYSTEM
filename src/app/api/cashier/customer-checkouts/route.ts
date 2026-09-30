@@ -8,11 +8,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await currentPaymentReceiptUser();
   if (!user || (!canTakePayment(user) && !canManagePaymentReceipts(user))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
+  const params = new URL(request.url).searchParams;
+  const page = (name: string) => { const value = Number(params.get(name) ?? 0); return Number.isInteger(value) && value >= 0 ? Math.min(value, 10_000) : 0; };
+  const checkoutPage = page("checkoutPage");
+  const receiptPage = page("receiptPage");
   const [checkouts, receipts] = await Promise.all([
     prisma.customerCheckout.findMany({
       where: {
@@ -28,7 +32,8 @@ export async function GET() {
 
       },
       orderBy: { createdAt: "asc" },
-      take: 100,
+      skip: checkoutPage * 100,
+      take: 101,
       select: {
         id: true,
         customerName: true,
@@ -64,11 +69,13 @@ export async function GET() {
   return NextResponse.json(
     {
       canManage: canManagePaymentReceipts(user),
-      checkouts: checkouts.map((checkout) => ({
+      hasMoreCheckouts: checkouts.length > 100,
+      hasMoreReceipts: receipts.length > 100,
+      checkouts: checkouts.slice(0, 100).map((checkout) => ({
         ...checkout,
         amount: Number(checkout.amount),
       })),
-      receipts: receipts.map((receipt) => ({
+      receipts: receipts.slice(0, 100).map((receipt) => ({
         ...receipt,
         amount: Number(receipt.amount),
       })),
