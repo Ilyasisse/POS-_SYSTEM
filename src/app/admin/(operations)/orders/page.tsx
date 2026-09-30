@@ -1,5 +1,4 @@
 ﻿import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import {
   AdminPage,
@@ -16,6 +15,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { groupOrderCards, type OrderCardRound } from "@/lib/admin/order-cards";
+import { orderFont } from "@/lib/admin/order-typography";
 
 type AdminOrdersPageProps = {
   searchParams?: Promise<{
@@ -77,12 +77,12 @@ function OrderPeople({ rounds }: { rounds: readonly OrderCardRound[] }) {
     { label: "Customer", names: rounds.map((round) => round.customerName) },
   ];
   return (
-    <dl className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 text-sm">
+    <dl className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-4 text-lg leading-relaxed">
       {roles.map(({ label, names }) => {
         const assigned = [...new Set(names.filter((name): name is string => Boolean(name)))];
         return assigned.length ? (
           <div key={label} className="min-w-0">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dt className="text-base text-muted-foreground">{label}</dt>
             <dd className="mt-1 break-words font-medium">{assigned.join(", ")}</dd>
           </div>
         ) : null;
@@ -250,17 +250,17 @@ export default async function AdminOrdersPage({
         </SearchToolbar>
         </div>
 
-        <section aria-label="Orders" className="space-y-4 bg-muted/30 p-4 md:hidden">
-          <h2 className="text-base font-semibold">Recent orders</h2>
+        <section aria-label="Orders" className={`${orderFont.className} space-y-4 bg-muted/30 p-4 md:hidden`}>
+          <h2 className="text-xl font-semibold">Recent orders</h2>
           {orderCards.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">No orders found.</p>
           ) : (
             orderCards.map((card) => (
-              <Card key={card.key} className="gap-5 rounded-2xl p-5">
+              <Card key={card.key} className="gap-6 rounded-2xl p-5 [&_[data-slot=badge]]:px-3 [&_[data-slot=badge]]:py-1.5 [&_[data-slot=badge]]:text-base">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Order</p>
-                    <h3 className="mt-1 break-words text-2xl font-semibold tracking-tight">
+                    <p className="text-base text-muted-foreground">Order</p>
+                    <h3 className="mt-1 break-words text-3xl font-bold tracking-tight">
                       #{card.orderNumber}
                     </h3>
                   </div>
@@ -270,50 +270,27 @@ export default async function AdminOrdersPage({
                 </div>
                 <div className="min-w-0">
                   {card.latest.tableName ? (
-                    <p className="break-words text-lg font-semibold">{card.latest.tableName}</p>
+                    <p className="break-words text-2xl font-semibold">{card.latest.tableName}</p>
                   ) : null}
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-lg text-muted-foreground">
                     {getTypeLabel(card.latest.type)}
                     {card.latest.tableCheckId ? ` · ${card.rounds.length} ${card.rounds.length === 1 ? "round" : "rounds"}` : ""}
                   </p>
                 </div>
                 <OrderPeople rounds={card.rounds} />
                 <div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {card.latest.tableCheckId ? "Check total" : "Total"}
                   </p>
-                  <p className="mt-1 text-2xl font-semibold tracking-tight">{formatMoney(card.total)}</p>
+                  <p className="mt-1 text-3xl font-bold tracking-tight">{formatMoney(card.total)}</p>
                 </div>
-                {card.latest.tableCheckId ? (
-                  <details className="group border-t pt-2">
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-                      <span>View {card.rounds.length} {card.rounds.length === 1 ? "round" : "rounds"}</span>
-                      <ChevronDown aria-hidden="true" className="size-5 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
-                    </summary>
-                    <ol aria-label={`Rounds for order #${card.orderNumber}`} className="mt-2 space-y-3">
-                      {card.rounds.map((round) => (
-                        <li key={round.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h4 className="font-semibold">Round {round.tableCheckRound ?? 1}</h4>
-                            <ToneBadge tone={getStatusTone(round.status)}>{getStatusLabel(round.status)}</ToneBadge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Ticket #{round.orderNumber} · {formatDateTime(round.createdAt)} · {round.itemCount} {round.itemCount === 1 ? "item" : "items"}
-                          </p>
-                          <OrderPeople rounds={[round]} />
-                          <p className="font-semibold">{formatMoney(round.total)}</p>
-                          <Button asChild variant="outline" className="min-h-11 w-full">
-                            <Link href={`/admin/orders/${round.id}`}>Review round {round.tableCheckRound ?? 1}</Link>
-                          </Button>
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                ) : (
-                  <Button asChild variant="outline" className="min-h-11 w-full">
-                    <Link href={`/admin/orders/${card.latest.id}`}>Review order</Link>
-                  </Button>
-                )}
+                <Button
+                  asChild
+                  variant="outline"
+                  className="min-h-14 w-full rounded-xl border-primary/60 text-lg font-semibold text-primary"
+                >
+                  <Link href={`/admin/orders/${card.latest.id}`}>Review order</Link>
+                </Button>
               </Card>
             ))
           )}

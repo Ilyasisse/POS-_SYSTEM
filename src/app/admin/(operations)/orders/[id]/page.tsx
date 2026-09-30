@@ -14,6 +14,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 import { groupOrderCards } from "@/lib/admin/order-cards";
+import { orderFont } from "@/lib/admin/order-typography";
 import OrderAdjustmentForm from "./OrderAdjustmentForm";
 
 function money(value: { toString(): string } | number) {
@@ -120,58 +121,58 @@ export default async function AdminOrderDetailsPage({
         : "Review the order, payments, and approved adjustments."}
       action={<Button asChild variant="outline"><Link href="/admin/orders">Back to orders</Link></Button>}
     >
-      <Card className="gap-5 rounded-2xl p-5 md:hidden">
+      <Card className={`${orderFont.className} gap-6 rounded-2xl p-5 md:hidden [&_[data-slot=badge]]:px-3 [&_[data-slot=badge]]:py-1.5 [&_[data-slot=badge]]:text-base`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Order</p>
-            <h2 className="mt-1 break-words text-2xl font-semibold tracking-tight">#{check.orderNumber}</h2>
+            <p className="text-base text-muted-foreground">Order</p>
+            <h2 className="mt-1 break-words text-3xl font-bold tracking-tight">#{check.orderNumber}</h2>
           </div>
           <ToneBadge tone={statusTone(check.status)}>{statusLabel(check.status)}</ToneBadge>
         </div>
         <div className="min-w-0">
-          {order.table?.name ? <p className="break-words text-lg font-semibold">{order.table.name}</p> : null}
-          <p className="mt-1 text-sm text-muted-foreground">
+          {order.table?.name ? <p className="break-words text-2xl font-semibold">{order.table.name}</p> : null}
+          <p className="mt-1 text-lg text-muted-foreground">
             {typeLabel(order.type)}
             {order.tableCheckId ? ` · ${check.rounds.length} ${check.rounds.length === 1 ? "round" : "rounds"}` : ""}
           </p>
         </div>
         {people.length ? (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-base">
             {people.map((person) => (
               <div key={person.label} className="min-w-0">
-                <dt className="text-xs text-muted-foreground">{person.label}</dt>
-                <dd className="mt-1 break-words font-medium">{person.name}</dd>
+                <dt className="text-base text-muted-foreground">{person.label}</dt>
+                <dd className="mt-1 break-words text-lg font-medium">{person.name}</dd>
               </div>
             ))}
           </dl>
         ) : null}
         {order.tableCheckId ? (
           <div>
-            <p className="text-xs text-muted-foreground">Check total</p>
-            <p className="mt-1 text-2xl font-semibold tracking-tight">{money(check.total)}</p>
+            <p className="text-base text-muted-foreground">Check total</p>
+            <p className="mt-1 text-3xl font-bold tracking-tight">{money(check.total)}</p>
           </div>
         ) : null}
         <div className="rounded-xl bg-muted/40 p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold">
+            <p className="text-base font-semibold">
               {order.tableCheckId ? `Reviewing round ${order.tableCheckRound ?? 1}` : "This order"}
             </p>
             <ToneBadge tone={statusTone(order.status)}>{statusLabel(order.status)}</ToneBadge>
           </div>
           <dl className="grid grid-cols-2 gap-3">
             <div className="min-w-0">
-              <dt className="text-xs text-muted-foreground">{order.tableCheckId ? "Round total" : "Total"}</dt>
-              <dd className="mt-1 break-words text-xl font-semibold">{money(order.total)}</dd>
+              <dt className="text-base text-muted-foreground">{order.tableCheckId ? "Round total" : "Total"}</dt>
+              <dd className="mt-1 break-words text-2xl font-semibold">{money(order.total)}</dd>
             </div>
             <div className="min-w-0">
-              <dt className="text-xs text-muted-foreground">{order.tableCheckId ? "Paid this round" : "Paid"}</dt>
-              <dd className="mt-1 break-words text-xl font-semibold">{money(paid)}</dd>
+              <dt className="text-base text-muted-foreground">{order.tableCheckId ? "Paid this round" : "Paid"}</dt>
+              <dd className="mt-1 break-words text-2xl font-semibold">{money(paid)}</dd>
             </div>
           </dl>
         </div>
         {order.tableCheckId ? (
           <details className="group border-t pt-2">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
               <span>View all {check.rounds.length} {check.rounds.length === 1 ? "round" : "rounds"}</span>
               <ChevronDown aria-hidden="true" className="size-5 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
             </summary>
@@ -182,26 +183,26 @@ export default async function AdminOrderDetailsPage({
                     <h3 className="font-semibold">Round {round.tableCheckRound ?? 1}</h3>
                     <ToneBadge tone={statusTone(round.status)}>{statusLabel(round.status)}</ToneBadge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Ticket #{round.orderNumber} · {round.createdAt.toLocaleString()} · {round.itemCount} {round.itemCount === 1 ? "item" : "items"}
                   </p>
-                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                  <dl className="grid grid-cols-2 gap-3 text-base">
                     {[
                       { label: "Cashier", name: round.cashierName },
                       { label: "Waiter", name: round.waiterName },
                       { label: "Customer", name: round.customerName },
                     ].filter((person) => person.name).map((person) => (
                       <div key={person.label} className="min-w-0">
-                        <dt className="text-xs text-muted-foreground">{person.label}</dt>
-                        <dd className="mt-1 break-words font-medium">{person.name}</dd>
+                        <dt className="text-base text-muted-foreground">{person.label}</dt>
+                        <dd className="mt-1 break-words text-lg font-medium">{person.name}</dd>
                       </div>
                     ))}
                   </dl>
                   <p className="font-semibold">{money(round.total)}</p>
                   {round.id === order.id ? (
-                    <p className="text-sm font-medium text-muted-foreground">Currently viewing</p>
+                    <p className="text-base font-medium text-muted-foreground">Currently viewing</p>
                   ) : (
-                    <Button asChild variant="outline" className="min-h-11 w-full">
+                    <Button asChild variant="outline" className="min-h-14 w-full rounded-xl text-lg font-semibold">
                       <Link href={`/admin/orders/${round.id}`}>Review round {round.tableCheckRound ?? 1}</Link>
                     </Button>
                   )}
@@ -222,23 +223,23 @@ export default async function AdminOrderDetailsPage({
       <Card className="overflow-hidden rounded-2xl p-0">
         <div className="border-b px-5 py-4"><h2 className="font-semibold">Order items</h2><p className="text-sm text-muted-foreground">Original subtotal: {money(subtotal)}</p></div>
 
-        <ul aria-label="Order items" className="space-y-3 bg-muted/30 p-4 md:hidden">
+        <ul aria-label="Order items" className={`${orderFont.className} space-y-3 bg-muted/30 p-4 md:hidden`}>
           {order.orderItems.length === 0 ? (
-            <li className="py-6 text-center text-sm text-muted-foreground">No items in this order.</li>
+            <li className="py-6 text-center text-base text-muted-foreground">No items in this order.</li>
           ) : order.orderItems.map((item) => (
             <li key={item.id} className="space-y-3 rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <h3 className="break-words font-semibold">{item.productName}</h3>
+                  <h3 className="break-words text-lg font-semibold">{item.productName}</h3>
                   {item.modifiers.length ? (
-                    <p className="mt-1 break-words text-sm text-muted-foreground">
+                    <p className="mt-1 break-words text-base text-muted-foreground">
                       {item.modifiers.map((modifier) => modifier.modifierName).join(", ")}
                     </p>
                   ) : null}
                 </div>
-                <p className="shrink-0 font-semibold">{money(item.lineTotal)}</p>
+                <p className="shrink-0 text-lg font-semibold">{money(item.lineTotal)}</p>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Quantity {item.qty} · {money(item.unitPrice)} each
               </p>
             </li>
