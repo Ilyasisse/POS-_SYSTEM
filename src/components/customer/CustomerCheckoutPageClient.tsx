@@ -158,7 +158,9 @@ export default function CustomerCheckoutPageClient({
     return (
       <main className="mx-auto max-w-xl p-6">
         <p role="alert">{error || "Checkout not found."}</p>
-        <Link prefetch={false} href="/customer">Return to menu</Link>
+        <Link prefetch={false} href="/customer">
+          Return to menu
+        </Link>
       </main>
     );
   }
@@ -183,27 +185,29 @@ export default function CustomerCheckoutPageClient({
               : "This payment window expired. If you paid, ask staff to review your receipt.";
 
   return (
-    <main className="min-h-screen bg-[#f6eee2] px-4 py-8 text-stone-900 sm:py-14">
-      <div className="mx-auto max-w-xl space-y-6 rounded-3xl border border-stone-200 bg-white p-5 shadow-xl sm:p-8">
+    <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:py-14">
+      <div className="mx-auto max-w-xl space-y-6 rounded-3xl border border-border bg-card p-5 shadow-xl sm:p-8">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800 dark:text-amber-300">
             Mobile money checkout
           </p>
           <h1 className="mt-2 text-3xl font-bold">Pay for your order</h1>
-          <p className="mt-2 text-sm text-stone-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Use the phone number {checkout.payerPhone} to send the full amount.
           </p>
         </div>
         {checkout.status === "PENDING" || checkout.status === "REVIEW" ? (
-          <section className="space-y-4 rounded-2xl bg-amber-50 p-5">
-            <p className="text-sm font-semibold text-stone-600">Amount due</p>
+          <section className="space-y-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 p-5">
+            <p className="text-sm font-semibold text-muted-foreground">
+              Amount due
+            </p>
             <p className="text-4xl font-bold">${checkout.amount.toFixed(2)}</p>
-            <p className="text-sm text-stone-700">
+            <p className="text-sm text-foreground">
               Copy this code into your phone app. Enter your PIN there to
               authorize payment.
             </p>
             <div
-              className="select-all break-all rounded-xl border border-amber-300 bg-white px-4 py-3 font-mono text-lg font-semibold"
+              className="select-all break-all rounded-xl border border-amber-300 dark:border-amber-800 bg-card px-4 py-3 font-mono text-lg font-semibold"
               aria-label="Mobile money payment code"
             >
               {code}
@@ -223,7 +227,7 @@ export default function CustomerCheckoutPageClient({
               ) : null}
             </div>
             {android ? (
-              <p className="text-xs text-stone-600">
+              <p className="text-xs text-muted-foreground">
                 Check the dialer code before calling. If it does not prefill,
                 use Copy code.
               </p>
@@ -231,22 +235,22 @@ export default function CustomerCheckoutPageClient({
           </section>
         ) : null}
         <div
-          className="rounded-2xl border border-stone-200 p-5"
+          className="rounded-2xl border border-border p-5"
           role="status"
           aria-live="polite"
         >
           <div className="flex items-start gap-3">
             {waiting ? (
-              <LoaderCircle className="mt-0.5 size-6 shrink-0 animate-spin text-amber-700" />
+              <LoaderCircle className="mt-0.5 size-6 shrink-0 animate-spin text-amber-700 dark:text-amber-300" />
             ) : checkout.status === "PAID" ? (
-              <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-700" />
+              <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-700 dark:text-emerald-300" />
             ) : (
-              <CircleAlert className="mt-0.5 size-6 shrink-0 text-amber-700" />
+              <CircleAlert className="mt-0.5 size-6 shrink-0 text-amber-700 dark:text-amber-300" />
             )}
             <div>
               <p className="font-semibold">{statusText}</p>
               {waiting ? (
-                <p className="mt-1 text-sm text-stone-600">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Keep this page open or return after making the payment. We
                   check again when you come back.
                 </p>
@@ -255,7 +259,7 @@ export default function CustomerCheckoutPageClient({
           </div>
         </div>
         {error ? (
-          <p role="alert" className="text-sm text-rose-700">
+          <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
             {error}{" "}
             <Button type="button" variant="link" onClick={() => void refresh()}>
               Try again
@@ -274,11 +278,13 @@ export default function CustomerCheckoutPageClient({
         ) : null}
         {checkout.status === "PAID" ? (
           <Button asChild className="w-full">
-            <Link prefetch={false} href="/customer">Back to menu</Link>
+            <Link prefetch={false} href="/customer">
+              Back to menu
+            </Link>
           </Button>
         ) : null}
         {checkout.status === "EXPIRED" || checkout.status === "NEEDS_HELP" ? (
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-muted-foreground">
             Show this checkout to the cashier:{" "}
             <span className="font-mono">{checkout.id}</span>
           </p>

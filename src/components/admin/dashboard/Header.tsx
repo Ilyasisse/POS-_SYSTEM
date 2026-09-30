@@ -33,10 +33,10 @@ export default async function Header({
   return (
     <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
       <div className="min-w-0">
-        <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+        <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">
           Welcome back, {currentUser.fullName}!
         </h1>
-        <p className="mt-1 text-sm font-medium text-slate-600 sm:text-base">
+        <p className="mt-1 text-sm font-medium text-muted-foreground sm:text-base">
           Here&apos;s what&apos;s happening with your cafe today.
         </p>
       </div>
