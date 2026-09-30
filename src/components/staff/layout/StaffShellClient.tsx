@@ -47,50 +47,50 @@ export default function StaffShellClient({
 
       <SidebarInset className="w-full min-w-0">
         <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur-xl">
-            <div className="flex min-h-16 items-center gap-3 px-3 sm:px-5 lg:px-6">
-              <SidebarTrigger className="shrink-0" />
+          <div className="flex min-h-16 items-center gap-3 px-3 sm:px-5 lg:px-6">
+            <SidebarTrigger className="shrink-0" />
 
-              <div className="min-w-0">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                  {workspaceLabel}
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                {workspaceLabel}
+              </p>
+              {workspaceDescription ? (
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {workspaceDescription}
                 </p>
-                {workspaceDescription ? (
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {workspaceDescription}
-                  </p>
-                ) : null}
-              </div>
-
-              {searchSlot ? (
-                <div className="relative ml-auto hidden w-[min(21rem,34vw)] md:block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  {searchSlot}
-                </div>
               ) : null}
+            </div>
 
+            {searchSlot ? (
+              <div className="relative ml-auto hidden w-[min(21rem,34vw)] md:block">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                {searchSlot}
+              </div>
+            ) : null}
+
+            {headerActions ? (
+              <div className="hidden items-center gap-2 sm:flex">
+                {headerActions}
+              </div>
+            ) : null}
+
+            <div className="ml-auto flex items-center gap-2">
+              <ModeToggle />
               {headerActions ? (
-                <div className="hidden items-center gap-2 sm:flex">
+                <div className="flex items-center gap-2 sm:hidden">
                   {headerActions}
                 </div>
               ) : null}
-
-              <div className="ml-auto flex items-center gap-2">
-                <ModeToggle />
-                {headerActions ? (
-                  <div className="flex items-center gap-2 sm:hidden">
-                    {headerActions}
-                  </div>
-                ) : null}
+            </div>
+          </div>
+          {searchSlot ? (
+            <div className="border-t border-border/70 px-3 py-3 md:hidden">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                {searchSlot}
               </div>
             </div>
-            {searchSlot ? (
-              <div className="border-t border-border/70 px-3 py-3 md:hidden">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  {searchSlot}
-                </div>
-              </div>
-            ) : null}
+          ) : null}
         </header>
 
         <PaymentGatewayBanner />

@@ -32,7 +32,10 @@ function ProductCard({
   onProductClick: (product: Product) => void;
 }) {
   const modifierGroups = getProductModifierGroups(product);
-  const ctaLabel = modifierGroups.length > 0 ? "Customize" : "Add";
+  const ctaLabel =
+    modifierGroups.length > 0 || product.category?.station === "BARISTA"
+      ? "Customize"
+      : "Add";
   const hasImage = hasProductImage(product);
 
   return (

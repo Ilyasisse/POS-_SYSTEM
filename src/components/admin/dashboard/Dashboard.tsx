@@ -122,6 +122,7 @@ export default function Dashboard({
         icon={Zap}
         action={
           <Link
+            prefetch={false}
             href="/admin/settings"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
           >
@@ -164,6 +165,7 @@ export default function Dashboard({
           tone="green"
         />
         <Link
+          prefetch={false}
           href="/admin/inventory"
           className="mt-3 inline-flex items-center gap-2 text-sm font-black text-blue-600 hover:text-blue-700"
         >

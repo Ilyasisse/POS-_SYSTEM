@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isProductAvailableAt } from "@/lib/menu/product-availability";
+import { availableForSaleWhere } from "@/lib/products/availability";
 
 export async function GET() {
   try {
@@ -8,6 +9,7 @@ export async function GET() {
       where: {
         isPopular: true,
         isActive: true,
+        ...availableForSaleWhere(),
       },
       include: {
         category: true,

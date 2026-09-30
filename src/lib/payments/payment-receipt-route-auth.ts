@@ -8,7 +8,7 @@ export async function currentPaymentReceiptUser() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const staff = await prisma.user.findUnique({
+  const staff = await prisma.staff.findUnique({
     where: { id: user.id },
     select: {
       id: true,
