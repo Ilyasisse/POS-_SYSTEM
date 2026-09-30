@@ -59,11 +59,10 @@ export default async function AdminOrderDetailsPage({
         orderBy: { createdAt: "asc" },
         include: { modifiers: true },
       },
-      payments: { orderBy: { createdAt: "asc" } },
+      payments: { select: { amountPaid: true } },
       salesAdjustments: {
         orderBy: { createdAt: "desc" },
         include: {
-          actor: { select: { fullName: true } },
           approvedBy: { select: { fullName: true } },
           orderItem: { select: { productName: true } },
         },
@@ -76,7 +75,6 @@ export default async function AdminOrderDetailsPage({
     ? await prisma.order.findMany({
         where: { tableCheckId: order.tableCheckId },
         include: roundContext,
-        orderBy: [{ tableCheckRound: "asc" }, { createdAt: "asc" }],
       })
     : [order];
   // Always include the selected ticket, even if it changes during the second read.
