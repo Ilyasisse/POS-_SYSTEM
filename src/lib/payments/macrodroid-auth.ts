@@ -2,7 +2,11 @@ import { timingSafeEqual } from "node:crypto";
 
 export const MACRODROID_GATEWAY_ID = "macrodroid-898";
 
-export function resolveMacrodroidSecret(env: NodeJS.ProcessEnv = process.env) {
+type MacrodroidEnvironment = Readonly<Record<string, string | undefined>>;
+
+export function resolveMacrodroidSecret(
+  env: MacrodroidEnvironment = process.env,
+) {
   return (
     env.MACRODROID_PAYMENT_WEBHOOK_SECRET?.trim() ||
     env.PAYMENT_WEBHOOK_SECRET?.trim() ||
@@ -10,7 +14,9 @@ export function resolveMacrodroidSecret(env: NodeJS.ProcessEnv = process.env) {
   );
 }
 
-export function expectedMacrodroidSender(env: NodeJS.ProcessEnv = process.env) {
+export function expectedMacrodroidSender(
+  env: MacrodroidEnvironment = process.env,
+) {
   return env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "898";
 }
 
@@ -27,7 +33,7 @@ export function suppliedMacrodroidSecret(request: Request) {
 
 export function isMacrodroidAuthorized(
   request: Request,
-  env: NodeJS.ProcessEnv = process.env,
+  env: MacrodroidEnvironment = process.env,
 ) {
   const expected = resolveMacrodroidSecret(env);
   const supplied = suppliedMacrodroidSecret(request);
@@ -39,7 +45,7 @@ export function isMacrodroidAuthorized(
 
 export function isExpectedMacrodroidSender(
   sender: string,
-  env: NodeJS.ProcessEnv = process.env,
+  env: MacrodroidEnvironment = process.env,
 ) {
   return (
     sender.trim().toUpperCase() === expectedMacrodroidSender(env).toUpperCase()
