@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { recordedPrice } from "@/lib/products/price-history";
 import { deleteProduct, updateProduct } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
+import PriceChangeFields from "./PriceChangeFields";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -18,7 +20,7 @@ export default async function ProductDetailsPage({
 }: ProductDetailsPageProps) {
   const { id } = await params;
 
-  const [product, categories] = await Promise.all([
+  const [product, categories, priceChanges] = await Promise.all([
     prisma.product.findUnique({
       where: { id },
       include: {
@@ -28,6 +30,23 @@ export default async function ProductDetailsPage({
     prisma.category.findMany({
       orderBy: {
         name: "asc",
+      },
+    }),
+    prisma.auditLog.findMany({
+      where: {
+        entityType: "Product",
+        entityId: id,
+        action: "product.price.changed",
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 10,
+      select: {
+        id: true,
+        createdAt: true,
+        previousValue: true,
+        newValue: true,
+        reason: true,
+        actor: { select: { fullName: true } },
       },
     }),
   ]);
@@ -85,23 +104,7 @@ export default async function ProductDetailsPage({
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="product-price"
-                className="mb-1 block text-sm font-medium"
-              >
-                Price
-              </label>
-              <Input
-                id="product-price"
-                name="price"
-                type="number"
-                step="0.01"
-                defaultValue={Number(product.price)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
-                required
-              />
-            </div>
+            <PriceChangeFields initialPrice={Number(product.price)} />
 
             <div>
               <label
@@ -155,6 +158,35 @@ export default async function ProductDetailsPage({
               </Button>
             </div>
           </form>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+          <h2 className="text-lg font-bold text-slate-800">
+            Recent price changes
+          </h2>
+          {priceChanges.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">
+              No audited price changes yet.
+            </p>
+          ) : (
+            <ol className="mt-4 divide-y divide-slate-100">
+              {priceChanges.map((change) => (
+                <li key={change.id} className="py-3 text-sm">
+                  <p className="font-semibold text-slate-900">
+                    {recordedPrice(change.previousValue)} →{" "}
+                    {recordedPrice(change.newValue)}
+                  </p>
+                  <p className="text-slate-600">{change.reason}</p>
+                  <p className="text-xs text-slate-500">
+                    {change.actor?.fullName ?? "Former staff member"} ·{" "}
+                    {change.createdAt.toLocaleString("en-US", {
+                      timeZone: "Africa/Nairobi",
+                    })}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
         </section>
 
         <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">

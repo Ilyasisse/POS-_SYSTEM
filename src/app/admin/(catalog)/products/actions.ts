@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { availabilityRestorationTime } from "@/lib/products/availability";
+import { priceChangeReasonError } from "@/lib/products/price-history";
 
 const ALLOWED_DURATIONS = new Set([60, 180, 720, 1440]);
 
@@ -98,7 +99,7 @@ export async function createProduct(formData: FormData) {
     throw new Error("Product name is required.");
   }
 
-  if (Number.isNaN(price) || price < 0) {
+  if (!Number.isFinite(price) || price < 0) {
     throw new Error("Price must be a valid number.");
   }
 
@@ -123,7 +124,7 @@ export async function createProduct(formData: FormData) {
 }
 
 export async function updateProduct(formData: FormData) {
-  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const actor = await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
@@ -131,6 +132,9 @@ export async function updateProduct(formData: FormData) {
   const categoryId = String(formData.get("categoryId") || "").trim();
   const pronunciationAudioUrl = String(
     formData.get("pronunciationAudioUrl") || "",
+  ).trim();
+  const priceChangeReason = String(
+    formData.get("priceChangeReason") || "",
   ).trim();
 
   if (!id) {
@@ -141,7 +145,7 @@ export async function updateProduct(formData: FormData) {
     throw new Error("Product name is required.");
   }
 
-  if (Number.isNaN(price) || price < 0) {
+  if (!Number.isFinite(price) || price < 0) {
     throw new Error("Price must be a valid number.");
   }
 
@@ -149,17 +153,39 @@ export async function updateProduct(formData: FormData) {
     throw new Error("Category is required.");
   }
 
-  await prisma.product.update({
-    where: { id },
-    data: {
-      name,
-      price,
-      trackStock,
-      pronunciationAudioUrl: pronunciationAudioUrl || null,
-      category: {
-        connect: { id: categoryId },
+  await prisma.$transaction(async (tx) => {
+    const previous = await tx.product.findUnique({
+      where: { id },
+      select: { price: true },
+    });
+    if (!previous) throw new Error("Product not found.");
+    const priceChanged = !previous.price.equals(price);
+    const reasonError = priceChangeReasonError(priceChanged, priceChangeReason);
+    if (reasonError) throw new Error(reasonError);
+
+    const updated = await tx.product.update({
+      where: { id },
+      data: {
+        name,
+        price,
+        trackStock,
+        pronunciationAudioUrl: pronunciationAudioUrl || null,
+        category: { connect: { id: categoryId } },
       },
-    },
+    });
+    if (priceChanged) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: "product.price.changed",
+          entityType: "Product",
+          entityId: id,
+          reason: priceChangeReason,
+          previousValue: { price: previous.price.toString() },
+          newValue: { price: updated.price.toString() },
+        },
+      });
+    }
   });
 
   revalidatePath("/admin/products");
