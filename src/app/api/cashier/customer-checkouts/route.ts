@@ -2,17 +2,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   canTakePayment,
+  canManagePaymentReceipts,
   currentPaymentReceiptUser,
 } from "@/lib/payments/payment-receipt-route-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await currentPaymentReceiptUser();
-  if (!user || !canTakePayment(user)) {
+  if (!user || (!canTakePayment(user) && !canManagePaymentReceipts(user))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const params = new URL(request.url).searchParams;
+  const page = (name: string) => { const value = Number(params.get(name) ?? 0); return Number.isInteger(value) && value >= 0 ? Math.min(value, 10_000) : 0; };
+  const checkoutPage = page("checkoutPage");
+  const receiptPage = page("receiptPage");
   const [checkouts, receipts] = await Promise.all([
     prisma.customerCheckout.findMany({
       where: {
@@ -25,10 +29,11 @@ export async function GET() {
             "NEEDS_HELP",
           ],
         },
-        createdAt: { gte: since },
+
       },
-      orderBy: { createdAt: "desc" },
-      take: 100,
+      orderBy: { createdAt: "asc" },
+      skip: checkoutPage * 100,
+      take: 101,
       select: {
         id: true,
         customerName: true,
@@ -46,9 +51,9 @@ export async function GET() {
         direction: "INCOMING",
         method: "GOLIS",
         amount: { not: null },
-        receivedAt: { gte: since },
+        assignedPaymentRequestId: null,
       },
-      orderBy: { receivedAt: "desc" },
+      orderBy: { receivedAt: "asc" },
       take: 100,
       select: {
         id: true,
@@ -63,11 +68,14 @@ export async function GET() {
   ]);
   return NextResponse.json(
     {
-      checkouts: checkouts.map((checkout) => ({
+      canManage: canManagePaymentReceipts(user),
+      hasMoreCheckouts: checkouts.length > 100,
+      hasMoreReceipts: receipts.length > 100,
+      checkouts: checkouts.slice(0, 100).map((checkout) => ({
         ...checkout,
         amount: Number(checkout.amount),
       })),
-      receipts: receipts.map((receipt) => ({
+      receipts: receipts.slice(0, 100).map((receipt) => ({
         ...receipt,
         amount: Number(receipt.amount),
       })),
