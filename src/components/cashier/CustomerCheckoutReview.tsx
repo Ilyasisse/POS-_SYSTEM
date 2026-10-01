@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
+import { customerPaymentNameMatches, normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
@@ -285,13 +285,14 @@ export default function CustomerCheckoutReview({ admin = false }: { admin?: bool
               : "Amounts differ — choose another receipt"}
           </p>
           <p className="mt-2 text-sm">
+            Name: {customerPaymentNameMatches(selectedCheckout.customerName, selectedReceipt.counterpartyLabel) ? "at least two words match" : "fewer than two words match — manager review required"}.{" "}
             Phone: {Array.isArray(selectedReceipt.counterpartyIdentifiers) && selectedReceipt.counterpartyIdentifiers.some(value => typeof value === "string" && normalizeSomaliPhone(value) === selectedCheckout.payerPhone) ? "matches" : "differs — manager review required"}.
             {" "}Window: {selectedReceipt.transactionAt && new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) && checkedAt <= new Date(selectedCheckout.expiresAt).getTime() ? "within 15 minutes" : "expired — manager review required"}.
           </p>
           <label className="mt-3 block text-sm">Review reason (required)
             <input value={reason} onChange={event => setReason(event.target.value)} className="mt-1 block w-full rounded-lg border bg-background p-3" placeholder="Explain the evidence used to verify this payment" />
           </label>
-          {canManage ? <p className="mt-2 text-xs text-muted-foreground">Admin/manager review can resolve phone or time exceptions. Amount and receipt uniqueness are always enforced.</p> : null}
+          {canManage ? <p className="mt-2 text-xs text-muted-foreground">Admin/manager review can resolve name, phone, or time exceptions. Amount and receipt uniqueness are always enforced.</p> : null}
           <label className="mt-3 flex items-start gap-3 text-sm">
             <input
               type="checkbox"
