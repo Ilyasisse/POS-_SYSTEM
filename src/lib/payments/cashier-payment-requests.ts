@@ -11,7 +11,7 @@ export type PaymentRequestLineInput = {
   amount: number;
 };
 
-export async function getOpenTableBalance(tableId: string) {
+async function getOpenTableBalance(tableId: string) {
   const orders = await prisma.order.findMany({
     where: { tableId, type: "DINE_IN", status: "OPEN" },
     orderBy: { createdAt: "asc" },
@@ -105,7 +105,7 @@ export async function createPaymentRequestBatch(input: {
   });
 }
 
-export async function matchPaymentRequest(input: {
+async function matchPaymentRequest(input: {
   paymentRequestId?: string;
   payerPhone?: string;
   provider?: PaymentMethod;

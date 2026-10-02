@@ -14,7 +14,7 @@ export function expectedMacrodroidSender(env: Readonly<Record<string, string | u
   return env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "898";
 }
 
-export function suppliedMacrodroidSecret(request: Request) {
+function suppliedMacrodroidSecret(request: Request) {
   return (
     request.headers
       .get("authorization")
