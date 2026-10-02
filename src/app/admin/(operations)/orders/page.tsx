@@ -9,19 +9,26 @@ import {
   TableHead,
   ToneBadge,
 } from "@/components/admin/shared";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
+import {
+  orderHistoryPage,
+  parseOrderHistorySearch,
+} from "@/lib/admin/order-history-pagination";
 
 type AdminOrdersPageProps = {
   searchParams?: Promise<{
     q?: string;
     status?: string;
     date?: string;
+    page?: string;
   }>;
 };
 
 const ORDER_STATUS_FILTERS = ["all", "OPEN", "PAID", "CANCELLED"] as const;
 const ORDER_DATE_FILTERS = ["today", "all"] as const;
+const PAGE_SIZE = 20;
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -49,6 +56,7 @@ export default async function AdminOrdersPage({
 }: AdminOrdersPageProps) {
   const params = await searchParams;
   const q = params?.q?.trim() ?? "";
+  const orderNumber = parseOrderHistorySearch(q);
   const status = normalizeFilterChoice(
     params?.status,
     ORDER_STATUS_FILTERS,
@@ -69,43 +77,11 @@ export default async function AdminOrdersPage({
           },
         }
       : {}),
-    ...(q && Number(q)
-      ? {
-          orderNumber: Number(q),
-        }
-      : {}),
+    ...(q ? { orderNumber: orderNumber ?? -1 } : {}),
   };
 
-  const [recentOrders, ordersToday] = await Promise.all([
-    prisma.order.findMany({
-      where,
-      take: 20,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        table: {
-          select: {
-            name: true,
-          },
-        },
-        waiter: {
-          select: {
-            fullName: true,
-          },
-        },
-        cashier: {
-          select: {
-            fullName: true,
-          },
-        },
-        _count: {
-          select: {
-            orderItems: true,
-          },
-        },
-      },
-    }),
+  const [matchingCount, ordersToday] = await Promise.all([
+    prisma.order.count({ where }),
     prisma.order.findMany({
       where: {
         createdAt: {
@@ -118,6 +94,28 @@ export default async function AdminOrdersPage({
       },
     }),
   ]);
+  const page = orderHistoryPage(params?.page, matchingCount, PAGE_SIZE);
+  const recentOrders = await prisma.order.findMany({
+    where,
+    take: PAGE_SIZE,
+    skip: (page - 1) * PAGE_SIZE,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    include: {
+      table: { select: { name: true } },
+      waiter: { select: { fullName: true } },
+      cashier: { select: { fullName: true } },
+      _count: { select: { orderItems: true } },
+    },
+  });
+
+  function pageHref(nextPage: number) {
+    const query = new URLSearchParams();
+    if (q) query.set("q", q);
+    if (status !== "all") query.set("status", status);
+    if (date !== "today") query.set("date", date);
+    query.set("page", String(nextPage));
+    return `/admin/orders?${query.toString()}`;
+  }
 
   const openToday = ordersToday.filter(
     (order) => order.status === "OPEN",
@@ -144,12 +142,14 @@ export default async function AdminOrdersPage({
       <DataTableCard
         footer={
           <p className="text-sm font-medium text-slate-500">
-            Showing 1 to {recentOrders.length} orders
+            {matchingCount > 0
+              ? `Showing ${(page - 1) * PAGE_SIZE + 1}–${(page - 1) * PAGE_SIZE + recentOrders.length} of ${matchingCount} orders`
+              : "No matching orders"}
           </p>
         }
       >
         <SearchToolbar
-          placeholder="Search orders..."
+          placeholder="Search by order number..."
           defaultValue={q}
           hasActiveFilters={Boolean(q || status !== "all" || date !== "today")}
           clearHref="/admin/orders"
@@ -217,6 +217,41 @@ export default async function AdminOrdersPage({
             )}
           </tbody>
         </Table>
+        {q && orderNumber === null ? (
+          <p className="px-4 py-3 text-sm text-amber-700">
+            Enter a whole order number, such as 123 or #123.
+          </p>
+        ) : null}
+        {matchingCount > PAGE_SIZE ? (
+          <nav
+            aria-label="Order history pages"
+            className="flex items-center justify-between gap-3 px-4 py-4 text-sm"
+          >
+            {page > 1 ? (
+              <Link
+                href={pageHref(page - 1)}
+                className="rounded-lg border px-4 py-2 font-semibold hover:bg-slate-50"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span>
+              Page {page} of {Math.ceil(matchingCount / PAGE_SIZE)}
+            </span>
+            {page * PAGE_SIZE < matchingCount ? (
+              <Link
+                href={pageHref(page + 1)}
+                className="rounded-lg border px-4 py-2 font-semibold hover:bg-slate-50"
+              >
+                Next
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        ) : null}
       </DataTableCard>
     </AdminPage>
   );
