@@ -12,22 +12,48 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import {
+  employmentReviewFilter,
+  employmentReviewFilters,
+  employmentReviewWindow,
+} from "@/lib/staff/employment-expiry";
+import Link from "next/link";
 import { saveEmploymentAction } from "../actions";
 
 const label = "grid gap-1 text-sm font-semibold text-slate-700";
 
-export default async function EmploymentPage() {
+type Props = { searchParams?: Promise<{ review?: string }> };
+
+export default async function EmploymentPage({ searchParams }: Props) {
   await requirePermission(PERMISSIONS.EMPLOYMENT_MANAGE);
-  const [staff, profiles] = await Promise.all([
+  const review = employmentReviewFilter((await searchParams)?.review);
+  const { today, afterThirtyDays } = employmentReviewWindow(new Date());
+  const expiringWhere = {
+    status: "ACTIVE" as const,
+    effectiveTo: { gte: today, lt: afterThirtyDays },
+  };
+  const expiredWhere = {
+    status: "ACTIVE" as const,
+    effectiveTo: { lt: today },
+  };
+  const [staff, profiles, expiringCount, expiredCount] = await Promise.all([
     prisma.staff.findMany({
       where: { role: { not: "SUPPLIER" }, isActive: true },
       orderBy: { fullName: "asc" },
       select: { id: true, fullName: true, role: true },
     }),
     prisma.employmentProfile.findMany({
+      where:
+        review === "expiring"
+          ? expiringWhere
+          : review === "expired"
+            ? expiredWhere
+            : undefined,
       include: { user: { select: { fullName: true, role: true } } },
       orderBy: { user: { fullName: "asc" } },
     }),
+    prisma.employmentProfile.count({ where: expiringWhere }),
+    prisma.employmentProfile.count({ where: expiredWhere }),
   ]);
   return (
     <AdminPage
@@ -92,6 +118,27 @@ export default async function EmploymentPage() {
           </div>
         </form>
       </Card>
+      <nav className="flex flex-wrap gap-2" aria-label="Employment term review">
+        {employmentReviewFilters.map((filter) => (
+          <Link
+            key={filter}
+            prefetch={false}
+            href={
+              filter === "all"
+                ? "/admin/staff/employment"
+                : `/admin/staff/employment?review=${filter}`
+            }
+            aria-current={review === filter ? "page" : undefined}
+            className={`rounded-lg border px-3 py-2 text-sm ${review === filter ? "border-blue-600 bg-blue-50 font-semibold" : "border-slate-200"}`}
+          >
+            {filter === "all"
+              ? "All profiles"
+              : filter === "expiring"
+                ? `Expiring within 30 days (${expiringCount})`
+                : `Expired (${expiredCount})`}
+          </Link>
+        ))}
+      </nav>
       <DataTableCard>
         <Table>
           <thead>
@@ -120,6 +167,20 @@ export default async function EmploymentPage() {
                   <TableCell>
                     {profile.effectiveFrom.toLocaleDateString()} –{" "}
                     {profile.effectiveTo?.toLocaleDateString() ?? "ongoing"}
+                    {profile.status === "ACTIVE" &&
+                    profile.effectiveTo &&
+                    profile.effectiveTo < today ? (
+                      <div className="text-xs font-semibold text-red-700">
+                        Term expired; update the profile
+                      </div>
+                    ) : profile.status === "ACTIVE" &&
+                      profile.effectiveTo &&
+                      profile.effectiveTo >= today &&
+                      profile.effectiveTo < afterThirtyDays ? (
+                      <div className="text-xs font-semibold text-amber-700">
+                        Term expires within 30 days
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <ToneBadge
@@ -133,7 +194,9 @@ export default async function EmploymentPage() {
             ) : (
               <tr>
                 <TableCell colSpan={4} className="py-10 text-center">
-                  No employment profiles configured.
+                  {review === "all"
+                    ? "No employment profiles configured."
+                    : "No profiles match this review."}
                 </TableCell>
               </tr>
             )}
