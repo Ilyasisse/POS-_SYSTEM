@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { parseProductMenuContent } from "@/lib/products/product-content";
 import { availabilityRestorationTime } from "@/lib/products/availability";
 
 const ALLOWED_DURATIONS = new Set([60, 180, 720, 1440]);
@@ -93,6 +94,12 @@ export async function createProduct(formData: FormData) {
   const pronunciationAudioUrl = String(
     formData.get("pronunciationAudioUrl") || "",
   ).trim();
+  const menuContent = parseProductMenuContent({
+    description: formData.get("description"),
+    imageUrl: formData.get("imageUrl"),
+    isActive: formData.get("isActive"),
+    isPopular: formData.get("isPopular"),
+  });
 
   if (!name) {
     throw new Error("Product name is required.");
@@ -112,6 +119,7 @@ export async function createProduct(formData: FormData) {
       price,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
+      ...menuContent,
       category: {
         connect: { id: categoryId },
       },
@@ -132,6 +140,12 @@ export async function updateProduct(formData: FormData) {
   const pronunciationAudioUrl = String(
     formData.get("pronunciationAudioUrl") || "",
   ).trim();
+  const menuContent = parseProductMenuContent({
+    description: formData.get("description"),
+    imageUrl: formData.get("imageUrl"),
+    isActive: formData.get("isActive"),
+    isPopular: formData.get("isPopular"),
+  });
 
   if (!id) {
     throw new Error("Product id is required.");
@@ -156,6 +170,7 @@ export async function updateProduct(formData: FormData) {
       price,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
+      ...menuContent,
       category: {
         connect: { id: categoryId },
       },
