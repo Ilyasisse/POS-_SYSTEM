@@ -16,7 +16,10 @@ export default function PaymentReceiptReview() {
       setReceipts(data.receipts);
     } catch (cause) { toast({ tone: "error", description: cause instanceof Error ? cause.message : "Could not load receipts." }); }
   }, [toast]);
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    const initial = window.setTimeout(() => void refresh(), 0);
+    return () => window.clearTimeout(initial);
+  }, [refresh]);
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
