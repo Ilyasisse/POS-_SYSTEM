@@ -18,8 +18,7 @@ export async function POST(
     where: {
       id,
       customerId: authorization.user.id,
-      status: { in: ["PENDING", "REVIEW"] },
-      expiresAt: { gt: new Date() },
+      status: { in: ["PENDING", "REVIEW", "EXPIRED"] },
       receiptId: null,
     },
     data: { status: "REVIEW" },
