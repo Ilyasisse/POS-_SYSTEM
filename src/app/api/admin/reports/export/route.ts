@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizeApi } from "@/lib/auth/api-authorization";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import {
   getExportData,
@@ -14,6 +14,9 @@ import {
 } from "@/lib/reports/export-service";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
 import { reportQuerySchema } from "@/lib/reports/validation";
+import { exportReportPermissions } from "@/lib/reports/report-permissions";
+import { visibleSalesReport } from "@/lib/reports/sales-report-visibility";
+import type { getSalesReport } from "@/lib/reports/services/sales-report-service";
 
 const reports = new Set<ExportReport>([
   "sales",
@@ -50,12 +53,25 @@ export async function POST(request: Request) {
       { error: "Invalid report filters.", details: parsed.error.flatten() },
       { status: 400 },
     );
+  const selectedReport = report as ExportReport;
+  if (
+    !hasPermission(authorization.user, exportReportPermissions[selectedReport])
+  ) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
   const data = await getExportData(
     report as ExportReport,
     resolveReportRange(parsed.data),
     parsed.data,
   );
-  const rows = flattenReport(data);
+  const visibleData =
+    selectedReport === "sales"
+      ? visibleSalesReport(
+          data as Awaited<ReturnType<typeof getSalesReport>>,
+          authorization.user,
+        )
+      : data;
+  const rows = flattenReport(visibleData);
   const selectedFormat = format as ExportFormat;
   await prisma.reportExportAudit.create({
     data: {

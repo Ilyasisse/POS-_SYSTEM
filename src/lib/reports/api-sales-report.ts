@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { authorizeApi } from "@/lib/auth/api-authorization";
-import {
-  hasPermission,
-  PERMISSIONS,
-  type Permission,
-} from "@/lib/auth/permissions";
+import type { Permission } from "@/lib/auth/permissions";
 import { getSalesReport } from "@/lib/reports/services/sales-report-service";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
 import { reportQuerySchema } from "@/lib/reports/validation";
+import { visibleSalesReport } from "@/lib/reports/sales-report-visibility";
 import {
   isReportSchemaNotReady,
   REPORT_SCHEMA_NOT_READY_MESSAGE,
@@ -49,37 +46,7 @@ export async function salesReportResponse(
     }
     throw error;
   }
-  const authorizedReport = hasPermission(
-    authorization.user,
-    PERMISSIONS.REPORT_FINANCIAL_VIEW,
-  )
-    ? report
-    : {
-        ...report,
-        summary: {
-          ...report.summary,
-          cogs: null,
-          grossProfit: null,
-          grossMargin: null,
-          costCoveragePercent: null,
-          costCoveredLines: 0,
-          totalLines: 0,
-        },
-        categories: report.categories.map((row) => ({
-          id: row.id,
-          name: row.name,
-          quantity: row.quantity,
-          grossSales: row.grossSales,
-          missingCostLines: row.missingCostLines,
-        })),
-        products: report.products.map((row) => ({
-          id: row.id,
-          name: row.name,
-          quantity: row.quantity,
-          grossSales: row.grossSales,
-          missingCostLines: row.missingCostLines,
-        })),
-      };
+  const authorizedReport = visibleSalesReport(report, authorization.user);
   return NextResponse.json(
     select === "products"
       ? {
