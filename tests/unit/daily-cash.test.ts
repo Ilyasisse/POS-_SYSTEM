@@ -24,11 +24,11 @@ import {
 
 test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
   assert.equal(
-    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 6, 59, 59)),
+    getDailyCashDefaultDateKey(new Date("2026-08-10T03:59:59.000Z")),
     "2026-08-09",
   );
   assert.equal(
-    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 7, 0, 0)),
+    getDailyCashDefaultDateKey(new Date("2026-08-10T04:00:00.000Z")),
     "2026-08-10",
   );
   assert.equal(getDailyCashWaiterBalanceDateKey("2026-08-10"), "2026-08-09");

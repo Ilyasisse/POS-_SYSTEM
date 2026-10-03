@@ -67,7 +67,7 @@ export function getBusinessDayRange(anchor: Date = new Date()): ReportRange {
   const local = shifted(anchor);
   const minute = local.getUTCHours() * 60 + local.getUTCMinutes();
   let date = cafeDate(anchor);
-  if (minute < BUSINESS_DAY_END_MINUTE) date = addCafeDays(date, -1);
+  if (minute < BUSINESS_DAY_START_MINUTE) date = addCafeDays(date, -1);
   return {
     start: utcFromCafe(date, BUSINESS_DAY_START_MINUTE),
     end: utcFromCafe(addCafeDays(date, 1), BUSINESS_DAY_END_MINUTE),

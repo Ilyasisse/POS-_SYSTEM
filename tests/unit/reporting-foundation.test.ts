@@ -32,6 +32,32 @@ test("assigns after-midnight sales to the prior business date", () => {
   assert.equal(range.end.toISOString(), "2026-07-18T02:00:00.000Z");
 });
 
+test("keeps reports on the completed business day until the 7 AM opening", () => {
+  for (const timestamp of [
+    "2026-08-01T02:00:00.000Z",
+    "2026-08-01T03:59:59.000Z",
+  ]) {
+    const anchor = new Date(timestamp);
+    const day = getBusinessDayRange(anchor);
+    assert.equal(day.start.toISOString(), "2026-07-31T04:00:00.000Z");
+    assert.equal(day.end.toISOString(), "2026-08-01T02:00:00.000Z");
+    assert.equal(
+      getReportingMonthRange(anchor).start.toISOString(),
+      "2026-07-01T04:00:00.000Z",
+    );
+    assert.equal(
+      getReportingWeekRange(anchor).start.toISOString(),
+      "2026-07-25T04:00:00.000Z",
+    );
+  }
+  assert.equal(
+    getBusinessDayRange(
+      new Date("2026-08-01T04:00:00.000Z"),
+    ).start.toISOString(),
+    "2026-08-01T04:00:00.000Z",
+  );
+});
+
 test("validates business dates and builds Saturday reporting weeks", () => {
   assert.deepEqual(parseBusinessDate("2026-02-29"), null);
   assert.ok(getBusinessDateRange("2026-07-18"));
