@@ -107,6 +107,8 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.TABLE_MANAGE,
     countKey: "tables",
   },
+  { key: "payment-review", href: "/admin/payment-review", label: "Payment review", icon: ReceiptText, permission: PERMISSIONS.PAYMENT_RECEIPT_MANAGE },
+  { key: "cashier-status", href: "/admin/cashier-status", label: "Cashier status", icon: Users, permission: PERMISSIONS.STAFF_MANAGE },
   {
     key: "orders",
     href: "/admin/orders",
