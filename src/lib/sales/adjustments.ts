@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma, SalesAdjustmentType } from "@prisma/client";
 import { z } from "zod";
+import { lockOrderForSettlement } from "@/lib/payments/order-settlement";
 import {
   adjustmentReducesAmountDue,
   isAdjustmentAllowedForStatus,
@@ -55,6 +56,7 @@ export async function createSalesAdjustment(
       400,
     );
 
+  await lockOrderForSettlement(tx, input.orderId);
   const order = await tx.order.findUnique({
     where: { id: input.orderId },
     select: {
