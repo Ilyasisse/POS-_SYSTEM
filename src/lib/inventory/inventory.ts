@@ -5,6 +5,7 @@ import { decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
   appendStockEvent,
   deductSaleInventory,
+  lockInventoryTarget,
 } from "@/lib/inventory/stock-ledger";
 
 export type InventorySaleLine = {
@@ -485,6 +486,7 @@ export async function setProductInventoryLevel(
   // Admin product adjustments keep their stock/alert behavior but no longer
   // write InventoryMovement rows. This prevents Prisma from touching the deleted
   // InventoryMovement.productId column while preserving product inventory totals.
+  await lockInventoryTarget(tx, { productId });
   const product = await tx.product.findUnique({
     where: { id: productId },
     select: {
@@ -554,6 +556,7 @@ export async function setSupplyInventoryLevel(
   note?: string,
   actorUserId?: string | null,
 ) {
+  await lockInventoryTarget(tx, { supplyId });
   const supply = await tx.inventorySupply.findUnique({
     where: { id: supplyId },
     select: {

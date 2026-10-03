@@ -10,6 +10,7 @@ import {
 } from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
 import { decimalQuantity } from "@/lib/inventory/inventory-domain";
+import { lockInventoryTarget } from "@/lib/inventory/stock-ledger";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 function getString(formData: FormData, key: string) {
@@ -62,6 +63,7 @@ export async function takeSupplyInventory(formData: FormData) {
   }
 
   const alerts = await prisma.$transaction(async (tx) => {
+    await lockInventoryTarget(tx, { supplyId });
     const supply = await tx.inventorySupply.findUnique({
       where: { id: supplyId },
       select: {

@@ -15,6 +15,7 @@ import {
   setProductInventoryLevel,
   setSupplyInventoryLevel,
 } from "@/lib/inventory/inventory";
+import { lockInventoryTarget } from "@/lib/inventory/stock-ledger";
 
 // Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
@@ -135,8 +136,13 @@ export async function adjustProductInventory(formData: FormData) {
     throw new Error("Adjustment quantity must be greater than zero.");
   }
 
+  if (direction !== "add" && direction !== "remove") {
+    throw new Error("Choose whether to add or remove stock.");
+  }
+
   // Calculates and saves the product adjustment inside one database transaction.
   const alerts = await prisma.$transaction(async (tx) => {
+    await lockInventoryTarget(tx, { productId });
     // Loads the product's current stock so the delta can be applied safely.
     const product = await tx.product.findUnique({
       where: { id: productId },
@@ -219,6 +225,7 @@ export async function adjustSupplyInventory(formData: FormData) {
 
   // Calculates and saves the supply adjustment inside one database transaction.
   const alerts = await prisma.$transaction(async (tx) => {
+    await lockInventoryTarget(tx, { supplyId });
     // Loads the supply's current stock so the delta can be applied safely.
     const supply = await tx.inventorySupply.findUnique({
       where: { id: supplyId },

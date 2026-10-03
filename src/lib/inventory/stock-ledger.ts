@@ -15,6 +15,21 @@ type StockTarget =
   | { productId: string; supplyId?: never }
   | { productId?: never; supplyId: string };
 
+/** Keep reads used to calculate an absolute stock adjustment current until commit. */
+export async function lockInventoryTarget(
+  tx: Prisma.TransactionClient,
+  target: StockTarget,
+) {
+  const rows = target.productId
+    ? await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "Product" WHERE "id" = ${target.productId} FOR UPDATE`,
+      )
+    : await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "InventorySupply" WHERE "id" = ${target.supplyId} FOR UPDATE`,
+      );
+  if (rows.length !== 1) throw new Error("Inventory target not found.");
+}
+
 type StockMutation = StockTarget & {
   type: StockEventType;
   quantityDelta: Prisma.Decimal | string | number;
