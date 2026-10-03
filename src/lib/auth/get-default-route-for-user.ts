@@ -20,20 +20,19 @@ export function getDefaultRouteForUser(user: AppUser) {
   if (user.role === "CASHIER") return "/cashier";
   if (user.role === "WAITER") return "/waiter";
   if (user.role === "CUSTOMER") return "/menu";
-  if (user.role === "BARISTA" || user.station === "BARISTA") {
-    return "/kitchen/barista";
-  }
-
-  if (isCabitaanRole || user.station === "CABITAAN") {
-    return "/kitchen/cabitaan";
-  }
-
-  if (user.role === "COOK" && user.station === "FAST_FOOD") {
-    return "/kitchen/fast-food";
-  }
-
-  if (user.role === "COOK" && user.station === "CUNTO_SOOMAALI") {
-    return "/kitchen/cunto-soomaali";
+  if (user.role === "COOK" || user.role === "BARISTA" || isCabitaanRole) {
+    // Explicit assignments take precedence, as they do in station authorization.
+    const station =
+      user.station ||
+      (user.role === "BARISTA"
+        ? "BARISTA"
+        : isCabitaanRole
+          ? "CABITAAN"
+          : null);
+    if (station === "BARISTA") return "/kitchen/barista";
+    if (station === "CABITAAN") return "/kitchen/cabitaan";
+    if (station === "FAST_FOOD") return "/kitchen/fast-food";
+    if (station === "CUNTO_SOOMAALI") return "/kitchen/cunto-soomaali";
   }
 
   return "/staff-login";
