@@ -1,7 +1,10 @@
 import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
-import { decimalQuantity } from "@/lib/inventory/inventory-domain";
+import {
+  canonicalUnitLabel,
+  decimalQuantity,
+} from "@/lib/inventory/inventory-domain";
 import {
   appendStockEvent,
   deductSaleInventory,
@@ -151,7 +154,7 @@ function formatInventoryAlertHtml(alert: InventoryAlert) {
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
       <h2 style="margin: 0 0 12px;">Inventory Alert: ${statusLabel}</h2>
-      <p style="margin: 0 0 8px;"><strong>${alert.itemType}:</strong> ${alert.itemName}</p>
+      <p style="margin: 0 0 8px;"><strong>${alert.itemType}:</strong> ${escapeHtml(alert.itemName)}</p>
       <p style="margin: 0 0 8px;"><strong>Current stock:</strong> ${alert.stockQty}</p>
       <p style="margin: 0;"><strong>Low threshold:</strong> ${alert.lowStockThreshold}</p>
     </div>
@@ -310,6 +313,7 @@ export async function sendDailyInventorySupplyDigest() {
       id: true,
       name: true,
       unit: true,
+      canonicalUnit: true,
       stockQty: true,
       lowStockThreshold: true,
       inventoryAlertStatus: true,
@@ -318,6 +322,9 @@ export async function sendDailyInventorySupplyDigest() {
 
   const items = supplies.map<DailySupplyDigestItem>((supply) => ({
     ...supply,
+    unit: supply.canonicalUnit
+      ? canonicalUnitLabel(supply.canonicalUnit)
+      : supply.unit,
     stockQty: toValidQuantity(supply.stockQty),
     lowStockThreshold: toValidQuantity(supply.lowStockThreshold),
     previousInventoryAlertStatus: supply.inventoryAlertStatus,
@@ -365,12 +372,23 @@ export async function sendDailyInventorySupplyDigest() {
 
   const resend = new Resend(apiKey);
 
-  await resend.emails.send({
-    from,
-    to,
-    subject: "Daily Inventory Alert",
-    html: formatDailyInventoryDigestHtml(items),
-  });
+  try {
+    const result = await resend.emails.send({
+      from,
+      to,
+      subject: "Daily Inventory Alert",
+      html: formatDailyInventoryDigestHtml(items),
+    });
+    if (result.error) throw result.error;
+  } catch (error) {
+    console.error("Daily inventory email failed:", error);
+    return {
+      sent: false,
+      lowStockCount,
+      outOfStockCount,
+      reason: "email_delivery_failed",
+    };
+  }
 
   return {
     sent: true,
@@ -625,7 +643,7 @@ export async function setSupplyInventoryLevel(
     await tx.inventoryMovement.create({
       data: {
         supplyId: supply.id,
-        itemName: `${supply.name} (${supply.unit})`,
+        itemName: `${supply.name} (${canonicalUnitLabel(supply.canonicalUnit)})`,
         itemType: "Supply",
         delta,
         quantityBefore,
