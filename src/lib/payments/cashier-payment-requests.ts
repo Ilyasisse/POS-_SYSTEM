@@ -1,6 +1,7 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { lockTableForSettlement } from "@/lib/payments/order-settlement";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
@@ -40,11 +41,28 @@ export async function createPaymentRequestBatch(input: {
   lines: PaymentRequestLineInput[];
   payLater: boolean;
 }) {
+  if (!input.batchKey.trim() || !input.tableId.trim()) {
+    throw new Error("A payment check key and table are required.");
+  }
   const existing = await prisma.paymentRequest.findMany({
     where: { batchKey: input.batchKey },
     orderBy: { lineIndex: "asc" },
   });
-  if (existing.length) return existing;
+  if (existing.length) {
+    if (
+      existing.some(
+        (request) =>
+          request.cashierId !== input.cashier.id ||
+          request.tableId !== input.tableId ||
+          request.method !== input.method,
+      )
+    ) {
+      throw new Error(
+        "This payment check belongs to another cashier, table, or payment method. Start a new payment check.",
+      );
+    }
+    return existing;
+  }
   const dueCents = await getOpenTableBalance(input.tableId);
   if (dueCents <= 0)
     throw new Error("This table no longer has an unpaid balance.");
@@ -148,6 +166,13 @@ export async function matchPaymentRequest(input: {
         );
       request = candidates[0] ?? null;
     }
+    if (!request) throw new Error("Payment request not found.");
+    await lockTableForSettlement(tx, request.tableId);
+    await tx.$queryRawUnsafe(
+      'SELECT "id" FROM "PaymentRequest" WHERE "id" = $1 FOR UPDATE',
+      request.id,
+    );
+    request = await tx.paymentRequest.findUnique({ where: { id: request.id } });
     if (!request) throw new Error("Payment request not found.");
     if (request.status === "MATCHED") return { duplicate: true, request };
     if (request.status !== "PENDING" || request.expiresAt < paidAt)

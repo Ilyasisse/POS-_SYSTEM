@@ -284,7 +284,10 @@ export default function CashierOrderExperience({
       });
       return;
     }
-    if (getProductModifierGroups(product).length) {
+    if (
+      getProductModifierGroups(product).length ||
+      product.category?.station === "BARISTA"
+    ) {
       dispatch({ type: "modifierOpen", product });
       return;
     }

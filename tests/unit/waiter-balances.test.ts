@@ -11,6 +11,7 @@ import {
 import {
   assertLedgerBusinessDate,
   calculateWaiterBalance,
+  formatBusinessDateKey,
   getCurrentBusinessDateKey,
   getDefaultWaiterBalanceDateKey,
   getBusinessDayRangeForKey,
@@ -108,6 +109,33 @@ test("uses the established 7 AM to 5 AM POS business-day window", () => {
     formatCashierBusinessDayRange(start, end),
     "Jul 1 7:00 AM to Jul 2 5:00 AM",
   );
+});
+
+test("business-date keys and ranges do not depend on the server timezone", () => {
+  const originalTimezone = process.env.TZ;
+  try {
+    for (const timezone of [
+      "UTC",
+      "America/Los_Angeles",
+      "Pacific/Kiritimati",
+    ]) {
+      process.env.TZ = timezone;
+      assert.equal(
+        formatBusinessDateKey(new Date("2026-07-01T00:00:00.000Z")),
+        "2026-07-01",
+      );
+      assert.equal(
+        getCurrentBusinessDateKey(new Date("2026-07-01T04:00:00.000Z")),
+        "2026-07-01",
+      );
+      const range = getBusinessDayRangeForKey("2026-07-01");
+      assert.equal(range.start.toISOString(), "2026-07-01T04:00:00.000Z");
+      assert.equal(range.end.toISOString(), "2026-07-02T02:00:00.000Z");
+    }
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
 });
 
 test("keeps the most recently completed POS window during the 5 AM to 7 AM gap", () => {

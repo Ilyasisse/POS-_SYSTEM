@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { parseStaffDateTime } from "@/lib/staff/staff-date-time";
 import {
   approveAttendance,
   approvePayrollAdjustment,
@@ -73,8 +74,8 @@ export async function saveAttendancePolicyAction(formData: FormData) {
     overtimeThresholdMinutes: z.coerce
       .number()
       .int()
-      .min(0)
-      .max(480)
+      .min(1)
+      .max(1440)
       .parse(formData.get("overtimeThresholdMinutes")),
     actorUserId: actor.id,
   });
@@ -85,8 +86,8 @@ export async function createScheduleAction(formData: FormData) {
   const actor = await requirePermission(PERMISSIONS.ATTENDANCE_SCHEDULE);
   await createScheduledShift({
     workerId: id.parse(formData.get("workerId")),
-    startsAt: z.coerce.date().parse(formData.get("startsAt")),
-    endsAt: z.coerce.date().parse(formData.get("endsAt")),
+    startsAt: parseStaffDateTime(z.string().parse(formData.get("startsAt"))),
+    endsAt: parseStaffDateTime(z.string().parse(formData.get("endsAt"))),
     station: z
       .enum(["CUNTO_SOOMAALI", "FAST_FOOD", "BARISTA", "CABITAAN"])
       .nullable()

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { formatStaffDateTime } from "@/lib/staff/staff-date-time";
 import { cancelScheduleAction, createScheduleAction } from "../actions";
 
 const label = "grid gap-1 text-sm font-semibold text-slate-700";
@@ -57,11 +58,11 @@ export default async function StaffSchedulesPage() {
             </select>
           </label>
           <label className={label}>
-            Starts
+            Starts (Nairobi time)
             <Input name="startsAt" type="datetime-local" required />
           </label>
           <label className={label}>
-            Ends
+            Ends (Nairobi time)
             <Input name="endsAt" type="datetime-local" required />
           </label>
           <label className={label}>
@@ -98,8 +99,8 @@ export default async function StaffSchedulesPage() {
                   <TableCell className="font-semibold">
                     {shift.worker.fullName}
                   </TableCell>
-                  <TableCell>{shift.startsAt.toLocaleString()}</TableCell>
-                  <TableCell>{shift.endsAt.toLocaleString()}</TableCell>
+                  <TableCell>{formatStaffDateTime(shift.startsAt)}</TableCell>
+                  <TableCell>{formatStaffDateTime(shift.endsAt)}</TableCell>
                   <TableCell>{shift.station ?? "General"}</TableCell>
                   <TableCell>
                     <ToneBadge

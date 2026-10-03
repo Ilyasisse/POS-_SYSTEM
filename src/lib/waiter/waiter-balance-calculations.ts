@@ -68,9 +68,9 @@ export function businessDateKeyToDatabaseDate(businessDateKey: string) {
 }
 
 export function formatBusinessDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getUTCDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -100,7 +100,10 @@ export function getBusinessDayRangeForKey(businessDateKey: string) {
 
   if (!parsed) throw new Error("Invalid business date.");
   const [year, month, day] = parsed.split("-").map(Number);
-  return getCashierBusinessDayRange(new Date(year, month - 1, day, 12, 0, 0));
+  // Anchor at noon in Nairobi without depending on the host's timezone.
+  return getCashierBusinessDayRange(
+    new Date(Date.UTC(year, month - 1, day, 9)),
+  );
 }
 
 export function assertLedgerBusinessDate(

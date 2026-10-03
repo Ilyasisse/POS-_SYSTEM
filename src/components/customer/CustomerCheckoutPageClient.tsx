@@ -52,39 +52,47 @@ export default function CustomerCheckoutPageClient({
   const [android, setAndroid] = useState(false);
   const [tick, setTick] = useState(0);
   const requestSequence = useRef(0);
+  const requestInFlight = useRef<Promise<void> | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
+    if (requestInFlight.current) return requestInFlight.current;
     const sequence = ++requestSequence.current;
-    try {
-      const response = await fetch(
-        `/api/customer/checkouts/${encodeURIComponent(checkoutId)}`,
-        {
-          cache: "no-store",
-        },
-      );
-      const data = (await response.json()) as {
-        checkout?: Checkout;
-        error?: string;
-      };
-      if (!response.ok || !data.checkout) {
-        throw new Error(data.error || "Could not check payment status.");
+    const request = (async () => {
+      try {
+        const response = await fetch(
+          `/api/customer/checkouts/${encodeURIComponent(checkoutId)}`,
+          { cache: "no-store" },
+        );
+        const data = (await response.json()) as {
+          checkout?: Checkout;
+          error?: string;
+        };
+        if (!response.ok || !data.checkout) {
+          throw new Error(data.error || "Could not check payment status.");
+        }
+        if (sequence !== requestSequence.current) return;
+        setCheckout(data.checkout);
+        setError("");
+      } catch (cause) {
+        if (sequence !== requestSequence.current) return;
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not check payment status.",
+        );
+      } finally {
+        if (sequence === requestSequence.current) setLoading(false);
       }
-      if (sequence !== requestSequence.current) return;
-      setCheckout(data.checkout);
-      setError("");
-    } catch (cause) {
-      if (sequence !== requestSequence.current) return;
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Could not check payment status.",
-      );
-    } finally {
-      if (sequence === requestSequence.current) setLoading(false);
-    }
+    })().finally(() => {
+      if (requestInFlight.current === request) requestInFlight.current = null;
+    });
+    requestInFlight.current = request;
+    return request;
   }, [checkoutId]);
 
   useEffect(() => {
+    const sequence = requestSequence;
+    const inFlight = requestInFlight;
     const initial = window.setTimeout(() => {
       setAndroid(isAndroidDevice(navigator.userAgent));
       void refresh();
@@ -101,7 +109,8 @@ export default function CustomerCheckoutPageClient({
     window.addEventListener("focus", onReturn);
     document.addEventListener("visibilitychange", onReturn);
     return () => {
-      requestSequence.current++;
+      sequence.current++;
+      inFlight.current = null;
       window.clearTimeout(initial);
       window.clearInterval(interval);
       window.removeEventListener("focus", onReturn);

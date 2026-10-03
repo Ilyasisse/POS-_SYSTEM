@@ -15,6 +15,21 @@ type StockTarget =
   | { productId: string; supplyId?: never }
   | { productId?: never; supplyId: string };
 
+/** Keep reads used to calculate an absolute stock adjustment current until commit. */
+export async function lockInventoryTarget(
+  tx: Prisma.TransactionClient,
+  target: StockTarget,
+) {
+  const rows = target.productId
+    ? await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "Product" WHERE "id" = ${target.productId} FOR UPDATE`,
+      )
+    : await tx.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT "id" FROM "InventorySupply" WHERE "id" = ${target.supplyId} FOR UPDATE`,
+      );
+  if (rows.length !== 1) throw new Error("Inventory target not found.");
+}
+
 type StockMutation = StockTarget & {
   type: StockEventType;
   quantityDelta: Prisma.Decimal | string | number;
@@ -147,7 +162,11 @@ function appendStockEventsInOrder(
   );
 }
 
-export type SaleInventoryLine = { productId: string; qty: number };
+export type SaleInventoryLine = {
+  productId: string;
+  qty: number;
+  recipeVersionId?: string | null;
+};
 
 export async function deductSaleInventory(
   tx: Prisma.TransactionClient,
@@ -156,17 +175,30 @@ export async function deductSaleInventory(
   actorUserId?: string | null,
   actorCustomerId?: string | null,
 ) {
-  const quantityByProduct = new Map<string, Prisma.Decimal>();
+  const groups = new Map<
+    string,
+    {
+      productId: string;
+      qty: Prisma.Decimal;
+      recipeVersionId?: string | null;
+    }
+  >();
   for (const line of lines) {
     const qty = positiveDecimalQuantity(line.qty, "Sold quantity");
-    quantityByProduct.set(
+    const key = JSON.stringify([
       line.productId,
-      (quantityByProduct.get(line.productId) ?? new Prisma.Decimal(0)).add(qty),
-    );
+      line.recipeVersionId === undefined,
+      line.recipeVersionId ?? null,
+    ]);
+    const previous = groups.get(key);
+    groups.set(key, {
+      ...line,
+      qty: (previous?.qty ?? new Prisma.Decimal(0)).add(qty),
+    });
   }
   const now = new Date();
   const products = await tx.product.findMany({
-    where: { id: { in: [...quantityByProduct.keys()] } },
+    where: { id: { in: [...new Set(lines.map((line) => line.productId))] } },
     include: {
       recipeVersions: {
         where: {
@@ -179,9 +211,38 @@ export async function deductSaleInventory(
       },
     },
   });
-  const mutations = products.flatMap<StockMutation>((product) => {
-    const sold = quantityByProduct.get(product.id)!;
-    const recipe = selectEffectiveRecipe(product.recipeVersions, now);
+  const snapshotRecipeIds = [
+    ...new Set(
+      lines.flatMap((line) =>
+        line.recipeVersionId ? [line.recipeVersionId] : [],
+      ),
+    ),
+  ];
+  const snapshotRecipes = snapshotRecipeIds.length
+    ? await tx.recipeVersion.findMany({
+        where: { id: { in: snapshotRecipeIds } },
+        include: { ingredients: true },
+      })
+    : [];
+  const snapshotRecipeById = new Map(
+    snapshotRecipes.map((recipe) => [recipe.id, recipe]),
+  );
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const mutations = [...groups.values()].flatMap<StockMutation>((line) => {
+    const product = productById.get(line.productId);
+    if (!product) throw new Error("Sold inventory product not found.");
+    const sold = line.qty;
+    const recipe =
+      line.recipeVersionId === undefined
+        ? selectEffectiveRecipe(product.recipeVersions, now)
+        : line.recipeVersionId === null
+          ? null
+          : snapshotRecipeById.get(line.recipeVersionId);
+    if (line.recipeVersionId && (!recipe || recipe.productId !== product.id)) {
+      throw new Error(
+        "The snapshotted recipe does not belong to this product.",
+      );
+    }
     if (recipe) {
       return recipe.ingredients.map((ingredient) => {
         const usage = new Prisma.Decimal(ingredient.quantity)

@@ -12,6 +12,7 @@ import {
   fingerprintSms,
   parseSahalMessage,
 } from "@/lib/payments/macrodroid-sahal";
+import { lockTableForSettlement } from "@/lib/payments/order-settlement";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
@@ -169,6 +170,12 @@ export async function assignMobileMoneyReceipt(input: {
 
   return prisma.$transaction(
     async (tx) => {
+      const selectedRequest = await tx.paymentRequest.findUnique({
+        where: { id: input.paymentRequestId },
+        select: { tableId: true },
+      });
+      if (!selectedRequest) throw new Error("Payment request not found.");
+      await lockTableForSettlement(tx, selectedRequest.tableId);
       await tx.$queryRawUnsafe(
         'SELECT "id" FROM "PaymentRequest" WHERE "id" = $1 FOR UPDATE',
         input.paymentRequestId,
@@ -365,6 +372,18 @@ export async function reverseMobileMoneyReceipt(input: {
   }
   return prisma.$transaction(
     async (tx) => {
+      const selectedReceipt = await tx.mobileMoneyReceipt.findUnique({
+        where: { id: input.receiptId },
+        select: { paymentRequest: { select: { id: true, tableId: true } } },
+      });
+      if (!selectedReceipt?.paymentRequest) {
+        throw new Error("This receipt is not currently assigned.");
+      }
+      await lockTableForSettlement(tx, selectedReceipt.paymentRequest.tableId);
+      await tx.$queryRawUnsafe(
+        'SELECT "id" FROM "PaymentRequest" WHERE "id" = $1 FOR UPDATE',
+        selectedReceipt.paymentRequest.id,
+      );
       await tx.$queryRawUnsafe(
         'SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = $1 FOR UPDATE',
         input.receiptId,
@@ -388,6 +407,11 @@ export async function reverseMobileMoneyReceipt(input: {
         !receipt.paymentRequest
       ) {
         throw new Error("This receipt is not currently assigned.");
+      }
+      if (receipt.paymentRequest.id !== selectedReceipt.paymentRequest.id) {
+        throw new Error(
+          "This receipt's assignment changed. Refresh and retry the correction.",
+        );
       }
 
       const tableCheckIds = [

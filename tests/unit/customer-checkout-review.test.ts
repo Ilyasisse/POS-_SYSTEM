@@ -13,7 +13,7 @@ function loadModule(path: string, dependencies: Record<string, unknown>) {
       target: ts.ScriptTarget.ES2022,
     },
   }).outputText;
-  const exports: Record<string, any> = {};
+  const exports: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
   vm.runInNewContext(output, {
     exports,
     require: (name: string) => dependencies[name] ?? {},
@@ -84,7 +84,7 @@ function fixture(ambiguous = false, phone = "252905109687") {
       return run(prisma);
     },
   };
-  const module = loadModule("src/lib/payments/customer-checkout.ts", {
+  const loadedModule = loadModule("src/lib/payments/customer-checkout.ts", {
     "@prisma/client": {
       CustomerCheckoutStatus: statuses,
       MobileMoneyReceiptStatus: {
@@ -98,8 +98,8 @@ function fixture(ambiguous = false, phone = "252905109687") {
   return {
     checkout,
     receipt,
-    assign: (input: Record<string, unknown> = {}) => module.assignCustomerCheckoutReceipt({ checkoutId: checkout.id, receiptId: receipt.id, ...input }),
-    retry: () => module.retryCustomerCheckoutPayment(checkout.id),
+    assign: (input: Record<string, unknown> = {}) => loadedModule.assignCustomerCheckoutReceipt({ checkoutId: checkout.id, receiptId: receipt.id, ...input }),
+    retry: () => loadedModule.retryCustomerCheckoutPayment(checkout.id),
     claims: () => claims,
   };
 }
@@ -139,7 +139,7 @@ test("review endpoint accepts repeated review and invokes reconciliation", async
       "@/lib/prisma": {
         prisma: {
           customerCheckout: {
-            updateMany: async ({ where }: any) => {
+            updateMany: async ({ where }: { where: { customerId: string; status: { in: string[] } } }) => {
               assert.equal(where.customerId, "customer");
               assert.ok(where.status.in.includes("REVIEW"));
               return { count: 1 };

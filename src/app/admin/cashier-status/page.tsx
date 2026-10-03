@@ -9,6 +9,7 @@ export default async function CashierStatusPage() {
     prisma.auditLog.findMany({ where: { action: "staff.availability_changed" }, include: { actor: { select: { fullName: true } } }, orderBy: { createdAt: "desc" }, take: 100 }),
     prisma.order.findMany({ where: { customerCheckout: { is: { status: "PAID" } }, waiterId: null, cashierId: null, kitchenTicketState: { is: { pickupStatus: { not: "DELIVERED" } } } }, select: { id: true, orderNumber: true }, orderBy: { createdAt: "asc" } }),
   ]);
+  // eslint-disable-next-line react-hooks/purity -- This dynamic server page takes a fresh presence snapshot per request.
   const observedAt = Date.now();
   return <main className="mx-auto max-w-5xl space-y-6 p-6">
     <h1 className="text-2xl font-bold">Cashier status and audit history</h1>

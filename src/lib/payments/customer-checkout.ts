@@ -180,7 +180,11 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
         });
         const alerts = await deductProductInventoryForSale(
           tx,
-          lines.map((line) => ({ productId: line.productId, qty: line.qty })),
+          lines.map((line) => ({
+            productId: line.productId,
+            qty: line.qty,
+            recipeVersionId: line.costSnapshot.recipeVersionId,
+          })),
           order.id,
           null,
           checkout.customerId,

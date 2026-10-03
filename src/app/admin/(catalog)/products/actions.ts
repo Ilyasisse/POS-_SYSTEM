@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { availabilityRestorationTime } from "@/lib/products/availability";
+import { validateCatalogPrice } from "@/lib/catalog/form-validation";
 
 const ALLOWED_DURATIONS = new Set([60, 180, 720, 1440]);
 
@@ -98,9 +99,7 @@ export async function createProduct(formData: FormData) {
     throw new Error("Product name is required.");
   }
 
-  if (Number.isNaN(price) || price < 0) {
-    throw new Error("Price must be a valid number.");
-  }
+  validateCatalogPrice(price);
 
   if (!categoryId) {
     throw new Error("Category is required.");
@@ -141,9 +140,7 @@ export async function updateProduct(formData: FormData) {
     throw new Error("Product name is required.");
   }
 
-  if (Number.isNaN(price) || price < 0) {
-    throw new Error("Price must be a valid number.");
-  }
+  validateCatalogPrice(price);
 
   if (!categoryId) {
     throw new Error("Category is required.");

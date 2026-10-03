@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { OrderInputError, readOrderRequest } from "@/lib/sales/order-input";
+import { runOrderPostCommitEffect } from "@/lib/sales/order-postcommit";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isProductAvailableForSale } from "@/lib/products/availability";
@@ -105,18 +107,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!hasPermission(currentUser, PERMISSIONS.ORDER_CREATE)) {
+    if (
+      !hasPermission(currentUser, PERMISSIONS.ORDER_CREATE) ||
+      !hasPermission(currentUser, PERMISSIONS.PAYMENT_TAKE)
+    ) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    const body = (await request.json()) as CompleteSaleBody;
-
-    if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        { error: "No items provided." },
-        { status: 400 },
-      );
-    }
+    const body = await readOrderRequest<CompleteSaleBody>(request);
 
     if (
       typeof body.paymentMethod !== "string" ||
@@ -155,6 +153,7 @@ export async function POST(request: Request) {
             in: productIds,
           },
           isActive: true,
+          category: { isActive: true },
         },
         select: {
           id: true,
@@ -186,6 +185,7 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
@@ -246,7 +246,7 @@ export async function POST(request: Request) {
         );
       }
 
-      const qty = Math.max(1, Number(item.qty) || 1);
+      const qty = item.qty;
       const station = product.category?.station ?? null;
 
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
           const modifier = modifierMap.get(modifierId);
 
           if (!modifier || modifier.productId !== product.id) {
-            throw new Error(
+            throw new OrderInputError(
               `Modifier ${modifierId} is invalid for product ${product.name}.`,
             );
           }
@@ -281,7 +281,7 @@ export async function POST(request: Request) {
             optionId: modifier.id,
             optionName: modifier.name,
             price: roundCurrency(Number(modifier.price)),
-            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+            qty: incomingModifier?.qty ?? 1,
           };
         },
       );
@@ -428,7 +428,10 @@ export async function POST(request: Request) {
       { timeout: 15000, maxWait: 5000 },
     );
 
-    await sendInventoryAlerts(result.inventoryAlerts);
+    await runOrderPostCommitEffect(
+      "Order inventory alert delivery failed:",
+      () => sendInventoryAlerts(result.inventoryAlerts),
+    );
 
     return NextResponse.json({
       success: true,
@@ -456,6 +459,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof OrderInputError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     console.error("Complete sale error:", error);
 
     return NextResponse.json(

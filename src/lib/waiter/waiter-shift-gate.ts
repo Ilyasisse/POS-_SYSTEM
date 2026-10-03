@@ -7,14 +7,15 @@ import {
 } from "@/lib/waiter/waiter-balance-calculations";
 
 export function buildActiveWaiterShiftWhere(
-  waiterId: string,
+  waiterId: string | undefined,
   now: Date = new Date(),
 ): Prisma.ShiftWhereInput {
   const { start, end } = getCashierBusinessDayRange(now);
+  const worker = waiterId === undefined ? {} : { userId: waiterId };
 
   if (isLedgerActive(now)) {
     return {
-      userId: waiterId,
+      ...worker,
       businessDate: businessDateKeyToDatabaseDate(
         getCurrentBusinessDateKey(now),
       ),
@@ -23,7 +24,7 @@ export function buildActiveWaiterShiftWhere(
   }
 
   return {
-    userId: waiterId,
+    ...worker,
     openedAt: { gte: start, lt: end },
     closedAt: null,
   };

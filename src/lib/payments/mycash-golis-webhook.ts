@@ -26,6 +26,7 @@ export type PaymentWebhookOrder = {
   orderNumber: number;
   status: "OPEN" | "PAID" | "CANCELLED";
   total: unknown;
+  remainingAmount?: number;
   tableCheckId?: string | null;
   rounds?: Array<{
     id: string;
@@ -352,7 +353,7 @@ export async function processMycashGolisWebhook(
     };
   }
 
-  if (toCents(order.total) !== toCents(event.amount)) {
+  if (toCents(order.remainingAmount ?? order.total) !== toCents(event.amount)) {
     return {
       status: 400,
       body: {

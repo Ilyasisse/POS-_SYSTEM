@@ -1,16 +1,15 @@
 import type { Prisma } from "@prisma/client";
-import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
+import { buildActiveWaiterShiftWhere } from "@/lib/waiter/waiter-shift-gate";
 
 /** Called inside order finalization so assignment and notification are durable. */
 export async function dispatchCustomerOrder(tx: Prisma.TransactionClient, input: {
   orderId: string; orderNumber: number; customerId: string; tableName: string | null;
 }) {
   const now = new Date();
-  const { start, end } = getCashierBusinessDayRange(now);
   const [waiter, cashier] = await Promise.all([tx.staff.findFirst({
     where: {
       role: "WAITER", isActive: true,
-      shifts: { some: { closedAt: null, openedAt: { gte: start, lt: end } } },
+      shifts: { some: buildActiveWaiterShiftWhere(undefined, now) },
     },
     orderBy: { waiterOrders: { _count: "asc" } },
     select: { id: true },
