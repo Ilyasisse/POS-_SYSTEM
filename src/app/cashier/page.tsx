@@ -12,12 +12,14 @@ import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
 import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
+import { transferOpenTableServiceFromCashier } from "./actions";
 import { ToastOnMount } from "@/components/ui/toast";
 
 type CashierPageProps = {
   searchParams?: Promise<{
     paymentStatus?: string;
     orderStatus?: string;
+    transferStatus?: string;
   }>;
 };
 
@@ -61,6 +63,24 @@ function getPaymentStatusMessage(paymentStatus?: string) {
   }
 }
 
+function getTransferStatusMessage(transferStatus?: string) {
+  switch (transferStatus) {
+    case "table_moved":
+      return {
+        tone: "success" as const,
+        message: "The open service was moved to the new table.",
+      };
+    case "table_move_failed":
+      return {
+        tone: "error" as const,
+        message:
+          "The table could not be moved. The destination may now be occupied.",
+      };
+    default:
+      return null;
+  }
+}
+
 export default async function CashierPage({ searchParams }: CashierPageProps) {
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
@@ -76,6 +96,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   ]);
   const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
+  const transferNotice = getTransferStatusMessage(params?.transferStatus);
   const orderNotice =
     params?.orderStatus === "sent"
       ? {
@@ -83,44 +104,59 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           message: "The table order was sent to the kitchen.",
         }
       : null;
-  const notice = paymentNotice ?? orderNotice;
+  const notice = paymentNotice ?? transferNotice ?? orderNotice;
 
-  const tables = await prisma.table.findMany({
-    where: {
-      isActive: true,
-      orders: {
-        some: {
-          status: "OPEN",
-          type: "DINE_IN",
+  const [tables, availableTables] = await Promise.all([
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          some: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
         },
       },
-    },
-    orderBy: { name: "asc" },
-    include: {
-      orders: {
-        where: {
-          status: "OPEN",
-          type: "DINE_IN",
-        },
-        orderBy: { createdAt: "desc" },
-        include: {
-          cashier: { select: { fullName: true } },
-          tableCheck: { select: { checkNumber: true } },
-          orderItems: {
-            select: {
-              id: true,
-              productName: true,
-              qty: true,
+      orderBy: { name: "asc" },
+      include: {
+        orders: {
+          where: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+          orderBy: { createdAt: "desc" },
+          include: {
+            cashier: { select: { fullName: true } },
+            tableCheck: { select: { checkNumber: true } },
+            orderItems: {
+              select: {
+                id: true,
+                productName: true,
+                qty: true,
+              },
+              orderBy: { createdAt: "asc" },
             },
-            orderBy: { createdAt: "asc" },
-          },
-          payments: {
-            select: { amountPaid: true },
+            payments: {
+              select: { amountPaid: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          none: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+        },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const openChecksByTable = new Map(
     tables.map((table) => [
@@ -306,6 +342,36 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     amountDue={tableTotal}
                     showEqualSplit={showEqualSplit}
                   />
+                  {availableTables.length ? (
+                    <form
+                      action={transferOpenTableServiceFromCashier}
+                      className="grid grid-cols-[1fr_auto] gap-2"
+                    >
+                      <input type="hidden" name="sourceTableId" value={table.id} />
+                      <select
+                        name="targetTableId"
+                        required
+                        aria-label={`Move ${table.name} to an available table`}
+                        className="h-11 min-w-0 rounded-xl border border-border bg-background px-3 text-sm"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          Move to table…
+                        </option>
+                        {availableTables.map((target) => (
+                          <option key={target.id} value={target.id}>
+                            {target.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="h-11 rounded-xl border border-border bg-card px-4 text-sm font-semibold hover:bg-muted"
+                      >
+                        Move
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               </article>
             );
