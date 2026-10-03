@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { validateCatalogPrice } from "@/lib/catalog/form-validation";
 
 export async function createModifier(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
@@ -24,6 +25,8 @@ export async function createModifier(formData: FormData) {
   if (!name) {
     throw new Error("Modifier name is required.");
   }
+
+  validateCatalogPrice(price);
 
   if (productIds.length === 0) {
     throw new Error("At least one product is required.");
@@ -72,9 +75,7 @@ export async function updateModifier(formData: FormData) {
     throw new Error("Modifier name is required.");
   }
 
-  if (Number.isNaN(price) || price < 0) {
-    throw new Error("Price must be a valid number.");
-  }
+  validateCatalogPrice(price);
 
   if (!productId) {
     throw new Error("Product is required.");

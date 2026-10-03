@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { validateCatalogInteger } from "@/lib/catalog/form-validation";
 
 export async function createCategory(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
@@ -20,9 +21,7 @@ export async function createCategory(formData: FormData) {
     throw new Error("Category name is required.");
   }
 
-  if (Number.isNaN(sortOrder) || sortOrder < 0) {
-    throw new Error("Sort order must be a valid number.");
-  }
+  validateCatalogInteger(sortOrder, "Sort order");
 
   await prisma.category.create({
     data: {
@@ -55,9 +54,7 @@ export async function updateCategory(formData: FormData) {
     throw new Error("Category name is required.");
   }
 
-  if (Number.isNaN(sortOrder) || sortOrder < 0) {
-    throw new Error("Sort order must be a valid number.");
-  }
+  validateCatalogInteger(sortOrder, "Sort order");
 
   await prisma.category.update({
     where: { id },
