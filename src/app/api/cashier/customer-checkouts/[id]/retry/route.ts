@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   canTakePayment,
+  canManagePaymentReceipts,
   currentPaymentReceiptUser,
 } from "@/lib/payments/payment-receipt-route-auth";
 import { finalizeCustomerCheckout } from "@/lib/payments/customer-checkout";
@@ -10,7 +11,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await currentPaymentReceiptUser();
-  if (!user || !canTakePayment(user)) {
+  if (!user || (!canTakePayment(user) && !canManagePaymentReceipts(user))) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   const { id } = await params;
