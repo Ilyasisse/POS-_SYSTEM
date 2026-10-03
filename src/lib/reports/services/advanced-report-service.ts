@@ -241,9 +241,12 @@ export async function getFinanceReport(range: ReportRange, query: ReportQuery) {
     }),
   ]);
   const revenue = new Prisma.Decimal(sales.summary.netSales);
-  const cogs = sales.summary.cogs
-    ? new Prisma.Decimal(sales.summary.cogs)
-    : null;
+  const cogs =
+    sales.summary.totalLines > 0 &&
+    sales.summary.costCoveredLines === sales.summary.totalLines &&
+    sales.summary.cogs !== null
+      ? new Prisma.Decimal(sales.summary.cogs)
+      : null;
   const labour = payroll._sum.netPay ?? zero();
   const expense = expenses._sum.amount ?? zero();
   const netProfit = cogs
