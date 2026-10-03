@@ -14,6 +14,8 @@ import {
 export type InventorySaleLine = {
   productId: string;
   qty: number;
+  /** Undefined resolves the current recipe; null preserves a no-recipe snapshot. */
+  recipeVersionId?: string | null;
 };
 
 export type InventoryAlert = {
