@@ -38,7 +38,7 @@ export type KitchenTicketItem = {
   id: string;
   name: string;
   quantity: number;
-  station: KitchenStation;
+  station: KitchenStation | null;
   assignedUserId?: string | null;
   assignedUserName?: string | null;
   modifiers: KitchenTicketModifier[];
@@ -254,15 +254,22 @@ export function setKitchenTicketStationStatus(
     stationStatuses,
     stationMetrics: normalizeStationMetrics(ticket.stationMetrics),
   };
+  const nextStatus = getKitchenTicketStatusForItems(nextTicket);
+  const reopened =
+    nextStatus !== "done" &&
+    (ticket.pickupStatus === "ready" || ticket.pickupStatus === "claimed");
 
   return {
     ...nextTicket,
-    status: getKitchenTicketStatusForItems(nextTicket),
+    status: nextStatus,
     pickupStatus:
-      getKitchenTicketStatusForItems(nextTicket) === "done" &&
-      ticket.pickupStatus === "preparing"
+      nextStatus === "done" && ticket.pickupStatus === "preparing"
         ? "ready"
-        : ticket.pickupStatus,
+        : reopened
+          ? "preparing"
+          : ticket.pickupStatus,
+    claimedByWaiterId: reopened ? null : ticket.claimedByWaiterId,
+    claimedByWaiterName: reopened ? null : ticket.claimedByWaiterName,
   };
 }
 
@@ -323,9 +330,10 @@ function normalizeKitchenTicketItem(
     return null;
   }
 
-  const station = normalizeKitchenStation(item.station);
+  const station =
+    item.station == null ? null : normalizeKitchenStation(item.station);
 
-  if (!station || !item.id || !item.name) {
+  if (station === undefined || !item.id || !item.name) {
     return null;
   }
 
@@ -395,7 +403,7 @@ export function normalizeKitchenTicket(
     ticketNumber,
     roundNumber,
     createdAt: String(ticket.createdAt ?? new Date().toISOString()),
-    status: "new",
+    status: isKitchenTicketStatus(ticket.status) ? ticket.status : "new",
     stationStatuses,
     stationMetrics: normalizeStationMetrics(ticket.stationMetrics),
     pickupStatus: isKitchenTicketPickupStatus(ticket.pickupStatus)

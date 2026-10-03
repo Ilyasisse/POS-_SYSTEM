@@ -141,25 +141,20 @@ type KitchenStateRecord = Prisma.KitchenTicketStateGetPayload<{
 
 function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
   const identity = resolveTableCheckIdentity(state.order);
-  const items = state.order.orderItems
-    .filter(
-      (item): item is typeof item & { station: Station } =>
-        item.station !== null,
-    )
-    .map((item) => ({
-      id: item.id,
-      name: item.productName,
-      quantity: item.qty,
-      station: item.station as KitchenStation,
-      assignedUserId: item.assignedUserId,
-      assignedUserName: item.assignedUser?.fullName ?? null,
-      modifiers: item.modifiers.map((modifier) => ({
-        id: modifier.id,
-        name: modifier.modifierName,
-        qty: modifier.qty,
-        price: Number(modifier.price),
-      })),
-    }));
+  const items = state.order.orderItems.map((item) => ({
+    id: item.id,
+    name: item.productName,
+    quantity: item.qty,
+    station: item.station as KitchenStation | null,
+    assignedUserId: item.assignedUserId,
+    assignedUserName: item.assignedUser?.fullName ?? null,
+    modifiers: item.modifiers.map((modifier) => ({
+      id: modifier.id,
+      name: modifier.modifierName,
+      qty: modifier.qty,
+      price: Number(modifier.price),
+    })),
+  }));
   const stationStatuses = Object.fromEntries(
     state.stationStates.map((stationState) => [
       stationState.station as KitchenStation,
@@ -202,7 +197,9 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
     orderId: state.orderId,
     ...identity,
     createdAt: state.order.createdAt.toISOString(),
-    status: "new" as KitchenTicketStatus,
+    status: (state.stationStates.length === 0
+      ? "done"
+      : "new") as KitchenTicketStatus,
     stationStatuses,
     stationMetrics: Object.fromEntries(
       state.stationStates.map((stationState) => [
@@ -344,6 +341,12 @@ export async function updateKitchenTicketStation(input: {
     )!;
     const nextStatus = toDatabaseStatus(input.status);
     if (previous.status === nextStatus) return;
+    if (state.pickupStatus === "DELIVERED") {
+      throw new KitchenTicketMutationError(
+        "Delivered kitchen tickets cannot be changed.",
+        409,
+      );
+    }
     const target = await tx.kitchenPreparationTarget.findUnique({
       where: { station },
     });
@@ -378,13 +381,18 @@ export async function updateKitchenTicketStation(input: {
       ? state.pickupStatus === "PREPARING"
         ? "READY"
         : state.pickupStatus
-      : state.pickupStatus === "READY"
+      : state.pickupStatus === "READY" || state.pickupStatus === "CLAIMED"
         ? "PREPARING"
         : state.pickupStatus;
 
     await tx.kitchenTicketState.update({
       where: { orderId: input.orderId },
-      data: { pickupStatus: nextPickupStatus },
+      data: {
+        pickupStatus: nextPickupStatus,
+        ...(nextPickupStatus === "PREPARING"
+          ? { claimedByWaiterId: null, claimedByWaiterName: null }
+          : {}),
+      },
     });
     if (nextPickupStatus === "READY" && state.pickupStatus !== "READY") {
       await tx.kitchenTransitionEvent.create({
@@ -398,13 +406,13 @@ export async function updateKitchenTicketStation(input: {
       });
     } else if (
       nextPickupStatus === "PREPARING" &&
-      state.pickupStatus === "READY"
+      (state.pickupStatus === "READY" || state.pickupStatus === "CLAIMED")
     ) {
       await tx.kitchenTransitionEvent.create({
         data: {
           orderId: input.orderId,
           type: "PICKUP_REOPENED",
-          fromPickupStatus: "READY",
+          fromPickupStatus: state.pickupStatus,
           toPickupStatus: "PREPARING",
           actorUserId: input.actorUserId,
         },
