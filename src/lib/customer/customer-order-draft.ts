@@ -24,6 +24,7 @@ type Draft = {
 export function clearCustomerOrderDraft() {
   try {
     sessionStorage.removeItem(DRAFT_KEY);
+    sessionStorage.removeItem("customer-fulfillment-v1");
   } catch {
     // Storage can be disabled by the browser.
   }
@@ -206,4 +207,15 @@ export function restoreCustomerOrderDraft(
     skipped,
     repriced,
   };
+}
+
+export function saveCustomerFulfillment(orderType: "DINE_IN" | "TAKEOUT", tableId: string) {
+  try { sessionStorage.setItem("customer-fulfillment-v1", JSON.stringify({ orderType, tableId })); } catch { /* Storage is optional until OAuth. */ }
+}
+
+export function restoreCustomerFulfillment(): { orderType: "DINE_IN" | "TAKEOUT"; tableId: string } | null {
+  try {
+    const value = JSON.parse(sessionStorage.getItem("customer-fulfillment-v1") || "null");
+    return value && (value.orderType === "DINE_IN" || value.orderType === "TAKEOUT") && typeof value.tableId === "string" ? value : null;
+  } catch { return null; }
 }
