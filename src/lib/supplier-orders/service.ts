@@ -105,12 +105,14 @@ async function createDueRuns(now: Date) {
         schedule.recurrenceUnit,
         schedule.recurrenceInterval,
         schedule.timeZone,
+        schedule.firstInviteAt,
       );
       nextSupplierSendAt = advanceRecurringDate(
         supplierSendAt,
         schedule.recurrenceUnit,
         schedule.recurrenceInterval,
         schedule.timeZone,
+        schedule.firstSupplierSendAt,
       );
       if (
         !nextInviteAt ||

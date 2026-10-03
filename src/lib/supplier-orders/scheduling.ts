@@ -136,6 +136,7 @@ export function advanceRecurringDate(
   unit: SupplierOrderRecurrenceUnit,
   interval: number,
   timeZone: string,
+  anchorDate = date,
 ) {
   const local = partsInTimeZone(date, timeZone);
   const calendar = new Date(
@@ -145,7 +146,7 @@ export function advanceRecurringDate(
   if (unit === "WEEK")
     calendar.setUTCDate(calendar.getUTCDate() + 7 * interval);
   if (unit === "MONTH") {
-    const anchorDay = calendar.getUTCDate();
+    const anchorDay = partsInTimeZone(anchorDate, timeZone).day;
     calendar.setUTCDate(1);
     calendar.setUTCMonth(calendar.getUTCMonth() + interval);
     const lastDay = new Date(
