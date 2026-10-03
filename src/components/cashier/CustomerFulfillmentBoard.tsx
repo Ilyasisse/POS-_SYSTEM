@@ -17,9 +17,12 @@ export default function CustomerFulfillmentBoard() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load orders."); }
   }, []);
   useEffect(() => {
-    void refresh();
+    const initial = window.setTimeout(() => void refresh(), 0);
     const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 5000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [refresh]);
   async function update(order: Order, status: string) {
     setBusy(true);
