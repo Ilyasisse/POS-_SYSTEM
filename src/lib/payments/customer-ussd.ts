@@ -1,4 +1,4 @@
-export const CUSTOMER_MOBILE_MONEY_ACCOUNT = "43095";
+export const CUSTOMER_MOBILE_MONEY_ACCOUNT = "430935";
 
 export function normalizeSomaliPhone(value: string): string | null {
   const trimmed = value.trim();
@@ -68,4 +68,9 @@ export function chooseUniqueCustomerCheckout(
       now <= checkout.expiresAt,
   );
   return matches.length === 1 ? matches[0].id : null;
+}
+
+/** Customer input is local digits only; receipts may include the country code. */
+export function normalizeCustomerPaymentPhone(value: string): string | null {
+  return /^90\d{7}$/.test(value) ? `252${value}` : null;
 }
