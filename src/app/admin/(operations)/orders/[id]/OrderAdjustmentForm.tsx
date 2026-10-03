@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast";
 
 type OrderLine = {
   id: string;
@@ -40,6 +41,7 @@ export default function OrderAdjustmentForm({
   canApproveFinancial: boolean;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const availableTypes = useMemo(() => {
     const types: SalesAdjustmentType[] = [];
     if (orderStatus === "OPEN" && canApproveOperational) {
@@ -54,9 +56,6 @@ export default function OrderAdjustmentForm({
   const [orderItemId, setOrderItemId] = useState("");
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
-  const [message, setMessage] = useState<
-    { tone: "success" | "error"; text: string } | undefined
-  >();
   const [pending, startTransition] = useTransition();
 
   const isVoid = type === "VOID";
@@ -71,7 +70,6 @@ export default function OrderAdjustmentForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!type) return;
-    setMessage(undefined);
     startTransition(async () => {
       try {
         const response = await fetch(`/api/orders/${orderId}/adjustments`, {
@@ -86,15 +84,19 @@ export default function OrderAdjustmentForm({
         });
         const result = (await response.json()) as { error?: string };
         if (!response.ok) throw new Error(result.error || "Adjustment failed.");
-        setMessage({ tone: "success", text: `${labels[type]} recorded successfully.` });
+        toast({
+          tone: "success",
+          description: `${labels[type]} recorded successfully.`,
+        });
         setAmount("");
         setOrderItemId("");
         setReason("");
         router.refresh();
       } catch (error) {
-        setMessage({
+        toast({
           tone: "error",
-          text: error instanceof Error ? error.message : "Adjustment failed.",
+          description:
+            error instanceof Error ? error.message : "Adjustment failed.",
         });
       }
     });
@@ -105,8 +107,8 @@ export default function OrderAdjustmentForm({
       <Alert>
         <AlertTitle>No available adjustments</AlertTitle>
         <AlertDescription>
-          Open orders require operational approval. Paid orders require financial
-          approval for refunds. Cancelled orders cannot be adjusted.
+          Open orders require operational approval. Paid orders require
+          financial approval for refunds. Cancelled orders cannot be adjusted.
         </AlertDescription>
       </Alert>
     );
@@ -130,7 +132,9 @@ export default function OrderAdjustmentForm({
             }}
           >
             {availableTypes.map((option) => (
-              <option key={option} value={option}>{labels[option]}</option>
+              <option key={option} value={option}>
+                {labels[option]}
+              </option>
             ))}
           </NativeSelect>
         </div>
@@ -144,7 +148,9 @@ export default function OrderAdjustmentForm({
             >
               <option value="">Complete order</option>
               {lines.map((line) => (
-                <option key={line.id} value={line.id}>{line.label}</option>
+                <option key={line.id} value={line.id}>
+                  {line.label}
+                </option>
               ))}
             </NativeSelect>
           </div>
@@ -184,7 +190,9 @@ export default function OrderAdjustmentForm({
 
       {isVoid || type === "REFUND" ? (
         <Alert variant="destructive">
-          <AlertTitle>{isVoid ? "This cancels the complete order" : "Financial action"}</AlertTitle>
+          <AlertTitle>
+            {isVoid ? "This cancels the complete order" : "Financial action"}
+          </AlertTitle>
           <AlertDescription>
             {isVoid
               ? "The order will close as cancelled and cannot receive payment."
@@ -193,15 +201,14 @@ export default function OrderAdjustmentForm({
         </Alert>
       ) : null}
 
-      {message ? (
-        <Alert variant={message.tone === "error" ? "destructive" : "default"}>
-          <AlertTitle>{message.tone === "error" ? "Could not save" : "Saved"}</AlertTitle>
-          <AlertDescription>{message.text}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <Button type="submit" variant={isVoid || type === "REFUND" ? "destructive" : "default"} disabled={pending}>
-        {pending ? "Saving..." : `Record ${type ? labels[type].toLowerCase() : "adjustment"}`}
+      <Button
+        type="submit"
+        variant={isVoid || type === "REFUND" ? "destructive" : "default"}
+        disabled={pending}
+      >
+        {pending
+          ? "Saving..."
+          : `Record ${type ? labels[type].toLowerCase() : "adjustment"}`}
       </Button>
     </form>
   );
