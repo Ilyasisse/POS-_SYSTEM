@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { formatStaffDateTime } from "@/lib/staff/staff-date-time";
 import { recordOwnClockAction } from "./actions";
 
 export default async function MyAttendancePage() {
@@ -60,8 +61,8 @@ export default async function MyAttendancePage() {
                 <li key={shift.id} className="rounded-lg border p-3">
                   <strong>{shift.station ?? "General"}</strong>
                   <div className="text-sm text-slate-600">
-                    {shift.startsAt.toLocaleString()} –{" "}
-                    {shift.endsAt.toLocaleString()}
+                    {formatStaffDateTime(shift.startsAt)} –{" "}
+                    {formatStaffDateTime(shift.endsAt)}
                   </div>
                 </li>
               ))
@@ -81,7 +82,7 @@ export default async function MyAttendancePage() {
                 >
                   <strong>{event.type}</strong>
                   <span className="text-sm text-slate-600">
-                    {event.occurredAt.toLocaleString()}
+                    {formatStaffDateTime(event.occurredAt)}
                   </span>
                 </li>
               ))

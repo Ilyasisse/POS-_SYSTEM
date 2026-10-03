@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { formatStaffDateTime } from "@/lib/staff/staff-date-time";
 import {
   approveAttendanceAction,
   saveAttendancePolicyAction,
@@ -80,13 +81,13 @@ export default async function AttendanceAdminPage() {
             />
           </label>
           <label className={label}>
-            Overtime threshold
+            Overtime starts after (minutes worked)
             <Input
               name="overtimeThresholdMinutes"
               type="number"
-              min="0"
-              max="480"
-              defaultValue={policy?.overtimeThresholdMinutes ?? 30}
+              min="1"
+              max="1440"
+              defaultValue={policy?.overtimeThresholdMinutes ?? 480}
             />
           </label>
           <Button className="self-end" type="submit">
@@ -108,7 +109,7 @@ export default async function AttendanceAdminPage() {
                 <div>
                   <strong>{shift.worker.fullName}</strong>
                   <div className="text-xs text-slate-500">
-                    {shift.startsAt.toLocaleString()}
+                    {formatStaffDateTime(shift.startsAt)}
                   </div>
                 </div>
                 <label className={label}>

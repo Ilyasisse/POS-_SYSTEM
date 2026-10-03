@@ -15,6 +15,11 @@ import {
   calculatePayrollLine,
   money,
 } from "@/lib/payroll/payroll-formulas";
+import {
+  adjustmentWithinPayrollPeriod,
+  attendanceForEmployment,
+} from "@/lib/payroll/payroll-sources";
+import { selectAttendanceSession } from "./attendance-evidence";
 import { formatBusinessDate } from "@/lib/reports/reporting-calendar";
 import { publishReportInvalidation } from "@/lib/reports/report-realtime";
 
@@ -109,9 +114,15 @@ export async function saveAttendancePolicy(input: {
   actorUserId: string;
 }) {
   if (
-    input.shiftMinutes < 1 ||
+    !Number.isInteger(input.shiftMinutes) ||
+    input.shiftMinutes < 60 ||
+    input.shiftMinutes > 1440 ||
+    !Number.isInteger(input.graceMinutes) ||
     input.graceMinutes < 0 ||
-    input.overtimeThresholdMinutes < 1
+    input.graceMinutes > 120 ||
+    !Number.isInteger(input.overtimeThresholdMinutes) ||
+    input.overtimeThresholdMinutes < 1 ||
+    input.overtimeThresholdMinutes > 1440
   )
     throw new Error("Attendance policy values are invalid.");
   const policy = await prisma.$transaction(async (tx) => {
@@ -243,7 +254,7 @@ export async function recordClockEvent(input: {
         where: { workerId: input.workerId },
         orderBy: { occurredAt: "desc" },
       });
-      if (last?.type === input.type)
+      if ((last?.type ?? "OUT") === input.type)
         throw new Error(
           input.type === "IN"
             ? "You are already clocked in."
@@ -306,13 +317,17 @@ export async function approveAttendance(input: {
         },
         orderBy: { occurredAt: "asc" },
       });
-      const clockIn =
-        events.find((event) => event.type === "IN")?.occurredAt ?? null;
-      const clockOut =
-        events.find(
-          (event) =>
-            event.type === "OUT" && (!clockIn || event.occurredAt > clockIn),
-        )?.occurredAt ?? null;
+      const session = selectAttendanceSession({
+        startsAt: shift.startsAt,
+        endsAt: shift.endsAt,
+        events,
+      });
+      const clockIn = session?.clockIn ?? null;
+      const clockOut = session?.clockOut ?? null;
+      if (input.status === "PRESENT" && !session)
+        throw new Error(
+          "Present attendance requires a complete clock session for this shift.",
+        );
       const outcome =
         input.status === "PRESENT"
           ? attendanceOutcome({
@@ -341,6 +356,10 @@ export async function approveAttendance(input: {
           ],
         },
       });
+      if (existing?.scheduledShiftId && existing.scheduledShiftId !== shift.id)
+        throw new Error(
+          "Attendance is already recorded for another shift on this business date.",
+        );
       const data = {
         workerId: shift.workerId,
         scheduledShiftId: shift.id,
@@ -502,18 +521,18 @@ export async function createPayrollRun(input: {
         }),
         tx.payrollAdjustment.findMany({
           where: {
-            periodStart: { lte: input.periodEnd },
-            periodEnd: { gte: input.periodStart },
+            periodStart: { gte: input.periodStart },
+            periodEnd: { lte: input.periodEnd },
             approvedAt: { not: null },
           },
         }),
       ]);
       const lines = profiles.map((profile) => {
-        const workerAttendance = attendance.filter(
-          (row) => row.workerId === profile.userId,
-        );
+        const workerAttendance = attendanceForEmployment(attendance, profile);
         const workerAdjustments = adjustments.filter(
-          (row) => row.workerId === profile.userId,
+          (row) =>
+            row.workerId === profile.userId &&
+            adjustmentWithinPayrollPeriod(row, input),
         );
         const additions = workerAdjustments
           .filter((row) =>
