@@ -11,6 +11,7 @@ import {
   purchaseOrderPdfInclude,
   purchaseOrderPdfInput,
 } from "./purchase-order-pdf-snapshot";
+import { SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS } from "./scheduler-lease";
 import {
   advanceRecurringDate,
   aggregateResponseQuantities,
@@ -444,12 +445,27 @@ async function finalizeRun(runId: string, now: Date) {
 }
 
 async function finalizeDueRuns(now: Date) {
+  // A worker can stop after claiming a run and before its order transaction.
+  // Reclaim only after the old worker's lease could have expired; current
+  // invocations are also serialized by runSupplierOrderScheduler's lease.
+  const eligible: Prisma.SupplierOrderRunWhereInput = {
+    schedule: { deletedAt: null },
+    supplierSendAt: { lte: now },
+    OR: [
+      { status: { in: ["SCHEDULED", "COLLECTING"] } },
+      {
+        status: "FINALIZING",
+        purchaseOrderId: null,
+        updatedAt: {
+          lte: new Date(
+            now.getTime() - SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS,
+          ),
+        },
+      },
+    ],
+  };
   const due = await prisma.supplierOrderRun.findMany({
-    where: {
-      schedule: { deletedAt: null },
-      status: { in: ["SCHEDULED", "COLLECTING"] },
-      supplierSendAt: { lte: now },
-    },
+    where: eligible,
     select: { id: true },
     take: 50,
   });
@@ -457,9 +473,8 @@ async function finalizeDueRuns(now: Date) {
   for (const candidate of due) {
     const claimed = await prisma.supplierOrderRun.updateMany({
       where: {
+        ...eligible,
         id: candidate.id,
-        schedule: { deletedAt: null },
-        status: { in: ["SCHEDULED", "COLLECTING"] },
       },
       data: { status: "FINALIZING" },
     });
