@@ -8,13 +8,13 @@ import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
 export default function NewCategoryPage() {
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Create Category</h1>
@@ -23,13 +23,13 @@ export default function NewCategoryPage() {
           <Link
             prefetch={false}
             href="/admin/categories"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
           <form action={createCategory} className="space-y-4">
             <div>
               <label
@@ -42,7 +42,7 @@ export default function NewCategoryPage() {
                 id="new-category-name"
                 name="name"
                 type="text"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 placeholder="Category name"
                 required
               />
@@ -58,7 +58,7 @@ export default function NewCategoryPage() {
               <NativeSelect
                 id="new-category-station"
                 name="station"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 defaultValue=""
                 required
               >
@@ -85,7 +85,7 @@ export default function NewCategoryPage() {
                 name="sortOrder"
                 type="number"
                 defaultValue={0}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
@@ -107,7 +107,7 @@ export default function NewCategoryPage() {
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 Create Category
               </Button>
@@ -115,7 +115,7 @@ export default function NewCategoryPage() {
               <Link
                 prefetch={false}
                 href="/admin/categories"
-                className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-50"
+                className="rounded-lg border border-border px-4 py-2 hover:bg-card"
               >
                 Cancel
               </Link>

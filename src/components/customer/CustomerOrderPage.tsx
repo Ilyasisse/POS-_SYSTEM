@@ -606,7 +606,7 @@ export default function CustomerOrderPage({
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -621,7 +621,7 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800"
+            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -696,7 +696,10 @@ export default function CustomerOrderPage({
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p role="alert" className="text-sm text-rose-700">
+            <p
+              role="alert"
+              className="text-sm text-rose-700 dark:text-rose-300"
+            >
               {signInError}
             </p>
           ) : null}

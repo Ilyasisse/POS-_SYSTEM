@@ -22,13 +22,13 @@ export default async function NewModifierPage() {
 
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Create Modifier</h1>
@@ -37,13 +37,13 @@ export default async function NewModifierPage() {
           <Link
             prefetch={false}
             href="/admin/modifiers"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
           <form action={createModifier} className="space-y-4">
             <div>
               <label
@@ -56,7 +56,7 @@ export default async function NewModifierPage() {
                 id="new-modifier-name"
                 name="name"
                 type="text"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 placeholder="Modifier name"
                 required
               />
@@ -75,21 +75,23 @@ export default async function NewModifierPage() {
                 type="number"
                 step="0.01"
                 defaultValue={0}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
 
             <div>
               <p className="mb-2 block text-sm font-medium">Products</p>
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-slate-300 p-3">
+              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-border p-3">
                 {products.length === 0 ? (
-                  <p className="text-sm text-slate-500">No products found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No products found.
+                  </p>
                 ) : (
                   products.map((product) => (
                     <label
                       key={product.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-1 text-md hover:bg-slate-50"
+                      className="flex items-center gap-2 rounded-md px-2 py-1 text-md hover:bg-card"
                     >
                       <Input
                         name="productIds"
@@ -102,7 +104,7 @@ export default async function NewModifierPage() {
                   ))
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 You can select multiple products.
               </p>
             </div>
@@ -117,7 +119,7 @@ export default async function NewModifierPage() {
               <NativeSelect
                 id="new-modifier-group"
                 name="modifierGroupId"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
                 defaultValue=""
               >
@@ -155,7 +157,7 @@ export default async function NewModifierPage() {
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 Create Modifier
               </Button>
@@ -163,7 +165,7 @@ export default async function NewModifierPage() {
               <Link
                 prefetch={false}
                 href="/admin/modifiers"
-                className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-50"
+                className="rounded-lg border border-border px-4 py-2 hover:bg-card"
               >
                 Cancel
               </Link>
