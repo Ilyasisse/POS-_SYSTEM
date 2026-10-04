@@ -44,11 +44,11 @@ export default async function MyAttendancePage({
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-8">
       <div>
-        <p className="text-sm font-semibold text-emerald-700">
+        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
           Staff attendance
         </p>
         <h1 className="text-3xl font-black">Hello, {worker.fullName}</h1>
-        <p className="text-slate-600">
+        <p className="text-muted-foreground">
           Clock events are append-only and use Nairobi business time.
         </p>
       </div>
@@ -96,14 +96,16 @@ export default async function MyAttendancePage({
               shifts.map((shift) => (
                 <li key={shift.id} className="rounded-lg border p-3">
                   <strong>{shift.station ?? "General"}</strong>
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-muted-foreground">
                     {shift.startsAt.toLocaleString()} –{" "}
                     {shift.endsAt.toLocaleString()}
                   </div>
                 </li>
               ))
             ) : (
-              <li className="text-sm text-slate-500">No upcoming shift.</li>
+              <li className="text-sm text-muted-foreground">
+                No upcoming shift.
+              </li>
             )}
           </ul>
         </Card>
@@ -115,17 +117,19 @@ export default async function MyAttendancePage({
                 <li key={event.id} className="rounded-lg border p-3">
                   <div className="flex justify-between gap-3">
                     <strong>{eventLabels[event.type]}</strong>
-                    <span className="text-sm text-slate-600">
+                    <span className="text-sm text-muted-foreground">
                       {event.occurredAt.toLocaleString()}
                     </span>
                   </div>
                   {event.note ? (
-                    <p className="mt-1 text-sm text-slate-500">{event.note}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{event.note}</p>
                   ) : null}
                 </li>
               ))
             ) : (
-              <li className="text-sm text-slate-500">No clock events yet.</li>
+              <li className="text-sm text-muted-foreground">
+                No clock events yet.
+              </li>
             )}
           </ol>
         </Card>

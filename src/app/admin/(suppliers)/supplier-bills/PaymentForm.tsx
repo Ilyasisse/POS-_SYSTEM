@@ -62,12 +62,12 @@ export default function PaymentForm({
           step="0.01"
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
-          className="h-9 w-28 rounded-lg border border-slate-200 px-2"
+          className="h-9 w-28 rounded-lg border border-border px-2"
           aria-label="Payment amount"
         />
         <NativeSelect
           name="paymentMethod"
-          className="h-9 min-w-28 rounded-lg border border-slate-200 px-2"
+          className="h-9 min-w-28 rounded-lg border border-border px-2"
           aria-label="Payment method"
         >
           <option value="">Method</option>
@@ -82,10 +82,10 @@ export default function PaymentForm({
       <Input
         name="notes"
         placeholder="Payment note"
-        className="h-9 rounded-lg border border-slate-200 px-2"
+        className="h-9 rounded-lg border border-border px-2"
       />
       {includesExtra ? (
-        <label className="flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-950">
+        <label className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-950 dark:text-amber-300">
           <Input
             type="checkbox"
             name="allowOverpayment"
@@ -98,7 +98,7 @@ export default function PaymentForm({
       ) : null}
       <Button
         disabled={pending}
-        className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white disabled:opacity-50"
+        className="h-9 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
       >
         {pending ? "Recordingâ€¦" : remaining > 0 ? "Record payment" : "Paid"}
       </Button>

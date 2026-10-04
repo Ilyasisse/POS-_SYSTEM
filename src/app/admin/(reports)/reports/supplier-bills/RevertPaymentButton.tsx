@@ -37,7 +37,7 @@ export default function RevertPaymentButton({
         <Button type="button" size="sm" variant="ghost" disabled>
           Revert
         </Button>
-        <p className="text-[11px] font-medium text-amber-700">
+        <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
           {disabledReason}
         </p>
       </div>
