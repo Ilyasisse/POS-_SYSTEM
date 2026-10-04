@@ -62,6 +62,9 @@ test("operational roles receive only their required capabilities", () => {
     hasPermission(user("CUSTOMER"), PERMISSIONS.CUSTOMER_ORDER),
     true,
   );
+  for (const role of ["CASHIER", "WAITER", "COOK", "BARISTA", "Cabitaan", "CLEANER"] as const) {
+    assert.equal(hasPermission(user(role), PERMISSIONS.ATTENDANCE_RECORD), true);
+  }
 });
 
 test("kitchen users are restricted to their effective station", () => {

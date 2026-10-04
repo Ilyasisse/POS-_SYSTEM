@@ -17,6 +17,10 @@ import {
 } from "@/lib/payroll/payroll-formulas";
 import { formatBusinessDate } from "@/lib/reports/reporting-calendar";
 import { publishReportInvalidation } from "@/lib/reports/report-realtime";
+import {
+  assertClockTransition,
+  calculateCompletedBreakMinutes,
+} from "@/lib/staff/clock-events";
 
 const SERIALIZABLE = Prisma.TransactionIsolationLevel.Serializable;
 const serializeAuditValue = (value: unknown) => JSON.stringify(value);
@@ -239,16 +243,14 @@ export async function recordClockEvent(input: {
 }) {
   const event = await prisma.$transaction(
     async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "Staff" WHERE "id" = ${input.workerId} FOR UPDATE`,
+      );
       const last = await tx.clockEvent.findFirst({
         where: { workerId: input.workerId },
         orderBy: { occurredAt: "desc" },
       });
-      if (last?.type === input.type)
-        throw new Error(
-          input.type === "IN"
-            ? "You are already clocked in."
-            : "You are already clocked out.",
-        );
+      assertClockTransition(last?.type ?? null, input.type);
       const created = await tx.clockEvent.create({
         data: {
           workerId: input.workerId,
@@ -313,12 +315,22 @@ export async function approveAttendance(input: {
           (event) =>
             event.type === "OUT" && (!clockIn || event.occurredAt > clockIn),
         )?.occurredAt ?? null;
+      const shiftEvents = events.filter(
+        (event) =>
+          (!clockIn || event.occurredAt >= clockIn) &&
+          (!clockOut || event.occurredAt <= clockOut),
+      );
+      const breakMinutes =
+        input.status === "PRESENT"
+          ? calculateCompletedBreakMinutes(shiftEvents)
+          : 0;
       const outcome =
         input.status === "PRESENT"
           ? attendanceOutcome({
               scheduledStart: shift.startsAt,
               clockIn,
               clockOut,
+              breakMinutes,
               graceMinutes: policy.graceMinutes,
               overtimeThresholdMinutes: policy.overtimeThresholdMinutes,
             })
@@ -349,6 +361,7 @@ export async function approveAttendance(input: {
         clockInAt: clockIn,
         clockOutAt: clockOut,
         workedMinutes: outcome.workedMinutes,
+        breakMinutes,
         lateMinutes: outcome.lateMinutes,
         approvedOvertimeMinutes,
         absenceReason:

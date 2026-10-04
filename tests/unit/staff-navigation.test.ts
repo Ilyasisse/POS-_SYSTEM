@@ -63,7 +63,13 @@ test("permission filtering removes inaccessible groups and children", () => {
   );
   assert.deepEqual(
     cashierItems.map((item) => item.key),
-    ["cashier-home", "cashier-order", "cashier-waiter-orders"],
+    [
+      "cashier-home",
+      "cashier-order",
+      "cashier-waiter-orders",
+      "customer-checkouts",
+      "my-attendance",
+    ],
   );
 });
 
