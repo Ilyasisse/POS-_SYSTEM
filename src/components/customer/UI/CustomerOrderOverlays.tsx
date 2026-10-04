@@ -19,6 +19,7 @@ type CustomerOrderOverlaysProps = {
   onCloseCart: () => void;
   onCustomerNameChange: (customerName: string) => void;
   onCustomerPhoneChange: (customerPhone: string) => void;
+  onFulfillmentChange: (orderType: "DINE_IN" | "TAKEOUT", tableId: string) => void;
   onOrderNoteChange: (orderNote: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
   onRemove: (cartKey: string) => void;
@@ -38,6 +39,7 @@ export default function CustomerOrderOverlays({
   onCustomerNameChange,
   onCustomerPhoneChange,
   onOrderNoteChange,
+  onFulfillmentChange,
   onChangeQuantity,
   onRemove,
   onClearCart,
@@ -59,6 +61,9 @@ export default function CustomerOrderOverlays({
         customerName={orderState.customerName}
         customerPhone={orderState.customerPhone}
         orderNote={orderState.orderNote}
+        orderType={orderState.orderType}
+        selectedTableId={orderState.tableId}
+        onFulfillmentChange={onFulfillmentChange}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
         isSubmitting={orderState.isSubmitting}
