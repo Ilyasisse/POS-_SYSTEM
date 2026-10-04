@@ -11,6 +11,8 @@ model Staff {
   id                                  String                           @id
   phoneNumber                         String?                          @unique
   fullName                            String
+  availability                        StaffAvailability                @default(OFFLINE)
+  lastSeenAt                          DateTime?
   isActive                            Boolean                          @default(true)
   role                                UserRole                         @default(CASHIER)
   email                               String                           @unique
@@ -98,6 +100,7 @@ model Staff {
   reportExports                       ReportExportAudit[]              @relation("ReportExportActor")
 
   @@index([role, isActive])
+  @@index([role, availability, lastSeenAt])
   @@index([station])
 }
 
@@ -573,6 +576,7 @@ model Table {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   orders           Order[]
+  customerCheckouts CustomerCheckout[]
   tableChecks      TableCheck[]
   paymentRequests  PaymentRequest[]
   paymentDeferrals PaymentDeferral[]
@@ -1103,6 +1107,9 @@ model CustomerCheckout {
   id             String                 @id @default(cuid())
   customerId     String
   customerName   String
+  orderType      OrderType              @default(TAKEOUT)
+  tableId        String?
+  table          Table?                 @relation(fields: [tableId], references: [id], onDelete: Restrict)
   payerPhone     String
   notes          String?
   amount         Decimal                @db.Decimal(14, 2)
@@ -1122,6 +1129,7 @@ model CustomerCheckout {
   @@index([customerId, createdAt])
   @@index([status, amount, expiresAt])
   @@index([payerPhone, status, amount])
+  @@index([tableId])
 }
 
 model PaymentGatewayStatus {
@@ -2128,4 +2136,11 @@ enum SupplierInvoiceRecurrenceUnit {
   DAY
   WEEK
   MONTH
+}
+
+enum StaffAvailability {
+  AVAILABLE
+  BUSY
+  AWAY
+  OFFLINE
 }
