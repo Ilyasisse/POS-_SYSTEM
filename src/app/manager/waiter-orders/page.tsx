@@ -122,7 +122,7 @@ function WaiterFilter({ waiters, selectedWaiterId }: WaiterFilterProps) {
           <AutoSubmitSelect
             name="waiterId"
             defaultValue={selectedWaiterId}
-            className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500"
+            className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500 dark:focus:border-blue-800"
           >
             {waiters.length === 0 ? (
               <option value="">Waiters lama helin</option>
@@ -150,10 +150,12 @@ function DeletedOrderItemsPanel({
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+    <div className="mb-6 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 shadow-sm">
       <div className="mb-3">
-        <p className="text-sm font-semibold text-amber-900">Dalabyo tirtiran</p>
-        <p className="text-sm text-amber-800">
+        <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+          Dalabyo tirtiran
+        </p>
+        <p className="text-sm text-amber-800 dark:text-amber-300">
           Waad soo celin kartaa ama ka saar liiska.
         </p>
       </div>
@@ -162,7 +164,7 @@ function DeletedOrderItemsPanel({
         {deletedItems.map((deletedItem) => (
           <div
             key={deletedItem.undoId}
-            className="rounded-xl border border-amber-200 bg-card px-4 py-3"
+            className="rounded-xl border border-amber-200 dark:border-amber-800 bg-card px-4 py-3"
           >
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
@@ -207,8 +209,9 @@ function DeletedOrderItemsPanel({
                     value={deletedItem.waiterId}
                   />
                   <Button
+                    variant="outline"
                     type="submit"
-                    className="rounded-xl border border-red-300 bg-card px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                    className="rounded-xl border border-red-300 dark:border-red-800 bg-card px-4 py-2 text-sm font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                   >
                     Delete
                   </Button>

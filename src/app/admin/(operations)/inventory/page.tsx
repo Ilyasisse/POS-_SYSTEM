@@ -174,7 +174,7 @@ function CreateSupplyForm() {
           name="name"
           type="text"
           placeholder="Item name"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
           required
         />
         <Input
@@ -182,7 +182,7 @@ function CreateSupplyForm() {
           name="unit"
           type="text"
           placeholder="Unit"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
         />
         <Input
           aria-label="Initial stock quantity"
@@ -191,7 +191,7 @@ function CreateSupplyForm() {
           min="0"
           step="0.001"
           placeholder="Stock"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
         />
         <Input
           aria-label="Low stock threshold"
@@ -200,7 +200,7 @@ function CreateSupplyForm() {
           min="0"
           step="0.001"
           placeholder="Low"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
         />
         <Button type="submit">Add Supply</Button>
       </form>
@@ -222,7 +222,7 @@ function InventorySuppliesTable({
   return (
     <DataTableCard
       footer={
-        <p className="text-sm font-medium text-slate-500">
+        <p className="text-sm font-medium text-muted-foreground">
           Showing 1 to {visibleSupplies.length} of {totalSupplies} items
         </p>
       }
@@ -282,9 +282,13 @@ function InventorySupplyTableRow({
   rowNumber: number;
 }) {
   return (
-    <tr className="border-b border-slate-50 align-top">
-      <TableCell className="font-bold text-slate-400">{rowNumber}</TableCell>
-      <TableCell className="font-black text-slate-950">{supply.name}</TableCell>
+    <tr className="border-b border-border align-top">
+      <TableCell className="font-bold text-muted-foreground">
+        {rowNumber}
+      </TableCell>
+      <TableCell className="font-black text-foreground">
+        {supply.name}
+      </TableCell>
       <TableCell>{supply.stockQty}</TableCell>
       <TableCell>
         {canonicalUnitLabel(supply.canonicalUnit)}
@@ -305,7 +309,7 @@ function InventorySupplyTableRow({
             min="0"
             step="0.001"
             defaultValue={supply.stockQty}
-            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-20 rounded-lg border border-border px-2 text-sm"
           />
           <Input
             name="lowStockThreshold"
@@ -314,11 +318,11 @@ function InventorySupplyTableRow({
             min="0"
             step="0.001"
             defaultValue={supply.lowStockThreshold}
-            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-20 rounded-lg border border-border px-2 text-sm"
           />
           <Button
             type="submit"
-            className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white"
+            className="h-9 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"
           >
             Save
           </Button>
@@ -333,18 +337,18 @@ function InventorySupplyTableRow({
             type="number"
             min="1"
             placeholder="Qty"
-            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-20 rounded-lg border border-border px-2 text-sm"
           />
           <Input
             name="note"
             aria-label={`Restock note for ${supply.name}`}
             type="text"
             placeholder="Note"
-            className="h-9 w-24 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-24 rounded-lg border border-border px-2 text-sm"
           />
           <Button
             type="submit"
-            className="h-9 rounded-lg border border-emerald-200 bg-emerald-900 px-3 text-xs font-bold text-white"
+            className="h-9 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-900 hover:bg-emerald-900/90 px-3 text-xs font-bold text-white"
           >
             Add
           </Button>
@@ -361,25 +365,25 @@ function RecentInventoryActivity({
 }) {
   return (
     <Card className="p-5">
-      <h2 className="text-lg font-black text-slate-950">
+      <h2 className="text-lg font-black text-foreground">
         Recent Inventory Activity
       </h2>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {movements.length === 0 ? (
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium text-muted-foreground">
             No supply movements yet.
           </p>
         ) : (
           movements.map((movement) => (
             <div
               key={movement.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-950">
+                <p className="truncate text-sm font-black text-foreground">
                   {movement.itemName}
                 </p>
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-xs font-medium text-muted-foreground">
                   {movement.reason} ~ {formatDateTime(movement.createdAt)}
                 </p>
               </div>

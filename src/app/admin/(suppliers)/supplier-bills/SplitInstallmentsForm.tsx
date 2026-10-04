@@ -53,7 +53,7 @@ export default function SplitInstallmentsForm({
   return (
     <form
       onSubmit={submit}
-      className="grid min-w-64 gap-2 rounded-lg border bg-slate-50 p-2"
+      className="grid min-w-64 gap-2 rounded-lg border bg-card p-2"
     >
       <Input type="hidden" name="billId" value={billId} />
       <strong className="text-xs">
@@ -115,8 +115,8 @@ export default function SplitInstallmentsForm({
         <span
           className={
             Math.abs(scheduled - remaining) < 0.005
-              ? "text-emerald-700"
-              : "text-red-700"
+              ? "text-emerald-700 dark:text-emerald-300"
+              : "text-red-700 dark:text-red-300"
           }
         >
           Scheduled ${scheduled.toFixed(2)} / ${remaining.toFixed(2)}

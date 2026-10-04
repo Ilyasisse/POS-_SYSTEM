@@ -59,7 +59,7 @@ function ProductCard({
         ) : (
           <>
             <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(249,239,219,0.78)_50%,rgba(177,117,44,0.26)_100%)]" />
-            <div className="absolute left-5 top-5 h-16 w-16 rounded-2xl border border-white/80 bg-card/75 p-2 shadow-[0_14px_30px_rgba(44,28,17,0.12)]">
+            <div className="absolute left-5 top-5 h-16 w-16 rounded-2xl border border-border bg-card/75 p-2 shadow-[0_14px_30px_rgba(44,28,17,0.12)]">
               <Image
                 src="/newer_logo.png"
                 alt=""
@@ -80,7 +80,7 @@ function ProductCard({
             {product.category?.name ?? "Menu"}
           </span>
           {product.isPopular ? (
-            <span className="rounded-full border border-amber-200/30 bg-amber-300/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-50">
+            <span className="rounded-full border border-amber-200 dark:border-amber-800/30 bg-amber-300/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-50">
               Popular
             </span>
           ) : null}
@@ -117,7 +117,7 @@ function ProductCard({
             </span>
           ) : null}
           {unavailable ? (
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+            <span className="rounded-full bg-rose-100 dark:bg-rose-950/40 px-3 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">
               Temporarily unavailable
             </span>
           ) : null}
@@ -127,7 +127,7 @@ function ProductCard({
           type="button"
           onClick={() => onProductClick(product)}
           disabled={unavailable}
-          className="w-full rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300 sm:py-3.5"
+          className="w-full rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:py-3.5"
         >
           {ctaLabel}
         </Button>
