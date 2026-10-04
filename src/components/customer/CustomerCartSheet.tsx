@@ -1,5 +1,7 @@
 "use client";
 
+import CustomerFulfillmentSelect from "./CustomerFulfillmentSelect";
+import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 import { Button } from "@/components/ui/button";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +24,9 @@ type CustomerCartSheetProps = {
   customerName: string;
   customerPhone: string;
   orderNote: string;
+  orderType?: "DINE_IN" | "TAKEOUT";
+  selectedTableId?: string;
+  onFulfillmentChange?: (type: "DINE_IN" | "TAKEOUT", tableId: string) => void;
   cartSubtotal: number;
   cartCount: number;
   isSubmitting: boolean;
@@ -182,6 +187,9 @@ function CartBody({
   customerName,
   customerPhone,
   orderNote,
+  orderType = "TAKEOUT",
+  selectedTableId = "",
+  onFulfillmentChange,
   submitMessage,
   submitError,
   isCashier,
@@ -196,6 +204,9 @@ function CartBody({
   | "customerName"
   | "customerPhone"
   | "orderNote"
+  | "orderType"
+  | "selectedTableId"
+  | "onFulfillmentChange"
   | "submitMessage"
   | "submitError"
   | "onCustomerNameChange"
@@ -225,29 +236,27 @@ function CartBody({
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {!isCashier ? (
             <>
-              <Input
-                aria-label="Name for the order"
-                value={customerName}
-                onChange={(event) => onCustomerNameChange(event.target.value)}
-                placeholder="Name for the order"
-                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-ring"
-              />
-              <Input
-                aria-label={
-                  isCashier ? "Phone number" : "Mobile money phone number"
-                }
-                value={customerPhone}
-                onChange={(event) => onCustomerPhoneChange(event.target.value)}
-                placeholder={
-                  isCashier
-                    ? "Phone number (optional)"
-                    : "Phone sending mobile money payment"
-                }
-                className="rounded-full border border-border bg-muted/50 px-5 py-3.5 text-sm outline-none focus:border-ring"
-              />
+              <div>
+                <label htmlFor="customer-name" className="text-sm font-semibold">Name (required)</label>
+                <Input id="customer-name" required value={customerName}
+                  onChange={(event) => onCustomerNameChange(event.target.value)}
+                  placeholder="Your Google account name"
+                  className="mt-1 rounded-full" />
+                {!customerName.trim() ? <p className="mt-1 text-xs text-muted-foreground">Sign in at checkout to use your account name.</p> : null}
+              </div>
+              <div>
+                <label htmlFor="customer-phone" className="text-sm font-semibold">Payment phone (required)</label>
+                <Input id="customer-phone" type="tel" inputMode="numeric" required pattern="90[0-9]{7}" maxLength={9}
+                  value={customerPhone} onChange={(event) => onCustomerPhoneChange(event.target.value)}
+                  placeholder="901234567" aria-describedby="customer-phone-help"
+                  aria-invalid={Boolean(customerPhone && !normalizeCustomerPaymentPhone(customerPhone))}
+                  className="mt-1 rounded-full" />
+                <p id="customer-phone-help" className="mt-1 text-xs text-muted-foreground">90 followed by seven digits. Leave out +252.</p>
+                {customerPhone && !normalizeCustomerPaymentPhone(customerPhone) ? <p role="alert" className="text-xs text-rose-700">Use exactly nine digits starting with 90.</p> : null}
+              </div>
             </>
           ) : null}
-          <div className="md:col-span-2">
+          {isCashier ? <div className="md:col-span-2">
             <Textarea
               aria-label="Special requests or notes"
               value={orderNote}
@@ -256,8 +265,9 @@ function CartBody({
               rows={4}
               className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
             />
-          </div>
+          </div> : null}
         </div>
+        {!isCashier && onFulfillmentChange ? <CustomerFulfillmentSelect orderType={orderType} tableId={selectedTableId} onChange={onFulfillmentChange} /> : null}
         <CartLineItems
           cart={cart}
           onChangeQuantity={onChangeQuantity}

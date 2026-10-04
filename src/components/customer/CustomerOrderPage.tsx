@@ -15,6 +15,8 @@ import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useCustomerOrderData } from "@/hooks/customer/useCustomerOrderData";
 import {
   clearCustomerOrderDraft,
+  saveCustomerFulfillment,
+  restoreCustomerFulfillment,
   restoreCustomerOrderDraft,
   saveCustomerOrderDraft,
 } from "@/lib/customer/customer-order-draft";
@@ -39,7 +41,7 @@ import BackToTopButton from "./UI/BackToTopButton";
 import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
-import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
+import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 
 const posthogConfigured = Boolean(
   process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
@@ -108,6 +110,7 @@ type CustomerOrderAction =
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
   | { type: "orderNoteChanged"; orderNote: string }
+  | { type: "fulfillmentChanged"; orderType: "DINE_IN" | "TAKEOUT"; tableId: string }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -136,6 +139,8 @@ const initialCustomerOrderState: CustomerOrderState = {
   customerName: "",
   customerPhone: "",
   orderNote: "",
+  orderType: "TAKEOUT",
+  tableId: "",
   selectedProduct: null,
   modifierModalOpen: false,
   cartOpen: false,
@@ -160,6 +165,8 @@ function customerOrderReducer(
       return { ...state, customerName: action.customerName };
     case "customerPhoneChanged":
       return { ...state, customerPhone: action.customerPhone };
+    case "fulfillmentChanged":
+      return { ...state, orderType: action.orderType, tableId: action.tableId };
     case "orderNoteChanged":
       return { ...state, orderNote: action.orderNote };
     case "cartOpened":
@@ -241,10 +248,12 @@ function customerOrderReducer(
 
 type CustomerOrderPageProps = {
   authState: "guest" | "customer" | "blocked";
+  accountName?: string;
 };
 
 export default function CustomerOrderPage({
   authState,
+  accountName = "",
 }: CustomerOrderPageProps) {
   const {
     productsAll,
@@ -265,7 +274,7 @@ export default function CustomerOrderPage({
 
   const [orderState, dispatchOrderState] = useReducer(
     customerOrderReducer,
-    initialCustomerOrderState,
+    { ...initialCustomerOrderState, customerName: accountName },
   );
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
@@ -279,6 +288,8 @@ export default function CustomerOrderPage({
     orderState.customerName,
     orderState.customerPhone,
     orderState.orderNote,
+    orderState.orderType,
+    orderState.tableId,
   ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
@@ -360,17 +371,19 @@ export default function CustomerOrderPage({
       ].filter(Boolean);
       dispatchOrderState({
         type: "draftRestored",
-        customerName: restored.customerName,
+        customerName: accountName || restored.customerName,
         customerPhone: restored.customerPhone,
-        orderNote: restored.orderNote,
+        orderNote: "",
         message: issues.length
           ? ""
           : "Your order is ready to review. Press Checkout when you are ready.",
         error: issues.join(" "),
       });
     }
+    const fulfillment = restoreCustomerFulfillment();
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
-  }, [loading, catalogError, productsAll, baristas, replaceCart]);
+  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -378,6 +391,7 @@ export default function CustomerOrderPage({
       clearCustomerOrderDraft();
       return;
     }
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
     saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -390,6 +404,8 @@ export default function CustomerOrderPage({
     orderState.customerName,
     orderState.customerPhone,
     orderState.orderNote,
+    orderState.orderType,
+    orderState.tableId,
   ]);
 
   useAos(
@@ -405,6 +421,7 @@ export default function CustomerOrderPage({
     clearCustomerOrderDraft();
     clearCart();
     dispatchOrderState({ type: "reset" });
+    dispatchOrderState({ type: "customerNameChanged", customerName: accountName });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -495,10 +512,10 @@ export default function CustomerOrderPage({
       });
       return;
     }
-    if (!normalizeSomaliPhone(orderState.customerPhone)) {
+    if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Enter the mobile money phone number sending this payment.",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
@@ -507,6 +524,11 @@ export default function CustomerOrderPage({
         type: "checkoutBlocked",
         error: "Enter your name before checkout.",
       });
+      return;
+    }
+
+    if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
+      dispatchOrderState({ type: "checkoutBlocked", error: "Select your table before checkout." });
       return;
     }
 
@@ -522,7 +544,8 @@ export default function CustomerOrderPage({
           customerName: orderState.customerName,
           paymentPhone: orderState.customerPhone,
           idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
-          notes: orderState.orderNote,
+          orderType: orderState.orderType,
+          tableId: orderState.tableId || null,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -565,6 +588,7 @@ export default function CustomerOrderPage({
   }
 
   function handleContinueWithGoogle() {
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
     const saved = saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -649,6 +673,7 @@ export default function CustomerOrderPage({
         onCustomerPhoneChange={(customerPhone) =>
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
         }
+        onFulfillmentChange={(orderType, tableId) => dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })}
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
