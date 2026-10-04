@@ -59,7 +59,7 @@ export default async function ModifierGroupsPage({
     >
       <DataTableCard
         footer={
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium text-muted-foreground">
             Showing 1 to {groups.length} of {groups.length} groups
           </p>
         }
@@ -98,11 +98,11 @@ export default async function ModifierGroupsPage({
               </tr>
             ) : (
               groups.map((group, index) => (
-                <tr key={group.id} className="border-b border-slate-50">
-                  <TableCell className="font-bold text-slate-400">
+                <tr key={group.id} className="border-b border-border">
+                  <TableCell className="font-bold text-muted-foreground">
                     {index + 1}
                   </TableCell>
-                  <TableCell className="font-black text-slate-950">
+                  <TableCell className="font-black text-foreground">
                     {group.name}
                   </TableCell>
                   <TableCell>
