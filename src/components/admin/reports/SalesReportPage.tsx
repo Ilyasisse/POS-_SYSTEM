@@ -89,7 +89,9 @@ export async function SalesReportPage({
       <nav className="flex flex-wrap gap-2" aria-label="Report sections">
         {links.map(([label, href]) => (
           <Button key={href} variant="outline" asChild>
-            <Link prefetch={false} href={href}>{label}</Link>
+            <Link prefetch={false} href={href}>
+              {label}
+            </Link>
           </Button>
         ))}
       </nav>
@@ -113,7 +115,7 @@ export async function SalesReportPage({
             Apply
           </Button>
         </form>
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           {new Date(report.period.start).toLocaleString("en-US", {
             timeZone: report.period.timezone,
           })}{" "}
@@ -149,7 +151,7 @@ export async function SalesReportPage({
           <h2 className="text-lg font-black">Mobile-money sales</h2>
           <div className="mt-4 space-y-3">
             {report.paymentMethods.length === 0 ? (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 No paid orders in this period.
               </p>
             ) : (
@@ -164,12 +166,12 @@ export async function SalesReportPage({
         </Card>
         <Card className="p-5">
           <h2 className="text-lg font-black">Data coverage</h2>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-muted-foreground">
             {report.summary.costCoveredLines} of {report.summary.totalLines}{" "}
             sold lines have a historical cost snapshot. Profit remains
             unavailable until coverage is complete.
           </p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Cash and card are not shown because the POS currently captures
             mobile-money providers only.
           </p>
@@ -198,7 +200,7 @@ export async function SalesReportPage({
               <TableRow>
                 <TableCell
                   colSpan={canSeeFinancials ? 4 : 3}
-                  className="py-8 text-center text-slate-500"
+                  className="py-8 text-center text-muted-foreground"
                 >
                   No sales found for this period.
                 </TableCell>
@@ -254,7 +256,7 @@ export async function SalesReportPage({
           </Table>
         </Card>
       ) : null}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted-foreground">
         Recognized revenue uses fully paid orders and their closed time.
         Archived products remain visible through order-line snapshot names.
       </p>
