@@ -76,7 +76,7 @@ export default async function MenuAvailabilityPage({
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-black">{product.name}</h2>
                       <ToneBadge tone={product.availableNow ? "green" : "amber"}>
-                        {product.availableNow ? "AVAILABLE NOW" : "OUTSIDE HOURS"}
+                        {product.availableNow ? "WITHIN HOURS" : "OUTSIDE HOURS"}
                       </ToneBadge>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">

@@ -10,7 +10,9 @@ ADD CONSTRAINT "Product_availability_window_check" CHECK (
   )
   OR
   (
-    "availabilityStartMinute" BETWEEN 0 AND 1439
+    "availabilityStartMinute" IS NOT NULL
+    AND "availabilityEndMinute" IS NOT NULL
+    AND "availabilityStartMinute" BETWEEN 0 AND 1439
     AND "availabilityEndMinute" BETWEEN 0 AND 1439
     AND "availabilityStartMinute" <> "availabilityEndMinute"
   )
