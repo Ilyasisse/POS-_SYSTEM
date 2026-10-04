@@ -87,7 +87,7 @@ export async function createKitchenTicketState(
 ) {
   const stations = getStationSet(input.lines);
 
-  if (stations.length === 0) return null;
+  if (stations.length === 0 && !input.actorCustomerId) return null;
 
   const targets = await tx.kitchenPreparationTarget.findMany({
     where: { station: { in: stations } },
@@ -99,6 +99,7 @@ export async function createKitchenTicketState(
   return tx.kitchenTicketState.create({
     data: {
       orderId: input.orderId,
+      pickupStatus: stations.length ? "PREPARING" : "READY",
       customerName: input.customerName?.trim() || null,
       stationStates: {
         create: stations.map((station) => ({ station })),
