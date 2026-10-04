@@ -26,7 +26,12 @@ export function preparePaymentRequestLines(
     payerName: line.payerName.trim(),
     payerPhone: line.payerPhone.trim(),
     amountCents: Math.round(Number(line.amount) * 100),
-    method: isPaymentMethod(line.method) ? line.method : fallbackMethod,
+    method:
+      line.method === undefined || line.method === ""
+        ? fallbackMethod
+        : isPaymentMethod(line.method)
+          ? line.method
+          : undefined,
   }));
 
   if (!prepared.length) {
