@@ -1,3 +1,4 @@
+import { customerOrderStage } from "@/lib/customer/customer-order-progress";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
@@ -21,7 +22,10 @@ export async function GET(
   const { id } = await params;
   let checkout = await prisma.customerCheckout.findFirst({
     where: { id, customerId: authorization.user.id },
-    include: { order: { select: { orderNumber: true } } },
+    include: {
+      table: { select: { name: true } },
+      order: { select: { orderNumber: true, kitchenTicketState: { include: { stationStates: true } } } },
+    },
   });
   if (!checkout)
     return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
@@ -31,7 +35,10 @@ export async function GET(
   }
   checkout = await prisma.customerCheckout.findFirst({
     where: { id, customerId: authorization.user.id },
-    include: { order: { select: { orderNumber: true } } },
+    include: {
+      table: { select: { name: true } },
+      order: { select: { orderNumber: true, kitchenTicketState: { include: { stationStates: true } } } },
+    },
   });
   if (!checkout)
     return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
@@ -45,6 +52,9 @@ export async function GET(
         expiresAt: checkout.expiresAt.toISOString(),
         orderNumber: checkout.order?.orderNumber ?? null,
         paymentReceived: Boolean(checkout.receiptId),
+        orderType: checkout.orderType,
+        tableName: checkout.table?.name ?? null,
+        stage: customerOrderStage(checkout.status, checkout.order?.kitchenTicketState),
       },
     },
     { headers: { "Cache-Control": "private, no-store" } },

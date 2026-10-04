@@ -12,6 +12,7 @@ import {
 } from "@/lib/inventory/inventory";
 import { chooseUniqueCustomerCheckout } from "@/lib/payments/customer-ussd";
 import type { SelectedModifierLine } from "@/lib/types";
+import { dispatchCustomerOrder } from "@/lib/staff/customer-order-dispatch";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type CheckoutLine = {
@@ -95,19 +96,25 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
         const note = [
           `Customer: ${checkout.customerName}`,
           `Phone: ${checkout.payerPhone}`,
-          checkout.notes ? `Note: ${checkout.notes}` : null,
+          checkout.orderType === "DINE_IN" ? "Dine in" : "To go",
         ]
           .filter(Boolean)
           .join(" | ");
         const order = await tx.order.create({
           data: {
-            type: "TAKEOUT",
+            type: checkout.orderType,
+            tableId: checkout.tableId,
             status: "PAID",
             total: checkout.amount,
             customerId: checkout.customerId,
             notes: note,
             closedAt: receipt.transactionAt ?? new Date(),
           },
+        });
+        const table = checkout.tableId ? await tx.table.findUnique({ where: { id: checkout.tableId }, select: { name: true } }) : null;
+        await dispatchCustomerOrder(tx, {
+          orderId: order.id, orderNumber: order.orderNumber, customerId: checkout.customerId,
+          tableName: table?.name ?? null,
         });
         const ticketLines = lines.map((line) => ({
           id: crypto.randomUUID(),
@@ -211,7 +218,7 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
               event: "customer_order_placed",
               properties: {
                 order_id: result.order.id,
-                order_type: "TAKEOUT",
+                order_type: result.order.type,
                 total: Number(checkout.amount),
                 item_count: Array.isArray(checkout.snapshot)
                   ? checkout.snapshot.length
@@ -248,6 +255,8 @@ export async function assignCustomerCheckoutReceipt(input: {
   checkoutId: string;
   receiptId: string;
   staff?: { id: string; fullName: string };
+  reviewReason?: string;
+  allowExceptions?: boolean;
 }) {
   const now = new Date();
   const checkoutId = input.checkoutId;
@@ -282,7 +291,7 @@ export async function assignCustomerCheckoutReceipt(input: {
       ) {
         throw new Error("Receipt predates the checkout.");
       }
-      if (!input.staff) {
+      {
         const match = chooseUniqueCustomerCheckout(
           {
             amount: Number(receipt.amount),
@@ -304,8 +313,10 @@ export async function assignCustomerCheckoutReceipt(input: {
           ],
           now,
         );
-        if (match !== checkout.id)
-          throw new Error("Receipt needs staff review.");
+        if (match !== checkout.id && (!input.staff || !input.allowExceptions || (input.reviewReason?.trim().length ?? 0) < 5))
+          throw new Error("Phone or payment window differs. An admin or manager must review it with a reason.");
+        if (input.staff && (input.reviewReason?.trim().length ?? 0) < 5)
+          throw new Error("Enter a review reason of at least five characters.");
       }
       const claimed = await tx.mobileMoneyReceipt.updateMany({
         where: {
@@ -332,6 +343,17 @@ export async function assignCustomerCheckoutReceipt(input: {
       });
       if (updated.count !== 1)
         throw new Error("Checkout was settled elsewhere.");
+      await tx.auditLog.create({
+        data: {
+          actorUserId: input.staff?.id ?? null,
+          action: input.staff ? "customer_checkout.receipt_reviewed" : "customer_checkout.receipt_matched",
+          entityType: "CustomerCheckout", entityId: checkout.id,
+          relatedEntityType: "MobileMoneyReceipt", relatedEntityId: receipt.id,
+          reason: input.reviewReason?.trim() ?? null,
+          previousValue: { status: checkout.status, receiptId: checkout.receiptId },
+          newValue: { status: "PAYMENT_RECEIVED", receiptId: receipt.id, allowExceptions: Boolean(input.allowExceptions) },
+        },
+      });
     },
     { timeout: 15000, maxWait: 5000 },
   );

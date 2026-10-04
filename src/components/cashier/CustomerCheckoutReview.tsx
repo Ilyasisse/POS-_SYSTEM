@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
@@ -25,25 +26,39 @@ type Receipt = {
   transactionAt: string | null;
 };
 
-export default function CustomerCheckoutReview() {
+export default function CustomerCheckoutReview({ admin = false }: { admin?: boolean }) {
   const { toast } = useToast();
   const [checkouts, setCheckouts] = useState<Checkout[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [checkoutId, setCheckoutId] = useState("");
   const [receiptId, setReceiptId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [checkoutPage, setCheckoutPage] = useState(0);
+  const [receiptPage, setReceiptPage] = useState(0);
+  const [hasMoreCheckouts, setHasMoreCheckouts] = useState(false);
+  const [hasMoreReceipts, setHasMoreReceipts] = useState(false);
+  const [checkedAt, setCheckedAt] = useState(0);
+  const [reason, setReason] = useState("");
+  const [canManage, setCanManage] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch("/api/cashier/customer-checkouts", {
+      const response = await fetch(`/api/cashier/customer-checkouts?checkoutPage=${checkoutPage}&receiptPage=${receiptPage}`, {
         cache: "no-store",
       });
       if (!response.ok) throw new Error("Could not load customer payments.");
       const data = (await response.json()) as {
+        hasMoreCheckouts: boolean;
+        hasMoreReceipts: boolean;
+        canManage: boolean;
         checkouts: Checkout[];
         receipts: Receipt[];
       };
+      setCheckedAt(Date.now());
+      setCanManage(data.canManage);
+      setHasMoreCheckouts(data.hasMoreCheckouts);
+      setHasMoreReceipts(data.hasMoreReceipts);
       setCheckouts(data.checkouts);
       setReceipts(data.receipts);
     } catch (error) {
@@ -55,7 +70,7 @@ export default function CustomerCheckoutReview() {
             : "Could not load customer payments.",
       });
     }
-  }, [toast]);
+  }, [toast, checkoutPage, receiptPage]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => void refresh(), 0);
@@ -80,7 +95,7 @@ export default function CustomerCheckoutReview() {
   );
 
   async function submit() {
-    if (!selectedCheckout || !selectedReceipt || !confirmed || !amountMatches)
+    if (!selectedCheckout || !selectedReceipt || !confirmed || !amountMatches || reason.trim().length < 5)
       return;
     setBusy(true);
     try {
@@ -89,7 +104,7 @@ export default function CustomerCheckoutReview() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ receiptId: selectedReceipt.id }),
+          body: JSON.stringify({ receiptId: selectedReceipt.id, reason }),
         },
       );
       const data = (await response.json()) as { error?: string };
@@ -153,12 +168,17 @@ export default function CustomerCheckoutReview() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/cashier">Back to cashier</Link>
+          <Link prefetch={false} href={admin ? "/admin" : "/cashier"}>Back to workspace</Link>
         </Button>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Customer checkouts</h2>
+          <div className="flex items-center gap-2 text-sm">
+            <Button variant="outline" disabled={checkoutPage === 0 || busy} onClick={() => { setCheckoutId(""); setConfirmed(false); setCheckoutPage(page => page - 1); }}>Previous</Button>
+            <span>Page {checkoutPage + 1}</span>
+            <Button variant="outline" disabled={!hasMoreCheckouts || busy} onClick={() => { setCheckoutId(""); setConfirmed(false); setCheckoutPage(page => page + 1); }}>Next</Button>
+          </div>
           {checkouts.length === 0 ? (
             <p className="rounded-xl border p-4">
               No pending customer checkouts.
@@ -207,6 +227,11 @@ export default function CustomerCheckoutReview() {
           <h2 className="text-lg font-semibold">
             Unassigned incoming receipts
           </h2>
+          <div className="flex items-center gap-2 text-sm">
+            <Button variant="outline" disabled={receiptPage === 0 || busy} onClick={() => { setReceiptId(""); setConfirmed(false); setReceiptPage(page => page - 1); }}>Previous</Button>
+            <span>Page {receiptPage + 1}</span>
+            <Button variant="outline" disabled={!hasMoreReceipts || busy} onClick={() => { setReceiptId(""); setConfirmed(false); setReceiptPage(page => page + 1); }}>Next</Button>
+          </div>
           {receipts.length === 0 ? (
             <p className="rounded-xl border p-4">
               No unassigned incoming receipts. Check the manager review inbox
@@ -259,6 +284,14 @@ export default function CustomerCheckoutReview() {
               ? "Amounts match"
               : "Amounts differ — choose another receipt"}
           </p>
+          <p className="mt-2 text-sm">
+            Phone: {Array.isArray(selectedReceipt.counterpartyIdentifiers) && selectedReceipt.counterpartyIdentifiers.some(value => typeof value === "string" && normalizeSomaliPhone(value) === selectedCheckout.payerPhone) ? "matches" : "differs — manager review required"}.
+            {" "}Window: {selectedReceipt.transactionAt && new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) && checkedAt <= new Date(selectedCheckout.expiresAt).getTime() ? "within 15 minutes" : "expired — manager review required"}.
+          </p>
+          <label className="mt-3 block text-sm">Review reason (required)
+            <input value={reason} onChange={event => setReason(event.target.value)} className="mt-1 block w-full rounded-lg border bg-background p-3" placeholder="Explain the evidence used to verify this payment" />
+          </label>
+          {canManage ? <p className="mt-2 text-xs text-muted-foreground">Admin/manager review can resolve phone or time exceptions. Amount and receipt uniqueness are always enforced.</p> : null}
           <label className="mt-3 flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -273,7 +306,7 @@ export default function CustomerCheckoutReview() {
           <Button
             type="button"
             className="mt-4"
-            disabled={!confirmed || !amountMatches || busy}
+            disabled={!confirmed || !amountMatches || reason.trim().length < 5 || busy}
             onClick={() => void submit()}
           >
             Assign receipt and finish paid order
