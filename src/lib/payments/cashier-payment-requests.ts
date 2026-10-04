@@ -1,15 +1,15 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import {
+  preparePaymentRequestLines,
+  type PaymentRequestLineDraft,
+} from "@/lib/payments/payment-request-lines";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
 
-export type PaymentRequestLineInput = {
-  payerName: string;
-  payerPhone: string;
-  amount: number;
-};
+export type PaymentRequestLineInput = PaymentRequestLineDraft;
 
 export async function getOpenTableBalance(tableId: string) {
   const orders = await prisma.order.findMany({
@@ -36,7 +36,7 @@ export async function createPaymentRequestBatch(input: {
   batchKey: string;
   tableId: string;
   cashier: { id: string; fullName: string };
-  method: PaymentMethod;
+  method?: PaymentMethod;
   lines: PaymentRequestLineInput[];
   payLater: boolean;
 }) {
@@ -48,19 +48,7 @@ export async function createPaymentRequestBatch(input: {
   const dueCents = await getOpenTableBalance(input.tableId);
   if (dueCents <= 0)
     throw new Error("This table no longer has an unpaid balance.");
-  const lines = input.lines.map((line) => ({
-    payerName: line.payerName.trim(),
-    payerPhone: line.payerPhone.trim(),
-    amountCents: cents(line.amount),
-  }));
-  if (
-    !lines.length ||
-    lines.some(
-      (line) => !line.payerName || !line.payerPhone || line.amountCents <= 0,
-    )
-  ) {
-    throw new Error("Every payment needs a name, phone number, and amount.");
-  }
+  const lines = preparePaymentRequestLines(input.lines, input.method);
   const requestedCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
   if (requestedCents > dueCents)
     throw new Error("Split payments cannot exceed the table balance.");
@@ -79,7 +67,7 @@ export async function createPaymentRequestBatch(input: {
             tableId: input.tableId,
             cashierId: input.cashier.id,
             cashierName: input.cashier.fullName,
-            method: input.method,
+            method: line.method,
             payerName: line.payerName,
             payerPhone: line.payerPhone,
             expectedAmount: decimal(line.amountCents / 100),
