@@ -86,6 +86,7 @@ const navigationGroups: readonly {
       "tables",
       "reservations",
       "orders",
+      "payment-review",
       "waiter-balances",
       "daily-cash",
       "operations",
@@ -113,7 +114,7 @@ const navigationGroups: readonly {
     key: "administration",
     label: "Administration",
     icon: Settings,
-    itemKeys: ["staff", "settings"],
+    itemKeys: ["staff", "cashier-status", "settings"],
   },
   {
     key: "role-workspaces",
@@ -125,6 +126,7 @@ const navigationGroups: readonly {
       "cashier-home",
       "cashier-order",
       "cashier-waiter-orders",
+      "customer-checkouts",
       "waiter-home",
       "inventory-home",
     ],
@@ -199,6 +201,7 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     requiredPermissions: [PERMISSIONS.ORDER_MANAGE] as const,
     section: "operations",
   },
+  { key: "customer-checkouts", href: "/cashier/customer-checkouts", label: "Customer payments", icon: ReceiptText, requiredPermissions: [PERMISSIONS.PAYMENT_TAKE], section: "operations" },
   {
     key: "waiter-home",
     href: "/waiter",
