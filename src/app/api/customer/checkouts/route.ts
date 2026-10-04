@@ -3,7 +3,7 @@ import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
+import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 import { validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
@@ -32,7 +32,8 @@ type CustomerOrderBody = {
   customerPhone?: string;
   paymentPhone?: string;
   idempotencyKey?: string;
-  notes?: string;
+  orderType?: "DINE_IN" | "TAKEOUT";
+  tableId?: string | null;
   items: CustomerOrderItemInput[];
 };
 
@@ -74,9 +75,10 @@ export async function POST(request: Request) {
     if (!authorization.ok) return authorization.response;
 
     const body = (await request.json()) as CustomerOrderBody;
-    const customerName = String(body.customerName ?? "").trim();
-    const notes = String(body.notes ?? "").trim();
-    const payerPhone = normalizeSomaliPhone(String(body.paymentPhone ?? ""));
+    const customerName = String(body.customerName ?? authorization.user.fullName).trim();
+    const orderType = body.orderType ?? "TAKEOUT";
+    const tableId = orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
+    const payerPhone = normalizeCustomerPaymentPhone(String(body.paymentPhone ?? ""));
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
 
     if (authorization.user.role !== "CUSTOMER") {
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
     }
     if (!payerPhone) {
       return NextResponse.json(
-        { error: "Enter the phone number sending the payment." },
+        { error: "Enter 90 followed by seven digits for the phone sending payment." },
         { status: 400 },
       );
     }
@@ -102,7 +104,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (customerName.length < 2) {
+    if (orderType !== "DINE_IN" && orderType !== "TAKEOUT") {
+      return NextResponse.json({ error: "Choose dine-in or to-go." }, { status: 400 });
+    }
+    if (orderType === "DINE_IN" && (!tableId || !await prisma.table.findFirst({ where: { id: tableId, isActive: true }, select: { id: true } }))) {
+      return NextResponse.json({ error: "Select an active table." }, { status: 400 });
+    }
+
+    if (customerName.length < 1) {
       return NextResponse.json(
         { error: "Customer name is required." },
         { status: 400 },
@@ -246,6 +255,7 @@ export async function POST(request: Request) {
         : [];
       const selectedModifiers: SelectedModifierLine[] = [];
       const handledModifierIds = new Set<string>();
+      const validatedModifierIds = new Set<string>();
 
       for (const incomingModifier of incomingModifiers) {
         if (
@@ -280,6 +290,7 @@ export async function POST(request: Request) {
           );
         }
 
+        validatedModifierIds.add(modifier.id);
         selectedModifiers.push({
           groupId: modifier.modifierGroup.id,
           groupName: modifier.modifierGroup.name,
@@ -293,9 +304,7 @@ export async function POST(request: Request) {
       validateModifierSelections({
         productName: product.name,
         availableOptions: product.modifiers,
-        selectedModifierIds: [...handledModifierIds].filter(
-          (modifierId) => !modifierId.startsWith("placeholder__"),
-        ),
+        selectedModifierIds: [...validatedModifierIds],
       });
 
       let assignedBaristaId: string | null = null;
@@ -386,7 +395,8 @@ export async function POST(request: Request) {
           customerId: authorization.user.id,
           customerName,
           payerPhone,
-          notes: notes || null,
+          orderType,
+          tableId,
           amount: toDecimal(calculatedTotal),
           snapshot,
           idempotencyKey,

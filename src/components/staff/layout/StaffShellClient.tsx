@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/sidebar";
 import type { StaffShellProps } from "./StaffShell";
 import PaymentGatewayBanner from "./PaymentGatewayBanner";
+import CashierAvailability from "./CashierAvailability";
+import CustomerOrderNotifications from "./CustomerOrderNotifications";
 import StaffSidebar from "./StaffSidebar";
 
 type StaffShellClientProps = StaffShellProps & {
@@ -75,6 +77,7 @@ export default function StaffShellClient({
             ) : null}
 
             <div className="ml-auto flex items-center gap-2">
+              {currentUser.role === "CASHIER" ? <CashierAvailability /> : null}
               <ModeToggle />
               {headerActions ? (
                 <div className="flex items-center gap-2 sm:hidden">
@@ -94,6 +97,7 @@ export default function StaffShellClient({
         </header>
 
         <PaymentGatewayBanner />
+        {currentUser.role === "CASHIER" || currentUser.role === "WAITER" ? <CustomerOrderNotifications waiter={currentUser.role === "WAITER"} /> : null}
 
         <div className="min-h-[calc(100vh-4rem)]">{children}</div>
       </SidebarInset>

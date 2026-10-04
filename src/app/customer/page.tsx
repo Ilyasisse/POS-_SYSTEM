@@ -17,6 +17,7 @@ export default async function CustomerPage() {
 
   return (
     <CustomerOrderPage
+      accountName={user?.fullName ?? ""}
       authState={!user ? "guest" : user.isActive ? "customer" : "blocked"}
     />
   );
