@@ -5,6 +5,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createProduct } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
+import { Textarea } from "@/components/ui/textarea";
 
 export default async function NewProductPage() {
   const categories = await prisma.category.findMany({
@@ -44,6 +45,37 @@ export default async function NewProductPage() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2"
                 placeholder="Product name"
                 required
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="new-product-description"
+                className="mb-1 block text-sm font-medium"
+              >
+                Menu description
+              </label>
+              <Textarea
+                id="new-product-description"
+                name="description"
+                maxLength={1000}
+                placeholder="Describe ingredients, preparation, or serving details"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="new-product-image-url"
+                className="mb-1 block text-sm font-medium"
+              >
+                Image URL
+              </label>
+              <Input
+                id="new-product-image-url"
+                name="imageUrl"
+                type="text"
+                maxLength={2048}
+                placeholder="https://example.com/burger.jpg or /images/burger.jpg"
               />
             </div>
 
@@ -102,6 +134,34 @@ export default async function NewProductPage() {
               />
               Track Stock
             </label>
+
+            <div className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
+              <label
+                htmlFor="new-product-is-active"
+                className="flex items-center gap-2 text-sm font-medium"
+              >
+                <Input
+                  id="new-product-is-active"
+                  name="isActive"
+                  type="checkbox"
+                  className="h-4 w-4 shrink-0"
+                  defaultChecked
+                />
+                Visible on menus
+              </label>
+              <label
+                htmlFor="new-product-is-popular"
+                className="flex items-center gap-2 text-sm font-medium"
+              >
+                <Input
+                  id="new-product-is-popular"
+                  name="isPopular"
+                  type="checkbox"
+                  className="h-4 w-4 shrink-0"
+                />
+                Feature as popular
+              </label>
+            </div>
 
             <PronunciationRecorder
               inputName="pronunciationAudioUrl"
