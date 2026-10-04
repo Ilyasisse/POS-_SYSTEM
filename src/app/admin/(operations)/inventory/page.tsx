@@ -243,7 +243,6 @@ function InventorySuppliesTable({
       <Table>
         <thead>
           <tr>
-            <TableHead>#</TableHead>
             <TableHead>Item</TableHead>
             <TableHead>Stock</TableHead>
             <TableHead>Unit</TableHead>
@@ -260,11 +259,10 @@ function InventorySuppliesTable({
               </TableCell>
             </tr>
           ) : (
-            visibleSupplies.map((supply, index) => (
+            visibleSupplies.map((supply) => (
               <InventorySupplyTableRow
                 key={supply.id}
                 supply={supply}
-                rowNumber={index + 1}
               />
             ))
           )}
@@ -276,14 +274,11 @@ function InventorySuppliesTable({
 
 function InventorySupplyTableRow({
   supply,
-  rowNumber,
 }: {
   supply: InventorySupplyRow;
-  rowNumber: number;
 }) {
   return (
     <tr className="border-b border-slate-50 align-top">
-      <TableCell className="font-bold text-slate-400">{rowNumber}</TableCell>
       <TableCell className="font-black text-slate-950">{supply.name}</TableCell>
       <TableCell>{supply.stockQty}</TableCell>
       <TableCell>
