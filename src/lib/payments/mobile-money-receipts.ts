@@ -130,6 +130,7 @@ export async function listMobileMoneyReceipts(now: Date = new Date()) {
   return prisma.mobileMoneyReceipt.findMany({
     where: {
       OR: [
+        { status: { in: ["NEEDS_REVIEW", "AVAILABLE"] } },
         { transactionAt: { gte: start, lt: end } },
         { transactionAt: null, receivedAt: { gte: start, lt: end } },
       ],

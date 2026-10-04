@@ -562,7 +562,7 @@ test("soft-deletes supplier-order schedules while preserving their audit history
 
   const service = readFileSync("src/lib/supplier-orders/service.ts", "utf8");
   assert.ok(
-    service.match(/deletedAt: null/g)?.length >= 6,
+    (service.match(/deletedAt: null/g)?.length ?? 0) >= 6,
     "every scheduler stage and the transactional claim must exclude deleted schedules",
   );
 
