@@ -9,6 +9,29 @@ export async function GET() {
     !["CASHIER", "WAITER", "ADMIN", "MANAGER"].includes(user.role)
   )
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (user.role === "ADMIN" || user.role === "MANAGER") {
+    const [checkouts, receipts] = await Promise.all([
+      prisma.customerCheckout.count({
+        where: { status: { in: ["REVIEW", "NEEDS_HELP"] } },
+      }),
+      prisma.mobileMoneyReceipt.count({
+        where: {
+          OR: [
+            {
+              status: "AVAILABLE",
+              direction: "INCOMING",
+              assignedPaymentRequestId: null,
+            },
+            { status: "NEEDS_REVIEW" },
+          ],
+        },
+      }),
+    ]);
+    return NextResponse.json(
+      { notifications: [], paymentReview: { checkouts, receipts } },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
   const notifications = await prisma.auditLog.findMany({
     where: {
       action: "customer_order.assigned",

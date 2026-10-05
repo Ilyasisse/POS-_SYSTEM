@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
+import {
+  customerPaymentNameMatches,
+  normalizeSomaliPhone,
+} from "@/lib/payments/customer-ussd";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
@@ -340,7 +343,14 @@ export default function CustomerCheckoutReview({
               : "Amounts differ — choose another receipt"}
           </p>
           <p className="mt-2 text-sm">
-            Phone:{" "}
+            Name:{" "}
+            {customerPaymentNameMatches(
+              selectedCheckout.customerName,
+              selectedReceipt.counterpartyLabel,
+            )
+              ? "at least two words match"
+              : "fewer than two words match — manager review required"}
+            . Phone:{" "}
             {Array.isArray(selectedReceipt.counterpartyIdentifiers) &&
             selectedReceipt.counterpartyIdentifiers.some(
               (value) =>
@@ -369,8 +379,8 @@ export default function CustomerCheckoutReview({
           </label>
           {canManage ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              Admin/manager review can resolve phone or time exceptions. Amount
-              and receipt uniqueness are always enforced.
+              Admin/manager review can resolve name, phone, or time exceptions.
+              Amount and receipt uniqueness are always enforced.
             </p>
           ) : null}
           <label className="mt-3 flex items-start gap-3 text-sm">

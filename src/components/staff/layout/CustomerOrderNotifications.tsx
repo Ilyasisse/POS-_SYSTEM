@@ -7,10 +7,16 @@ type Notification = {
 };
 export default function CustomerOrderNotifications({
   waiter,
+  manager = false,
 }: {
   waiter: boolean;
+  manager?: boolean;
 }) {
   const [items, setItems] = useState<Notification[]>([]);
+  const [paymentReview, setPaymentReview] = useState({
+    checkouts: 0,
+    receipts: 0,
+  });
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
@@ -27,9 +33,11 @@ export default function CustomerOrderNotifications({
           );
         const data = (await response.json()) as {
           notifications: Notification[];
+          paymentReview?: { checkouts: number; receipts: number };
         };
         if (active) {
           setItems(data.notifications);
+          setPaymentReview(data.paymentReview ?? { checkouts: 0, receipts: 0 });
           setError("");
         }
       } catch (cause) {
@@ -48,7 +56,13 @@ export default function CustomerOrderNotifications({
       window.clearInterval(interval);
     };
   }, []);
-  if (!items.length && !error) return null;
+  if (
+    !items.length &&
+    !error &&
+    !paymentReview.checkouts &&
+    !paymentReview.receipts
+  )
+    return null;
   return (
     <aside
       aria-label="Customer order notifications"
@@ -56,6 +70,20 @@ export default function CustomerOrderNotifications({
       className="border-b bg-amber-50 p-3 text-sm text-stone-900"
     >
       {error ? <p role="alert">{error}</p> : null}
+      {manager &&
+      (paymentReview.checkouts > 0 || paymentReview.receipts > 0) ? (
+        <p>
+          Payment review needed: {paymentReview.checkouts} customer checkouts ·{" "}
+          {paymentReview.receipts} unassigned or unparsed receipts.{" "}
+          <Link
+            prefetch={false}
+            href="/admin/payment-review"
+            className="underline"
+          >
+            Review payments
+          </Link>
+        </p>
+      ) : null}
       {items.map((item) => (
         <p key={item.id}>
           New paid customer order #{item.newValue.orderNumber} ·{" "}
