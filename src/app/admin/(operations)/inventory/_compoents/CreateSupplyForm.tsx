@@ -1,8 +1,7 @@
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { createSupply } from '../actions';
-import { Button } from '@/components/ui/button';
-
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { createSupply } from "../actions";
+import { Button } from "@/components/ui/button";
 
 export default function CreateSupplyForm() {
   return (
@@ -16,7 +15,7 @@ export default function CreateSupplyForm() {
           name="name"
           type="text"
           placeholder="Item name"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
           required
         />
         <Input
@@ -24,7 +23,7 @@ export default function CreateSupplyForm() {
           name="unit"
           type="text"
           placeholder="Unit"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
         />
         <Input
           aria-label="Initial stock quantity"
@@ -33,7 +32,7 @@ export default function CreateSupplyForm() {
           min="0"
           step="0.001"
           placeholder="Stock"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
         />
         <Input
           aria-label="Low stock threshold"
@@ -42,7 +41,7 @@ export default function CreateSupplyForm() {
           min="0"
           step="0.001"
           placeholder="Low"
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-10 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
         />
         <Button type="submit">Add Supply</Button>
       </form>

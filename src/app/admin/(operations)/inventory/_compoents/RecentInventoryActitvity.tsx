@@ -19,25 +19,25 @@ export default function RecentInventoryActivity({
 }) {
   return (
     <Card className="p-5">
-      <h2 className="text-lg font-black text-slate-950">
+      <h2 className="text-lg font-black text-foreground">
         Recent Inventory Activity
       </h2>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {movements.length === 0 ? (
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium text-muted-foreground">
             No supply movements yet.
           </p>
         ) : (
           movements.map((movement) => (
             <div
               key={movement.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-950">
+                <p className="truncate text-sm font-black text-foreground">
                   {movement.itemName}
                 </p>
-                <p className="text-xs font-medium text-slate-500">
+                <p className="text-xs font-medium text-muted-foreground">
                   {movement.reason} ~ {formatDateTime(movement.createdAt)}
                 </p>
               </div>

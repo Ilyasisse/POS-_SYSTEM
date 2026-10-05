@@ -1,9 +1,12 @@
-import { Button, ToneBadge } from '@/components/admin/shared';
-import { TableCell } from '@/components/ui/table';
-import { canonicalUnitLabel } from '@/lib/inventory/inventory-domain';
-import { InventoryStatus, InventorySupplyRow } from '@/types/admin/Inventory.types';
-import { adjustSupplyInventory, updateSupplyInventory } from '../actions';
-import { Input } from '@/components/ui/input';
+import { Button, ToneBadge } from "@/components/admin/shared";
+import { TableCell } from "@/components/ui/table";
+import { canonicalUnitLabel } from "@/lib/inventory/inventory-domain";
+import {
+  InventoryStatus,
+  InventorySupplyRow,
+} from "@/types/admin/Inventory.types";
+import { adjustSupplyInventory, updateSupplyInventory } from "../actions";
+import { Input } from "@/components/ui/input";
 
 function getTone(status: InventoryStatus) {
   if (status === "OUT") {
@@ -17,11 +20,16 @@ function getTone(status: InventoryStatus) {
   return "green" as const;
 }
 
-
-export default function InventorySupplyTableRow({ supply }: { supply: InventorySupplyRow }) {
+export default function InventorySupplyTableRow({
+  supply,
+}: {
+  supply: InventorySupplyRow;
+}) {
   return (
-    <tr className="border-b border-slate-50 align-top">
-      <TableCell className="font-black text-slate-950">{supply.name}</TableCell>
+    <tr className="border-b border-border align-top">
+      <TableCell className="font-bold text-muted-foreground">
+        {supply.name}
+      </TableCell>
       <TableCell>{supply.stockQty}</TableCell>
       <TableCell>
         {canonicalUnitLabel(supply.canonicalUnit)}
@@ -42,7 +50,7 @@ export default function InventorySupplyTableRow({ supply }: { supply: InventoryS
             min="0"
             step="0.001"
             defaultValue={supply.stockQty}
-            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-20 rounded-lg border border-border px-2 text-sm"
           />
           <Input
             name="lowStockThreshold"
@@ -51,11 +59,11 @@ export default function InventorySupplyTableRow({ supply }: { supply: InventoryS
             min="0"
             step="0.001"
             defaultValue={supply.lowStockThreshold}
-            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-20 rounded-lg border border-border px-2 text-sm"
           />
           <Button
             type="submit"
-            className="h-9 rounded-lg bg-blue-600 px-3 text-xs font-bold text-white"
+            className="h-9 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"
           >
             Save
           </Button>
@@ -70,18 +78,18 @@ export default function InventorySupplyTableRow({ supply }: { supply: InventoryS
             type="number"
             min="1"
             placeholder="Qty"
-            className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-20 rounded-lg border border-border px-2 text-sm"
           />
           <Input
             name="note"
             aria-label={`Restock note for ${supply.name}`}
             type="text"
             placeholder="Note"
-            className="h-9 w-24 rounded-lg border border-slate-200 px-2 text-sm"
+            className="h-9 w-24 rounded-lg border border-border px-2 text-sm"
           />
           <Button
             type="submit"
-            className="h-9 rounded-lg border border-emerald-200 bg-emerald-900 px-3 text-xs font-bold text-white"
+            className="h-9 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-900 hover:bg-emerald-900/90 px-3 text-xs font-bold text-white"
           >
             Add
           </Button>

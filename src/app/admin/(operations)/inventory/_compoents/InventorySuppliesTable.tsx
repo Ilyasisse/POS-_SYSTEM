@@ -1,9 +1,14 @@
-import { DataTableCard, SearchToolbar, Table, TableCell, TableHead } from "@/components/admin/shared";
+import {
+  DataTableCard,
+  SearchToolbar,
+  Table,
+  TableCell,
+  TableHead,
+} from "@/components/admin/shared";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { InventorySupplyRow } from "@/types/admin/Inventory.types";
 
 import InventorySupplyTableRow from "./InventorySupplyTableRow";
-
 
 export default function InventorySuppliesTable({
   visibleSupplies,
@@ -19,7 +24,7 @@ export default function InventorySuppliesTable({
   return (
     <DataTableCard
       footer={
-        <p className="text-sm font-medium text-slate-500">
+        <p className="text-sm font-medium text-muted-foreground">
           Showing 1 to {visibleSupplies.length} of {totalSupplies} items
         </p>
       }
