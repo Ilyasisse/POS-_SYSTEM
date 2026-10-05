@@ -224,7 +224,9 @@ export default async function DailyCashPage({
               show={Boolean(params?.date)}
             />
             <Button asChild variant="outline">
-              <Link prefetch={false} href="/admin/daily-cash/settings">Salary settings</Link>
+              <Link prefetch={false} href="/admin/daily-cash/settings">
+                Salary settings
+              </Link>
             </Button>
           </form>
         </CardContent>

@@ -237,37 +237,87 @@ function CartBody({
           {!isCashier ? (
             <>
               <div>
-                <label htmlFor="customer-name" className="text-sm font-semibold">Name (required)</label>
-                <Input id="customer-name" required value={customerName}
+                <label
+                  htmlFor="customer-name"
+                  className="text-sm font-semibold"
+                >
+                  Name (required)
+                </label>
+                <Input
+                  id="customer-name"
+                  required
+                  value={customerName}
                   onChange={(event) => onCustomerNameChange(event.target.value)}
                   placeholder="Your Google account name"
-                  className="mt-1 rounded-full" />
-                {!customerName.trim() ? <p className="mt-1 text-xs text-muted-foreground">Sign in at checkout to use your account name.</p> : null}
+                  className="mt-1 rounded-full"
+                />
+                {!customerName.trim() ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Sign in at checkout to use your account name.
+                  </p>
+                ) : null}
               </div>
               <div>
-                <label htmlFor="customer-phone" className="text-sm font-semibold">Payment phone (required)</label>
-                <Input id="customer-phone" type="tel" inputMode="numeric" required pattern="90[0-9]{7}" maxLength={9}
-                  value={customerPhone} onChange={(event) => onCustomerPhoneChange(event.target.value)}
-                  placeholder="901234567" aria-describedby="customer-phone-help"
-                  aria-invalid={Boolean(customerPhone && !normalizeCustomerPaymentPhone(customerPhone))}
-                  className="mt-1 rounded-full" />
-                <p id="customer-phone-help" className="mt-1 text-xs text-muted-foreground">90 followed by seven digits. Leave out +252.</p>
-                {customerPhone && !normalizeCustomerPaymentPhone(customerPhone) ? <p role="alert" className="text-xs text-rose-700">Use exactly nine digits starting with 90.</p> : null}
+                <label
+                  htmlFor="customer-phone"
+                  className="text-sm font-semibold"
+                >
+                  Payment phone (required)
+                </label>
+                <Input
+                  id="customer-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  required
+                  pattern="90[0-9]{7}"
+                  maxLength={9}
+                  value={customerPhone}
+                  onChange={(event) =>
+                    onCustomerPhoneChange(event.target.value)
+                  }
+                  placeholder="901234567"
+                  aria-describedby="customer-phone-help"
+                  aria-invalid={Boolean(
+                    customerPhone &&
+                    !normalizeCustomerPaymentPhone(customerPhone),
+                  )}
+                  className="mt-1 rounded-full"
+                />
+                <p
+                  id="customer-phone-help"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  90 followed by seven digits. Leave out +252.
+                </p>
+                {customerPhone &&
+                !normalizeCustomerPaymentPhone(customerPhone) ? (
+                  <p role="alert" className="text-xs text-rose-700">
+                    Use exactly nine digits starting with 90.
+                  </p>
+                ) : null}
               </div>
             </>
           ) : null}
-          {isCashier ? <div className="md:col-span-2">
-            <Textarea
-              aria-label="Special requests or notes"
-              value={orderNote}
-              onChange={(event) => onOrderNoteChange(event.target.value)}
-              placeholder="Special requests or notes"
-              rows={4}
-              className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
-            />
-          </div> : null}
+          {isCashier ? (
+            <div className="md:col-span-2">
+              <Textarea
+                aria-label="Special requests or notes"
+                value={orderNote}
+                onChange={(event) => onOrderNoteChange(event.target.value)}
+                placeholder="Special requests or notes"
+                rows={4}
+                className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
+              />
+            </div>
+          ) : null}
         </div>
-        {!isCashier && onFulfillmentChange ? <CustomerFulfillmentSelect orderType={orderType} tableId={selectedTableId} onChange={onFulfillmentChange} /> : null}
+        {!isCashier && onFulfillmentChange ? (
+          <CustomerFulfillmentSelect
+            orderType={orderType}
+            tableId={selectedTableId}
+            onChange={onFulfillmentChange}
+          />
+        ) : null}
         <CartLineItems
           cart={cart}
           onChangeQuantity={onChangeQuantity}

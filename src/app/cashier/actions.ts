@@ -29,7 +29,7 @@ function refreshCashierTableViews() {
   revalidatePath("/admin/reports");
 }
 
-export async function payOpenTableOrdersFromCashier(formData: FormData) {
+async function payOpenTableOrdersFromCashier(formData: FormData) {
   const currentUser = await requirePermission(PERMISSIONS.PAYMENT_TAKE);
 
   const tableId = String(formData.get("tableId") ?? "").trim();

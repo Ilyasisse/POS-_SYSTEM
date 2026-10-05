@@ -25,7 +25,7 @@ type InventoryEmailStatus = "sent" | "failed" | "skipped" | "none";
 
 const EAT_OFFSET_HOURS = 3;
 
-function getEatDayStart(date = new Date()) {
+export function getEatDayStart(date = new Date()) {
   const eatNow = new Date(date.getTime() + EAT_OFFSET_HOURS * 60 * 60 * 1000);
   const eatStart = Date.UTC(
     eatNow.getUTCFullYear(),

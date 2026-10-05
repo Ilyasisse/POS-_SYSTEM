@@ -6,10 +6,7 @@ import {
   adjustmentReducesAmountDue,
   isAdjustmentAllowedForStatus,
 } from "@/lib/sales/adjustment-rules";
-export {
-  requiredAdjustmentPermission,
-  snapshotProductCost,
-} from "@/lib/sales/adjustment-rules";
+export { requiredAdjustmentPermission } from "@/lib/sales/adjustment-rules";
 
 type TransactionClient = Prisma.TransactionClient;
 
