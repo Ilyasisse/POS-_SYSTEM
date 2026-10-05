@@ -249,11 +249,13 @@ function customerOrderReducer(
 type CustomerOrderPageProps = {
   authState: "guest" | "customer" | "blocked";
   accountName?: string;
+  tableOrderContext?: { token: string; tableName: string };
 };
 
 export default function CustomerOrderPage({
   authState,
   accountName = "",
+  tableOrderContext,
 }: CustomerOrderPageProps) {
   const {
     productsAll,
@@ -274,7 +276,11 @@ export default function CustomerOrderPage({
 
   const [orderState, dispatchOrderState] = useReducer(
     customerOrderReducer,
-    { ...initialCustomerOrderState, customerName: accountName },
+    {
+      ...initialCustomerOrderState,
+      customerName: accountName,
+      orderType: tableOrderContext ? "DINE_IN" : "TAKEOUT",
+    },
   );
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
@@ -290,6 +296,7 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    tableOrderContext?.token,
   ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
@@ -380,10 +387,10 @@ export default function CustomerOrderPage({
         error: issues.join(" "),
       });
     }
-    const fulfillment = restoreCustomerFulfillment();
+    const fulfillment = tableOrderContext ? null : restoreCustomerFulfillment();
     if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
-  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
+  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName, tableOrderContext]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -391,7 +398,7 @@ export default function CustomerOrderPage({
       clearCustomerOrderDraft();
       return;
     }
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    if (!tableOrderContext) saveCustomerFulfillment(orderState.orderType, orderState.tableId);
     saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -406,6 +413,7 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    tableOrderContext,
   ]);
 
   useAos(
@@ -422,6 +430,9 @@ export default function CustomerOrderPage({
     clearCart();
     dispatchOrderState({ type: "reset" });
     dispatchOrderState({ type: "customerNameChanged", customerName: accountName });
+    if (tableOrderContext) {
+      dispatchOrderState({ type: "fulfillmentChanged", orderType: "DINE_IN", tableId: "" });
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -527,7 +538,7 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
+    if (!tableOrderContext && orderState.orderType === "DINE_IN" && !orderState.tableId) {
       dispatchOrderState({ type: "checkoutBlocked", error: "Select your table before checkout." });
       return;
     }
@@ -544,8 +555,9 @@ export default function CustomerOrderPage({
           customerName: orderState.customerName,
           paymentPhone: orderState.customerPhone,
           idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
-          orderType: orderState.orderType,
-          tableId: orderState.tableId || null,
+          orderType: tableOrderContext ? "DINE_IN" : orderState.orderType,
+          tableId: tableOrderContext ? undefined : orderState.tableId || null,
+          tableToken: tableOrderContext?.token,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -588,7 +600,7 @@ export default function CustomerOrderPage({
   }
 
   function handleContinueWithGoogle() {
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    if (!tableOrderContext) saveCustomerFulfillment(orderState.orderType, orderState.tableId);
     const saved = saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -601,7 +613,10 @@ export default function CustomerOrderPage({
       );
       return;
     }
-    window.location.assign("/auth/google/start?next=%2Fcustomer");
+    const next = tableOrderContext
+      ? `/table/${tableOrderContext.token}`
+      : "/customer";
+    window.location.assign(`/auth/google/start?next=${encodeURIComponent(next)}`);
   }
 
   return (
@@ -612,6 +627,12 @@ export default function CustomerOrderPage({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
 
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
+        {tableOrderContext ? (
+          <p className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-900">
+            Ordering for {tableOrderContext.tableName}. Sign in and pay at checkout
+            to send your order to the kitchen.
+          </p>
+        ) : null}
         <CustomerOrderHeader
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
@@ -685,6 +706,7 @@ export default function CustomerOrderPage({
           dispatchOrderState({ type: "cartCleared" });
         }}
         onCheckout={handlePlaceOrder}
+        tableName={tableOrderContext?.tableName}
       />
       <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">

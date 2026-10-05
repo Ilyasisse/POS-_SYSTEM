@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { findAppUser } from "@/lib/auth/app-user";
+import type { customerReturnPath } from "@/lib/auth/customer-return-path";
 
 export async function redirectAuthenticatedUser(
-  next: "/customer" | null = null,
+  next: ReturnType<typeof customerReturnPath> = null,
 ) {
   const supabase = await createClient();
 

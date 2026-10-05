@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+import { verifyTableQrToken } from "@/lib/customer-orders/table-qr-token";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   selectEffectiveRecipe,
@@ -33,6 +34,7 @@ type CustomerOrderBody = {
   idempotencyKey?: string;
   orderType?: "DINE_IN" | "TAKEOUT";
   tableId?: string | null;
+  tableToken?: string;
   items: CustomerOrderItemInput[];
 };
 
@@ -57,6 +59,8 @@ function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+class InactiveTableQrError extends Error {}
+
 function isPlaceholderModifier(
   modifier: CustomerOrderItemModifierInput | SelectedModifierLine,
 ) {
@@ -74,11 +78,18 @@ export async function POST(request: Request) {
     if (!authorization.ok) return authorization.response;
 
     const body = (await request.json()) as CustomerOrderBody;
-    const customerName = String(body.customerName ?? authorization.user.fullName).trim();
-    const orderType = body.orderType ?? "TAKEOUT";
-    const tableId = orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
-    const payerPhone = normalizeCustomerPaymentPhone(String(body.paymentPhone ?? ""));
+    const customerName = String(
+      body.customerName ?? authorization.user.fullName,
+    ).trim();
+    let orderType = body.orderType ?? "TAKEOUT";
+    let tableId =
+      orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
+    const tableToken = String(body.tableToken ?? "").trim();
+    const payerPhone = normalizeCustomerPaymentPhone(
+      String(body.paymentPhone ?? ""),
+    );
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
+    let tableQrPayload: ReturnType<typeof verifyTableQrToken> = null;
 
     if (authorization.user.role !== "CUSTOMER") {
       return NextResponse.json(
@@ -88,7 +99,10 @@ export async function POST(request: Request) {
     }
     if (!payerPhone) {
       return NextResponse.json(
-        { error: "Enter 90 followed by seven digits for the phone sending payment." },
+        {
+          error:
+            "Enter 90 followed by seven digits for the phone sending payment.",
+        },
         { status: 400 },
       );
     }
@@ -103,11 +117,75 @@ export async function POST(request: Request) {
       );
     }
 
-    if (orderType !== "DINE_IN" && orderType !== "TAKEOUT") {
-      return NextResponse.json({ error: "Choose dine-in or to-go." }, { status: 400 });
+    // Recover the original checkout even if its table code was rotated meanwhile.
+    const existing = await prisma.customerCheckout.findUnique({
+      where: { idempotencyKey },
+    });
+    if (existing) {
+      if (existing.customerId !== authorization.user.id) {
+        return NextResponse.json(
+          { error: "Checkout key is already in use." },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json({
+        checkout: {
+          id: existing.id,
+          amount: Number(existing.amount),
+          status: existing.status,
+        },
+      });
     }
-    if (orderType === "DINE_IN" && (!tableId || !await prisma.table.findFirst({ where: { id: tableId, isActive: true }, select: { id: true } }))) {
-      return NextResponse.json({ error: "Select an active table." }, { status: 400 });
+
+    if (tableToken) {
+      try {
+        tableQrPayload = verifyTableQrToken(tableToken);
+      } catch {
+        return NextResponse.json(
+          { error: "Table ordering is not configured." },
+          { status: 503 },
+        );
+      }
+      const table = tableQrPayload
+        ? await prisma.table.findFirst({
+            where: {
+              id: tableQrPayload.tableId,
+              isActive: true,
+              qrOrderingEnabled: true,
+              qrTokenVersion: tableQrPayload.tokenVersion,
+            },
+            select: { id: true },
+          })
+        : null;
+      if (!table) {
+        return NextResponse.json(
+          { error: "This table ordering code is invalid or no longer active." },
+          { status: 403 },
+        );
+      }
+      // A scanned code binds the destination; submitted table IDs cannot override it.
+      orderType = "DINE_IN";
+      tableId = table.id;
+    }
+
+    if (orderType !== "DINE_IN" && orderType !== "TAKEOUT") {
+      return NextResponse.json(
+        { error: "Choose dine-in or to-go." },
+        { status: 400 },
+      );
+    }
+    if (
+      orderType === "DINE_IN" &&
+      (!tableId ||
+        !(await prisma.table.findFirst({
+          where: { id: tableId, isActive: true },
+          select: { id: true },
+        })))
+    ) {
+      return NextResponse.json(
+        { error: "Select an active table." },
+        { status: 400 },
+      );
     }
 
     if (customerName.length < 1) {
@@ -191,10 +269,10 @@ export async function POST(request: Request) {
             },
           })
         : Promise.resolve([]),
-      assignedBaristaIds.length > 0
+      tableToken || assignedBaristaIds.length > 0
         ? prisma.staff.findMany({
             where: {
-              id: { in: assignedBaristaIds },
+              ...(tableToken ? {} : { id: { in: assignedBaristaIds } }),
               role: "BARISTA",
               isActive: true,
             },
@@ -202,6 +280,7 @@ export async function POST(request: Request) {
               id: true,
               fullName: true,
             },
+            orderBy: [{ fullName: "asc" }, { id: "asc" }],
           })
         : Promise.resolve([]),
     ]);
@@ -284,14 +363,16 @@ export async function POST(request: Request) {
       let assignedBaristaName: string | null = null;
 
       if (station === "BARISTA") {
-        if (!item.assignedBaristaId) {
+        const selectedBaristaId =
+          item.assignedBaristaId || (tableToken ? baristas[0]?.id : null);
+        if (!selectedBaristaId) {
           return NextResponse.json(
             { error: `No barista is available for ${product.name}.` },
             { status: 400 },
           );
         }
 
-        const barista = baristaMap.get(item.assignedBaristaId);
+        const barista = baristaMap.get(selectedBaristaId);
 
         if (!barista) {
           return NextResponse.json(
@@ -339,31 +420,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await prisma.customerCheckout.findUnique({
-      where: { idempotencyKey },
-    });
-    if (existing) {
-      if (existing.customerId !== authorization.user.id) {
-        return NextResponse.json(
-          { error: "Checkout key is already in use." },
-          { status: 409 },
-        );
-      }
-      return NextResponse.json({
-        checkout: {
-          id: existing.id,
-          amount: Number(existing.amount),
-          status: existing.status,
-        },
-      });
-    }
-
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     const snapshot = JSON.parse(
       JSON.stringify(preparedLines),
     ) as Prisma.InputJsonValue;
     try {
-      const checkout = await prisma.customerCheckout.create({
+      const checkoutData = {
         data: {
           customerId: authorization.user.id,
           customerName,
@@ -375,7 +437,32 @@ export async function POST(request: Request) {
           idempotencyKey,
           expiresAt,
         },
-      });
+      };
+      const qrPayload = tableQrPayload;
+      const checkout = qrPayload
+        ? await prisma.$transaction(async (tx) => {
+            // Serialize new checkout creation with table-code revocation.
+            await tx.$queryRaw`SELECT "id" FROM "Table" WHERE "id" = ${qrPayload.tableId} FOR UPDATE`;
+            const table = await tx.table.findUnique({
+              where: { id: qrPayload.tableId },
+              select: {
+                isActive: true,
+                qrOrderingEnabled: true,
+                qrTokenVersion: true,
+              },
+            });
+            if (
+              !table?.isActive ||
+              !table.qrOrderingEnabled ||
+              table.qrTokenVersion !== qrPayload.tokenVersion
+            ) {
+              throw new InactiveTableQrError(
+                "This table ordering code is invalid or no longer active.",
+              );
+            }
+            return tx.customerCheckout.create(checkoutData);
+          })
+        : await prisma.customerCheckout.create(checkoutData);
       return NextResponse.json(
         {
           checkout: {
@@ -387,6 +474,9 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     } catch (error) {
+      if (error instanceof InactiveTableQrError) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"

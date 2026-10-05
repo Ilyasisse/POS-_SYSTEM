@@ -68,13 +68,17 @@ const cart: CartLine[] = [
   },
 ];
 
-test("OAuth return accepts only the customer order route", () => {
+test("OAuth return accepts only customer ordering routes", () => {
   assert.equal(customerReturnPath("/customer"), "/customer");
+  assert.equal(customerReturnPath("/table/c2lnbmVk.c2lnbmF0dXJl"), "/table/c2lnbmVk.c2lnbmF0dXJl");
   for (const value of [
     "//example.com",
     "/customer/../admin",
     "/admin",
     "https://example.com",
+    "/table/code/../admin",
+    "/table/code.signature?next=//example.com",
+    "/table/%2F%2Fexample.com.signature",
     null,
   ]) {
     assert.equal(customerReturnPath(value), null);

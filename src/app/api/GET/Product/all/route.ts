@@ -15,11 +15,8 @@ export async function GET() {
         id: true,
         name: true,
         price: true,
-        cost: true,
         isActive: true,
         description: true,
-        trackStock: true,
-        stockQty: true,
         imageUrl: true,
         pronunciationAudioUrl: true,
         isPopular: true,
@@ -107,9 +104,6 @@ export async function GET() {
       return {
         ...product,
         price: product.price ?? 0,
-        cost: product.cost ?? null,
-        trackStock: !!product.trackStock,
-        stockQty: product.stockQty ?? 0,
         isPopular: !!product.isPopular,
         category: product.category
           ? {
