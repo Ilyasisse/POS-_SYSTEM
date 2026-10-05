@@ -15,7 +15,8 @@ const SERIALIZABLE = Prisma.TransactionIsolationLevel.Serializable;
 
 function requiredText(value: string, label: string, maximum = 1000) {
   const result = value.trim();
-  if (result.length < 3) throw new Error(`${label} must be at least 3 characters.`);
+  if (result.length < 3)
+    throw new Error(`${label} must be at least 3 characters.`);
   if (result.length > maximum) throw new Error(`${label} is too long.`);
   return result;
 }
@@ -25,7 +26,11 @@ export async function saveKitchenPreparationTarget(input: {
   targetMinutes: number;
   actorUserId: string;
 }) {
-  if (!Number.isInteger(input.targetMinutes) || input.targetMinutes < 1 || input.targetMinutes > 240) {
+  if (
+    !Number.isInteger(input.targetMinutes) ||
+    input.targetMinutes < 1 ||
+    input.targetMinutes > 240
+  ) {
     throw new Error("Preparation target must be between 1 and 240 minutes.");
   }
   return prisma.$transaction(async (tx) => {
@@ -35,18 +40,32 @@ export async function saveKitchenPreparationTarget(input: {
         previous,
         target: await tx.kitchenPreparationTarget.upsert({
           where: { station: input.station },
-          create: { station: input.station, targetMinutes: input.targetMinutes, updatedByUserId: input.actorUserId },
-          update: { targetMinutes: input.targetMinutes, updatedByUserId: input.actorUserId },
+          create: {
+            station: input.station,
+            targetMinutes: input.targetMinutes,
+            updatedByUserId: input.actorUserId,
+          },
+          update: {
+            targetMinutes: input.targetMinutes,
+            updatedByUserId: input.actorUserId,
+          },
         }),
       }));
-    await tx.auditLog.create({ data: {
-      actorUserId: input.actorUserId,
-      action: "kitchen.preparation_target.changed",
-      entityType: "KitchenPreparationTarget",
-      entityId: target.id,
-      previousValue: previous ? { targetMinutes: previous.targetMinutes } : Prisma.JsonNull,
-      newValue: { station: input.station, targetMinutes: input.targetMinutes },
-    } });
+    await tx.auditLog.create({
+      data: {
+        actorUserId: input.actorUserId,
+        action: "kitchen.preparation_target.changed",
+        entityType: "KitchenPreparationTarget",
+        entityId: target.id,
+        previousValue: previous
+          ? { targetMinutes: previous.targetMinutes }
+          : Prisma.JsonNull,
+        newValue: {
+          station: input.station,
+          targetMinutes: input.targetMinutes,
+        },
+      },
+    });
     return target;
   });
 }
@@ -62,13 +81,18 @@ export async function recordKitchenQualityEvent(input: {
   return prisma.$transaction(async (tx) => {
     const ticket = await tx.kitchenTicketState.findUnique({
       where: { orderId: input.orderId },
-      include: { order: { select: { orderItems: { select: { id: true, station: true } } } } },
+      include: {
+        order: {
+          select: { orderItems: { select: { id: true, station: true } } },
+        },
+      },
     });
     if (!ticket) throw new Error("Kitchen ticket not found.");
     const line = input.orderItemId
       ? ticket.order.orderItems.find((item) => item.id === input.orderItemId)
       : null;
-    if (input.orderItemId && !line) throw new Error("Order item does not belong to this ticket.");
+    if (input.orderItemId && !line)
+      throw new Error("Order item does not belong to this ticket.");
     return tx.kitchenQualityEvent.create({
       data: {
         orderId: input.orderId,
@@ -96,7 +120,11 @@ export async function createOperationalIncident(input: {
       type: input.type,
       severity: input.severity,
       title: requiredText(input.title, "Incident title", 160),
-      description: requiredText(input.description, "Incident description", 2000),
+      description: requiredText(
+        input.description,
+        "Incident description",
+        2000,
+      ),
       station: input.station ?? null,
       reportedByUserId: input.reportedByUserId,
       assignedToUserId: input.assignedToUserId ?? null,
@@ -116,18 +144,27 @@ export async function resolveOperationalIncident(input: {
       data: {
         status: "RESOLVED",
         resolvedAt,
-        resolutionNotes: requiredText(input.resolutionNotes, "Resolution notes", 2000),
+        resolutionNotes: requiredText(
+          input.resolutionNotes,
+          "Resolution notes",
+          2000,
+        ),
       },
     });
-    if (claimed.count !== 1) throw new Error("Only an open incident can be resolved.");
-    await tx.auditLog.create({ data: {
-      actorUserId: input.actorUserId,
-      action: "operations.incident.resolved",
-      entityType: "OperationalIncident",
-      entityId: input.incidentId,
-      newValue: { status: "RESOLVED", resolvedAt: resolvedAt.toISOString() },
-    } });
-    return tx.operationalIncident.findUniqueOrThrow({ where: { id: input.incidentId } });
+    if (claimed.count !== 1)
+      throw new Error("Only an open incident can be resolved.");
+    await tx.auditLog.create({
+      data: {
+        actorUserId: input.actorUserId,
+        action: "operations.incident.resolved",
+        entityType: "OperationalIncident",
+        entityId: input.incidentId,
+        newValue: { status: "RESOLVED", resolvedAt: resolvedAt.toISOString() },
+      },
+    });
+    return tx.operationalIncident.findUniqueOrThrow({
+      where: { id: input.incidentId },
+    });
   });
 }
 
@@ -137,7 +174,8 @@ export async function createCleaningTemplate(input: {
   schedule: string;
   tasks: readonly { label: string; required?: boolean }[];
 }) {
-  if (!input.tasks.length) throw new Error("A cleaning template needs at least one task.");
+  if (!input.tasks.length)
+    throw new Error("A cleaning template needs at least one task.");
   return prisma.cleaningChecklistTemplate.create({
     data: {
       name: requiredText(input.name, "Template name", 160),
@@ -189,8 +227,12 @@ export async function completeCleaningTask(input: {
       where: { id: input.runTaskId },
       include: { run: { select: { status: true } } },
     });
-    if (!task || task.completed) throw new Error("Open cleaning task not found.");
-    if (task.run.status !== CleaningRunStatus.PENDING && task.run.status !== CleaningRunStatus.IN_PROGRESS) {
+    if (!task || task.completed)
+      throw new Error("Open cleaning task not found.");
+    if (
+      task.run.status !== CleaningRunStatus.PENDING &&
+      task.run.status !== CleaningRunStatus.IN_PROGRESS
+    ) {
       throw new Error("Cleaning run is not open.");
     }
     const completedAt = new Date();
@@ -217,27 +259,35 @@ export async function completeCleaningRun(input: {
   evidenceNote?: string | null;
   evidenceUrl?: string | null;
 }) {
-  return prisma.$transaction(async (tx) => {
-    const run = await tx.cleaningChecklistRun.findUnique({
-      where: { id: input.runId },
-      include: { tasks: { include: { task: true } } },
-    });
-    if (!run || run.status === "COMPLETED") throw new Error("Open cleaning run not found.");
-    if (!canCompleteCleaningRun(run.tasks.map((line) => ({
-      isRequired: line.task.isRequired,
-      completed: line.completed,
-    })))) {
-      throw new Error("Complete every required cleaning task first.");
-    }
-    return tx.cleaningChecklistRun.update({
-      where: { id: run.id },
-      data: {
-        status: "COMPLETED",
-        completedAt: new Date(),
-        completedByUserId: input.actorUserId,
-        evidenceNote: input.evidenceNote?.trim() || null,
-        evidenceUrl: input.evidenceUrl?.trim() || null,
-      },
-    });
-  }, { isolationLevel: SERIALIZABLE });
+  return prisma.$transaction(
+    async (tx) => {
+      const run = await tx.cleaningChecklistRun.findUnique({
+        where: { id: input.runId },
+        include: { tasks: { include: { task: true } } },
+      });
+      if (!run || run.status === "COMPLETED")
+        throw new Error("Open cleaning run not found.");
+      if (
+        !canCompleteCleaningRun(
+          run.tasks.map((line) => ({
+            isRequired: line.task.isRequired,
+            completed: line.completed,
+          })),
+        )
+      ) {
+        throw new Error("Complete every required cleaning task first.");
+      }
+      return tx.cleaningChecklistRun.update({
+        where: { id: run.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          completedByUserId: input.actorUserId,
+          evidenceNote: input.evidenceNote?.trim() || null,
+          evidenceUrl: input.evidenceUrl?.trim() || null,
+        },
+      });
+    },
+    { isolationLevel: SERIALIZABLE },
+  );
 }

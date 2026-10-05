@@ -13,6 +13,7 @@ type CustomerOrderHeaderProps = {
   subtitle?: string;
   resetLabel?: string;
   cartLabel?: string;
+  hideCartOnDesktop?: boolean;
 };
 
 export default function CustomerOrderHeader({
@@ -24,15 +25,16 @@ export default function CustomerOrderHeader({
   subtitle,
   resetLabel = "Start Over",
   cartLabel = "Cart",
+  hideCartOnDesktop = false,
 }: CustomerOrderHeaderProps) {
   return (
     <header
       data-aos="fade-down"
-      className="sticky top-2 z-30 rounded-[1.25rem] border border-white/80 bg-card/88 px-4 py-4 shadow-[0_20px_60px_rgba(44,28,17,0.14)] backdrop-blur-xl sm:top-4 sm:rounded-3xl sm:px-5 sm:py-5"
+      className="sticky top-2 z-30 rounded-[1.25rem] border border-border bg-card/88 px-4 py-4 shadow-[0_20px_60px_rgba(44,28,17,0.14)] backdrop-blur-xl sm:top-4 sm:rounded-3xl sm:px-5 sm:py-5"
     >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200/70 bg-card p-1.5 shadow-sm sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200 dark:border-amber-800/70 bg-card p-1.5 shadow-sm sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
             <Image
               src="/newer_logo.png"
               alt="Mash Allah Cafe"
@@ -59,6 +61,7 @@ export default function CustomerOrderHeader({
         <div className="flex w-full flex-wrap items-center justify-end gap-3 lg:w-auto">
           <ModeToggle />
           <Button
+            variant="outline"
             type="button"
             onClick={onReset}
             className="rounded-full border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-muted"
@@ -69,7 +72,7 @@ export default function CustomerOrderHeader({
           <Button
             type="button"
             onClick={onOpenCart}
-            className="rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+            className={`rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 ${hideCartOnDesktop ? "lg:hidden" : ""}`}
           >
             {cartLabel} {formatCurrency(cartSubtotal)} ({cartCount})
           </Button>

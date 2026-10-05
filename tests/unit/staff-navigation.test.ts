@@ -105,10 +105,7 @@ test("nested pages activate their parent navigation item", () => {
     getActiveStaffNavigationGroupKey("/admin/categories", nodes),
     "catalog",
   );
-  assert.equal(
-    getActiveStaffNavigationGroupKey("/admin", nodes),
-    null,
-  );
+  assert.equal(getActiveStaffNavigationGroupKey("/admin", nodes), null);
 });
 
 test("selecting a group closes the previous group and toggles itself", () => {
