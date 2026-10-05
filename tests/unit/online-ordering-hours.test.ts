@@ -77,11 +77,11 @@ test("overnight windows remain open across midnight", () => {
 test("customer checkout is gated and settings changes are audited", async () => {
   const [route, action] = await Promise.all([
     readFile(
-      new URL("../../src/app/api/customer/orders/route.ts", import.meta.url),
+      new URL("../../src/app/api/customer/checkouts/route.ts", import.meta.url),
       "utf8",
     ),
     readFile(
-      new URL("../../src/app/admin/settings/actions.ts", import.meta.url),
+      new URL("../../src/app/admin/(Adminstration)/settings/actions.ts", import.meta.url),
       "utf8",
     ),
   ]);

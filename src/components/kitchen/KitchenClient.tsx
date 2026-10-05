@@ -23,7 +23,12 @@ export default function KitchenClient({
   currentUserName,
   currentUserRole,
 }: KitchenClientProps) {
-  const { activeTickets, statusMessage, updateTicketStatus, recordQualityEvent } = useKitchenTickets({
+  const {
+    activeTickets,
+    statusMessage,
+    updateTicketStatus,
+    recordQualityEvent,
+  } = useKitchenTickets({
     station,
     currentUserId,
     currentUserName,
@@ -35,7 +40,7 @@ export default function KitchenClient({
 
   return (
     <div
-      className="dark min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-6 text-slate-100 md:px-6"
+      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-7xl space-y-4">
