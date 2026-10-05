@@ -357,7 +357,7 @@ function CurrentTableOrderPanel({
   );
 }
 
-export default function CashierOrderClient({
+function CashierOrderClient({
   tables,
   initialTableId = "",
 }: CashierOrderClientProps) {

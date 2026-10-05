@@ -81,7 +81,7 @@ export function readWhatsAppConfig(
   };
 }
 
-export function createWhatsAppClient(
+function createWhatsAppClient(
   config: WhatsAppConfig,
 ): TwilioMessageClient {
   return twilio(config.apiKeySid, config.apiKeySecret, {

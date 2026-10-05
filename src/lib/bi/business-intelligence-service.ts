@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export async function recordExpense(input: {
+async function recordExpense(input: {
   categoryId: string;
   amount: Prisma.Decimal.Value;
   paidAt: Date;
@@ -31,7 +31,7 @@ export async function recordExpense(input: {
   });
 }
 
-export async function approveExpense(
+async function approveExpense(
   expenseId: string,
   approverUserId: string,
 ) {
@@ -45,7 +45,7 @@ export async function approveExpense(
   });
 }
 
-export async function recordOwnerWithdrawal(input: {
+async function recordOwnerWithdrawal(input: {
   amount: Prisma.Decimal.Value;
   withdrawnAt: Date;
   reason: string;
@@ -63,7 +63,7 @@ export async function recordOwnerWithdrawal(input: {
   });
 }
 
-export async function receivePurchaseOrder(input: {
+async function receivePurchaseOrder(input: {
   purchaseOrderId: string;
   actorUserId: string;
   qualityRating?: number;
@@ -103,7 +103,7 @@ export async function receivePurchaseOrder(input: {
   });
 }
 
-export async function recordFeedback(input: {
+async function recordFeedback(input: {
   orderId?: string;
   rating?: number;
   comment?: string;
@@ -121,7 +121,7 @@ export async function recordFeedback(input: {
   });
 }
 
-export async function resolveComplaint(input: {
+async function resolveComplaint(input: {
   complaintId: string;
   resolverUserId: string;
   resolutionNotes: string;
