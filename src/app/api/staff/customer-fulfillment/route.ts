@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { customerOrderStage } from "@/lib/customer/customer-order-progress";
+import { customerFulfillmentDestination } from "@/lib/customer/customer-order-fulfillment";
 import { KitchenTicketMutationError, updateKitchenTicketPickup } from "@/lib/kitchen/kitchen-tickets";
 export const dynamic = "force-dynamic";
 export async function GET() {
@@ -15,7 +16,9 @@ export async function GET() {
   });
   return NextResponse.json({ orders: orders.map(order => ({
     id: order.id, orderNumber: order.orderNumber, customerName: order.customerCheckout?.customerName,
-    destination: order.table?.name ?? "To go", stage: customerOrderStage("PAID", order.kitchenTicketState),
+    destination: customerFulfillmentDestination({ orderType: order.type, tableName: order.table?.name, deliveryAddress: order.deliveryAddress }),
+    deliveryPhone: order.type === "DELIVERY" ? order.deliveryPhone : null,
+    stage: customerOrderStage("PAID", order.kitchenTicketState),
   })) }, { headers: { "Cache-Control": "private, no-store" } });
 }
 export async function PATCH(request: Request) {

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-type Order = { id: string; orderNumber: number; customerName: string; destination: string; stage: string };
+type Order = { id: string; orderNumber: number; customerName: string; destination: string; deliveryPhone: string | null; stage: string };
 export default function CustomerFulfillmentBoard() {
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -17,9 +17,12 @@ export default function CustomerFulfillmentBoard() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not load orders."); }
   }, []);
   useEffect(() => {
-    void refresh();
+    const initialRefresh = window.setTimeout(() => void refresh(), 0);
     const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 5000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initialRefresh);
+      window.clearInterval(interval);
+    };
   }, [refresh]);
   async function update(order: Order, status: string) {
     setBusy(true);
@@ -37,6 +40,7 @@ export default function CustomerFulfillmentBoard() {
     {!orders.length ? <p>No customer orders waiting for delivery.</p> : null}
     {orders.map(order => <article key={order.id} className="rounded-xl border p-4">
       <p className="font-semibold">#{order.orderNumber} · {order.customerName} · {order.destination}</p>
+      {order.deliveryPhone ? <p className="mt-1 text-sm">Delivery contact: <a href={`tel:${order.deliveryPhone}`} className="underline">{order.deliveryPhone}</a></p> : null}
       <p className="text-sm">{order.stage.replaceAll("_", " ")}</p>
       {order.stage === "READY" ? <Button className="mt-2" disabled={busy} onClick={() => void update(order, "claimed")}>Pick up order</Button> : null}
       {order.stage === "PICKED_UP" ? <Button className="mt-2" disabled={busy} onClick={() => void update(order, "delivered")}>Confirm delivered / handed over</Button> : null}

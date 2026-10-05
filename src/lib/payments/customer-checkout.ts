@@ -14,6 +14,10 @@ import { chooseUniqueCustomerCheckout } from "@/lib/payments/customer-ussd";
 import type { SelectedModifierLine } from "@/lib/types";
 import { dispatchCustomerOrder } from "@/lib/staff/customer-order-dispatch";
 import { getPostHogClient } from "@/lib/posthog-server";
+import {
+  buildCustomerOrderNote,
+  validateCustomerFulfillment,
+} from "@/lib/customer/customer-order-fulfillment";
 
 type CheckoutLine = {
   productId: string;
@@ -93,17 +97,31 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
         }
 
         const lines = snapshotLines(checkout.snapshot);
-        const note = [
-          `Customer: ${checkout.customerName}`,
-          `Phone: ${checkout.payerPhone}`,
-          checkout.orderType === "DINE_IN" ? "Dine in" : "To go",
-        ]
-          .filter(Boolean)
-          .join(" | ");
+        // Existing dine-in and pickup checkouts already passed creation validation.
+        // Keep their saved details valid when new delivery input limits are added.
+        const fulfillment = checkout.orderType === "DELIVERY"
+          ? validateCustomerFulfillment(checkout)
+          : {
+              ok: true as const,
+              value: {
+                orderType: checkout.orderType,
+                customerName: checkout.customerName,
+                tableId: checkout.tableId,
+                deliveryPhone: null,
+                deliveryAddress: null,
+              },
+            };
+        if (!fulfillment.ok) throw new Error(fulfillment.error);
+        const note = buildCustomerOrderNote({
+          ...fulfillment.value,
+          payerPhone: checkout.payerPhone,
+        });
         const order = await tx.order.create({
           data: {
-            type: checkout.orderType,
-            tableId: checkout.tableId,
+            type: fulfillment.value.orderType,
+            tableId: fulfillment.value.tableId,
+            deliveryPhone: fulfillment.value.deliveryPhone,
+            deliveryAddress: fulfillment.value.deliveryAddress,
             status: "PAID",
             total: checkout.amount,
             customerId: checkout.customerId,
@@ -115,6 +133,8 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
         await dispatchCustomerOrder(tx, {
           orderId: order.id, orderNumber: order.orderNumber, customerId: checkout.customerId,
           tableName: table?.name ?? null,
+          orderType: fulfillment.value.orderType,
+          deliveryAddress: fulfillment.value.deliveryAddress,
         });
         const ticketLines = lines.map((line) => ({
           id: crypto.randomUUID(),

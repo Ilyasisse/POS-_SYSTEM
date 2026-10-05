@@ -1,4 +1,5 @@
 import { Product } from "./product.types";
+import type { CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 
 export type CategoryChip = {
   id: string;
@@ -11,8 +12,10 @@ export type CustomerOrderState = {
   searchTerm: string;
   customerName: string;
   customerPhone: string;
+  deliveryPhone: string;
+  deliveryAddress: string;
   orderNote: string;
-  orderType: "DINE_IN" | "TAKEOUT";
+  orderType: CustomerFulfillmentType;
   tableId: string;
   selectedProduct: Product | null;
   modifierModalOpen: boolean;

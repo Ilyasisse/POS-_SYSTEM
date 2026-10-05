@@ -42,6 +42,11 @@ import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+import {
+  validateCustomerFulfillment,
+  type CustomerFulfillmentType,
+} from "@/lib/customer/customer-order-fulfillment";
+import { useToast } from "@/components/ui/toast";
 
 const posthogConfigured = Boolean(
   process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
@@ -110,7 +115,9 @@ type CustomerOrderAction =
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
   | { type: "orderNoteChanged"; orderNote: string }
-  | { type: "fulfillmentChanged"; orderType: "DINE_IN" | "TAKEOUT"; tableId: string }
+  | { type: "fulfillmentChanged"; orderType: CustomerFulfillmentType; tableId: string; deliveryAddress?: string; deliveryPhone?: string }
+  | { type: "deliveryAddressChanged"; deliveryAddress: string }
+  | { type: "deliveryPhoneChanged"; deliveryPhone: string }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -141,6 +148,8 @@ const initialCustomerOrderState: CustomerOrderState = {
   orderNote: "",
   orderType: "TAKEOUT",
   tableId: "",
+  deliveryAddress: "",
+  deliveryPhone: "",
   selectedProduct: null,
   modifierModalOpen: false,
   cartOpen: false,
@@ -166,7 +175,18 @@ function customerOrderReducer(
     case "customerPhoneChanged":
       return { ...state, customerPhone: action.customerPhone };
     case "fulfillmentChanged":
-      return { ...state, orderType: action.orderType, tableId: action.tableId };
+      return {
+        ...state,
+        orderType: action.orderType,
+        tableId: action.orderType === "DINE_IN" ? action.tableId : "",
+        deliveryAddress: action.deliveryAddress ?? state.deliveryAddress,
+        deliveryPhone: action.deliveryPhone ?? state.deliveryPhone,
+        submitError: "",
+      };
+    case "deliveryAddressChanged":
+      return { ...state, deliveryAddress: action.deliveryAddress };
+    case "deliveryPhoneChanged":
+      return { ...state, deliveryPhone: action.deliveryPhone };
     case "orderNoteChanged":
       return { ...state, orderNote: action.orderNote };
     case "cartOpened":
@@ -174,7 +194,7 @@ function customerOrderReducer(
     case "cartClosed":
       return { ...state, cartOpen: false };
     case "cartCleared":
-      return { ...state, orderNote: "", submitError: "", submitMessage: "" };
+      return { ...state, orderNote: "", deliveryAddress: "", deliveryPhone: "", submitError: "", submitMessage: "" };
     case "cartItemAdded":
       return { ...state, cartOpen: true, submitError: "", submitMessage: "" };
     case "baristaUnavailable":
@@ -225,7 +245,7 @@ function customerOrderReducer(
     case "checkoutFailed":
       return {
         ...state,
-        submitError: action.error,
+        submitError: "",
         submitMessage: "",
         cartOpen: true,
       };
@@ -255,6 +275,7 @@ export default function CustomerOrderPage({
   authState,
   accountName = "",
 }: CustomerOrderPageProps) {
+  const { toast } = useToast();
   const {
     productsAll,
     categories,
@@ -290,6 +311,8 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    orderState.deliveryAddress,
+    orderState.deliveryPhone,
   ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
@@ -391,7 +414,7 @@ export default function CustomerOrderPage({
       clearCustomerOrderDraft();
       return;
     }
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId, orderState.deliveryAddress, orderState.deliveryPhone);
     saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -406,6 +429,8 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    orderState.deliveryAddress,
+    orderState.deliveryPhone,
   ]);
 
   useAos(
@@ -519,10 +544,17 @@ export default function CustomerOrderPage({
       });
       return;
     }
-    if (!orderState.customerName.trim()) {
+    const fulfillment = validateCustomerFulfillment({
+      orderType: orderState.orderType,
+      customerName: orderState.customerName,
+      tableId: orderState.tableId,
+      deliveryAddress: orderState.deliveryAddress,
+      deliveryPhone: orderState.deliveryPhone,
+    });
+    if (!fulfillment.ok) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Enter your name before checkout.",
+        error: fulfillment.error,
       });
       return;
     }
@@ -546,6 +578,8 @@ export default function CustomerOrderPage({
           idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
           orderType: orderState.orderType,
           tableId: orderState.tableId || null,
+          deliveryAddress: fulfillment.value.deliveryAddress,
+          deliveryPhone: fulfillment.value.deliveryPhone,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -578,24 +612,26 @@ export default function CustomerOrderPage({
         `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
       );
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not start checkout.";
       dispatchOrderState({
         type: "checkoutFailed",
-        error: error instanceof Error ? error.message : "Something went wrong.",
+        error: message,
       });
+      toast({ tone: "error", description: message });
     } finally {
       dispatchOrderState({ type: "checkoutFinished" });
     }
   }
 
   function handleContinueWithGoogle() {
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    const fulfillmentSaved = saveCustomerFulfillment(orderState.orderType, orderState.tableId, orderState.deliveryAddress, orderState.deliveryPhone);
     const saved = saveCustomerOrderDraft(
       cart,
       orderState.customerName,
       orderState.customerPhone,
       orderState.orderNote,
     );
-    if (!saved) {
+    if (!saved || !fulfillmentSaved) {
       setSignInError(
         "Your browser could not save this order. Please allow session storage and try again.",
       );
@@ -674,6 +710,8 @@ export default function CustomerOrderPage({
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
         }
         onFulfillmentChange={(orderType, tableId) => dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })}
+        onDeliveryAddressChange={(deliveryAddress) => dispatchOrderState({ type: "deliveryAddressChanged", deliveryAddress })}
+        onDeliveryPhoneChange={(deliveryPhone) => dispatchOrderState({ type: "deliveryPhoneChanged", deliveryPhone })}
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }

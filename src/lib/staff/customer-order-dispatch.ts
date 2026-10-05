@@ -1,9 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
+import { customerFulfillmentDestination, type CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 
 /** Called inside order finalization so assignment and notification are durable. */
 export async function dispatchCustomerOrder(tx: Prisma.TransactionClient, input: {
   orderId: string; orderNumber: number; customerId: string; tableName: string | null;
+  orderType: CustomerFulfillmentType; deliveryAddress: string | null;
 }) {
   const now = new Date();
   const { start, end } = getCashierBusinessDayRange(now);
@@ -34,7 +36,7 @@ export async function dispatchCustomerOrder(tx: Prisma.TransactionClient, input:
       relatedEntityType: "Order", relatedEntityId: input.orderId,
       newValue: {
         orderNumber: input.orderNumber, waiterId: waiter?.id ?? null, cashierId: cashier?.id ?? null,
-        destination: input.tableName ?? "To go",
+        destination: customerFulfillmentDestination(input),
       },
     },
   });

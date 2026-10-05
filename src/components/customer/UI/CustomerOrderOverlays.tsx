@@ -3,6 +3,7 @@ import CustomerCartSheet from "../CustomerCartSheet";
 import CustomerModifierModal from "../CustomerModifierModal";
 import { SelectedModifiersMap } from "../customer-order-utils";
 import { CustomerOrderState } from "@/types/customer-order.types";
+import type { CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 
 type CustomerOrderOverlaysProps = {
   orderState: CustomerOrderState;
@@ -19,7 +20,9 @@ type CustomerOrderOverlaysProps = {
   onCloseCart: () => void;
   onCustomerNameChange: (customerName: string) => void;
   onCustomerPhoneChange: (customerPhone: string) => void;
-  onFulfillmentChange: (orderType: "DINE_IN" | "TAKEOUT", tableId: string) => void;
+  onFulfillmentChange: (orderType: CustomerFulfillmentType, tableId: string) => void;
+  onDeliveryAddressChange: (deliveryAddress: string) => void;
+  onDeliveryPhoneChange: (deliveryPhone: string) => void;
   onOrderNoteChange: (orderNote: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
   onRemove: (cartKey: string) => void;
@@ -40,6 +43,8 @@ export default function CustomerOrderOverlays({
   onCustomerPhoneChange,
   onOrderNoteChange,
   onFulfillmentChange,
+  onDeliveryAddressChange,
+  onDeliveryPhoneChange,
   onChangeQuantity,
   onRemove,
   onClearCart,
@@ -60,10 +65,14 @@ export default function CustomerOrderOverlays({
         cart={cart}
         customerName={orderState.customerName}
         customerPhone={orderState.customerPhone}
+        deliveryAddress={orderState.deliveryAddress}
+        deliveryPhone={orderState.deliveryPhone}
         orderNote={orderState.orderNote}
         orderType={orderState.orderType}
         selectedTableId={orderState.tableId}
         onFulfillmentChange={onFulfillmentChange}
+        onDeliveryAddressChange={onDeliveryAddressChange}
+        onDeliveryPhoneChange={onDeliveryPhoneChange}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
         isSubmitting={orderState.isSubmitting}

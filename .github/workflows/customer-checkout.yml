@@ -24,8 +24,8 @@ jobs:
       - run: npx prisma validate
       - run: npm run prisma:generate
       - name: Customer checkout unit tests
-        run: node --import tsx --test tests/unit/customer-mobile-money-checkout.test.ts tests/unit/customer-checkout-review.test.ts tests/unit/customer-order-draft.test.ts tests/unit/customer-order-progress.test.ts tests/unit/macrodroid-payment-inbox.test.ts tests/unit/payment-webhook.test.ts
+        run: node --import tsx --test tests/unit/customer-mobile-money-checkout.test.ts tests/unit/customer-checkout-review.test.ts tests/unit/customer-delivery-ordering.test.ts tests/unit/customer-order-draft.test.ts tests/unit/customer-order-progress.test.ts tests/unit/macrodroid-payment-inbox.test.ts tests/unit/payment-webhook.test.ts
       - name: Database migration tests
-        run: node --test tests/integration/customer-mobile-checkout-migration.test.mjs tests/integration/customer-receipt-assignment-migration.test.mjs tests/integration/customer-fulfillment-presence-migration.test.mjs
+        run: node --test tests/integration/customer-mobile-checkout-migration.test.mjs tests/integration/customer-receipt-assignment-migration.test.mjs tests/integration/customer-fulfillment-presence-migration.test.mjs tests/integration/customer-delivery-migration.test.mjs
       - name: Type check
         run: npx tsc --noEmit

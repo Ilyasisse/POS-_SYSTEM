@@ -4,6 +4,7 @@ import type {
   SelectedModifierLine,
   StaffSummary,
 } from "@/lib/types";
+import type { CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 
 const DRAFT_KEY = "customer-order-draft-v1";
 type DraftItem = {
@@ -209,13 +210,47 @@ export function restoreCustomerOrderDraft(
   };
 }
 
-export function saveCustomerFulfillment(orderType: "DINE_IN" | "TAKEOUT", tableId: string) {
-  try { sessionStorage.setItem("customer-fulfillment-v1", JSON.stringify({ orderType, tableId })); } catch { /* Storage is optional until OAuth. */ }
+export type CustomerFulfillmentDraft = {
+  orderType: CustomerFulfillmentType;
+  tableId: string;
+  deliveryAddress: string;
+  deliveryPhone: string;
+};
+
+export function saveCustomerFulfillment(
+  orderType: CustomerFulfillmentType,
+  tableId: string,
+  deliveryAddress = "",
+  deliveryPhone = "",
+): boolean {
+  try {
+    sessionStorage.setItem("customer-fulfillment-v1", JSON.stringify({
+      orderType,
+      tableId: orderType === "DINE_IN" ? tableId : "",
+      deliveryAddress: orderType === "DELIVERY" ? deliveryAddress : "",
+      deliveryPhone: orderType === "DELIVERY" ? deliveryPhone : "",
+    }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-export function restoreCustomerFulfillment(): { orderType: "DINE_IN" | "TAKEOUT"; tableId: string } | null {
+export function restoreCustomerFulfillment(): CustomerFulfillmentDraft | null {
   try {
-    const value = JSON.parse(sessionStorage.getItem("customer-fulfillment-v1") || "null");
-    return value && (value.orderType === "DINE_IN" || value.orderType === "TAKEOUT") && typeof value.tableId === "string" ? value : null;
-  } catch { return null; }
+    const value: unknown = JSON.parse(sessionStorage.getItem("customer-fulfillment-v1") || "null");
+    if (!value || typeof value !== "object") return null;
+    const draft = value as Partial<CustomerFulfillmentDraft>;
+    if ((draft.orderType !== "DINE_IN" && draft.orderType !== "TAKEOUT" && draft.orderType !== "DELIVERY") || typeof draft.tableId !== "string") return null;
+    if ((draft.deliveryAddress !== undefined && (typeof draft.deliveryAddress !== "string" || draft.deliveryAddress.length > 500)) ||
+      (draft.deliveryPhone !== undefined && (typeof draft.deliveryPhone !== "string" || draft.deliveryPhone.length > 30))) return null;
+    return {
+      orderType: draft.orderType,
+      tableId: draft.orderType === "DINE_IN" ? draft.tableId : "",
+      deliveryAddress: draft.orderType === "DELIVERY" ? draft.deliveryAddress ?? "" : "",
+      deliveryPhone: draft.orderType === "DELIVERY" ? draft.deliveryPhone ?? "" : "",
+    };
+  } catch {
+    return null;
+  }
 }

@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+import {
+  validateCustomerFulfillment,
+  type CustomerFulfillmentType,
+} from "@/lib/customer/customer-order-fulfillment";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   selectEffectiveRecipe,
@@ -31,8 +35,10 @@ type CustomerOrderBody = {
   customerPhone?: string;
   paymentPhone?: string;
   idempotencyKey?: string;
-  orderType?: "DINE_IN" | "TAKEOUT";
+  orderType?: CustomerFulfillmentType;
   tableId?: string | null;
+  deliveryPhone?: string | null;
+  deliveryAddress?: string | null;
   items: CustomerOrderItemInput[];
 };
 
@@ -74,9 +80,6 @@ export async function POST(request: Request) {
     if (!authorization.ok) return authorization.response;
 
     const body = (await request.json()) as CustomerOrderBody;
-    const customerName = String(body.customerName ?? authorization.user.fullName).trim();
-    const orderType = body.orderType ?? "TAKEOUT";
-    const tableId = orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
     const payerPhone = normalizeCustomerPaymentPhone(String(body.paymentPhone ?? ""));
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
 
@@ -103,18 +106,19 @@ export async function POST(request: Request) {
       );
     }
 
-    if (orderType !== "DINE_IN" && orderType !== "TAKEOUT") {
-      return NextResponse.json({ error: "Choose dine-in or to-go." }, { status: 400 });
-    }
-    if (orderType === "DINE_IN" && (!tableId || !await prisma.table.findFirst({ where: { id: tableId, isActive: true }, select: { id: true } }))) {
-      return NextResponse.json({ error: "Select an active table." }, { status: 400 });
-    }
-
-    if (customerName.length < 1) {
+    const fulfillment = validateCustomerFulfillment({
+      ...body,
+      customerName: body.customerName ?? authorization.user.fullName,
+    });
+    if (!fulfillment.ok) {
       return NextResponse.json(
-        { error: "Customer name is required." },
+        { error: fulfillment.error, field: fulfillment.field },
         { status: 400 },
       );
+    }
+    const { customerName, orderType, tableId, deliveryPhone, deliveryAddress } = fulfillment.value;
+    if (orderType === "DINE_IN" && (!tableId || !await prisma.table.findFirst({ where: { id: tableId, isActive: true }, select: { id: true } }))) {
+      return NextResponse.json({ error: "Select an active table.", field: "tableId" }, { status: 400 });
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -370,6 +374,8 @@ export async function POST(request: Request) {
           payerPhone,
           orderType,
           tableId,
+          deliveryPhone,
+          deliveryAddress,
           amount: toDecimal(calculatedTotal),
           snapshot,
           idempotencyKey,

@@ -2,6 +2,10 @@
 
 import CustomerFulfillmentSelect from "./CustomerFulfillmentSelect";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+import {
+  validateCustomerFulfillment,
+  type CustomerFulfillmentType,
+} from "@/lib/customer/customer-order-fulfillment";
 import { Button } from "@/components/ui/button";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -24,9 +28,13 @@ type CustomerCartSheetProps = {
   customerName: string;
   customerPhone: string;
   orderNote: string;
-  orderType?: "DINE_IN" | "TAKEOUT";
+  orderType?: CustomerFulfillmentType;
+  deliveryAddress?: string;
+  deliveryPhone?: string;
   selectedTableId?: string;
-  onFulfillmentChange?: (type: "DINE_IN" | "TAKEOUT", tableId: string) => void;
+  onFulfillmentChange?: (type: CustomerFulfillmentType, tableId: string) => void;
+  onDeliveryAddressChange?: (value: string) => void;
+  onDeliveryPhoneChange?: (value: string) => void;
   cartSubtotal: number;
   cartCount: number;
   isSubmitting: boolean;
@@ -190,6 +198,10 @@ function CartBody({
   orderType = "TAKEOUT",
   selectedTableId = "",
   onFulfillmentChange,
+  deliveryAddress = "",
+  deliveryPhone = "",
+  onDeliveryAddressChange,
+  onDeliveryPhoneChange,
   submitMessage,
   submitError,
   isCashier,
@@ -207,6 +219,10 @@ function CartBody({
   | "orderType"
   | "selectedTableId"
   | "onFulfillmentChange"
+  | "deliveryAddress"
+  | "deliveryPhone"
+  | "onDeliveryAddressChange"
+  | "onDeliveryPhoneChange"
   | "submitMessage"
   | "submitError"
   | "onCustomerNameChange"
@@ -215,6 +231,17 @@ function CartBody({
   | "onChangeQuantity"
   | "onRemove"
 > & { isCashier: boolean }) {
+  const fulfillment = validateCustomerFulfillment({
+    orderType,
+    customerName,
+    tableId: selectedTableId,
+    deliveryAddress,
+    deliveryPhone,
+  });
+  const fieldError = (field: string, value: string) =>
+    !isCashier && !fulfillment.ok && fulfillment.field === field && (value || submitError)
+      ? fulfillment.error
+      : "";
   if (cart.length === 0) {
     return (
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
@@ -238,11 +265,12 @@ function CartBody({
             <>
               <div>
                 <label htmlFor="customer-name" className="text-sm font-semibold">Name (required)</label>
-                <Input id="customer-name" required value={customerName}
+                <Input id="customer-name" required maxLength={100} value={customerName}
                   onChange={(event) => onCustomerNameChange(event.target.value)}
                   placeholder="Your Google account name"
                   className="mt-1 rounded-full" />
                 {!customerName.trim() ? <p className="mt-1 text-xs text-muted-foreground">Sign in at checkout to use your account name.</p> : null}
+                {fieldError("customerName", customerName) ? <p role="alert" className="text-xs text-rose-700">{fieldError("customerName", customerName)}</p> : null}
               </div>
               <div>
                 <label htmlFor="customer-phone" className="text-sm font-semibold">Payment phone (required)</label>
@@ -268,6 +296,28 @@ function CartBody({
           </div> : null}
         </div>
         {!isCashier && onFulfillmentChange ? <CustomerFulfillmentSelect orderType={orderType} tableId={selectedTableId} onChange={onFulfillmentChange} /> : null}
+        {!isCashier && orderType === "DINE_IN" && !selectedTableId && submitError ? <p role="alert" className="mt-1 text-xs text-rose-700">Select your table before checkout.</p> : null}
+        {!isCashier && orderType === "DELIVERY" ? (
+          <div className="mt-4 grid gap-3">
+            <div>
+              <label htmlFor="delivery-phone" className="text-sm font-semibold">Delivery contact phone (required)</label>
+              <Input id="delivery-phone" type="tel" autoComplete="tel" required maxLength={30}
+                value={deliveryPhone} onChange={event => onDeliveryPhoneChange?.(event.target.value)}
+                aria-describedby="delivery-phone-help" aria-invalid={Boolean(fieldError("deliveryPhone", deliveryPhone))}
+                className="mt-1 rounded-full" placeholder="Phone to call on arrival" />
+              <p id="delivery-phone-help" className="mt-1 text-xs text-muted-foreground">This can differ from the phone sending payment.</p>
+              {fieldError("deliveryPhone", deliveryPhone) ? <p role="alert" className="text-xs text-rose-700">{fieldError("deliveryPhone", deliveryPhone)}</p> : null}
+            </div>
+            <div>
+              <label htmlFor="delivery-address" className="text-sm font-semibold">Delivery address (required)</label>
+              <Textarea id="delivery-address" autoComplete="street-address" required maxLength={500} rows={3}
+                value={deliveryAddress} onChange={event => onDeliveryAddressChange?.(event.target.value)}
+                aria-invalid={Boolean(fieldError("deliveryAddress", deliveryAddress))}
+                className="mt-1 rounded-xl" placeholder="Area, street, and a nearby landmark" />
+              {fieldError("deliveryAddress", deliveryAddress) ? <p role="alert" className="text-xs text-rose-700">{fieldError("deliveryAddress", deliveryAddress)}</p> : null}
+            </div>
+          </div>
+        ) : null}
         <CartLineItems
           cart={cart}
           onChangeQuantity={onChangeQuantity}

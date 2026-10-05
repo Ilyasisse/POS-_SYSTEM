@@ -54,6 +54,8 @@ export async function GET(
         paymentReceived: Boolean(checkout.receiptId),
         orderType: checkout.orderType,
         tableName: checkout.table?.name ?? null,
+        deliveryPhone: checkout.deliveryPhone,
+        deliveryAddress: checkout.deliveryAddress,
         stage: customerOrderStage(checkout.status, checkout.order?.kitchenTicketState),
       },
     },

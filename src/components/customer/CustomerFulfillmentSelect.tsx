@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 type Props = {
-  orderType: "DINE_IN" | "TAKEOUT";
+  orderType: CustomerFulfillmentType;
   tableId: string;
-  onChange: (type: "DINE_IN" | "TAKEOUT", tableId: string) => void;
+  onChange: (type: CustomerFulfillmentType, tableId: string) => void;
 };
 export default function CustomerFulfillmentSelect({ orderType, tableId, onChange }: Props) {
   const [tables, setTables] = useState<{ id: string; name: string }[]>([]);
@@ -19,9 +20,10 @@ export default function CustomerFulfillmentSelect({ orderType, tableId, onChange
     return () => controller.abort();
   }, []);
   return <fieldset className="mt-4 space-y-3">
-    <legend className="text-sm font-semibold">Where will you eat?</legend>
+    <legend className="text-sm font-semibold">How would you like your order?</legend>
     <label className="mr-4 inline-flex gap-2"><input type="radio" name="fulfillment" checked={orderType === "TAKEOUT"} onChange={() => onChange("TAKEOUT", "")} />To go</label>
     <label className="inline-flex gap-2"><input type="radio" name="fulfillment" checked={orderType === "DINE_IN"} onChange={() => onChange("DINE_IN", tableId)} />Dine in</label>
+    <label className="ml-4 inline-flex gap-2"><input type="radio" name="fulfillment" checked={orderType === "DELIVERY"} onChange={() => onChange("DELIVERY", "")} />Delivery</label>
     {orderType === "DINE_IN" ? <div>
       <label htmlFor="customer-table" className="block text-sm">Your table (required)</label>
       <select id="customer-table" required value={tableId} onChange={event => onChange("DINE_IN", event.target.value)} className="mt-1 w-full rounded-lg border bg-background p-3">

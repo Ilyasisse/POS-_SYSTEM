@@ -34,8 +34,10 @@ type Checkout = {
   expiresAt: string;
   orderNumber: number | null;
   paymentReceived: boolean;
-  orderType: "DINE_IN" | "TAKEOUT";
+  orderType: "DINE_IN" | "TAKEOUT" | "DELIVERY";
   tableName: string | null;
+  deliveryAddress: string | null;
+  deliveryPhone: string | null;
   stage: CustomerOrderStage;
 };
 
@@ -209,7 +211,13 @@ export default function CustomerCheckoutPageClient({
             Mobile money checkout
           </p>
           <h1 className="mt-2 text-3xl font-bold">{checkout.status === "PAID" ? "Your order" : "Pay for your order"}</h1>
-          <p className="mt-2 font-semibold">{checkout.orderType === "DINE_IN" ? `Dine in · ${checkout.tableName ?? "Your table"}` : "To-go order"}</p>
+          <p className="mt-2 font-semibold">{checkout.orderType === "DINE_IN" ? `Dine in · ${checkout.tableName ?? "Your table"}` : checkout.orderType === "DELIVERY" ? "Delivery order" : "To-go order"}</p>
+          {checkout.orderType === "DELIVERY" ? (
+            <div className="mt-2 text-sm text-muted-foreground">
+              <p>Deliver to: {checkout.deliveryAddress}</p>
+              <p>Contact: {checkout.deliveryPhone}</p>
+            </div>
+          ) : null}
           <p className="mt-2 text-sm text-muted-foreground">
             Use the phone number {checkout.payerPhone} to send the full amount.
           </p>
