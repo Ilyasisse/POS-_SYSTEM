@@ -85,6 +85,10 @@ export async function transferOpenWaiterOrder(formData: FormData) {
   }
 
   const transferred = await prisma.$transaction(async (tx) => {
+    // Serialize handoff with payment writes and other changes to order ownership.
+    await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+    // Keep the destination's active waiter role stable until the handoff commits.
+    await tx.$queryRaw`SELECT "id" FROM "Staff" WHERE "id" = ${toWaiterId} FOR SHARE`;
     const [order, targetWaiter] = await Promise.all([
       tx.order.findFirst({
         where: {
@@ -101,7 +105,7 @@ export async function transferOpenWaiterOrder(formData: FormData) {
           waiter: { select: { fullName: true } },
         },
       }),
-      tx.user.findFirst({
+      tx.staff.findFirst({
         where: { id: toWaiterId, role: "WAITER", isActive: true },
         select: { id: true, fullName: true },
       }),
@@ -504,11 +508,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
-            | "CUNTO_SOOMAALI"
-            | "FAST_FOOD"
-            | "CABITAAN"
-            | "BARISTA"
-            | null,
+            "CUNTO_SOOMAALI" | "FAST_FOOD" | "CABITAAN" | "BARISTA" | null,
         },
       });
 
@@ -532,7 +532,8 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
             orderId: snapshot.order.id,
             cashierId: payment.cashierId,
             cashierName: payment.cashierName,
-            method: payment.method as "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
+            method: payment.method as
+              "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
             amountPaid: toDecimal(payment.amountPaid),
             reference: payment.reference,
             createdAt: new Date(payment.createdAt),
@@ -555,7 +556,8 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
         data: {
           qty: existingOrderItem.qty + snapshot.item.qty,
           lineTotal: toDecimal(
-            Number(existingOrderItem.lineTotal) + Number(snapshot.item.lineTotal),
+            Number(existingOrderItem.lineTotal) +
+              Number(snapshot.item.lineTotal),
           ),
         },
       });
@@ -578,11 +580,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
-            | "CUNTO_SOOMAALI"
-            | "FAST_FOOD"
-            | "CABITAAN"
-            | "BARISTA"
-            | null,
+            "CUNTO_SOOMAALI" | "FAST_FOOD" | "CABITAAN" | "BARISTA" | null,
         },
       });
 

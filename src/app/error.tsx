@@ -23,7 +23,7 @@ export default function Error({ error, reset }: ErrorPageProps) {
       <div className="absolute right-4 top-4 z-20">
         <ModeToggle />
       </div>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,#1d120d_0%,#2c1b12_48%,#15100d_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,var(--background)_0%,var(--card)_48%,var(--background)_100%)]" />
       <div className="absolute inset-x-0 top-0 h-48 bg-[linear-gradient(180deg,rgba(47,24,13,0.16),transparent)]" />
 
       <Card className="relative z-10 w-full max-w-lg gap-0 rounded-[30px] border-border bg-card/90 p-6 text-center shadow-[0_26px_80px_rgba(65,39,21,0.16)] backdrop-blur sm:p-8">
@@ -38,7 +38,7 @@ export default function Error({ error, reset }: ErrorPageProps) {
           />
         </div>
 
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45]">
+        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45] dark:text-primary">
           Mash Allah Cafe
         </p>
         <h1 className="mt-3 text-3xl font-bold text-foreground">
@@ -53,12 +53,14 @@ export default function Error({ error, reset }: ErrorPageProps) {
           <Button
             type="button"
             onClick={reset}
-            className="flex min-h-12 items-center justify-center rounded-2xl bg-[#2f180d] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-[#442719] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2"
+            className="flex min-h-12 items-center justify-center rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             Try again
           </Button>
           <Button asChild variant="outline" className="min-h-12 rounded-2xl">
-            <Link href="/menu">Go to menu</Link>
+            <Link prefetch={false} href="/menu">
+              Go to menu
+            </Link>
           </Button>
         </div>
 
@@ -67,7 +69,9 @@ export default function Error({ error, reset }: ErrorPageProps) {
           variant="secondary"
           className="mt-3 min-h-12 rounded-2xl"
         >
-          <Link href="/staff-login">Staff login</Link>
+          <Link prefetch={false} href="/staff-login">
+            Staff login
+          </Link>
         </Button>
       </Card>
     </main>

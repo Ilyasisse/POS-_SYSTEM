@@ -224,7 +224,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   useAos(visibleProducts.length, menuState.selectedCategory);
 
   return (
-    <main className="min-h-screen bg-[#f7efe6] text-[#2f180d] dark:bg-[#120d09] dark:text-stone-50">
+    <main className="min-h-screen bg-[#f7efe6] text-foreground dark:bg-background dark:text-foreground">
       <MenuHeader
         cafeName={data.cafeName}
         mobileNavOpen={menuState.mobileNavOpen}
@@ -271,7 +271,7 @@ function MenuHeader({
   onToggleMobileNav: () => void;
 }) {
   return (
-    <div className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#120906]/74 backdrop-blur-xl">
+    <div className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#120906]/74 dark:bg-background/90 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header data-aos="fade-down" className="py-3">
           <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 md:px-6">
@@ -293,14 +293,16 @@ function MenuHeader({
               </div>
             </div>
 
-            <nav className="hidden items-center gap-2 text-sm font-medium text-white/78 md:flex">
+            <nav className="hidden items-center gap-2 text-sm font-medium text-white/78 lg:flex">
               <Link
+                prefetch={false}
                 href="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
                 Home
               </Link>
               <Link
+                prefetch={false}
                 href="/menu"
                 className="rounded-full border border-[#d7aa6a]/60 bg-[#d7aa6a]/12 px-4 py-2 text-white"
               >
@@ -308,6 +310,7 @@ function MenuHeader({
               </Link>
 
               <Link
+                prefetch={false}
                 href="#contact"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
@@ -318,8 +321,9 @@ function MenuHeader({
             <div className="flex items-center gap-3">
               <ModeToggle />
               <Link
+                prefetch={false}
                 href="/customer"
-                className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] md:inline-flex"
+                className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] lg:inline-flex"
               >
                 Order Now
               </Link>
@@ -329,7 +333,7 @@ function MenuHeader({
                 onClick={onToggleMobileNav}
                 aria-expanded={mobileNavOpen}
                 aria-label="Toggle navigation"
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white transition hover:bg-white/12 md:hidden"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white transition hover:bg-white/12 lg:hidden"
               >
                 <span className="flex flex-col gap-1.5">
                   <span
@@ -350,10 +354,11 @@ function MenuHeader({
             <div
               data-aos="fade-down"
               data-aos-duration="180"
-              className="mt-3 rounded-[24px] border border-white/10 bg-[#1a0d08]/95 p-3 text-white shadow-[0_20px_50px_rgba(12,7,4,0.32)] md:hidden"
+              className="mt-3 rounded-[24px] border border-white/10 bg-[#1a0d08]/95 dark:bg-popover/95 p-3 text-white shadow-[0_20px_50px_rgba(12,7,4,0.32)] lg:hidden"
             >
               <div className="grid gap-2">
                 <Link
+                  prefetch={false}
                   href="/"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
@@ -361,6 +366,7 @@ function MenuHeader({
                   Home
                 </Link>
                 <Link
+                  prefetch={false}
                   href="/menu"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] border border-[#d7aa6a]/30 bg-[#d7aa6a]/12 px-4 py-3 text-sm font-medium text-white"
@@ -369,6 +375,7 @@ function MenuHeader({
                 </Link>
 
                 <Link
+                  prefetch={false}
                   href="#contact"
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
@@ -376,6 +383,7 @@ function MenuHeader({
                   Contact
                 </Link>
                 <Link
+                  prefetch={false}
                   href="/customer"
                   onClick={onCloseMobileNav}
                   className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition "
@@ -393,7 +401,7 @@ function MenuHeader({
 
 function MenuHero({ heroImage }: { heroImage: string }) {
   return (
-    <section className="relative isolate min-h-[560px] overflow-hidden bg-[#120906] pt-28 text-white sm:min-h-[620px] sm:pt-32 lg:min-h-[680px] xl:min-h-[720px]">
+    <section className="relative isolate min-h-[560px] overflow-hidden bg-[#120906] dark:bg-background pt-28 text-white sm:min-h-[620px] sm:pt-32 lg:min-h-[680px] xl:min-h-[720px]">
       <div className="absolute inset-0 -z-10">
         <Image
           src={heroImage}
@@ -428,16 +436,18 @@ function MenuHero({ heroImage }: { heroImage: string }) {
               youâ€™re ready.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-4  ">
+            <div className="mt-8 flex flex-wrap gap-4 md:flex-nowrap">
               <Link
+                prefetch={false}
                 href="#menu-grid"
-                className="rounded-full bg-white px-6 py-3.5 text-md tracking-widest font-semibold text-[#24140c] transition hover:bg-[#f8efe4] w-full text-center sm:max-w-[60%] "
+                className="w-full rounded-full bg-white px-6 py-3.5 text-center text-md font-semibold tracking-widest text-[#24140c] transition hover:bg-[#f8efe4] sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
               >
                 Explore Menu
               </Link>
               <Link
+                prefetch={false}
                 href="/customer"
-                className="rounded-full border border-white/16 tracking-widest uppercerase bg-white/6 px-6 py-3.5 text-xl font-semibold text-white transition hover:bg-white/12 w-full text-center sm:max-w-[60%] "
+                className="w-full rounded-full border border-white/16 bg-white/6 px-6 py-3.5 text-center text-xl font-semibold tracking-widest text-white transition hover:bg-white/12 sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
               >
                 Order Now
               </Link>
@@ -460,8 +470,8 @@ function MenuCategoryTabs({
 }) {
   return (
     <section className="relative z-10 -mt-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="rounded-[32px] border border-[#ead8c6] bg-[#fbf6ef] px-4 py-5 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-6">
-        <div className="flex flex-wrap gap-3">
+      <div className="rounded-[32px] border border-border bg-card px-4 py-5 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-6">
+        <div className="flex flex-wrap gap-3 md:justify-center">
           {categories.length > 0 ? (
             categories.map((category) => {
               const active = selectedCategory === category.slug;
@@ -470,20 +480,21 @@ function MenuCategoryTabs({
                 <Button
                   key={category.slug}
                   type="button"
+                  variant="ghost"
+                  aria-pressed={active}
                   onClick={() => onOpenCategory(category.slug)}
                   className={`relative rounded-full px-5 py-3 text-sm font-semibold transition ${
-                    active ? "text-white" : "text-[#5f4637] hover:bg-[#f3e5d5]"
+                    active
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                      : "text-foreground hover:bg-accent hover:text-accent-foreground"
                   }`}
                 >
-                  {active ? (
-                    <span className="absolute inset-0 rounded-full bg-[#2a170d]" />
-                  ) : null}
                   <span className="relative">{category.name}</span>
                 </Button>
               );
             })
           ) : (
-            <p className="px-2 py-3 text-sm font-medium text-[#6f5748]">
+            <p className="px-2 py-3 text-sm font-medium text-muted-foreground">
               Menu items will appear here when active products are available.
             </p>
           )}
@@ -508,45 +519,46 @@ function MenuProductSection({
       className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
     >
       <div data-aos="fade-up" className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#b07b45]">
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
           Explore our menu
         </p>
         <h2
-          className="mt-4 text-4xl text-[#2f180d] sm:text-5xl"
+          className="mt-4 text-4xl text-foreground sm:text-5xl"
           style={{
             fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
           }}
         >
           What We Serve
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-[#7b6557] sm:text-lg">
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
           From warm drinks to fresh meals and sweet treats, explore something
           delicious made just for you.
         </p>
       </div>
 
-      <div className="mt-10 grid sm:grid-cols-2 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {visibleProducts.length > 0 ? (
           visibleProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))
         ) : (
-          <div className="rounded-[28px] border border-[#ead8c6] bg-white/80 p-8 text-center shadow-[0_18px_46px_rgba(67,39,20,0.06)] md:col-span-2 xl:col-span-3">
+          <div className="rounded-[28px] border border-border bg-card/80 p-8 text-center shadow-[0_18px_46px_rgba(67,39,20,0.06)] sm:col-span-2 lg:col-span-3">
             <p
-              className="text-3xl text-[#2f180d]"
+              className="text-3xl text-foreground"
               style={{
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
               Menu updating
             </p>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#7b6557] sm:text-base">
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
               No active menu products are available right now. Please check back
               soon or place an order from the customer screen.
             </p>
             <Link
+              prefetch={false}
               href="/customer"
-              className="mt-6 inline-flex rounded-full bg-[#2a170d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3d2417]"
+              className="mt-6 inline-flex rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             >
               Order Now
             </Link>
@@ -558,7 +570,7 @@ function MenuProductSection({
           <Button
             type="button"
             onClick={onLoadMore}
-            className="rounded-full bg-[#2a170d] px-8 py-5 text-sm font-bold text-white shadow-[0_16px_34px_rgba(42,23,13,0.16)] transition hover:bg-[#3d2417]"
+            className="rounded-full bg-primary px-8 py-5 text-sm font-bold text-primary-foreground shadow-[0_16px_34px_rgba(42,23,13,0.16)] transition hover:bg-primary/90"
           >
             Load More
           </Button>
@@ -574,21 +586,21 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
       id="featured"
       className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20"
     >
-      <div className="rounded-[36px] border border-[#ead8c6] bg-[linear-gradient(135deg,#f3e3d0_0%,#f9f2e9_52%,#efe0cb_100%)] px-6 py-8 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-8 lg:px-10 lg:py-10">
-        <div className="grid gap-8 lg:grid-cols-[290px_minmax(0,1fr)] lg:items-center">
+      <div className="rounded-[36px] border border-border bg-[linear-gradient(135deg,#f3e3d0_0%,#f9f2e9_52%,#efe0cb_100%)] dark:bg-none dark:bg-card px-6 py-8 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-8 lg:px-10 lg:py-10">
+        <div className="grid gap-8 xl:grid-cols-[290px_minmax(0,1fr)] xl:items-center">
           <div data-aos="fade-right">
-            <p className="text-lg font-semibold uppercase tracking-[0.3em] text-[#b07b45] text-center">
+            <p className="text-lg font-semibold uppercase tracking-[0.3em] text-muted-foreground text-center">
               Our favorites
             </p>
             <h2
-              className="mt-4 text-5xl text-[#2f180d] text-center"
+              className="mt-4 text-5xl text-foreground text-center"
               style={{
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
               Customer Favorites
             </h2>
-            <p className="mt-6 text-md leading-7 text-[#715b4d] text-center">
+            <p className="mt-6 text-md leading-7 text-muted-foreground text-center">
               Discover the dishes, drinks, and cafe classics our customers love
               the most.
             </p>
@@ -600,8 +612,9 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
             ))}
           </div>
           <Link
+            prefetch={false}
             href="/customer"
-            className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-[#2a170d] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#3d2417]"
+            className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
           >
             Order Now
           </Link>
@@ -613,8 +626,11 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
 
 function MenuFooter({ cafeName }: { cafeName: string }) {
   return (
-    <footer id="contact" className="bg-[#201108] text-[#f8eee3]">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
+    <footer
+      id="contact"
+      className="bg-[#201108] dark:bg-background text-[#f8eee3]"
+    >
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
         <div>
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#d09a59]">
@@ -671,7 +687,7 @@ function BackToTopButton({ onClick }: { onClick: () => void }) {
       type="button"
       aria-label="Back to top"
       onClick={onClick}
-      className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f4dcc2]/50 bg-[#201108] text-[#fff6ec] shadow-[0_18px_45px_rgba(32,17,8,0.35)] transition hover:-translate-y-0.5 hover:bg-[#3d2417] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
+      className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f4dcc2]/50 bg-[#201108] dark:bg-background text-[#fff6ec] shadow-[0_18px_45px_rgba(32,17,8,0.35)] transition hover:-translate-y-0.5 hover:bg-[#3d2417] dark:hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
     >
       <svg
         aria-hidden="true"

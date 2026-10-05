@@ -38,14 +38,14 @@ function getEatDayStart(date = new Date()) {
 
 function getStatusClasses(status: "OK" | "LOW" | "OUT") {
   if (status === "OUT") {
-    return "bg-red-50 text-red-700 ring-red-200";
+    return "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 ring-red-200 dark:ring-red-800";
   }
 
   if (status === "LOW") {
-    return "bg-amber-50 text-amber-700 ring-amber-200";
+    return "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-amber-200 dark:ring-amber-800";
   }
 
-  return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-emerald-200 dark:ring-emerald-800";
 }
 
 function getStatusLabel(status: "OK" | "LOW" | "OUT") {
@@ -121,46 +121,48 @@ export default async function InventoryPage({
 }: InventoryPageProps) {
   const todayStart = getEatDayStart();
 
-  const [, params, [supplies, takenTodayMovements]] =
-    await Promise.all([
-      requirePermission(PERMISSIONS.INVENTORY_VIEW, {
-        stations: ["CABITAAN"],
+  const [, params, [supplies, takenTodayMovements]] = await Promise.all([
+    requirePermission(PERMISSIONS.INVENTORY_VIEW, {
+      stations: ["CABITAAN"],
+    }),
+    searchParams,
+    Promise.all([
+      prisma.inventorySupply.findMany({
+        where: {
+          isActive: true,
+        },
+        orderBy: [{ stockQty: "asc" }, { name: "asc" }],
       }),
-      searchParams,
-      Promise.all([
-        prisma.inventorySupply.findMany({
-          where: {
-            isActive: true,
+      prisma.inventoryMovement.findMany({
+        where: {
+          itemType: "Supply",
+          supplyId: {
+            not: null,
           },
-          orderBy: [{ stockQty: "asc" }, { name: "asc" }],
-        }),
-        prisma.inventoryMovement.findMany({
-          where: {
-            itemType: "Supply",
-            supplyId: {
-              not: null,
-            },
-            delta: {
-              lt: 0,
-            },
-            createdAt: {
-              gte: todayStart,
-            },
+          delta: {
+            lt: 0,
           },
-          take: 12,
-          orderBy: {
-            createdAt: "desc",
+          createdAt: {
+            gte: todayStart,
           },
-        }),
-      ]),
-    ]);
+        },
+        take: 12,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+    ]),
+  ]);
   const inventoryEmailStatus = getInventoryEmailStatus(params?.inventoryEmail);
 
   const summary = supplies.reduce<StatusSummary>(
     (accumulator, supply) => {
       addStatus(
         accumulator,
-    getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
+        getInventoryAlertStatus(
+          Number(supply.stockQty),
+          Number(supply.lowStockThreshold),
+        ),
       );
       return accumulator;
     },
@@ -190,6 +192,7 @@ export default async function InventoryPage({
           </div>
 
           <Link
+            prefetch={false}
             href="/kitchen/cabitaan"
             className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
           >
@@ -202,7 +205,7 @@ export default async function InventoryPage({
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               OK
             </p>
-            <p className="mt-2 text-3xl font-bold text-emerald-700">
+            <p className="mt-2 text-3xl font-bold text-emerald-700 dark:text-emerald-300">
               {summary.ok}
             </p>
           </div>
@@ -210,7 +213,7 @@ export default async function InventoryPage({
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Low
             </p>
-            <p className="mt-2 text-3xl font-bold text-amber-700">
+            <p className="mt-2 text-3xl font-bold text-amber-700 dark:text-amber-300">
               {summary.low}
             </p>
           </div>
@@ -218,7 +221,7 @@ export default async function InventoryPage({
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Out
             </p>
-            <p className="mt-2 text-3xl font-bold text-red-700">
+            <p className="mt-2 text-3xl font-bold text-red-700 dark:text-red-300">
               {summary.out}
             </p>
           </div>
@@ -253,8 +256,8 @@ export default async function InventoryPage({
               ) : (
                 supplies.map((supply) => {
                   const status = getInventoryAlertStatus(
-                Number(supply.stockQty),
-                Number(supply.lowStockThreshold),
+                    Number(supply.stockQty),
+                    Number(supply.lowStockThreshold),
                   );
                   const isOut = status === "OUT";
 
@@ -269,8 +272,11 @@ export default async function InventoryPage({
                             {supply.name}
                           </h3>
                           <p className="mt-1 text-xs text-muted-foreground">
-                        {supply.stockQty.toString()} {canonicalUnitLabel(supply.canonicalUnit)} on hand
-                        {supply.quantityCoverage !== "COMPLETE" ? " · unit mapping required" : ""}
+                            {supply.stockQty.toString()}{" "}
+                            {canonicalUnitLabel(supply.canonicalUnit)} on hand
+                            {supply.quantityCoverage !== "COMPLETE"
+                              ? " · unit mapping required"
+                              : ""}
                           </p>
                         </div>
                         <span
@@ -298,13 +304,13 @@ export default async function InventoryPage({
                             id={`quantity-${supply.id}`}
                             name="quantity"
                             type="number"
-                        inputMode="decimal"
-                        min="0.001"
-                        step="0.001"
+                            inputMode="decimal"
+                            min="0.001"
+                            step="0.001"
                             placeholder="0"
                             disabled={isOut}
                             required
-                            className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:bg-muted"
+                            className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50"
                           />
                         </label>
                         <label
@@ -318,13 +324,13 @@ export default async function InventoryPage({
                             type="text"
                             placeholder="Optional"
                             disabled={isOut}
-                            className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:bg-muted"
+                            className="mt-1 w-full min-w-0 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-50"
                           />
                         </label>
                         <Button
                           type="submit"
                           disabled={isOut}
-                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:col-span-2"
+                          className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:col-span-2"
                         >
                           {isOut ? "Out of stock" : "Take out"}
                         </Button>
@@ -370,7 +376,7 @@ export default async function InventoryPage({
                           })}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                      <span className="shrink-0 rounded-full bg-red-50 dark:bg-red-950/40 px-2.5 py-1 text-xs font-bold text-red-700 dark:text-red-300">
                         {movement.delta.toString()}
                       </span>
                     </div>

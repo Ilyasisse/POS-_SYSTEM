@@ -101,7 +101,7 @@ export default function Status({
         title="Sales Overview"
         icon={ChartNoAxesCombined}
         action={
-          <span className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
+          <span className="rounded-xl border border-border px-3 py-2 text-sm font-bold text-foreground">
             This Week
           </span>
         }
@@ -138,7 +138,7 @@ export default function Status({
       <DashboardCard title="Recent Activity" icon={RotateCcw}>
         <div className="space-y-1">
           {activityItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm font-medium text-slate-500">
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm font-medium text-muted-foreground">
               No recent activity yet.
             </div>
           ) : (
@@ -155,8 +155,9 @@ export default function Status({
           )}
         </div>
         <Link
+          prefetch={false}
           href="/admin/orders"
-          className="mt-4 inline-flex items-center gap-2 border-t border-slate-100 pt-4 text-sm font-black text-blue-600 hover:text-blue-700"
+          className="mt-4 inline-flex items-center gap-2 border-t border-border pt-4 text-sm font-black text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-300"
         >
           View all activity
           <ArrowRight className="size-4" />
@@ -179,7 +180,7 @@ export default function Status({
           {/* REVIEW: Backup status is display-only until backup metadata is stored. */}
           <StatusRowCard icon={RotateCcw} label="Last Backup" status="Today" />
         </div>
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-sm font-black text-emerald-700">
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-100 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-4 text-sm font-black text-emerald-700 dark:text-emerald-300">
           <Check className="size-4" />
           System is running smoothly
         </div>
