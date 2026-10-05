@@ -1,6 +1,13 @@
 "use client";
 
-import { useDeferredValue, useMemo, useReducer, useTransition } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +26,9 @@ import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
 import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet from "@/components/customer/CustomerCartSheet";
+import CustomerCartSheet, {
+  CustomerCartPanel,
+} from "@/components/customer/CustomerCartSheet";
 import {
   bodyFont,
   displayFont,
@@ -128,6 +137,21 @@ function getCategories(categories: Category[], products: Product[]) {
   );
 }
 
+function useDesktopCartPanel() {
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateMatch = () => setIsDesktop(mediaQuery.matches);
+
+    updateMatch();
+    mediaQuery.addEventListener("change", updateMatch);
+    return () => mediaQuery.removeEventListener("change", updateMatch);
+  }, []);
+
+  return isDesktop;
+}
+
 function TablePicker({
   open,
   tables,
@@ -141,11 +165,11 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-amber-100 bg-[#fffaf5] p-6 sm:p-8"
+        className="max-w-2xl rounded-[2rem] border border-border bg-card p-6 sm:p-8"
       >
         <DialogHeader>
           <DialogTitle
-            className="text-center text-3xl text-stone-950 sm:text-4xl"
+            className="text-center text-3xl text-foreground sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
             Select an available table
@@ -160,8 +184,9 @@ function TablePicker({
               <Button
                 key={table.id}
                 type="button"
+                variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-amber-200 bg-card text-xl font-semibold text-stone-950 shadow-sm hover:border-amber-400 hover:bg-amber-50"
+                className="min-h-24 rounded-[1.5rem] border border-border bg-card text-xl font-semibold text-foreground shadow-sm hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent"
               >
                 {table.name}
               </Button>
@@ -182,6 +207,7 @@ export default function CashierOrderExperience({
   initialTableId = "",
 }: Props) {
   const router = useRouter();
+  const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
     tableId: tables.some((table) => table.id === initialTableId)
       ? initialTableId
@@ -363,7 +389,7 @@ export default function CashierOrderExperience({
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
+      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <TablePicker
@@ -388,6 +414,7 @@ export default function CashierOrderExperience({
           cartLabel="Order"
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
+          hideCartOnDesktop
           onReset={() => {
             clearCart();
             dispatch({ type: "cleared" });
@@ -422,26 +449,55 @@ export default function CashierOrderExperience({
             </span>
           </label>
         </div>
-        <MenuBrowserPanel
-          searchTerm={state.searchTerm}
-          categoryChips={categoryChips}
-          selectedCategory={selectedCategory}
-          onSearchChange={(value) => dispatch({ type: "search", value })}
-          onCategorySelect={(value) =>
-            startFiltering(() => dispatch({ type: "category", value }))
-          }
-        />
-        <ProductGridPanel
-          loading={loading}
-          filteredProducts={filteredProducts}
-          baristas={baristas}
-          selectedCategoryName={
-            categoryChips.find((category) => category.id === selectedCategory)
-              ?.name ?? "All"
-          }
-          isFiltering={isFiltering}
-          onProductClick={addProduct}
-        />
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
+          <div className="min-w-0">
+            <MenuBrowserPanel
+              searchTerm={state.searchTerm}
+              categoryChips={categoryChips}
+              selectedCategory={selectedCategory}
+              onSearchChange={(value) => dispatch({ type: "search", value })}
+              onCategorySelect={(value) =>
+                startFiltering(() => dispatch({ type: "category", value }))
+              }
+            />
+            <ProductGridPanel
+              loading={loading}
+              filteredProducts={filteredProducts}
+              baristas={baristas}
+              selectedCategoryName={
+                categoryChips.find(
+                  (category) => category.id === selectedCategory,
+                )?.name ?? "All"
+              }
+              isFiltering={isFiltering}
+              onProductClick={addProduct}
+            />
+          </div>
+          <CustomerCartPanel
+            mode="cashier"
+            tableName={tableName}
+            cart={cart}
+            customerName=""
+            customerPhone=""
+            orderNote={state.orderNote}
+            cartSubtotal={cartSubtotal}
+            cartCount={cartCount}
+            isSubmitting={state.submitting}
+            submitMessage={state.message}
+            submitError={state.error}
+            onClose={() => dispatch({ type: "cartClose" })}
+            onCustomerNameChange={() => undefined}
+            onCustomerPhoneChange={() => undefined}
+            onOrderNoteChange={(value) => dispatch({ type: "note", value })}
+            onChangeQuantity={changeQuantity}
+            onRemove={removeFromCart}
+            onClearCart={() => {
+              clearCart();
+              dispatch({ type: "cleared" });
+            }}
+            onCheckout={sendOrder}
+          />
+        </div>
       </div>
       <CustomerModifierModal
         open={state.modifierOpen}
@@ -453,7 +509,7 @@ export default function CashierOrderExperience({
       <CustomerCartSheet
         mode="cashier"
         tableName={tableName}
-        open={state.cartOpen}
+        open={state.cartOpen && !isDesktopCartPanel}
         cart={cart}
         customerName=""
         customerPhone=""

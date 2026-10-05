@@ -4,6 +4,7 @@ import {
   isMacrodroidAuthorized,
 } from "@/lib/payments/macrodroid-auth";
 import { ingestMobileMoneyReceipt } from "@/lib/payments/mobile-money-receipts";
+import { autoMatchCustomerReceipt } from "@/lib/payments/customer-checkout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+    const contentType =
+      request.headers.get("content-type")?.toLowerCase() ?? "";
     let sender = request.headers.get("x-sms-sender")?.trim() ?? "";
     let rawMessage = "";
     let receivedAt: Date | undefined;
@@ -49,6 +51,11 @@ export async function POST(request: Request) {
       rawMessage,
       receivedAt,
     });
+    try {
+      await autoMatchCustomerReceipt(result.receipt.id);
+    } catch (matchError) {
+      console.error("Customer payment reconciliation failed:", matchError);
+    }
     const status = result.duplicate
       ? 200
       : result.receipt.status === "NEEDS_REVIEW"

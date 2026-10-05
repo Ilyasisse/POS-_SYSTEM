@@ -11,7 +11,7 @@ function source(path: string) {
 test("guest counts accept only whole numbers from 1 through 100", () => {
   assert.equal(parseGuestCount(1), 1);
   assert.equal(parseGuestCount("25"), 25);
-  for (const value of [undefined, "", 0, 1.5, -1, 101, Number.NaN]) {
+  for (const value of [undefined, "", 0, 1.5, -1, 101, Number.NaN, true, [], [2], {}]) {
     assert.equal(parseGuestCount(value), null);
   }
 });

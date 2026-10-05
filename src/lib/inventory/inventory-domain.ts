@@ -1,4 +1,8 @@
-import { Prisma, type CanonicalUnit, type InventoryDataCoverage } from "@prisma/client";
+import {
+  Prisma,
+  type CanonicalUnit,
+  type InventoryDataCoverage,
+} from "@prisma/client";
 
 const ZERO = new Prisma.Decimal(0);
 const QUANTITY_SCALE = 6;
@@ -22,9 +26,13 @@ export function decimalQuantity(value: DecimalInput, field = "Quantity") {
   return quantity;
 }
 
-export function positiveDecimalQuantity(value: DecimalInput, field = "Quantity") {
+export function positiveDecimalQuantity(
+  value: DecimalInput,
+  field = "Quantity",
+) {
   const quantity = decimalQuantity(value, field);
-  if (quantity.lte(ZERO)) throw new Error(`${field} must be greater than zero.`);
+  if (quantity.lte(ZERO))
+    throw new Error(`${field} must be greater than zero.`);
   return quantity;
 }
 
@@ -52,21 +60,53 @@ export type LegacyUnitConversion = {
 export function classifyLegacyUnit(unit: string): LegacyUnitConversion {
   const normalized = unit.trim().toLowerCase();
   if (["g", "gm", "gram", "grams"].includes(normalized)) {
-    return { canonicalUnit: "GRAM", factor: new Prisma.Decimal(1), coverage: "COMPLETE" };
+    return {
+      canonicalUnit: "GRAM",
+      factor: new Prisma.Decimal(1),
+      coverage: "COMPLETE",
+    };
   }
   if (["kg", "kilogram", "kilograms"].includes(normalized)) {
-    return { canonicalUnit: "GRAM", factor: new Prisma.Decimal(1000), coverage: "COMPLETE" };
+    return {
+      canonicalUnit: "GRAM",
+      factor: new Prisma.Decimal(1000),
+      coverage: "COMPLETE",
+    };
   }
-  if (["ml", "milliliter", "milliliters", "millilitre", "millilitres"].includes(normalized)) {
-    return { canonicalUnit: "MILLILITRE", factor: new Prisma.Decimal(1), coverage: "COMPLETE" };
+  if (
+    ["ml", "milliliter", "milliliters", "millilitre", "millilitres"].includes(
+      normalized,
+    )
+  ) {
+    return {
+      canonicalUnit: "MILLILITRE",
+      factor: new Prisma.Decimal(1),
+      coverage: "COMPLETE",
+    };
   }
   if (["l", "liter", "liters", "litre", "litres"].includes(normalized)) {
-    return { canonicalUnit: "MILLILITRE", factor: new Prisma.Decimal(1000), coverage: "COMPLETE" };
+    return {
+      canonicalUnit: "MILLILITRE",
+      factor: new Prisma.Decimal(1000),
+      coverage: "COMPLETE",
+    };
   }
-  if (["piece", "pieces", "pc", "pcs", "unit", "units", "each"].includes(normalized)) {
-    return { canonicalUnit: "PIECE", factor: new Prisma.Decimal(1), coverage: "COMPLETE" };
+  if (
+    ["piece", "pieces", "pc", "pcs", "unit", "units", "each"].includes(
+      normalized,
+    )
+  ) {
+    return {
+      canonicalUnit: "PIECE",
+      factor: new Prisma.Decimal(1),
+      coverage: "COMPLETE",
+    };
   }
-  return { canonicalUnit: null, factor: new Prisma.Decimal(1), coverage: "LEGACY_INCOMPLETE" };
+  return {
+    canonicalUnit: null,
+    factor: new Prisma.Decimal(1),
+    coverage: "LEGACY_INCOMPLETE",
+  };
 }
 
 export function convertLegacyQuantity(quantity: DecimalInput, unit: string) {
@@ -82,7 +122,12 @@ export function convertPurchaseQuantity(
   canonicalQuantityPerPurchaseUnit: DecimalInput,
 ) {
   return positiveDecimalQuantity(purchasedQuantity, "Purchased quantity")
-    .mul(positiveDecimalQuantity(canonicalQuantityPerPurchaseUnit, "Purchase-unit conversion"))
+    .mul(
+      positiveDecimalQuantity(
+        canonicalQuantityPerPurchaseUnit,
+        "Purchase-unit conversion",
+      ),
+    )
     .toDecimalPlaces(QUANTITY_SCALE, Prisma.Decimal.ROUND_HALF_UP);
 }
 
@@ -107,27 +152,40 @@ export function calculateRecipeStandardCost(
     ZERO,
   );
   return {
-    unitCost: total.div(recipeYield).toDecimalPlaces(COST_SCALE, Prisma.Decimal.ROUND_HALF_UP),
+    unitCost: total
+      .div(recipeYield)
+      .toDecimalPlaces(COST_SCALE, Prisma.Decimal.ROUND_HALF_UP),
     coverage: "COMPLETE" as const,
   };
 }
 
-export function selectEffectiveRecipe<T extends { effectiveFrom: Date; effectiveTo: Date | null; isActive: boolean }>(
-  versions: readonly T[],
-  at: Date,
-) {
-  return versions
-    .filter(
-      (version) =>
-        version.isActive &&
-        version.effectiveFrom <= at &&
-        (version.effectiveTo == null || version.effectiveTo > at),
-    )
-    .sort((a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime())[0] ?? null;
+export function selectEffectiveRecipe<
+  T extends {
+    effectiveFrom: Date;
+    effectiveTo: Date | null;
+    isActive: boolean;
+  },
+>(versions: readonly T[], at: Date) {
+  return (
+    versions
+      .filter(
+        (version) =>
+          version.isActive &&
+          version.effectiveFrom <= at &&
+          (version.effectiveTo == null || version.effectiveTo > at),
+      )
+      .sort(
+        (a, b) => b.effectiveFrom.getTime() - a.effectiveFrom.getTime(),
+      )[0] ?? null
+  );
 }
 
 export function snapshotInventoryCost(
-  recipe: { id: string; standardCost: Prisma.Decimal | null; costCoverage: InventoryDataCoverage } | null,
+  recipe: {
+    id: string;
+    standardCost: Prisma.Decimal | null;
+    costCoverage: InventoryDataCoverage;
+  } | null,
   productCost: Prisma.Decimal | null,
 ) {
   if (recipe) {
@@ -150,16 +208,28 @@ export function snapshotInventoryCost(
       recipeVersionId: null,
     };
   }
-  return { unitCostSnapshot: null, costSnapshotSource: null, recipeVersionId: null };
+  return {
+    unitCostSnapshot: null,
+    costSnapshotSource: null,
+    recipeVersionId: null,
+  };
 }
 
-export function calculateCountVariance(expected: DecimalInput, physical: DecimalInput) {
+export function calculateCountVariance(
+  expected: DecimalInput,
+  physical: DecimalInput,
+) {
   return decimalQuantity(physical, "Physical quantity")
     .sub(decimalQuantity(expected, "Expected quantity"))
     .toDecimalPlaces(QUANTITY_SCALE, Prisma.Decimal.ROUND_HALF_UP);
 }
 
-export function inventoryValue(quantity: DecimalInput, unitCost: DecimalInput | null) {
+export function inventoryValue(
+  quantity: DecimalInput,
+  unitCost: DecimalInput | null,
+) {
   if (unitCost == null) return null;
-  return decimalQuantity(quantity).mul(decimalCost(unitCost)).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  return decimalQuantity(quantity)
+    .mul(decimalCost(unitCost))
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 }
