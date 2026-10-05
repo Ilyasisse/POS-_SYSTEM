@@ -36,16 +36,16 @@ export default function CartItemCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+            <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
               Qty {line.quantity}
             </span>
             {line.product.category?.name ? (
-              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+              <span className="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
                 {line.product.category.name}
               </span>
             ) : null}
             {getStationLabel(line.station) ? (
-              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+              <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
                 {getStationLabel(line.station)}
               </span>
             ) : null}
@@ -55,7 +55,7 @@ export default function CartItemCard({
             {line.name}
           </p>
           {line.assignedUserName ? (
-            <p className="text-xs font-semibold text-amber-700">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
               Barista: {line.assignedUserName}
             </p>
           ) : null}
@@ -90,7 +90,7 @@ export default function CartItemCard({
                     {modifier.groupName}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-emerald-700">
+                <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                   +${Number(modifier.price).toFixed(2)}
                 </span>
               </div>
@@ -112,6 +112,7 @@ export default function CartItemCard({
       <div className="mt-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
             type="button"
             onClick={() => onChangeQuantity(line.cartKey, -1)}
             className="min-h-10 min-w-10 rounded-lg bg-muted px-2 text-sm font-bold text-foreground"
@@ -122,6 +123,7 @@ export default function CartItemCard({
             {line.quantity}
           </span>
           <Button
+            variant="outline"
             type="button"
             onClick={() => onChangeQuantity(line.cartKey, 1)}
             className="min-h-10 min-w-10 rounded-lg bg-muted px-2 text-sm font-bold text-foreground"
@@ -133,7 +135,7 @@ export default function CartItemCard({
         <Button
           type="button"
           onClick={() => onRemove(line.cartKey)}
-          className="min-h-10 rounded-lg bg-red-50 px-3 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100"
+          className="min-h-10 rounded-lg bg-red-50 dark:bg-red-950/40 px-3 text-xs font-semibold text-red-700 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800 hover:bg-red-100 dark:hover:bg-red-900/30"
         >
           Remove
         </Button>

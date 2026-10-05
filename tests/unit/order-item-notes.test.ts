@@ -58,7 +58,7 @@ test("schema, APIs, cart, and kitchen display carry item instructions", async ()
       "../../src/app/api/orders/route.ts",
       "../../src/app/api/orders/complete-sale/route.ts",
       "../../src/app/api/orders/table/route.ts",
-      "../../src/app/api/customer/orders/route.ts",
+      "../../src/app/api/customer/checkouts/route.ts",
       "../../src/components/customer/CustomerCartSheet.tsx",
       "../../src/components/kitchen/KitchenTicketCard.tsx",
     ].map((path) => readFile(new URL(path, import.meta.url), "utf8")),
@@ -67,6 +67,8 @@ test("schema, APIs, cart, and kitchen display carry item instructions", async ()
   assert.match(files[0], /notes\s+String\?\s+@db\.VarChar\(500\)/);
   for (const route of files.slice(1, 5)) {
     assert.match(route, /normalizeOrderItemNote\(item\.note\)/);
+  }
+  for (const route of files.slice(1, 4)) {
     assert.match(route, /notes: line\.notes/);
   }
   assert.match(files[5], /Special instructions for/);

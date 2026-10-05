@@ -39,27 +39,39 @@ export class KitchenTicketMutationError extends Error {
   }
 }
 
-function toTicketStatus(status: KitchenStationTicketStatus): KitchenTicketStatus {
+function toTicketStatus(
+  status: KitchenStationTicketStatus,
+): KitchenTicketStatus {
   if (status === "IN_PROGRESS") return "in_progress";
   if (status === "DONE") return "done";
   return "new";
 }
 
-function toPickupStatus(status: KitchenPickupStatus): KitchenTicket["pickupStatus"] {
+function toPickupStatus(
+  status: KitchenPickupStatus,
+): KitchenTicket["pickupStatus"] {
   if (status === "READY") return "ready";
   if (status === "CLAIMED") return "claimed";
   if (status === "DELIVERED") return "delivered";
   return "preparing";
 }
 
-function toDatabaseStatus(status: KitchenTicketStatus): KitchenStationTicketStatus {
+function toDatabaseStatus(
+  status: KitchenTicketStatus,
+): KitchenStationTicketStatus {
   if (status === "in_progress") return "IN_PROGRESS";
   if (status === "done") return "DONE";
   return "NEW";
 }
 
 function getStationSet(lines: readonly KitchenStateLine[]) {
-  return [...new Set(lines.map((line) => line.station).filter((station): station is Station => Boolean(station)))];
+  return [
+    ...new Set(
+      lines
+        .map((line) => line.station)
+        .filter((station): station is Station => Boolean(station)),
+    ),
+  ];
 }
 
 /** Creates the durable ticket state in the same transaction as its order. */
@@ -70,11 +82,12 @@ export async function createKitchenTicketState(
     lines: readonly KitchenStateLine[];
     customerName?: string | null;
     actorUserId?: string | null;
+    actorCustomerId?: string | null;
   },
 ) {
   const stations = getStationSet(input.lines);
 
-  if (stations.length === 0) return null;
+  if (stations.length === 0 && !input.actorCustomerId) return null;
 
   const targets = await tx.kitchenPreparationTarget.findMany({
     where: { station: { in: stations } },
@@ -86,6 +99,7 @@ export async function createKitchenTicketState(
   return tx.kitchenTicketState.create({
     data: {
       orderId: input.orderId,
+      pickupStatus: stations.length ? "PREPARING" : "READY",
       customerName: input.customerName?.trim() || null,
       stationStates: {
         create: stations.map((station) => ({ station })),
@@ -97,6 +111,7 @@ export async function createKitchenTicketState(
           toStationStatus: "NEW",
           targetMinutesSnapshot: targetByStation.get(station) ?? null,
           actorUserId: input.actorUserId ?? null,
+          actorCustomerId: input.actorCustomerId ?? null,
         })),
       },
     },
@@ -127,7 +142,10 @@ type KitchenStateRecord = Prisma.KitchenTicketStateGetPayload<{
 function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
   const identity = resolveTableCheckIdentity(state.order);
   const items = state.order.orderItems
-    .filter((item): item is typeof item & { station: Station } => item.station !== null)
+    .filter(
+      (item): item is typeof item & { station: Station } =>
+        item.station !== null,
+    )
     .map((item) => ({
       id: item.id,
       name: item.productName,
@@ -150,17 +168,30 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
     ]),
   );
   const transitionsByStation = state.transitions.reduce<
-    Partial<Record<KitchenStation, Array<{
-      type: "STATION_CREATED" | "STATION_STARTED" | "STATION_COMPLETED" | "STATION_REOPENED";
-      occurredAt: Date;
-      targetMinutesSnapshot: number | null;
-    }>>>
+    Partial<
+      Record<
+        KitchenStation,
+        Array<{
+          type:
+            | "STATION_CREATED"
+            | "STATION_STARTED"
+            | "STATION_COMPLETED"
+            | "STATION_REOPENED";
+          occurredAt: Date;
+          targetMinutesSnapshot: number | null;
+        }>
+      >
+    >
   >((grouped, event) => {
     if (!event.station) return grouped;
     const station = event.station as KitchenStation;
     const events = grouped[station] ?? [];
     events.push({
-      type: event.type as "STATION_CREATED" | "STATION_STARTED" | "STATION_COMPLETED" | "STATION_REOPENED",
+      type: event.type as
+        | "STATION_CREATED"
+        | "STATION_STARTED"
+        | "STATION_COMPLETED"
+        | "STATION_REOPENED",
       occurredAt: event.occurredAt,
       targetMinutesSnapshot: event.targetMinutesSnapshot,
     });
@@ -208,7 +239,10 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
   };
 }
 
-function getViewerFilter(viewer: PermissionUser, requestedStation?: string | null) {
+function getViewerFilter(
+  viewer: PermissionUser,
+  requestedStation?: string | null,
+) {
   if (viewer.role === "ADMIN") {
     return {
       station: normalizeKitchenStation(requestedStation),
@@ -263,7 +297,10 @@ export async function getKitchenTicketSnapshot(
 
   const tickets: KitchenTicket[] = [];
   for (const state of states) {
-    const ticket = filterKitchenTicketByStation(mapKitchenTicket(state), filter);
+    const ticket = filterKitchenTicketByStation(
+      mapKitchenTicket(state),
+      filter,
+    );
     if (ticket) {
       tickets.push(ticket);
     }
@@ -286,23 +323,26 @@ async function lockTicket(tx: KitchenStateTransaction, orderId: string) {
   });
 }
 
-export async function updateKitchenTicketStation(
-  input: {
-    orderId: string;
-    station: KitchenStation;
-    status: KitchenTicketStatus;
-    actorUserId: string;
-  },
-) {
+export async function updateKitchenTicketStation(input: {
+  orderId: string;
+  station: KitchenStation;
+  status: KitchenTicketStatus;
+  actorUserId: string;
+}) {
   return prisma.$transaction(async (tx) => {
     const state = await lockTicket(tx, input.orderId);
     const station = input.station as Station;
 
     if (!state.stationStates.some((item) => item.station === station)) {
-      throw new KitchenTicketMutationError("Kitchen station ticket not found.", 404);
+      throw new KitchenTicketMutationError(
+        "Kitchen station ticket not found.",
+        404,
+      );
     }
 
-    const previous = state.stationStates.find((item) => item.station === station)!;
+    const previous = state.stationStates.find(
+      (item) => item.station === station,
+    )!;
     const nextStatus = toDatabaseStatus(input.status);
     if (previous.status === nextStatus) return;
     const target = await tx.kitchenPreparationTarget.findUnique({
@@ -357,7 +397,10 @@ export async function updateKitchenTicketStation(
           actorUserId: input.actorUserId,
         },
       });
-    } else if (nextPickupStatus === "PREPARING" && state.pickupStatus === "READY") {
+    } else if (
+      nextPickupStatus === "PREPARING" &&
+      state.pickupStatus === "READY"
+    ) {
       await tx.kitchenTransitionEvent.create({
         data: {
           orderId: input.orderId,
@@ -371,25 +414,32 @@ export async function updateKitchenTicketStation(
   });
 }
 
-export async function updateKitchenTicketPickup(
-  input: {
-    orderId: string;
-    pickupStatus: "claimed" | "delivered";
-    viewer: { id: string; fullName: string; role: UserRole };
-  },
-) {
+export async function updateKitchenTicketPickup(input: {
+  orderId: string;
+  pickupStatus: "claimed" | "delivered";
+  viewer: { id: string; fullName: string; role: UserRole };
+}) {
   return prisma.$transaction(async (tx) => {
     const state = await lockTicket(tx, input.orderId);
 
     if (input.pickupStatus === "claimed") {
-      if (state.pickupStatus === "CLAIMED" && state.claimedByWaiterId === input.viewer.id) {
+      if (
+        state.pickupStatus === "CLAIMED" &&
+        state.claimedByWaiterId === input.viewer.id
+      ) {
         return;
       }
       if (state.pickupStatus === "CLAIMED") {
-        throw new KitchenTicketMutationError("This ticket is claimed by another waiter.", 409);
+        throw new KitchenTicketMutationError(
+          "This ticket is claimed by another waiter.",
+          409,
+        );
       }
       if (state.pickupStatus !== "READY") {
-        throw new KitchenTicketMutationError("Only ready tickets can be claimed.", 409);
+        throw new KitchenTicketMutationError(
+          "Only ready tickets can be claimed.",
+          409,
+        );
       }
 
       await tx.kitchenTicketState.update({
@@ -415,10 +465,14 @@ export async function updateKitchenTicketPickup(
     const canDeliver =
       state.pickupStatus === "READY" ||
       (state.pickupStatus === "CLAIMED" &&
-        (state.claimedByWaiterId === input.viewer.id || input.viewer.role === "ADMIN"));
+        (state.claimedByWaiterId === input.viewer.id ||
+          input.viewer.role === "ADMIN"));
 
     if (!canDeliver) {
-      throw new KitchenTicketMutationError("You cannot deliver this ticket.", 409);
+      throw new KitchenTicketMutationError(
+        "You cannot deliver this ticket.",
+        409,
+      );
     }
 
     await tx.kitchenTicketState.update({

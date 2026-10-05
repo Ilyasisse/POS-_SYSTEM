@@ -46,10 +46,7 @@ const NAIROBI_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-US", {
 });
 
 export type SupplierCatalogPriceTrend =
-  | "new"
-  | "increased"
-  | "decreased"
-  | "unchanged";
+  "new" | "increased" | "decreased" | "unchanged";
 
 function dateKeyInNairobi(date: Date) {
   const values: Record<string, string> = {};
@@ -197,7 +194,9 @@ export function calculateSupplierPurchaseOrderLineTotal(
     .mul(unitPrice)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   if (total.gt(MAX_ORDER_TOTAL)) {
-    throw new Error("Supplier purchase-order total exceeds the supported limit.");
+    throw new Error(
+      "Supplier purchase-order total exceeds the supported limit.",
+    );
   }
   return total;
 }
@@ -214,7 +213,9 @@ export function calculateSupplierPurchaseOrderTotal(
       calculateSupplierPurchaseOrderLineTotal(row.quantity, row.unitPrice),
     );
     if (total.gt(MAX_ORDER_TOTAL)) {
-      throw new Error("Supplier purchase-order total exceeds the supported limit.");
+      throw new Error(
+        "Supplier purchase-order total exceeds the supported limit.",
+      );
     }
   }
   return total.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);

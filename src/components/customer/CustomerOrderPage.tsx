@@ -5,17 +5,33 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   useTransition,
 } from "react";
+import posthog from "posthog-js";
 import { useAos } from "@/components/AosInitializer";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
-import { useWaiterData } from "@/hooks/waiter/useWaiterData";
+import { useCustomerOrderData } from "@/hooks/customer/useCustomerOrderData";
+import {
+  clearCustomerOrderDraft,
+  saveCustomerFulfillment,
+  restoreCustomerFulfillment,
+  restoreCustomerOrderDraft,
+  saveCustomerOrderDraft,
+} from "@/lib/customer/customer-order-draft";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Category, Product } from "@/lib/types";
 import {
   buildModifierLines,
   getProductModifierGroups,
-  type CustomerOrderResponse,
   type SelectedModifiersMap,
 } from "./customer-order-utils";
 import CustomerOrderHeader from "./UI/CustomerOrderHeader";
@@ -25,6 +41,12 @@ import BackToTopButton from "./UI/BackToTopButton";
 import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
+import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+
+const posthogConfigured = Boolean(
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+);
 
 function isPastScrollOffset(offset: number) {
   return typeof window !== "undefined" && window.scrollY > offset;
@@ -88,6 +110,7 @@ type CustomerOrderAction =
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
   | { type: "orderNoteChanged"; orderNote: string }
+  | { type: "fulfillmentChanged"; orderType: "DINE_IN" | "TAKEOUT"; tableId: string }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -100,7 +123,15 @@ type CustomerOrderAction =
   | { type: "checkoutStarted" }
   | { type: "checkoutSucceeded"; orderNumber: number; message: string }
   | { type: "checkoutFailed"; error: string }
-  | { type: "checkoutFinished" };
+  | { type: "checkoutFinished" }
+  | {
+      type: "draftRestored";
+      customerName: string;
+      customerPhone: string;
+      orderNote: string;
+      message: string;
+      error: string;
+    };
 
 const initialCustomerOrderState: CustomerOrderState = {
   selectedCategoryValue: "all",
@@ -108,6 +139,8 @@ const initialCustomerOrderState: CustomerOrderState = {
   customerName: "",
   customerPhone: "",
   orderNote: "",
+  orderType: "TAKEOUT",
+  tableId: "",
   selectedProduct: null,
   modifierModalOpen: false,
   cartOpen: false,
@@ -132,6 +165,8 @@ function customerOrderReducer(
       return { ...state, customerName: action.customerName };
     case "customerPhoneChanged":
       return { ...state, customerPhone: action.customerPhone };
+    case "fulfillmentChanged":
+      return { ...state, orderType: action.orderType, tableId: action.tableId };
     case "orderNoteChanged":
       return { ...state, orderNote: action.orderNote };
     case "cartOpened":
@@ -196,13 +231,37 @@ function customerOrderReducer(
       };
     case "checkoutFinished":
       return { ...state, isSubmitting: false };
+    case "draftRestored":
+      return {
+        ...state,
+        customerName: action.customerName,
+        customerPhone: action.customerPhone,
+        orderNote: action.orderNote,
+        submitMessage: action.message,
+        submitError: action.error,
+        cartOpen: true,
+      };
     default:
       return state;
   }
 }
 
-export default function CustomerOrderPage() {
-  const { productsAll, categories, baristas, loading } = useWaiterData();
+type CustomerOrderPageProps = {
+  authState: "guest" | "customer" | "blocked";
+  accountName?: string;
+};
+
+export default function CustomerOrderPage({
+  authState,
+  accountName = "",
+}: CustomerOrderPageProps) {
+  const {
+    productsAll,
+    categories,
+    baristas,
+    loading,
+    error: catalogError,
+  } = useCustomerOrderData();
   const {
     cart,
     addToCart,
@@ -210,13 +269,29 @@ export default function CustomerOrderPage() {
     updateItemNote,
     removeFromCart,
     clearCart,
+    replaceCart,
     calculateCartTotal,
   } = useWaiterCart();
 
   const [orderState, dispatchOrderState] = useReducer(
     customerOrderReducer,
-    initialCustomerOrderState,
+    { ...initialCustomerOrderState, customerName: accountName },
   );
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [signInError, setSignInError] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const restoredRef = useRef(false);
+  const checkoutKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    checkoutKeyRef.current = null;
+  }, [
+    cart,
+    orderState.customerName,
+    orderState.customerPhone,
+    orderState.orderNote,
+    orderState.orderType,
+    orderState.tableId,
+  ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const showBackToTop = useBackToTopVisibility(520);
@@ -281,6 +356,59 @@ export default function CustomerOrderPage() {
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
 
+  useEffect(() => {
+    if (loading || catalogError || restoredRef.current) return;
+    restoredRef.current = true;
+    const restored = restoreCustomerOrderDraft(productsAll, baristas);
+    if (restored) {
+      replaceCart(restored.cart);
+      const issues = [
+        restored.skipped > 0
+          ? `${restored.skipped} unavailable item(s) were removed. Add them again if needed.`
+          : "",
+        restored.repriced > 0
+          ? `${restored.repriced} item(s) have updated prices. Review the total before checkout.`
+          : "",
+      ].filter(Boolean);
+      dispatchOrderState({
+        type: "draftRestored",
+        customerName: accountName || restored.customerName,
+        customerPhone: restored.customerPhone,
+        orderNote: "",
+        message: issues.length
+          ? ""
+          : "Your order is ready to review. Press Checkout when you are ready.",
+        error: issues.join(" "),
+      });
+    }
+    const fulfillment = restoreCustomerFulfillment();
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    setDraftReady(true);
+  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (cart.length === 0) {
+      clearCustomerOrderDraft();
+      return;
+    }
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    saveCustomerOrderDraft(
+      cart,
+      orderState.customerName,
+      orderState.customerPhone,
+      orderState.orderNote,
+    );
+  }, [
+    draftReady,
+    cart,
+    orderState.customerName,
+    orderState.customerPhone,
+    orderState.orderNote,
+    orderState.orderType,
+    orderState.tableId,
+  ]);
+
   useAos(
     cart.length,
     orderState.cartOpen,
@@ -291,8 +419,10 @@ export default function CustomerOrderPage() {
   );
 
   function resetKiosk() {
+    clearCustomerOrderDraft();
     clearCart();
     dispatchOrderState({ type: "reset" });
+    dispatchOrderState({ type: "customerNameChanged", customerName: accountName });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -306,7 +436,10 @@ export default function CustomerOrderPage() {
       return;
     }
 
-    if (getProductModifierGroups(product).length > 0) {
+    if (
+      getProductModifierGroups(product).length > 0 ||
+      product.category?.station === "BARISTA"
+    ) {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -317,6 +450,13 @@ export default function CustomerOrderPage() {
       selectedModifiers: [],
       finalPrice: Number(product.price) || 0,
     });
+    if (posthogConfigured) {
+      posthog.capture("cart_item_added", {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+      });
+    }
     dispatchOrderState({ type: "cartItemAdded" });
   }
 
@@ -343,10 +483,43 @@ export default function CustomerOrderPage() {
       assignedUserId: assignedBarista?.id ?? null,
       assignedUserName: assignedBarista?.fullName ?? null,
     });
+    if (posthogConfigured) {
+      posthog.capture("cart_item_added", {
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+      });
+    }
     dispatchOrderState({ type: "modifierConfirmed" });
   }
 
   async function handlePlaceOrder() {
+    if (cart.length === 0) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Add at least one item to your cart.",
+      });
+      return;
+    }
+    if (authState === "guest") {
+      setSignInError("");
+      setSignInOpen(true);
+      return;
+    }
+    if (authState === "blocked") {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "This account cannot place customer orders.",
+      });
+      return;
+    }
+    if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
+      });
+      return;
+    }
     if (!orderState.customerName.trim()) {
       dispatchOrderState({
         type: "checkoutBlocked",
@@ -355,26 +528,25 @@ export default function CustomerOrderPage() {
       return;
     }
 
-    if (cart.length === 0) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "Add at least one item to your cart.",
-      });
+    if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
+      dispatchOrderState({ type: "checkoutBlocked", error: "Select your table before checkout." });
       return;
     }
 
     try {
       dispatchOrderState({ type: "checkoutStarted" });
 
-      const response = await fetch("/api/customer/orders", {
+      const response = await fetch("/api/customer/checkouts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           customerName: orderState.customerName,
-          customerPhone: orderState.customerPhone,
-          notes: orderState.orderNote,
+          paymentPhone: orderState.customerPhone,
+          idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
+          orderType: orderState.orderType,
+          tableId: orderState.tableId || null,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -392,18 +564,21 @@ export default function CustomerOrderPage() {
         }),
       });
 
-      const data = (await response.json()) as CustomerOrderResponse;
-
-      if (!response.ok || !data.success || !data.order) {
-        throw new Error(data.error || "The order could not be placed.");
+      if (response.status === 401) {
+        setSignInError("");
+        setSignInOpen(true);
+        return;
       }
-
-      dispatchOrderState({
-        type: "checkoutSucceeded",
-        orderNumber: data.order.orderNumber,
-        message: `Order #${data.order.orderNumber} is confirmed and queued for the kitchen.`,
-      });
-      clearCart();
+      const data = (await response.json()) as {
+        checkout?: { id: string };
+        error?: string;
+      };
+      if (!response.ok || !data.checkout?.id) {
+        throw new Error(data.error || "Could not start mobile money checkout.");
+      }
+      window.location.assign(
+        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
+      );
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",
@@ -414,9 +589,26 @@ export default function CustomerOrderPage() {
     }
   }
 
+  function handleContinueWithGoogle() {
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    const saved = saveCustomerOrderDraft(
+      cart,
+      orderState.customerName,
+      orderState.customerPhone,
+      orderState.orderNote,
+    );
+    if (!saved) {
+      setSignInError(
+        "Your browser could not save this order. Please allow session storage and try again.",
+      );
+      return;
+    }
+    window.location.assign("/auth/google/start?next=%2Fcustomer");
+  }
+
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -428,6 +620,14 @@ export default function CustomerOrderPage() {
           onReset={resetKiosk}
           onOpenCart={() => dispatchOrderState({ type: "cartOpened" })}
         />
+        {catalogError ? (
+          <div
+            role="alert"
+            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+          >
+            {catalogError}
+          </div>
+        ) : null}
 
         <MenuBrowserPanel
           searchTerm={orderState.searchTerm}
@@ -475,6 +675,7 @@ export default function CustomerOrderPage() {
         onCustomerPhoneChange={(customerPhone) =>
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
         }
+        onFulfillmentChange={(orderType, tableId) => dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })}
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
@@ -482,11 +683,46 @@ export default function CustomerOrderPage() {
         onItemNoteChange={updateItemNote}
         onRemove={removeFromCart}
         onClearCart={() => {
+          clearCustomerOrderDraft();
           clearCart();
           dispatchOrderState({ type: "cartCleared" });
         }}
         onCheckout={handlePlaceOrder}
       />
+      <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle>Sign in to place your order</DialogTitle>
+            <DialogDescription>
+              Continue with Google. We will bring you back to this cart so you
+              can review it before placing your order.
+            </DialogDescription>
+          </DialogHeader>
+          {signInError ? (
+            <p
+              role="alert"
+              className="text-sm text-rose-700 dark:text-rose-300"
+            >
+              {signInError}
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            onClick={handleContinueWithGoogle}
+            className="w-full rounded-full"
+          >
+            Continue with Google
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setSignInOpen(false)}
+            className="w-full rounded-full"
+          >
+            Keep editing
+          </Button>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

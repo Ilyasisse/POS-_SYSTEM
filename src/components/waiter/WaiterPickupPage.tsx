@@ -36,11 +36,12 @@ export default function WaiterPickupPage({
   currentUserName,
   currentUserRole,
 }: WaiterPickupPageProps) {
-  const { activeTickets, statusMessage, updatePickupStatus } = useKitchenTickets({
-    currentUserId,
-    currentUserName,
-    currentUserRole,
-  });
+  const { activeTickets, statusMessage, updatePickupStatus } =
+    useKitchenTickets({
+      currentUserId,
+      currentUserName,
+      currentUserRole,
+    });
 
   return (
     <div
@@ -67,7 +68,7 @@ export default function WaiterPickupPage({
         </header>
 
         {statusMessage ? (
-          <p className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+          <p className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300">
             {statusMessage}
           </p>
         ) : null}
@@ -108,7 +109,7 @@ export default function WaiterPickupPage({
                         Order #{ticket.orderNumber}
                       </p>
                       <h2 className="mt-1 text-2xl font-bold text-foreground">
-                         {ticket.tableName ?? "-"}
+                        {ticket.tableName ?? "-"}
                       </h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Ready at {formatTime(ticket.createdAt)}
@@ -118,8 +119,8 @@ export default function WaiterPickupPage({
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
                         isClaimed
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-emerald-700"
+                          ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
+                          : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
                       }`}
                     >
                       {isClaimed ? "claimed" : "ready"}
@@ -127,13 +128,13 @@ export default function WaiterPickupPage({
                   </div>
 
                   {ticket.claimedByWaiterName ? (
-                    <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                    <p className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
                       Claimed by {ticket.claimedByWaiterName}
                     </p>
                   ) : null}
 
                   {ticket.note ? (
-                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <p className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
                       Note: {ticket.note}
                     </p>
                   ) : null}
@@ -148,7 +149,7 @@ export default function WaiterPickupPage({
                           <p className="font-semibold text-foreground">
                             {item.name}
                           </p>
-                          <p className="font-bold text-blue-700">
+                          <p className="font-bold text-blue-700 dark:text-blue-300">
                             x{item.quantity}
                           </p>
                         </div>
@@ -175,15 +176,16 @@ export default function WaiterPickupPage({
                       type="button"
                       disabled={isClaimed}
                       onClick={() => updatePickupStatus(ticket.id, "claimed")}
-                      className="min-h-11 rounded-xl bg-blue-600 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="min-h-11 rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Claim
                     </Button>
                     <Button
+                      variant="outline"
                       type="button"
                       disabled={!canDeliver || claimedByOther}
                       onClick={() => updatePickupStatus(ticket.id, "delivered")}
-                      className="min-h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="min-h-11 rounded-xl bg-emerald-600 hover:bg-emerald-600/90 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Delivered
                     </Button>

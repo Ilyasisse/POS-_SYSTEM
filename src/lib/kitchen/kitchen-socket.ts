@@ -8,7 +8,8 @@ export const KITCHEN_STATIONS = [
 export type KitchenStation = (typeof KITCHEN_STATIONS)[number];
 
 export type KitchenTicketStatus = "new" | "in_progress" | "done";
-export type KitchenTicketPickupStatus = "preparing" | "ready" | "claimed" | "delivered";
+export type KitchenTicketPickupStatus =
+  "preparing" | "ready" | "claimed" | "delivered";
 export type KitchenTicketStationStatuses = Partial<
   Record<KitchenStation, KitchenTicketStatus>
 >;
@@ -88,17 +89,28 @@ function normalizeStationMetrics(
     Object.entries(value).flatMap(([stationName, metric]) => {
       const station = normalizeKitchenStation(stationName);
       if (!station || !metric || typeof metric !== "object") return [];
-      const coverage = ["COMPLETE", "IN_PROGRESS", "UNAVAILABLE"].includes(metric.coverage)
+      const coverage = ["COMPLETE", "IN_PROGRESS", "UNAVAILABLE"].includes(
+        metric.coverage,
+      )
         ? metric.coverage
         : "UNAVAILABLE";
-      return [[station, {
-        startedAt: metric.startedAt ? String(metric.startedAt) : null,
-        completedAt: metric.completedAt ? String(metric.completedAt) : null,
-        preparationSeconds: Number.isFinite(metric.preparationSeconds) ? Number(metric.preparationSeconds) : null,
-        targetMinutes: Number.isFinite(metric.targetMinutes) ? Number(metric.targetMinutes) : null,
-        isLate: typeof metric.isLate === "boolean" ? metric.isLate : null,
-        coverage,
-      }]];
+      return [
+        [
+          station,
+          {
+            startedAt: metric.startedAt ? String(metric.startedAt) : null,
+            completedAt: metric.completedAt ? String(metric.completedAt) : null,
+            preparationSeconds: Number.isFinite(metric.preparationSeconds)
+              ? Number(metric.preparationSeconds)
+              : null,
+            targetMinutes: Number.isFinite(metric.targetMinutes)
+              ? Number(metric.targetMinutes)
+              : null,
+            isLate: typeof metric.isLate === "boolean" ? metric.isLate : null,
+            coverage,
+          },
+        ],
+      ];
     }),
   );
 }
@@ -126,8 +138,7 @@ function resolveFilter(
     };
   }
 
-  const station =
-    typeof stationOrFilter === "string" ? stationOrFilter : null;
+  const station = typeof stationOrFilter === "string" ? stationOrFilter : null;
 
   return {
     station,
@@ -177,7 +188,8 @@ function getUniqueStations(items: KitchenTicketItem[]): KitchenStation[] {
 }
 
 function normalizeKitchenTicketStationStatuses(
-  stationStatuses: Partial<Record<string, KitchenTicketStatus>> | null | undefined,
+  stationStatuses:
+    Partial<Record<string, KitchenTicketStatus>> | null | undefined,
   items: KitchenTicketItem[],
   fallbackStatus?: unknown,
 ): KitchenTicketStationStatuses {
@@ -215,9 +227,7 @@ export function getKitchenTicketStatusForItems(
     return isKitchenTicketStatus(ticket?.status) ? ticket.status : "new";
   }
 
-  const statuses = stations.map(
-    (station) => stationStatuses[station] ?? "new",
-  );
+  const statuses = stations.map((station) => stationStatuses[station] ?? "new");
 
   if (statuses.every((status) => status === "done")) {
     return "done";
@@ -280,7 +290,10 @@ export function normalizeKitchenStation(
     return undefined;
   }
 
-  const value = station.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const value = station
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
 
   if (value === "CUNTO_SOOMAALI" || value === "CUNTO_SOMAALI") {
     return "CUNTO_SOOMAALI";
@@ -320,7 +333,9 @@ function normalizeKitchenTicketItem(
   const modifiers = Array.isArray(item.modifiers)
     ? item.modifiers
         .map((modifier) => normalizeTicketModifier(modifier))
-        .filter((modifier): modifier is KitchenTicketModifier => modifier !== null)
+        .filter(
+          (modifier): modifier is KitchenTicketModifier => modifier !== null,
+        )
     : [];
 
   return {
@@ -337,7 +352,9 @@ function normalizeKitchenTicketItem(
   };
 }
 
-export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket | null {
+export function normalizeKitchenTicket(
+  ticket: KitchenTicketLike,
+): KitchenTicket | null {
   if (!ticket || typeof ticket !== "object") {
     return null;
   }
@@ -437,7 +454,9 @@ export function filterKitchenTicketByStation(
     return null;
   }
 
-  let items = Array.isArray(normalizedTicket.items) ? normalizedTicket.items : [];
+  let items = Array.isArray(normalizedTicket.items)
+    ? normalizedTicket.items
+    : [];
 
   if (normalizedStation) {
     items = items.filter((item) => item.station === normalizedStation);
