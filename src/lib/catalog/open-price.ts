@@ -17,10 +17,15 @@ export function resolveProductBasePrice(input: {
     return { ok: true, basePrice: money(input.catalogPrice), overridden: false };
   }
 
-  const submittedPrice = Number(input.submittedPrice);
+  const submittedPrice =
+    typeof input.submittedPrice === "number" ||
+    typeof input.submittedPrice === "string"
+      ? Number(input.submittedPrice)
+      : Number.NaN;
+  const roundedPrice = money(submittedPrice);
   if (
     !Number.isFinite(submittedPrice) ||
-    submittedPrice <= 0 ||
+    roundedPrice <= 0 ||
     submittedPrice > MAX_OPEN_PRICE
   ) {
     return {
@@ -29,5 +34,5 @@ export function resolveProductBasePrice(input: {
     };
   }
 
-  return { ok: true, basePrice: money(submittedPrice), overridden: true };
+  return { ok: true, basePrice: roundedPrice, overridden: true };
 }

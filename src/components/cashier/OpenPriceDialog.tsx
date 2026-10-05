@@ -77,12 +77,14 @@ export default function OpenPriceDialog({
                 setPrice(event.target.value);
                 setError("");
               }}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? "cashier-open-price-error" : undefined}
               placeholder="0.00"
               autoFocus
             />
           </label>
           {error ? (
-            <p className="text-sm font-semibold text-red-700">{error}</p>
+            <p id="cashier-open-price-error" className="text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>
           ) : null}
           <div className="grid grid-cols-2 gap-3">
             <Button type="button" variant="outline" onClick={close}>

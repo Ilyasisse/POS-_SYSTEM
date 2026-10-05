@@ -30,7 +30,7 @@ test("open-priced products accept and round a valid cashier price", () => {
 });
 
 test("open-priced products reject missing, unsafe, and out-of-range prices", () => {
-  for (const submittedPrice of [undefined, "", 0, -1, Number.NaN, 10_000.01]) {
+  for (const submittedPrice of [undefined, "", 0, 0.004, -1, Number.NaN, Number.POSITIVE_INFINITY, true, [5], 10_000.01]) {
     const result = resolveProductBasePrice({
       isOpenPrice: true,
       catalogPrice: 0,
@@ -49,9 +49,10 @@ test("table ordering validates overrides and audits accepted open prices", () =>
 
 test("customer self-ordering hides and rejects open-priced products", () => {
   const page = source("src/components/customer/CustomerOrderPage.tsx");
-  const route = source("src/app/api/customer/orders/route.ts");
+  const route = source("src/app/api/customer/checkouts/route.ts");
   assert.match(page, /filter\(\(product\) => !product\.isOpenPrice\)/);
   assert.match(route, /must be priced by a cashier/);
+  assert.match(source("src/app/api/customer/orders/route.ts"), /status: 410/);
 });
 
 test("cart identity includes the entered price for open-priced products", () => {
