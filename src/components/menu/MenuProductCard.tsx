@@ -14,10 +14,10 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
   return (
     <Card
       data-aos="fade-right"
-      className="group gap-0 overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 py-0 shadow-[0_22px_60px_rgba(73,37,16,0.10)] dark:bg-card"
+      className="group gap-0 overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 py-0 shadow-[0_22px_60px_rgba(73,37,16,0.10)] dark:border-border dark:bg-card"
     >
       {/* Product image container */}
-      <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)]">
+      <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)] dark:bg-none dark:bg-muted">
         {/* Only show image if product has imageUrl */}
         {product.imageUrl ? (
           <div
@@ -36,10 +36,10 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
       </div>
 
       {/* Product content section */}
-      <div className="space-y-0.5 p-5 flex flex-col justify-between gap-2 text-center ">
+      <div className="flex flex-col justify-between gap-2 p-5 text-center lg:p-4 xl:p-5">
         {/* Product name */}
         <h3
-          className="text-4xl sm:text-3xl  leading-none font-semibold  "
+          className="break-words text-4xl font-semibold leading-none sm:text-3xl lg:text-2xl xl:text-3xl"
           style={{
             fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
           }}
@@ -48,12 +48,12 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
         </h3>
 
         {/* Product description */}
-        <p className=" text-lg  leading-6 text-[#6c5a4f] sm:text-md">
+        <p className="break-words text-lg leading-6 text-muted-foreground sm:text-base xl:text-lg">
           {product.description}
         </p>
 
         {/* Product price */}
-        <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] ">
+        <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] dark:text-primary lg:text-2xl xl:text-3xl">
           {formatPrice(product.price)}
         </div>
       </div>

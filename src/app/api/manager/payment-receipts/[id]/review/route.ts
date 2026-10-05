@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
-import { canManagePaymentReceipts, currentPaymentReceiptUser } from "@/lib/payments/payment-receipt-route-auth";
+import {
+  canManagePaymentReceipts,
+  currentPaymentReceiptUser,
+} from "@/lib/payments/payment-receipt-route-auth";
 import { reviewMobileMoneyReceipt } from "@/lib/payments/mobile-money-receipts";
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
   const user = await currentPaymentReceiptUser();
   if (!user || !canManagePaymentReceipts(user)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -34,7 +40,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "The receipt review could not be saved." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "The receipt review could not be saved.",
+      },
       { status: 400 },
     );
   }

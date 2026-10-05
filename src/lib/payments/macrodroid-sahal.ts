@@ -24,7 +24,7 @@ export type ParsedSahalMessage =
 
 const MONEY = "([0-9][0-9,]*(?:\\.[0-9]{1,2})?)";
 const MESSAGE_TAIL = new RegExp(
-  `^(.*?)\\s+Tar\\s+(\\d{2}\\/\\d{2}\\/\\d{2})\\s+(\\d{2}:\\d{2}:\\d{2})\\s*,?\\s*Haraagaagu\\s+waa\\s+\\$\\s*${MONEY}\\s*\\.?$`,
+  `^(.*?)\\s+Tar:?\\s+(\\d{2}\\/\\d{2}\\/\\d{2})\\s+(\\d{2}:\\d{2}:\\d{2})\\s*,?\\s*Haraagaagu\\s+waa\\s+\\$\\s*${MONEY}\\s*\\.?$`,
   "i",
 );
 const INCOMING = new RegExp(
@@ -64,14 +64,12 @@ function nairobiDate(dateValue: string, timeValue: string) {
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
   );
-  return (
-    parts.year === String(year).padStart(2, "0") &&
+  return parts.year === String(year).padStart(2, "0") &&
     parts.month === String(month).padStart(2, "0") &&
     parts.day === String(day).padStart(2, "0") &&
     parts.hour === String(hour).padStart(2, "0") &&
     parts.minute === String(minute).padStart(2, "0") &&
     parts.second === String(second).padStart(2, "0")
-  )
     ? date
     : null;
 }
@@ -82,7 +80,9 @@ export function normalizeSmsMessage(rawMessage: string) {
 
 export function fingerprintSms(sender: string, rawMessage: string) {
   return createHash("sha256")
-    .update(`${sender.trim().toUpperCase()}\n${normalizeSmsMessage(rawMessage)}`)
+    .update(
+      `${sender.trim().toUpperCase()}\n${normalizeSmsMessage(rawMessage)}`,
+    )
     .digest("hex");
 }
 
@@ -104,7 +104,8 @@ export function parseSahalMessage(rawMessage: string): ParsedSahalMessage {
       ok: false,
       direction: "UNKNOWN",
       status: "NEEDS_REVIEW",
-      error: "The transaction date, time, or provider balance could not be parsed.",
+      error:
+        "The transaction date, time, or provider balance could not be parsed.",
     };
   }
 

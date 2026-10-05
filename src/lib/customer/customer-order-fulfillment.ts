@@ -1,65 +1,68 @@
-export type CustomerFulfillmentType = "TAKEOUT" | "DELIVERY";
+export type CustomerFulfillmentType = "DINE_IN" | "TAKEOUT" | "DELIVERY";
+
+export type CustomerFulfillmentField =
+  | "orderType"
+  | "customerName"
+  | "tableId"
+  | "deliveryPhone"
+  | "deliveryAddress";
 
 type FulfillmentInput = {
-  fulfillmentType?: string;
-  customerName?: string;
-  customerPhone?: string;
-  deliveryAddress?: string;
-  notes?: string;
+  orderType?: string | null;
+  customerName?: string | null;
+  tableId?: string | null;
+  deliveryPhone?: string | null;
+  deliveryAddress?: string | null;
 };
 
 type FulfillmentResult =
   | {
       ok: true;
       value: {
-        fulfillmentType: CustomerFulfillmentType;
+        orderType: CustomerFulfillmentType;
         customerName: string;
-        customerPhone: string;
+        tableId: string | null;
+        deliveryPhone: string | null;
         deliveryAddress: string | null;
-        notes: string;
       };
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; field: CustomerFulfillmentField };
 
 export function validateCustomerFulfillment(
   input: FulfillmentInput,
 ): FulfillmentResult {
-  if (
-    input.fulfillmentType != null &&
-    input.fulfillmentType !== "TAKEOUT" &&
-    input.fulfillmentType !== "DELIVERY"
-  ) {
-    return { ok: false, error: "Select pickup or delivery." };
+  const orderType = input.orderType ?? "TAKEOUT";
+  if (orderType !== "DINE_IN" && orderType !== "TAKEOUT" && orderType !== "DELIVERY") {
+    return { ok: false, error: "Choose dine-in, to-go, or delivery.", field: "orderType" };
   }
-
-  const fulfillmentType =
-    input.fulfillmentType === "DELIVERY" ? "DELIVERY" : "TAKEOUT";
   const customerName = String(input.customerName ?? "").trim();
-  const customerPhone = String(input.customerPhone ?? "").trim();
+  const tableId = orderType === "DINE_IN" ? String(input.tableId ?? "").trim() : null;
+  const deliveryPhone = String(input.deliveryPhone ?? "").trim();
   const deliveryAddress = String(input.deliveryAddress ?? "").trim();
-  const notes = String(input.notes ?? "").trim();
 
-  if (customerName.length < 2 || customerName.length > 100) {
-    return { ok: false, error: "Enter a customer name between 2 and 100 characters." };
+  if (customerName.length < 1 || customerName.length > 100) {
+    return { ok: false, error: "Enter a customer name between 1 and 100 characters.", field: "customerName" };
   }
 
-  if (customerPhone.length > 30) {
-    return { ok: false, error: "Phone number must be 30 characters or fewer." };
+  if (orderType === "DINE_IN" && !tableId) {
+    return { ok: false, error: "Select your table.", field: "tableId" };
   }
 
-  if (notes.length > 500) {
-    return { ok: false, error: "Order notes must be 500 characters or fewer." };
-  }
-
-  if (fulfillmentType === "DELIVERY") {
-    if (customerPhone.length < 5) {
-      return { ok: false, error: "A phone number is required for delivery." };
+  if (orderType === "DELIVERY") {
+    if (
+      typeof input.deliveryPhone !== "string" ||
+      !/^\+?[\d\s()-]+$/.test(deliveryPhone) ||
+      deliveryPhone.replace(/\D/g, "").length < 5 ||
+      deliveryPhone.length > 30
+    ) {
+      return { ok: false, error: "Enter a valid delivery phone number with at least 5 digits and no more than 30 characters.", field: "deliveryPhone" };
     }
 
-    if (deliveryAddress.length < 5 || deliveryAddress.length > 500) {
+    if (typeof input.deliveryAddress !== "string" || deliveryAddress.length < 5 || deliveryAddress.length > 500) {
       return {
         ok: false,
         error: "Enter a delivery address between 5 and 500 characters.",
+        field: "deliveryAddress",
       };
     }
   }
@@ -67,26 +70,39 @@ export function validateCustomerFulfillment(
   return {
     ok: true,
     value: {
-      fulfillmentType,
+      orderType,
       customerName,
-      customerPhone,
-      deliveryAddress: fulfillmentType === "DELIVERY" ? deliveryAddress : null,
-      notes,
+      tableId,
+      deliveryPhone: orderType === "DELIVERY" ? deliveryPhone : null,
+      deliveryAddress: orderType === "DELIVERY" ? deliveryAddress : null,
     },
   };
 }
 
+export function customerFulfillmentDestination(input: {
+  orderType: CustomerFulfillmentType;
+  tableName?: string | null;
+  deliveryAddress?: string | null;
+}) {
+  if (input.orderType === "DELIVERY") {
+    return input.deliveryAddress ? `Delivery · ${input.deliveryAddress}` : "Delivery";
+  }
+  return input.orderType === "DINE_IN" ? input.tableName ?? "Dine in" : "To go";
+}
+
 export function buildCustomerOrderNote(input: {
-  fulfillmentType: CustomerFulfillmentType;
+  orderType: CustomerFulfillmentType;
   customerName: string;
-  customerPhone: string;
-  notes: string;
+  payerPhone: string;
+  deliveryPhone?: string | null;
+  deliveryAddress?: string | null;
 }) {
   return [
     `Customer: ${input.customerName}`,
-    `Fulfillment: ${input.fulfillmentType === "DELIVERY" ? "Delivery" : "Pickup"}`,
-    input.customerPhone ? `Phone: ${input.customerPhone}` : null,
-    input.notes ? `Note: ${input.notes}` : null,
+    `Phone: ${input.payerPhone}`,
+    input.orderType === "DELIVERY" ? "Delivery" : input.orderType === "DINE_IN" ? "Dine in" : "To go",
+    input.orderType === "DELIVERY" && input.deliveryPhone ? `Delivery phone: ${input.deliveryPhone}` : null,
+    input.orderType === "DELIVERY" && input.deliveryAddress ? `Address: ${input.deliveryAddress}` : null,
   ]
     .filter((value): value is string => Boolean(value))
     .join(" | ");

@@ -12,9 +12,11 @@ export type CustomerOrderState = {
   searchTerm: string;
   customerName: string;
   customerPhone: string;
-  fulfillmentType: CustomerFulfillmentType;
+  deliveryPhone: string;
   deliveryAddress: string;
   orderNote: string;
+  orderType: CustomerFulfillmentType;
+  tableId: string;
   selectedProduct: Product | null;
   modifierModalOpen: boolean;
   cartOpen: boolean;

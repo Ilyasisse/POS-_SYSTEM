@@ -1,16 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateDailyCashSummary, fundingFor, validateSavingsDepositAmount } from "../../src/lib/daily-cash/money";
+import {
+  calculateDailyCashSummary,
+  fundingFor,
+  validateSavingsDepositAmount,
+} from "../../src/lib/daily-cash/money";
 import {
   assertDailyCashBusinessDate,
   getDailyCashDefaultDateKey,
   getDailyCashWaiterBalanceDateKey,
   isDailyCashLocked,
 } from "../../src/lib/daily-cash/business-date";
-import { buildDailyCashPaidBreakdown, calculatePaidBreakdownTotals } from "../../src/lib/daily-cash/paid-breakdown";
+import {
+  buildDailyCashPaidBreakdown,
+  calculatePaidBreakdownTotals,
+} from "../../src/lib/daily-cash/paid-breakdown";
 import { resolveDailySalaryRate } from "../../src/lib/daily-cash/salary-rates";
 import { summarizeDailyCashShiftCash } from "../../src/lib/daily-cash/shift-cash";
-import { selectDailyCashObligations, validateSupplierObligationPaymentAmount } from "../../src/lib/daily-cash/supplier-obligations";
+import {
+  selectDailyCashObligations,
+  validateSupplierObligationPaymentAmount,
+} from "../../src/lib/daily-cash/supplier-obligations";
 
 test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
   assert.equal(
@@ -21,10 +31,7 @@ test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
     getDailyCashDefaultDateKey(new Date(2026, 7, 10, 7, 0, 0)),
     "2026-08-10",
   );
-  assert.equal(
-    getDailyCashWaiterBalanceDateKey("2026-08-10"),
-    "2026-08-09",
-  );
+  assert.equal(getDailyCashWaiterBalanceDateKey("2026-08-10"), "2026-08-09");
 });
 
 test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dates", () => {
@@ -50,8 +57,18 @@ test("Daily Cash locks a business day when it reaches exactly 14 days old", () =
 
 test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
   const shifts = [
-    { id: "shift-1", userId: "waiter-1", closingAmount: 125.5, reportedSales: 900 },
-    { id: "shift-2", userId: "waiter-2", closingAmount: null, reportedSales: 400 },
+    {
+      id: "shift-1",
+      userId: "waiter-1",
+      closingAmount: 125.5,
+      reportedSales: 900,
+    },
+    {
+      id: "shift-2",
+      userId: "waiter-2",
+      closingAmount: null,
+      reportedSales: 400,
+    },
   ];
   const result = summarizeDailyCashShiftCash(shifts, [
     { id: "waiter-1", fullName: "Amina" },
@@ -59,7 +76,9 @@ test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
   ]);
 
   assert.equal(result.endDayCash, 125.5);
-  assert.deepEqual(result.missingWaiters, [{ id: "waiter-2", fullName: "Bilan" }]);
+  assert.deepEqual(result.missingWaiters, [
+    { id: "waiter-2", fullName: "Bilan" },
+  ]);
   assert.deepEqual(result.fingerprintRows, [["shift-1", "waiter-1", 125.5]]);
 });
 
@@ -89,18 +108,35 @@ test("Daily Cash review input changes only when an End-Day Amount changes", () =
     waiters,
   );
 
-  assert.deepEqual(manualSalesChanged.fingerprintRows, original.fingerprintRows);
-  assert.notDeepEqual(endDayAmountChanged.fingerprintRows, original.fingerprintRows);
+  assert.deepEqual(
+    manualSalesChanged.fingerprintRows,
+    original.fingerprintRows,
+  );
+  assert.notDeepEqual(
+    endDayAmountChanged.fingerprintRows,
+    original.fingerprintRows,
+  );
 });
 
 test("Daily Cash uses revenue before savings and never projects a negative balance", () => {
-  assert.deepEqual(fundingFor(400, 324.5), { revenueFunded: 324.5, savingsFunded: 75.5 });
-  assert.deepEqual(calculateDailyCashSummary({ revenue: 450, paidRevenueFunded: 125.5, paidSavingsFunded: 0, unpaidRequired: 400 }), {
-    cashAvailableNow: 324.5,
-    projectedRemaining: 0,
-    additionalSavingsRequired: 75.5,
-    savingsUsed: 0,
+  assert.deepEqual(fundingFor(400, 324.5), {
+    revenueFunded: 324.5,
+    savingsFunded: 75.5,
   });
+  assert.deepEqual(
+    calculateDailyCashSummary({
+      revenue: 450,
+      paidRevenueFunded: 125.5,
+      paidSavingsFunded: 0,
+      unpaidRequired: 400,
+    }),
+    {
+      cashAvailableNow: 324.5,
+      projectedRemaining: 0,
+      additionalSavingsRequired: 75.5,
+      savingsUsed: 0,
+    },
+  );
 });
 
 test("savings deposits reduce available cash without changing paid expenses or savings used", () => {
@@ -139,21 +175,47 @@ test("savings deposits accept the projected remainder and reject unsafe amounts"
 
 test("Daily Cash resolves the newest salary rate effective on the business date", () => {
   const rate = resolveDailySalaryRate(new Date("2026-08-04T00:00:00.000Z"), [
-    { effectiveBusinessDate: new Date("2026-08-01T00:00:00.000Z"), amount: 100 },
-    { effectiveBusinessDate: new Date("2026-08-04T00:00:00.000Z"), amount: 125.5 },
+    {
+      effectiveBusinessDate: new Date("2026-08-01T00:00:00.000Z"),
+      amount: 100,
+    },
+    {
+      effectiveBusinessDate: new Date("2026-08-04T00:00:00.000Z"),
+      amount: 125.5,
+    },
   ]);
   assert.equal(rate?.amount, 125.5);
 });
 
 test("Daily Cash includes overdue and upcoming obligations", () => {
-  const rows = selectDailyCashObligations([{
-    id: "bill-1", supplierId: "supplier-1", dueDate: new Date("2026-08-01T00:00:00.000Z"), totalAmount: 900, paidAmount: 0, status: "UNPAID",
-    supplier: { name: "Milk supplier" }, invoice: { invoiceNumber: 1 },
-    installments: [
-      { id: "past", dueDate: new Date("2026-07-28T00:00:00.000Z"), amount: 300, paidAmount: 0, status: "UNPAID" },
-      { id: "future", dueDate: new Date("2026-08-10T00:00:00.000Z"), amount: 300, paidAmount: 0, status: "UNPAID" },
-    ],
-  }]);
+  const rows = selectDailyCashObligations([
+    {
+      id: "bill-1",
+      supplierId: "supplier-1",
+      dueDate: new Date("2026-08-01T00:00:00.000Z"),
+      totalAmount: 900,
+      paidAmount: 0,
+      status: "UNPAID",
+      supplier: { name: "Milk supplier" },
+      invoice: { invoiceNumber: 1 },
+      installments: [
+        {
+          id: "past",
+          dueDate: new Date("2026-07-28T00:00:00.000Z"),
+          amount: 300,
+          paidAmount: 0,
+          status: "UNPAID",
+        },
+        {
+          id: "future",
+          dueDate: new Date("2026-08-10T00:00:00.000Z"),
+          amount: 300,
+          paidAmount: 0,
+          status: "UNPAID",
+        },
+      ],
+    },
+  ]);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].installmentId, "past");
   assert.equal(rows[0].amount, 300);
@@ -161,20 +223,62 @@ test("Daily Cash includes overdue and upcoming obligations", () => {
 
 test("Daily Cash includes future-due bills and sorts oldest first", () => {
   const rows = selectDailyCashObligations([
-    { id: "future", supplierId: "supplier-1", dueDate: new Date("2026-08-05T00:00:00.000Z"), totalAmount: 54, paidAmount: 0, status: "UNPAID", supplier: { name: "Al Cayn" }, invoice: { invoiceNumber: 47 }, installments: [] },
-    { id: "due", supplierId: "supplier-2", dueDate: new Date("2026-08-04T00:00:00.000Z"), totalAmount: 67.5, paidAmount: 0, status: "UNPAID", supplier: { name: "Haysimo" }, invoice: { invoiceNumber: 43 }, installments: [] },
-    { id: "paid", supplierId: "supplier-3", dueDate: new Date("2026-07-01T00:00:00.000Z"), totalAmount: 100, paidAmount: 100, status: "PAID", supplier: { name: "Paid" }, invoice: { invoiceNumber: 99 }, installments: [] },
+    {
+      id: "future",
+      supplierId: "supplier-1",
+      dueDate: new Date("2026-08-05T00:00:00.000Z"),
+      totalAmount: 54,
+      paidAmount: 0,
+      status: "UNPAID",
+      supplier: { name: "Al Cayn" },
+      invoice: { invoiceNumber: 47 },
+      installments: [],
+    },
+    {
+      id: "due",
+      supplierId: "supplier-2",
+      dueDate: new Date("2026-08-04T00:00:00.000Z"),
+      totalAmount: 67.5,
+      paidAmount: 0,
+      status: "UNPAID",
+      supplier: { name: "Haysimo" },
+      invoice: { invoiceNumber: 43 },
+      installments: [],
+    },
+    {
+      id: "paid",
+      supplierId: "supplier-3",
+      dueDate: new Date("2026-07-01T00:00:00.000Z"),
+      totalAmount: 100,
+      paidAmount: 100,
+      status: "PAID",
+      supplier: { name: "Paid" },
+      invoice: { invoiceNumber: 99 },
+      installments: [],
+    },
   ]);
-  assert.deepEqual(rows.map((row) => row.invoiceNumber), ["INV-000043", "INV-000047"]);
-  assert.equal(rows.reduce((sum, row) => sum + row.amount, 0), 121.5);
+  assert.deepEqual(
+    rows.map((row) => row.invoiceNumber),
+    ["INV-000043", "INV-000047"],
+  );
+  assert.equal(
+    rows.reduce((sum, row) => sum + row.amount, 0),
+    121.5,
+  );
 });
 
 test("Daily Cash accepts partial supplier payments up to the remaining balance", () => {
   assert.equal(validateSupplierObligationPaymentAmount(20, 67.5), 20);
   assert.equal(validateSupplierObligationPaymentAmount(67.5, 67.5), 67.5);
   assert.equal(validateSupplierObligationPaymentAmount(100, 67.5, true), 100);
-  assert.throws(() => validateSupplierObligationPaymentAmount(0, 67.5), /greater than zero/);
-  assert.throws(() => validateSupplierObligationPaymentAmount(68, 67.5), /cannot exceed/);
+  assert.throws(
+    () => validateSupplierObligationPaymentAmount(0, 67.5),
+    /greater than zero/,
+  );
+  assert.throws(
+    () => validateSupplierObligationPaymentAmount(68, 67.5),
+    /cannot exceed/,
+  );
 });
 
 test("paid salary produces one breakdown row while unpaid salary is excluded", () => {
@@ -194,15 +298,17 @@ test("paid salary produces one breakdown row while unpaid salary is excluded", (
     salary: { amount: 125.5, paidAt: null, revenueFunded: 0, savingsFunded: 0 },
   });
 
-  assert.deepEqual(paid, [{
-    id: "salary:day-1",
-    type: "SALARY",
-    description: "Combined daily salary",
-    paidAt,
-    amount: 125.5,
-    revenueFunded: 100,
-    savingsFunded: 25.5,
-  }]);
+  assert.deepEqual(paid, [
+    {
+      id: "salary:day-1",
+      type: "SALARY",
+      description: "Combined daily salary",
+      paidAt,
+      amount: 125.5,
+      revenueFunded: 100,
+      savingsFunded: 25.5,
+    },
+  ]);
   assert.deepEqual(unpaid, []);
 });
 
@@ -210,28 +316,35 @@ test("manual and supplier breakdown rows include descriptions, funding splits, a
   const rows = buildDailyCashPaidBreakdown({
     dayId: "day-1",
     salary: { amount: 0, paidAt: null, revenueFunded: 0, savingsFunded: 0 },
-    manualExpenses: [{
-      id: "manual-1",
-      description: "Taxi",
-      note: "Market run",
-      amount: 20,
-      revenueFunded: 15,
-      savingsFunded: 5,
-      createdAt: new Date("2026-08-04T09:00:00.000Z"),
-    }],
-    supplierPayments: [{
-      id: "supplier-1",
-      supplierName: "Haysimo",
-      invoiceNumber: "INV-000043",
-      amount: 67.5,
-      revenueFunded: 60,
-      savingsFunded: 7.5,
-      paidAt: new Date("2026-08-04T08:00:00.000Z"),
-    }],
+    manualExpenses: [
+      {
+        id: "manual-1",
+        description: "Taxi",
+        note: "Market run",
+        amount: 20,
+        revenueFunded: 15,
+        savingsFunded: 5,
+        createdAt: new Date("2026-08-04T09:00:00.000Z"),
+      },
+    ],
+    supplierPayments: [
+      {
+        id: "supplier-1",
+        supplierName: "Haysimo",
+        invoiceNumber: "INV-000043",
+        amount: 67.5,
+        revenueFunded: 60,
+        savingsFunded: 7.5,
+        paidAt: new Date("2026-08-04T08:00:00.000Z"),
+      },
+    ],
     supplyPayments: [],
   });
 
-  assert.deepEqual(rows.map((row) => row.type), ["SUPPLIER", "MANUAL"]);
+  assert.deepEqual(
+    rows.map((row) => row.type),
+    ["SUPPLIER", "MANUAL"],
+  );
   assert.equal(rows[0].description, "Haysimo · INV-000043");
   assert.deepEqual([rows[0].revenueFunded, rows[0].savingsFunded], [60, 7.5]);
   assert.equal(rows[1].description, "Taxi · Market run");
@@ -244,27 +357,57 @@ test("supply payments appear in the paid breakdown with their receipt date", () 
     salary: { amount: 0, paidAt: null, revenueFunded: 0, savingsFunded: 0 },
     manualExpenses: [],
     supplierPayments: [],
-    supplyPayments: [{
-      id: "supply-payment-1",
-      purchaseDate: new Date("2026-08-03T00:00:00.000Z"),
-      amount: 40,
-      revenueFunded: 30,
-      savingsFunded: 10,
-      paidAt: new Date("2026-08-04T08:00:00.000Z"),
-    }],
+    supplyPayments: [
+      {
+        id: "supply-payment-1",
+        purchaseDate: new Date("2026-08-03T00:00:00.000Z"),
+        amount: 40,
+        revenueFunded: 30,
+        savingsFunded: 10,
+        paidAt: new Date("2026-08-04T08:00:00.000Z"),
+      },
+    ],
   });
 
   assert.equal(rows[0].type, "SUPPLY");
   assert.equal(rows[0].description, "Supplies received 2026-08-03");
-  assert.deepEqual([rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded], [40, 30, 10]);
+  assert.deepEqual(
+    [rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded],
+    [40, 30, 10],
+  );
 });
 
 test("paid breakdown totals reconcile revenue and savings to current remaining cash", () => {
   const rows = buildDailyCashPaidBreakdown({
     dayId: "day-1",
-    salary: { amount: 125.5, paidAt: new Date("2026-08-04T07:00:00.000Z"), revenueFunded: 125.5, savingsFunded: 0 },
-    manualExpenses: [{ id: "manual-1", description: "Taxi", note: null, amount: 30, revenueFunded: 24.5, savingsFunded: 5.5, createdAt: new Date("2026-08-04T08:00:00.000Z") }],
-    supplierPayments: [{ id: "supplier-1", supplierName: "Haysimo", invoiceNumber: "INV-000043", amount: 300, revenueFunded: 300, savingsFunded: 0, paidAt: new Date("2026-08-04T09:00:00.000Z") }],
+    salary: {
+      amount: 125.5,
+      paidAt: new Date("2026-08-04T07:00:00.000Z"),
+      revenueFunded: 125.5,
+      savingsFunded: 0,
+    },
+    manualExpenses: [
+      {
+        id: "manual-1",
+        description: "Taxi",
+        note: null,
+        amount: 30,
+        revenueFunded: 24.5,
+        savingsFunded: 5.5,
+        createdAt: new Date("2026-08-04T08:00:00.000Z"),
+      },
+    ],
+    supplierPayments: [
+      {
+        id: "supplier-1",
+        supplierName: "Haysimo",
+        invoiceNumber: "INV-000043",
+        amount: 300,
+        revenueFunded: 300,
+        savingsFunded: 0,
+        paidAt: new Date("2026-08-04T09:00:00.000Z"),
+      },
+    ],
     supplyPayments: [],
   });
 
@@ -285,17 +428,22 @@ test("paid breakdown totals reconcile revenue and savings to current remaining c
 });
 
 test("paid breakdown remaining cash stops at zero", () => {
-  assert.deepEqual(calculatePaidBreakdownTotals(10, [{
-    id: "manual:1",
-    type: "MANUAL",
-    description: "Emergency repair",
-    paidAt: new Date("2026-08-04T10:00:00.000Z"),
-    amount: 15,
-    revenueFunded: 10,
-    savingsFunded: 0,
-  }]), {
-    savingsUsed: 0,
-    totalPaid: 15,
-    currentRemaining: 0,
-  });
+  assert.deepEqual(
+    calculatePaidBreakdownTotals(10, [
+      {
+        id: "manual:1",
+        type: "MANUAL",
+        description: "Emergency repair",
+        paidAt: new Date("2026-08-04T10:00:00.000Z"),
+        amount: 15,
+        revenueFunded: 10,
+        savingsFunded: 0,
+      },
+    ]),
+    {
+      savingsUsed: 0,
+      totalPaid: 15,
+      currentRemaining: 0,
+    },
+  );
 });
