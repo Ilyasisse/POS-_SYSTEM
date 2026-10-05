@@ -19,8 +19,9 @@ export default function QuickAccessCard({
   const toneClasses = getToneClasses(tone);
   return (
     <Link
+      prefetch={false}
       href={href}
-      className="group flex min-h-32 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-4 text-center transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+      className="group flex min-h-32 flex-col items-center justify-center rounded-xl border border-border bg-card p-4 text-center transition hover:-translate-y-0.5 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-md"
     >
       <span
         className={`grid size-12 place-items-center rounded-2xl transition group-hover:scale-105 ${toneClasses.icon}`}
@@ -30,8 +31,8 @@ export default function QuickAccessCard({
           return <Icon className="size-5" />;
         })()}
       </span>
-      <span className="mt-3 text-sm font-black text-slate-950">{title}</span>
-      <span className="mt-1 text-xs font-medium text-slate-500">
+      <span className="mt-3 text-sm font-black text-foreground">{title}</span>
+      <span className="mt-1 text-xs font-medium text-muted-foreground">
         {description}
       </span>
     </Link>
