@@ -97,7 +97,16 @@ export default function StaffShellClient({
         </header>
 
         <PaymentGatewayBanner />
-        {["CASHIER", "WAITER", "ADMIN", "MANAGER"].includes(currentUser.role) ? <CustomerOrderNotifications waiter={currentUser.role === "WAITER"} manager={currentUser.role === "ADMIN" || currentUser.role === "MANAGER"} /> : null}
+        {["CASHIER", "WAITER", "ADMIN", "MANAGER"].includes(
+          currentUser.role,
+        ) ? (
+          <CustomerOrderNotifications
+            waiter={currentUser.role === "WAITER"}
+            manager={
+              currentUser.role === "ADMIN" || currentUser.role === "MANAGER"
+            }
+          />
+        ) : null}
 
         <div className="min-h-[calc(100vh-4rem)]">{children}</div>
       </SidebarInset>

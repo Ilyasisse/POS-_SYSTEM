@@ -110,7 +110,11 @@ type CustomerOrderAction =
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
   | { type: "orderNoteChanged"; orderNote: string }
-  | { type: "fulfillmentChanged"; orderType: "DINE_IN" | "TAKEOUT"; tableId: string }
+  | {
+      type: "fulfillmentChanged";
+      orderType: "DINE_IN" | "TAKEOUT";
+      tableId: string;
+    }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -272,10 +276,10 @@ export default function CustomerOrderPage({
     calculateCartTotal,
   } = useWaiterCart();
 
-  const [orderState, dispatchOrderState] = useReducer(
-    customerOrderReducer,
-    { ...initialCustomerOrderState, customerName: accountName },
-  );
+  const [orderState, dispatchOrderState] = useReducer(customerOrderReducer, {
+    ...initialCustomerOrderState,
+    customerName: accountName,
+  });
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
@@ -381,7 +385,8 @@ export default function CustomerOrderPage({
       });
     }
     const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    if (fulfillment)
+      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
   }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
 
@@ -421,7 +426,10 @@ export default function CustomerOrderPage({
     clearCustomerOrderDraft();
     clearCart();
     dispatchOrderState({ type: "reset" });
-    dispatchOrderState({ type: "customerNameChanged", customerName: accountName });
+    dispatchOrderState({
+      type: "customerNameChanged",
+      customerName: accountName,
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -515,7 +523,8 @@ export default function CustomerOrderPage({
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Enter 90 followed by seven digits for the phone sending payment.",
+        error:
+          "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
@@ -528,7 +537,10 @@ export default function CustomerOrderPage({
     }
 
     if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
-      dispatchOrderState({ type: "checkoutBlocked", error: "Select your table before checkout." });
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Select your table before checkout.",
+      });
       return;
     }
 
@@ -606,7 +618,7 @@ export default function CustomerOrderPage({
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
+      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -621,7 +633,7 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800"
+            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -673,7 +685,9 @@ export default function CustomerOrderPage({
         onCustomerPhoneChange={(customerPhone) =>
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
         }
-        onFulfillmentChange={(orderType, tableId) => dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })}
+        onFulfillmentChange={(orderType, tableId) =>
+          dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })
+        }
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
@@ -696,7 +710,10 @@ export default function CustomerOrderPage({
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p role="alert" className="text-sm text-rose-700">
+            <p
+              role="alert"
+              className="text-sm text-rose-700 dark:text-rose-300"
+            >
               {signInError}
             </p>
           ) : null}

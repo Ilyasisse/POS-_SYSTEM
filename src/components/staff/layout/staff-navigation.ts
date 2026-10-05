@@ -200,7 +200,14 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     requiredPermissions: [PERMISSIONS.ORDER_MANAGE] as const,
     section: "operations",
   },
-  { key: "customer-checkouts", href: "/cashier/customer-checkouts", label: "Customer payments", icon: ReceiptText, requiredPermissions: [PERMISSIONS.PAYMENT_TAKE], section: "operations" },
+  {
+    key: "customer-checkouts",
+    href: "/cashier/customer-checkouts",
+    label: "Customer payments",
+    icon: ReceiptText,
+    requiredPermissions: [PERMISSIONS.PAYMENT_TAKE],
+    section: "operations",
+  },
   {
     key: "waiter-home",
     href: "/waiter",

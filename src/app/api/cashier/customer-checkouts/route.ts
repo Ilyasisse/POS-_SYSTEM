@@ -14,7 +14,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   const params = new URL(request.url).searchParams;
-  const page = (name: string) => { const value = Number(params.get(name) ?? 0); return Number.isInteger(value) && value >= 0 ? Math.min(value, 10_000) : 0; };
+  const page = (name: string) => {
+    const value = Number(params.get(name) ?? 0);
+    return Number.isInteger(value) && value >= 0 ? Math.min(value, 10_000) : 0;
+  };
   const checkoutPage = page("checkoutPage");
   const receiptPage = page("receiptPage");
   const [checkouts, receipts] = await Promise.all([
@@ -29,7 +32,6 @@ export async function GET(request: Request) {
             "NEEDS_HELP",
           ],
         },
-
       },
       orderBy: { createdAt: "asc" },
       skip: checkoutPage * 100,
