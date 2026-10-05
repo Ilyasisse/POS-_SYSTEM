@@ -75,7 +75,7 @@ test("authorized report endpoint and business-intelligence link are present", as
       "utf8",
     ),
     readFile(
-      new URL("../../src/app/admin/business-intelligence/page.tsx", import.meta.url),
+      new URL("../../src/app/admin/(reports)/business-intelligence/page.tsx", import.meta.url),
       "utf8",
     ),
   ]);

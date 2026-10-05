@@ -42,9 +42,6 @@ export default async function CashierOrderPage({
   ]);
 
   return (
-    <CashierOrderExperience
-      tables={tables}
-      initialTableId={requestedTableId}
-    />
+    <CashierOrderExperience tables={tables} initialTableId={requestedTableId} />
   );
 }
