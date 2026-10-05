@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useAos } from "@/components/AosInitializer";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { customerReturnPath } from "@/lib/auth/customer-return-path";
 
 function loginErrorMessage(error: string | null) {
   if (error === "customer-login-required") {
@@ -27,6 +28,7 @@ function loginErrorMessage(error: string | null) {
 
 export default function LoginPageClient() {
   const searchParams = useSearchParams();
+  const next = customerReturnPath(searchParams.get("next"));
   const [runtimeError, setRuntimeError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const error = runtimeError || loginErrorMessage(searchParams.get("error"));
@@ -38,7 +40,9 @@ export default function LoginPageClient() {
     setGoogleLoading(true);
 
     try {
-      window.location.assign("/auth/google/start");
+      window.location.assign(
+        next ? "/auth/google/start?next=%2Fcustomer" : "/auth/google/start",
+      );
     } catch (err) {
       setGoogleLoading(false);
       setRuntimeError(
@@ -63,14 +67,15 @@ export default function LoginPageClient() {
               className="h-14 w-14 object-contain"
             />
           </div>
-          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45]">
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45] dark:text-primary">
             Mash Allah Cafe
           </p>
           <h1 className="mt-3 text-3xl font-bold text-foreground">
             Customer login
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-            Sign in with Google to browse the menu and continue your order.
+            Browse the menu freely. Sign in with Google when you are ready to
+            place your order.
           </p>
         </div>
 
@@ -87,11 +92,11 @@ export default function LoginPageClient() {
             disabled={googleLoading}
             data-aos="fade-up"
             data-aos-delay="80"
-            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[#2f180d] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-[#442719] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           >
             <span
               aria-hidden="true"
-              className="flex h-6 w-6 items-center justify-center rounded-full bg-card text-sm font-bold text-[#2f180d]"
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-card text-sm font-bold text-foreground"
             >
               G
             </span>
@@ -109,7 +114,7 @@ function LoginShell({ children }: { children: React.ReactNode }) {
       <div className="absolute right-4 top-4 z-20">
         <ModeToggle />
       </div>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,#1d120d_0%,#2c1b12_48%,#15100d_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,var(--background)_0%,var(--card)_48%,var(--background)_100%)]" />
       <div className="absolute inset-x-0 top-0 h-48 bg-[linear-gradient(180deg,rgba(47,24,13,0.16),transparent)]" />
       <div className="relative z-10 flex w-full justify-center">{children}</div>
     </main>

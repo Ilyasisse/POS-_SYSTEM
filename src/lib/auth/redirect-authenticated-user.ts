@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { findAppUser } from "@/lib/auth/app-user";
+import type { customerReturnPath } from "@/lib/auth/customer-return-path";
 
-export async function redirectAuthenticatedUser() {
+export async function redirectAuthenticatedUser(
+  next: ReturnType<typeof customerReturnPath> = null,
+) {
   const supabase = await createClient();
 
   const {
@@ -12,6 +16,10 @@ export async function redirectAuthenticatedUser() {
 
   // Keep login routes from rendering stale UI before /auth/redirect chooses the user's destination.
   if (!error && user) {
+    if (next) {
+      const profile = await findAppUser(user.id);
+      if (profile?.role === "CUSTOMER" && profile.isActive) redirect(next);
+    }
     redirect("/auth/redirect");
   }
 }

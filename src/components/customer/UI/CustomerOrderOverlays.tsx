@@ -19,12 +19,12 @@ type CustomerOrderOverlaysProps = {
   onCloseCart: () => void;
   onCustomerNameChange: (customerName: string) => void;
   onCustomerPhoneChange: (customerPhone: string) => void;
+  onFulfillmentChange: (orderType: "DINE_IN" | "TAKEOUT", tableId: string) => void;
   onOrderNoteChange: (orderNote: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
   onRemove: (cartKey: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
-  autoAssignBarista?: boolean;
   tableName?: string;
 };
 
@@ -40,11 +40,11 @@ export default function CustomerOrderOverlays({
   onCustomerNameChange,
   onCustomerPhoneChange,
   onOrderNoteChange,
+  onFulfillmentChange,
   onChangeQuantity,
   onRemove,
   onClearCart,
   onCheckout,
-  autoAssignBarista = false,
   tableName,
 }: CustomerOrderOverlaysProps) {
   return (
@@ -55,7 +55,6 @@ export default function CustomerOrderOverlays({
         baristas={baristas}
         onClose={onCloseModifier}
         onConfirm={onConfirmModifier}
-        autoAssignBarista={autoAssignBarista}
       />
 
       <CustomerCartSheet
@@ -64,6 +63,10 @@ export default function CustomerOrderOverlays({
         customerName={orderState.customerName}
         customerPhone={orderState.customerPhone}
         orderNote={orderState.orderNote}
+        orderType={orderState.orderType}
+        selectedTableId={orderState.tableId}
+        onFulfillmentChange={tableName ? undefined : onFulfillmentChange}
+        tableName={tableName}
         cartSubtotal={cartSubtotal}
         cartCount={cartCount}
         isSubmitting={orderState.isSubmitting}
@@ -77,7 +80,6 @@ export default function CustomerOrderOverlays({
         onRemove={onRemove}
         onClearCart={onClearCart}
         onCheckout={onCheckout}
-        tableName={tableName}
       />
     </>
   );

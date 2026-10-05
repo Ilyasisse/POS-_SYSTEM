@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import CustomerOrderPage from "@/components/customer/CustomerOrderPage";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import {
   getTableQrSecret,
   verifyTableQrToken,
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Order at Your Table | Mash Allah Cafe",
-  description: "Scan, choose your items, and send your dine-in order to the kitchen.",
+  description: "Scan, choose your items, and pay for your dine-in order.",
   robots: { index: false, follow: false },
 };
 
@@ -40,9 +41,14 @@ export default async function TableOrderPage({ params }: TableOrderPageProps) {
     select: { id: true, name: true },
   });
   if (!table) notFound();
+  const user = await getCurrentUser();
 
   return (
     <CustomerOrderPage
+      accountName={user?.fullName ?? ""}
+      authState={
+        !user ? "guest" : user.role === "CUSTOMER" && user.isActive ? "customer" : "blocked"
+      }
       tableOrderContext={{
         token,
         tableName: table.name,

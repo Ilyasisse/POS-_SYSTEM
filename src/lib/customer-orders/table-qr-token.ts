@@ -57,8 +57,10 @@ export function verifyTableQrToken(
   token: string,
   secret = getTableQrSecret(),
 ): Omit<TableQrPayload, "v"> | null {
-  const [encodedPayload, encodedSignature, extraPart] = token.split(".");
-  if (!encodedPayload || !encodedSignature || extraPart) return null;
+  if (token.length > 512) return null;
+  const parts = token.split(".");
+  const [encodedPayload, encodedSignature] = parts;
+  if (parts.length !== 2 || !encodedPayload || !encodedSignature) return null;
 
   try {
     const providedSignature = Buffer.from(encodedSignature, "base64url");

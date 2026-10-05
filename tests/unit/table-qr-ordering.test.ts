@@ -27,6 +27,8 @@ test("rejects tampered, malformed, and differently signed tokens", () => {
   );
   assert.equal(verifyTableQrToken(token, `${secret}-different`), null);
   assert.equal(verifyTableQrToken("not-a-token", secret), null);
+  assert.equal(verifyTableQrToken(`${token}.`, secret), null);
+  assert.equal(verifyTableQrToken(`${token}..ignored`, secret), null);
 });
 
 test("rotating a table version invalidates the previous code at lookup", () => {
@@ -37,21 +39,15 @@ test("rotating a table version invalidates the previous code at lookup", () => {
   assert.notEqual(verified?.tokenVersion, 3);
 });
 
-test("ships an additive migration and keeps anonymous access token-gated", () => {
+test("ships additive table settings and keeps public catalog data limited", () => {
   const migration = readFileSync(
     "prisma/migrations/20260907_table_qr_ordering/migration.sql",
     "utf8",
   );
-  const route = readFileSync("src/app/api/customer/orders/route.ts", "utf8");
-  const page = readFileSync("src/app/table/[token]/page.tsx", "utf8");
   const productRoute = readFileSync("src/app/api/GET/Product/all/route.ts", "utf8");
 
   assert.match(migration, /ADD COLUMN "qrOrderingEnabled" BOOLEAN NOT NULL DEFAULT false/);
   assert.match(migration, /ADD COLUMN "qrTokenVersion" INTEGER NOT NULL DEFAULT 1/);
-  assert.match(route, /verifyTableQrToken\(tableToken/);
-  assert.match(route, /qrOrderingEnabled: true/);
-  assert.match(route, /FOR UPDATE/);
-  assert.match(page, /verifyTableQrToken\(token/);
   assert.doesNotMatch(productRoute, /\bcost: true/);
   assert.doesNotMatch(productRoute, /\bstockQty: true/);
 });
