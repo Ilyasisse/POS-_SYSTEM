@@ -1,6 +1,4 @@
-﻿import {
-  AdminPage,
-} from "@/components/admin/shared";
+﻿import { AdminPage } from "@/components/admin/shared";
 import { ToastOnMount, type ToastTone } from "@/components/ui/toast";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
@@ -17,8 +15,6 @@ import RecentInventoryActivity from "./_compoents/RecentInventoryActitvity";
 import { getEatDayStart } from "@/app/inventory/page";
 const EAT_OFFSET_HOURS = 3;
 
-
-
 function addStatus(summary: StatusSummary, status: InventoryStatus) {
   if (status === "OUT") {
     summary.out += 1;
@@ -28,8 +24,6 @@ function addStatus(summary: StatusSummary, status: InventoryStatus) {
     summary.ok += 1;
   }
 }
-
-
 
 function getInventoryEmailMessage(
   value?: string,

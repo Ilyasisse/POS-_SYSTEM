@@ -1,5 +1,5 @@
-import { MetricCard } from '@/components/admin/shared';
-import { StatusSummary } from '@/types/admin/Inventory.types';
+import { MetricCard } from "@/components/admin/shared";
+import { StatusSummary } from "@/types/admin/Inventory.types";
 
 export default function InventorySummary({
   summary,

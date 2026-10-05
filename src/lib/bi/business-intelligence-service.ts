@@ -31,10 +31,7 @@ async function recordExpense(input: {
   });
 }
 
-async function approveExpense(
-  expenseId: string,
-  approverUserId: string,
-) {
+async function approveExpense(expenseId: string, approverUserId: string) {
   return prisma.expenseTransaction.update({
     where: { id: expenseId },
     data: {

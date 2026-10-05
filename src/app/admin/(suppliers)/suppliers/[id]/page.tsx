@@ -364,7 +364,9 @@ export default async function SupplierCatalogPage({
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link prefetch={false} href="/admin/suppliers">Back to suppliers</Link>
+            <Link prefetch={false} href="/admin/suppliers">
+              Back to suppliers
+            </Link>
           </Button>
         </>
       }

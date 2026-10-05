@@ -111,9 +111,16 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
             closedAt: receipt.transactionAt ?? new Date(),
           },
         });
-        const table = checkout.tableId ? await tx.table.findUnique({ where: { id: checkout.tableId }, select: { name: true } }) : null;
+        const table = checkout.tableId
+          ? await tx.table.findUnique({
+              where: { id: checkout.tableId },
+              select: { name: true },
+            })
+          : null;
         await dispatchCustomerOrder(tx, {
-          orderId: order.id, orderNumber: order.orderNumber, customerId: checkout.customerId,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerId: checkout.customerId,
           tableName: table?.name ?? null,
         });
         const ticketLines = lines.map((line) => ({
@@ -313,8 +320,15 @@ export async function assignCustomerCheckoutReceipt(input: {
           ],
           now,
         );
-        if (match !== checkout.id && (!input.staff || !input.allowExceptions || (input.reviewReason?.trim().length ?? 0) < 5))
-          throw new Error("Phone or payment window differs. An admin or manager must review it with a reason.");
+        if (
+          match !== checkout.id &&
+          (!input.staff ||
+            !input.allowExceptions ||
+            (input.reviewReason?.trim().length ?? 0) < 5)
+        )
+          throw new Error(
+            "Phone or payment window differs. An admin or manager must review it with a reason.",
+          );
         if (input.staff && (input.reviewReason?.trim().length ?? 0) < 5)
           throw new Error("Enter a review reason of at least five characters.");
       }
@@ -346,12 +360,23 @@ export async function assignCustomerCheckoutReceipt(input: {
       await tx.auditLog.create({
         data: {
           actorUserId: input.staff?.id ?? null,
-          action: input.staff ? "customer_checkout.receipt_reviewed" : "customer_checkout.receipt_matched",
-          entityType: "CustomerCheckout", entityId: checkout.id,
-          relatedEntityType: "MobileMoneyReceipt", relatedEntityId: receipt.id,
+          action: input.staff
+            ? "customer_checkout.receipt_reviewed"
+            : "customer_checkout.receipt_matched",
+          entityType: "CustomerCheckout",
+          entityId: checkout.id,
+          relatedEntityType: "MobileMoneyReceipt",
+          relatedEntityId: receipt.id,
           reason: input.reviewReason?.trim() ?? null,
-          previousValue: { status: checkout.status, receiptId: checkout.receiptId },
-          newValue: { status: "PAYMENT_RECEIVED", receiptId: receipt.id, allowExceptions: Boolean(input.allowExceptions) },
+          previousValue: {
+            status: checkout.status,
+            receiptId: checkout.receiptId,
+          },
+          newValue: {
+            status: "PAYMENT_RECEIVED",
+            receiptId: receipt.id,
+            allowExceptions: Boolean(input.allowExceptions),
+          },
         },
       });
     },

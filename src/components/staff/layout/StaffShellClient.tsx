@@ -97,7 +97,9 @@ export default function StaffShellClient({
         </header>
 
         <PaymentGatewayBanner />
-        {currentUser.role === "CASHIER" || currentUser.role === "WAITER" ? <CustomerOrderNotifications waiter={currentUser.role === "WAITER"} /> : null}
+        {currentUser.role === "CASHIER" || currentUser.role === "WAITER" ? (
+          <CustomerOrderNotifications waiter={currentUser.role === "WAITER"} />
+        ) : null}
 
         <div className="min-h-[calc(100vh-4rem)]">{children}</div>
       </SidebarInset>

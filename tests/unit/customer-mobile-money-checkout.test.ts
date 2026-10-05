@@ -84,17 +84,62 @@ test("automatically selects only a unique exact receipt match in the payment win
 
 test("checkout accepts only local 90 and seven digits; country prefixes are receipt-only", () => {
   assert.equal(normalizeCustomerPaymentPhone("901234567"), "252901234567");
-  for (const value of ["", "90123456", "9012345678", "911234567", "+252901234567", "90 1234567", "90abcdefg", " 901234567"]) {
+  for (const value of [
+    "",
+    "90123456",
+    "9012345678",
+    "911234567",
+    "+252901234567",
+    "90 1234567",
+    "90abcdefg",
+    " 901234567",
+  ]) {
     assert.equal(normalizeCustomerPaymentPhone(value), null, value);
   }
 });
 test("late, wrong-phone and wrong-amount receipts require review", () => {
   const createdAt = new Date("2026-09-30T10:00:00Z");
   const expiresAt = new Date("2026-09-30T10:15:00Z");
-  const candidates = [{ id: "one", amount: 10.5, payerPhone: "252901234567", createdAt, expiresAt }];
-  const receipt = { amount: 10.5, identifiers: ["252901234567"], transactionAt: expiresAt };
-  assert.equal(chooseUniqueCustomerCheckout(receipt, candidates, expiresAt), "one");
-  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, transactionAt: new Date("2026-09-30T10:15:01Z") }, candidates, expiresAt), null);
-  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, identifiers: ["252901234568"] }, candidates, expiresAt), null);
-  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, amount: 10.49 }, candidates, expiresAt), null);
+  const candidates = [
+    {
+      id: "one",
+      amount: 10.5,
+      payerPhone: "252901234567",
+      createdAt,
+      expiresAt,
+    },
+  ];
+  const receipt = {
+    amount: 10.5,
+    identifiers: ["252901234567"],
+    transactionAt: expiresAt,
+  };
+  assert.equal(
+    chooseUniqueCustomerCheckout(receipt, candidates, expiresAt),
+    "one",
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      { ...receipt, transactionAt: new Date("2026-09-30T10:15:01Z") },
+      candidates,
+      expiresAt,
+    ),
+    null,
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      { ...receipt, identifiers: ["252901234568"] },
+      candidates,
+      expiresAt,
+    ),
+    null,
+  );
+  assert.equal(
+    chooseUniqueCustomerCheckout(
+      { ...receipt, amount: 10.49 },
+      candidates,
+      expiresAt,
+    ),
+    null,
+  );
 });
