@@ -15,7 +15,7 @@ export async function updateAdminProfile(formData: FormData) {
     redirect("/admin/profile?profileStatus=invalid_name");
   }
 
-  await prisma.user.update({
+  await prisma.staff.update({
     where: {
       id: currentUser.id,
     },

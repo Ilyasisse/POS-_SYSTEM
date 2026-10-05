@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 import type { KitchenTicket } from "@/lib/kitchen/kitchen-socket";
@@ -15,6 +17,7 @@ type WaiterPickupPageProps = {
     tableName: string;
     createdAt: string;
     outstandingTotal: number;
+    isPaidCustomerOrder: boolean;
     items: Array<{ id: string; name: string; quantity: number }>;
   }>;
 };
@@ -49,11 +52,18 @@ export default function WaiterPickupPage({
   currentUserRole,
   assignedOrders,
 }: WaiterPickupPageProps) {
-  const { activeTickets, statusMessage, updatePickupStatus } = useKitchenTickets({
-    currentUserId,
-    currentUserName,
-    currentUserRole,
-  });
+  const router = useRouter();
+  useEffect(() => {
+    const timer = window.setInterval(() => router.refresh(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [router]);
+
+  const { activeTickets, statusMessage, updatePickupStatus } =
+    useKitchenTickets({
+      currentUserId,
+      currentUserName,
+      currentUserRole,
+    });
 
   return (
     <div
@@ -82,19 +92,19 @@ export default function WaiterPickupPage({
         <section className="rounded-2xl border border-border bg-card p-5 shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-xl font-bold">My open tables</h2>
+              <h2 className="text-xl font-bold">My assigned orders</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Orders currently assigned to you and their unpaid balance.
+                Your unpaid orders and paid customer orders awaiting delivery.
               </p>
             </div>
             <span className="text-sm font-semibold text-muted-foreground">
-              {assignedOrders.length} open
+              {assignedOrders.length} assigned
             </span>
           </div>
 
           {assignedOrders.length === 0 ? (
             <p className="mt-4 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-              No open tables are assigned to you.
+              No active orders are assigned to you.
             </p>
           ) : (
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -110,8 +120,8 @@ export default function WaiterPickupPage({
                         Order #{order.orderNumber} · {formatTime(order.createdAt)}
                       </p>
                     </div>
-                    <p className="font-bold text-emerald-700">
-                      {formatMoney(order.outstandingTotal)}
+                    <p className="font-bold text-emerald-700 dark:text-emerald-300">
+                      {order.isPaidCustomerOrder ? "Paid" : formatMoney(order.outstandingTotal)}
                     </p>
                   </div>
                   <div className="mt-3 space-y-1 text-sm text-muted-foreground">
@@ -128,7 +138,7 @@ export default function WaiterPickupPage({
         </section>
 
         {statusMessage ? (
-          <p className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+          <p className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-4 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300">
             {statusMessage}
           </p>
         ) : null}
@@ -169,7 +179,7 @@ export default function WaiterPickupPage({
                         Order #{ticket.orderNumber}
                       </p>
                       <h2 className="mt-1 text-2xl font-bold text-foreground">
-                         {ticket.tableName ?? "-"}
+                        {ticket.tableName ?? "-"}
                       </h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         Ready at {formatTime(ticket.createdAt)}
@@ -179,8 +189,8 @@ export default function WaiterPickupPage({
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
                         isClaimed
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-emerald-700"
+                          ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
+                          : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
                       }`}
                     >
                       {isClaimed ? "claimed" : "ready"}
@@ -188,13 +198,13 @@ export default function WaiterPickupPage({
                   </div>
 
                   {ticket.claimedByWaiterName ? (
-                    <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                    <p className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
                       Claimed by {ticket.claimedByWaiterName}
                     </p>
                   ) : null}
 
                   {ticket.note ? (
-                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    <p className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
                       Note: {ticket.note}
                     </p>
                   ) : null}
@@ -209,7 +219,7 @@ export default function WaiterPickupPage({
                           <p className="font-semibold text-foreground">
                             {item.name}
                           </p>
-                          <p className="font-bold text-blue-700">
+                          <p className="font-bold text-blue-700 dark:text-blue-300">
                             x{item.quantity}
                           </p>
                         </div>
@@ -231,15 +241,16 @@ export default function WaiterPickupPage({
                       type="button"
                       disabled={isClaimed}
                       onClick={() => updatePickupStatus(ticket.id, "claimed")}
-                      className="min-h-11 rounded-xl bg-blue-600 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="min-h-11 rounded-xl bg-primary text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Claim
                     </Button>
                     <Button
+                      variant="outline"
                       type="button"
                       disabled={!canDeliver || claimedByOther}
                       onClick={() => updatePickupStatus(ticket.id, "delivered")}
-                      className="min-h-11 rounded-xl bg-emerald-600 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="min-h-11 rounded-xl bg-emerald-600 hover:bg-emerald-600/90 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Delivered
                     </Button>

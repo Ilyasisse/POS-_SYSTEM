@@ -9,12 +9,20 @@ export default async function Page() {
   const orders = await prisma.order.findMany({
     where: {
       waiterId: currentUser.id,
-      status: "OPEN",
+      OR: [
+        { status: "OPEN" },
+        {
+          status: "PAID",
+          customerCheckout: { is: { status: "PAID" } },
+          kitchenTicketState: { is: { pickupStatus: { not: "DELIVERED" } } },
+        },
+      ],
     },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
       orderNumber: true,
+      status: true,
       total: true,
       createdAt: true,
       table: { select: { name: true } },
@@ -31,6 +39,7 @@ export default async function Page() {
     orderNumber: order.orderNumber,
     tableName: order.table?.name ?? "Takeaway",
     createdAt: order.createdAt.toISOString(),
+    isPaidCustomerOrder: order.status === "PAID",
     outstandingTotal: getOutstandingOrderTotal(
       Number(order.total),
       order.payments.map((payment) => ({
