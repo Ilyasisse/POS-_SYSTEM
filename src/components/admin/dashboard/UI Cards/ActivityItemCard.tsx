@@ -28,12 +28,12 @@ export default function ActivityItemCard({
       </div>
       <p
         className={`min-w-0 flex-1 truncate text-sm font-medium ${
-          urgent ? "text-red-600" : "text-slate-700"
+          urgent ? "text-red-600 dark:text-red-300" : "text-foreground"
         }`}
       >
         {text}
       </p>
-      <time className="shrink-0 text-xs font-semibold text-slate-500">
+      <time className="shrink-0 text-xs font-semibold text-muted-foreground">
         {time}
       </time>
     </div>

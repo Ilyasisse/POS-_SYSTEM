@@ -16,7 +16,7 @@ export default function StatePillCard({
   // Resolves the requested tone into reusable Tailwind class names.
   const toneClasses = getToneClasses(tone);
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
       <div
         className={`grid size-10 shrink-0 place-items-center rounded-xl ${toneClasses.soft}`}
       >
@@ -26,8 +26,10 @@ export default function StatePillCard({
         })()}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-slate-500">{label}</p>
-        <p className="truncate text-sm font-black text-slate-950">{value}</p>
+        <p className="truncate text-xs font-semibold text-muted-foreground">
+          {label}
+        </p>
+        <p className="truncate text-sm font-black text-foreground">{value}</p>
       </div>
     </div>
   );

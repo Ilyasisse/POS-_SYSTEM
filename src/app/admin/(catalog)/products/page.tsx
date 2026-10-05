@@ -138,8 +138,8 @@ export default async function AdminProductsPage({
               productsList.map((product, index) => {
                 const unavailable = !isProductAvailableForSale(product);
                 return (
-                  <tr key={product.id} className="border-b border-slate-50">
-                    <TableCell className="font-bold text-slate-400">
+                  <tr key={product.id} className="border-b border-border">
+                    <TableCell className="font-bold text-muted-foreground">
                       {(currentPage - 1) * pageSize + index + 1}
                     </TableCell>
                     <TableCell>
@@ -158,7 +158,7 @@ export default async function AdminProductsPage({
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-black text-slate-950">
+                    <TableCell className="font-black text-foreground">
                       {product.name}
                     </TableCell>
                     <TableCell>{product.category?.name ?? "-"}</TableCell>
