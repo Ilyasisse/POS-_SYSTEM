@@ -34,6 +34,14 @@ export default async function CashierOrderPage({
       select: {
         id: true,
         name: true,
+        orders: {
+          where: { status: "OPEN", type: "DINE_IN" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            tableCheck: { select: { guestCount: true } },
+          },
+        },
       },
       orderBy: {
         name: "asc",
@@ -42,6 +50,13 @@ export default async function CashierOrderPage({
   ]);
 
   return (
-    <CashierOrderExperience tables={tables} initialTableId={requestedTableId} />
+    <CashierOrderExperience
+      tables={tables.map((table) => ({
+        id: table.id,
+        name: table.name,
+        guestCount: table.orders[0]?.tableCheck?.guestCount ?? 1,
+      }))}
+      initialTableId={requestedTableId}
+    />
   );
 }
