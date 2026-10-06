@@ -1,4 +1,5 @@
-﻿import { Table } from "@/components/ui/table";
+﻿import Link from "next/link";
+import { Table } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
@@ -192,6 +193,12 @@ function ManagerPageHeader({
         <p className="text-sm text-muted-foreground">
           Business day: {businessDayLabel}
         </p>
+        <Link
+          href="/manager/cashier-payments"
+          className="mt-2 inline-block text-sm font-semibold underline"
+        >
+          View cashier payment summary
+        </Link>
       </div>
     </div>
   );
