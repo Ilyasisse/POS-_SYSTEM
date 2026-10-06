@@ -1,4 +1,14 @@
 import posthog from "posthog-js";
+import * as Sentry from "@sentry/nextjs";
+import { sentryDataCollection } from "./src/lib/sentry-data-collection";
+
+if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    tracesSampleRate: 0,
+    dataCollection: sentryDataCollection,
+  });
+}
 
 const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
