@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Wrench,
   MessageCircle,
+  BookOpenCheck,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -190,6 +191,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Business intelligence",
     icon: ChartNoAxesCombined,
     permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "accounting",
+    href: "/admin/accounting",
+    label: "Accounting export",
+    icon: BookOpenCheck,
+    permission: PERMISSIONS.REPORT_FINANCIAL_VIEW,
   },
   {
     key: "operations",
