@@ -18,6 +18,7 @@ type CashierPageProps = {
   searchParams?: Promise<{
     paymentStatus?: string;
     orderStatus?: string;
+    mergeStatus?: string;
   }>;
 };
 
@@ -162,6 +163,14 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </p>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <Link
+            prefetch={false}
+            href="/cashier/merge-checks"
+            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            Merge checks
+          </Link>
         <Link
           prefetch={false}
           href="/cashier/order"
@@ -176,6 +185,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         >
           Customer payment review
         </Link>
+        </div>
       </div>
 
       {notice ? (
