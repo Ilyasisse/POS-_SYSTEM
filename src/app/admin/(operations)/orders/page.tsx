@@ -165,6 +165,21 @@ export default async function AdminOrdersPage({
             <option value="all">All Time</option>
           </AutoSubmitSelect>
         </SearchToolbar>
+        <form
+          method="post"
+          action="/api/admin/orders/export"
+          className="flex items-center justify-end gap-3 border-b px-4 py-3"
+        >
+          <input type="hidden" name="q" value={q} />
+          <input type="hidden" name="status" value={status} />
+          <input type="hidden" name="date" value={date} />
+          <button
+            type="submit"
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+          >
+            Download matching orders (CSV)
+          </button>
+        </form>
         <Table>
           <thead>
             <tr>
