@@ -83,6 +83,8 @@ export async function createKitchenTicketState(
     customerName?: string | null;
     actorUserId?: string | null;
     actorCustomerId?: string | null;
+    isHeld?: boolean;
+    courseLabel?: string | null;
   },
 ) {
   const stations = getStationSet(input.lines);
@@ -101,19 +103,23 @@ export async function createKitchenTicketState(
       orderId: input.orderId,
       pickupStatus: stations.length ? "PREPARING" : "READY",
       customerName: input.customerName?.trim() || null,
+      isHeld: input.isHeld ?? false,
+      courseLabel: input.courseLabel ?? null,
       stationStates: {
         create: stations.map((station) => ({ station })),
       },
-      transitions: {
-        create: stations.map((station) => ({
-          station,
-          type: "STATION_CREATED",
-          toStationStatus: "NEW",
-          targetMinutesSnapshot: targetByStation.get(station) ?? null,
-          actorUserId: input.actorUserId ?? null,
-          actorCustomerId: input.actorCustomerId ?? null,
-        })),
-      },
+      transitions: input.isHeld
+        ? undefined
+        : {
+            create: stations.map((station) => ({
+              station,
+              type: "STATION_CREATED",
+              toStationStatus: "NEW",
+              targetMinutesSnapshot: targetByStation.get(station) ?? null,
+              actorUserId: input.actorUserId ?? null,
+              actorCustomerId: input.actorCustomerId ?? null,
+            })),
+          },
     },
   });
 }
@@ -226,7 +232,13 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
     cashierName: state.order.cashier?.fullName ?? null,
     claimedByWaiterId: state.claimedByWaiterId,
     claimedByWaiterName: state.claimedByWaiterName,
-    note: state.order.notes,
+    note:
+      [
+        state.courseLabel ? `Course: ${state.courseLabel}` : null,
+        state.order.notes,
+      ]
+        .filter(Boolean)
+        .join(" · ") || null,
     waiterId: state.order.waiterId,
     waiterName: state.order.waiter?.fullName ?? state.customerName ?? null,
     items,
@@ -272,7 +284,7 @@ export async function getKitchenTicketSnapshot(
   }
 
   const states = await prisma.kitchenTicketState.findMany({
-    where: { pickupStatus: { not: "DELIVERED" } },
+    where: { isHeld: false, pickupStatus: { not: "DELIVERED" } },
     orderBy: { updatedAt: "desc" },
     include: {
       stationStates: true,
@@ -322,6 +334,67 @@ async function lockTicket(tx: KitchenStateTransaction, orderId: string) {
   });
 }
 
+/** Releases a held round atomically; station prep clocks start only at firing. */
+export async function fireHeldKitchenRound(input: {
+  orderId: string;
+  actorUserId: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const state = await lockTicket(tx, input.orderId);
+    if (!state.isHeld) {
+      throw new KitchenTicketMutationError(
+        "This kitchen round is not held.",
+        409,
+      );
+    }
+    const order = await tx.order.findUnique({
+      where: { id: input.orderId },
+      select: { status: true, type: true },
+    });
+    if (!order || order.status === "CANCELLED" || order.type !== "DINE_IN") {
+      throw new KitchenTicketMutationError("This round cannot be fired.", 409);
+    }
+    const firedAt = new Date();
+    const targets = await tx.kitchenPreparationTarget.findMany({
+      where: {
+        station: { in: state.stationStates.map((item) => item.station) },
+      },
+    });
+    const targetByStation = new Map(
+      targets.map((target) => [target.station, target.targetMinutes]),
+    );
+    await tx.kitchenTicketState.update({
+      where: { orderId: input.orderId },
+      data: { isHeld: false, firedAt },
+    });
+    await tx.kitchenTransitionEvent.createMany({
+      data: state.stationStates.map((item) => ({
+        orderId: input.orderId,
+        station: item.station,
+        type: "STATION_CREATED" as const,
+        toStationStatus: "NEW" as const,
+        targetMinutesSnapshot: targetByStation.get(item.station) ?? null,
+        actorUserId: input.actorUserId,
+        occurredAt: firedAt,
+      })),
+    });
+    await tx.auditLog.create({
+      data: {
+        actorUserId: input.actorUserId,
+        action: "kitchen.course.fired",
+        entityType: "KitchenTicketState",
+        entityId: input.orderId,
+        previousValue: { isHeld: true, courseLabel: state.courseLabel },
+        newValue: {
+          isHeld: false,
+          courseLabel: state.courseLabel,
+          firedAt: firedAt.toISOString(),
+        },
+      },
+    });
+  });
+}
+
 export async function updateKitchenTicketStation(input: {
   orderId: string;
   station: KitchenStation;
@@ -330,6 +403,12 @@ export async function updateKitchenTicketStation(input: {
 }) {
   return prisma.$transaction(async (tx) => {
     const state = await lockTicket(tx, input.orderId);
+    if (state.isHeld) {
+      throw new KitchenTicketMutationError(
+        "Fire this round before preparing it.",
+        409,
+      );
+    }
     const station = input.station as Station;
 
     if (!state.stationStates.some((item) => item.station === station)) {
@@ -420,6 +499,12 @@ export async function updateKitchenTicketPickup(input: {
 }) {
   return prisma.$transaction(async (tx) => {
     const state = await lockTicket(tx, input.orderId);
+    if (state.isHeld) {
+      throw new KitchenTicketMutationError(
+        "Fire this round before pickup.",
+        409,
+      );
+    }
 
     if (input.pickupStatus === "claimed") {
       if (
