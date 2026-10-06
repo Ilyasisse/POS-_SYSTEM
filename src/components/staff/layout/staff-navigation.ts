@@ -84,6 +84,7 @@ const navigationGroups: readonly {
       "inventory",
       "supplies",
       "tables",
+      "reservations",
       "orders",
       "payment-review",
       "waiter-balances",
