@@ -88,6 +88,7 @@ test("draft restores configured items and customer fields", () => {
   assert.ok(restored);
   assert.equal(restored.cart.length, 1);
   assert.equal(restored.cart[0].quantity, 2);
+  assert.equal(restored.cart[0].cartKey, "latte__BARISTA__b1__oat:1__FIXED_PRICE");
   assert.equal(restored.cart[0].assignedUserId, "b1");
   assert.equal(restored.cart[0].selectedModifiers[0].optionId, "oat");
   assert.equal(restored.customerName, "Alex");
@@ -137,4 +138,17 @@ test("dine-in selection survives OAuth navigation and is cleared with the cart",
     '{"orderType":"DELIVERY","tableId":"table-one"}',
   );
   assert.equal(restoreCustomerFulfillment(), null);
+});
+
+
+test("draft drops products that now require a cashier-entered price", () => {
+  storage.clear();
+  saveCustomerOrderDraft(cart, "Alex", "", "");
+  const restored = restoreCustomerOrderDraft(
+    [{ ...product, isOpenPrice: true }],
+    baristas,
+  );
+  assert.ok(restored);
+  assert.equal(restored.cart.length, 0);
+  assert.equal(restored.skipped, 1);
 });

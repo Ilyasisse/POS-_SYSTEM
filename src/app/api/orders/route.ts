@@ -160,6 +160,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          isOpenPrice: true,
           cost: true,
           availableForSale: true,
           availabilityRestoresAt: true,
@@ -243,6 +244,13 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { error: `${product.name} is temporarily unavailable.` },
           { status: 409 },
+        );
+      }
+
+      if (product.isOpenPrice) {
+        return NextResponse.json(
+          { error: `${product.name} must be priced by a cashier.` },
+          { status: 400 },
         );
       }
 
