@@ -14,6 +14,7 @@ import { useAos } from "@/components/AosInitializer";
 
 // TypeScript types for menu data and products
 import type { MenuData, MenuProduct } from "@/lib/menu/menu-data";
+import { sortMenuProducts, type MenuSort } from "@/lib/menu/menu-sort";
 import { ModeToggle } from "@/components/mode-toggle";
 
 // Props type for the MenuShowcase component
@@ -126,6 +127,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
 
   // Controls visibility of back-to-top button
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [sort, setSort] = useState<MenuSort>("menu");
 
   // Finds currently selected category object
   const selectedCategoryData =
@@ -147,10 +149,10 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
     : 0;
 
   // Creates sliced array containing only visible products
-  const visibleProducts = selectedCategoryProducts.slice(
-    0,
-    visibleProductCount,
-  );
+  const visibleProducts = sortMenuProducts(
+    selectedCategoryProducts,
+    sort,
+  ).slice(0, visibleProductCount);
 
   // Calculates how many products are left hidden
   const remainingProductCount = Math.max(
@@ -240,6 +242,8 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
         categories={data.categories}
         selectedCategory={menuState.selectedCategory}
         onOpenCategory={openCategory}
+        sort={sort}
+        onSortChange={setSort}
       />
 
       <MenuProductSection
@@ -463,10 +467,14 @@ function MenuCategoryTabs({
   categories,
   selectedCategory,
   onOpenCategory,
+  sort,
+  onSortChange,
 }: {
   categories: MenuData["categories"];
   selectedCategory: string;
   onOpenCategory: (slug: string) => void;
+  sort: MenuSort;
+  onSortChange: (sort: MenuSort) => void;
 }) {
   return (
     <section className="relative z-10 -mt-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -499,6 +507,27 @@ function MenuCategoryTabs({
             </p>
           )}
         </div>
+        {categories.length > 0 ? (
+          <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-[#ead8c6] pt-4">
+            <label
+              htmlFor="menu-sort"
+              className="text-sm font-semibold text-[#5f4637]"
+            >
+              Sort items
+            </label>
+            <select
+              id="menu-sort"
+              value={sort}
+              onChange={(event) => onSortChange(event.target.value as MenuSort)}
+              className="rounded-full border border-[#d7aa6a] bg-white px-4 py-2 text-sm font-medium text-[#2a170d]"
+            >
+              <option value="menu">Menu order</option>
+              <option value="price-low">Price: low to high</option>
+              <option value="price-high">Price: high to low</option>
+              <option value="name">Name: A to Z</option>
+            </select>
+          </div>
+        ) : null}
       </div>
     </section>
   );
