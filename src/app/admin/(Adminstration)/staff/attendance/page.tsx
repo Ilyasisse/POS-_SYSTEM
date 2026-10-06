@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AdminPage,
   Button,
@@ -41,6 +42,11 @@ export default async function AttendanceAdminPage() {
     <AdminPage
       title="Attendance approval"
       description="Review clock evidence, lateness, absence and approved overtime."
+      action={
+        <Button asChild variant="outline">
+          <Link href="/admin/reports/labor">Monthly labor hours</Link>
+        </Button>
+      }
     >
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Awaiting review" value={pending.length} />
