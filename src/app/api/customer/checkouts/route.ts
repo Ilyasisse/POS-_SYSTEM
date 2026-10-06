@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
+import { isProductAvailableForSale } from "@/lib/products/availability";
 import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -174,6 +176,10 @@ export async function POST(request: Request) {
           name: true,
           price: true,
           cost: true,
+          availabilityStartMinute: true,
+          availabilityEndMinute: true,
+          availableForSale: true,
+          availabilityRestoresAt: true,
           recipeVersions: {
             where: { isActive: true },
             select: {
@@ -228,7 +234,7 @@ export async function POST(request: Request) {
     ]);
 
     const productMap = new Map(
-      products.map((product) => [product.id, product]),
+      products.filter((product) => isProductAvailableAt(product) && isProductAvailableForSale(product)).map((product) => [product.id, product]),
     );
     const modifierMap = new Map(
       modifierRecords.map((modifier) => [modifier.id, modifier]),
