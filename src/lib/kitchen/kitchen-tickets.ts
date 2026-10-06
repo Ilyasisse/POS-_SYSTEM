@@ -150,6 +150,7 @@ function mapKitchenTicket(state: KitchenStateRecord): KitchenTicket {
       id: item.id,
       name: item.productName,
       quantity: item.qty,
+      note: item.notes,
       station: item.station as KitchenStation,
       assignedUserId: item.assignedUserId,
       assignedUserName: item.assignedUser?.fullName ?? null,

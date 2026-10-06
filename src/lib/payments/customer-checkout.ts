@@ -23,6 +23,7 @@ type CheckoutLine = {
   productId: string;
   productName: string;
   qty: number;
+  notes?: string | null;
   station: Station | null;
   assignedBaristaId: string | null;
   assignedBaristaName: string | null;
@@ -131,6 +132,7 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
           id: crypto.randomUUID(),
           productName: line.productName,
           qty: line.qty,
+          notes: line.notes ?? null,
           station: line.station,
           assignedUserId: line.assignedBaristaId,
           assignedUserName: line.assignedBaristaName,
@@ -143,6 +145,7 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
             productId: line.productId,
             productName: line.productName,
             qty: line.qty,
+            notes: line.notes ?? null,
             unitPrice: decimal(line.unitPrice),
             lineTotal: decimal(line.lineTotal),
             unitCostSnapshot: line.costSnapshot.unitCostSnapshot
