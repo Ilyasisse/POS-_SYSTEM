@@ -11,6 +11,8 @@ const customer = {
   isActive: true,
   createdAt: new Date(),
   updatedAt: new Date(),
+  marketingEmailConsentAt: null,
+  marketingEmailRevokedAt: null,
 };
 
 test("customer profile receives only customer permissions and no station", async () => {
