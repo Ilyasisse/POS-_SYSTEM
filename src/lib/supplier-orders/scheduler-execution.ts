@@ -1,3 +1,4 @@
+import { getCafeteria } from "@/lib/cafeteria/context";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { processScheduledSupplierOrders } from "./service";
@@ -9,6 +10,7 @@ import { isWhatsAppEnabled } from "./whatsapp";
 
 const prismaSchedulerLease: SchedulerLeaseOperations = {
   async tryAcquire({ key, ownerToken, leaseDurationMs }) {
+    key = (await getCafeteria()).id + ":" + key;
     const leaseDurationSeconds = Math.ceil(leaseDurationMs / 1000);
     const rows = await prisma.$queryRaw<Array<{ ownerToken: string }>>(
       Prisma.sql`
@@ -40,7 +42,7 @@ const prismaSchedulerLease: SchedulerLeaseOperations = {
 
   async release({ key, ownerToken }) {
     await prisma.schedulerLease.deleteMany({
-      where: { key, ownerToken },
+      where: { key: (await getCafeteria()).id + ":" + key, ownerToken },
     });
   },
 };
