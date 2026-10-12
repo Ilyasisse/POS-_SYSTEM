@@ -1,6 +1,6 @@
 import { NativeSelect } from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
-import { Button, Card, AdminPage, MetricCard } from "@/components/admin/shared";
+import { Button, Card, AdminPage } from "@/components/admin/shared";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 

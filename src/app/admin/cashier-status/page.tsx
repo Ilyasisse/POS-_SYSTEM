@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { getCashierStatusSnapshot } from "@/lib/staff/cashier-status";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 export const dynamic = "force-dynamic";

@@ -12,7 +12,6 @@ import {
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
-  setProductInventoryLevel,
   setSupplyInventoryLevel,
 } from "@/lib/inventory/inventory";
 
@@ -88,39 +87,45 @@ export async function createSupply(formData: FormData) {
   revalidatePath("/inventory");
 }
 
-// Sets a menu product's stock quantity and low-stock threshold.
-async function updateProductInventory(formData: FormData) {
-  const user = await requireInventoryAccess();
 
-  // Pulls the submitted product inventory fields from the update form.
-  const productId = getString(formData, "productId");
-  const stockQty = getQuantity(formData, "stockQty");
-  const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
 
-  if (!productId) {
-    throw new Error("Product is required.");
-  }
 
-  // Saves the product stock change and collects any low/out alert.
-  // Product movement reasons are no longer passed because product changes do
-  // not create InventoryMovement rows after productId was removed from that table.
-  const alerts = await prisma.$transaction((tx) =>
-    setProductInventoryLevel(
-      tx,
-      productId,
-      stockQty,
-      lowStockThreshold,
-      user.id,
-    ),
-  );
+// async function updateProductInventory(formData: FormData) {
 
-  await sendInventoryAlerts(alerts);
-  revalidatePath("/admin/inventory");
-}
+//! Sets a menu product's stock quantity and low-stock threshold.
+
+//   const user = await requireInventoryAccess();
+//    Pulls the submitted product inventory fields from the update form.
+//   const productId = getString(formData, "productId");
+//   const stockQty = getQuantity(formData, "stockQty");
+//   const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
+
+//   if (!productId) {
+//     throw new Error("Product is required.");
+//   }
+
+//    Saves the product stock change and collects any low/out alert.
+//    Product movement reasons are no longer passed because product changes do
+//    not create InventoryMovement rows after productId was removed from that table.
+//   const alerts = await prisma.$transaction((tx) =>
+//     setProductInventoryLevel(
+//       tx,
+//       productId,
+//       stockQty,
+//       lowStockThreshold,
+//       user.id,
+//     ),
+//   );
+
+//   await sendInventoryAlerts(alerts);
+//   revalidatePath("/admin/inventory");
+// }
 
 // Adds to or removes from a menu product's stock level.
-async function adjustProductInventory(formData: FormData) {
-  const user = await requireInventoryAccess();
+
+
+// async function adjustProductInventory(formData: FormData) {
+//   const user = await requireInventoryAccess();
 
   // Pulls the submitted product adjustment fields from the form.
   const productId = getString(formData, "productId");
