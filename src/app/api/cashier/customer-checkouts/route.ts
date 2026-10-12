@@ -19,7 +19,6 @@ export async function GET(request: Request) {
     return Number.isInteger(value) && value >= 0 ? Math.min(value, 10_000) : 0;
   };
   const checkoutPage = page("checkoutPage");
-  const receiptPage = page("receiptPage");
   const [checkouts, receipts] = await Promise.all([
     prisma.customerCheckout.findMany({
       where: {

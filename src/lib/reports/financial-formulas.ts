@@ -7,7 +7,10 @@ export const sumMoney = (values: readonly DecimalInput[]) =>
   values
     .reduce<Prisma.Decimal>((total, value) => total.plus(value), money(0))
     .toDecimalPlaces(2);
-const grossSales = (lines: readonly DecimalInput[]) => sumMoney(lines);
+// const grossSales = (lines: readonly DecimalInput[]) => {
+//   // Totals the supplied gross sales amounts. Preserved for future use.
+//   return sumMoney(lines);
+// };
 export const netSales = (
   gross: DecimalInput,
   discounts: DecimalInput,
@@ -46,8 +49,11 @@ export function expectedStock(input: {
     .minus(input.waste)
     .plus(input.adjustments);
 }
-const inventoryVariance = (physical: DecimalInput, expected: DecimalInput) =>
-  new Prisma.Decimal(physical).minus(expected);
+// const inventoryVariance = (physical: DecimalInput, expected: DecimalInput) =>
+//   {
+//   // Calculates physical stock minus expected stock. Preserved for future use.
+//   return new Prisma.Decimal(physical).minus(expected);
+// };
 export function netProfit(input: {
   netSales: DecimalInput;
   cogs: DecimalInput;

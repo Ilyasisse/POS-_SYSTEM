@@ -87,6 +87,10 @@ export default function CustomerCheckoutPageClient({
     }
   }, [checkoutId]);
 
+  const invalidatePendingRequests = useCallback(() => {
+    requestSequence.current++;
+  }, []);
+
   useEffect(() => {
     const initial = window.setTimeout(() => {
       setAndroid(isAndroidDevice(navigator.userAgent));
@@ -104,13 +108,13 @@ export default function CustomerCheckoutPageClient({
     window.addEventListener("focus", onReturn);
     document.addEventListener("visibilitychange", onReturn);
     return () => {
-      requestSequence.current++;
+      invalidatePendingRequests();
       window.clearTimeout(initial);
       window.clearInterval(interval);
       window.removeEventListener("focus", onReturn);
       document.removeEventListener("visibilitychange", onReturn);
     };
-  }, [refresh]);
+  }, [refresh, invalidatePendingRequests]);
 
   useEffect(() => {
     if (checkout?.status === "PAID") clearCustomerOrderDraft();

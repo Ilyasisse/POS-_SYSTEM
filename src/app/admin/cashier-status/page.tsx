@@ -2,38 +2,11 @@ import { getCashierStatusSnapshot } from "@/lib/staff/cashier-status";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 export const dynamic = "force-dynamic";
+
 export default async function CashierStatusPage() {
   await requirePermission(PERMISSIONS.STAFF_MANAGE);
-  const [cashiers, history, unassigned] = await Promise.all([
-    prisma.staff.findMany({
-      where: { role: "CASHIER" },
-      select: {
-        id: true,
-        fullName: true,
-        isActive: true,
-        availability: true,
-        lastSeenAt: true,
-      },
-      orderBy: { fullName: "asc" },
-    }),
-    prisma.auditLog.findMany({
-      where: { action: "staff.availability_changed" },
-      include: { actor: { select: { fullName: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    }),
-    prisma.order.findMany({
-      where: {
-        customerCheckout: { is: { status: "PAID" } },
-        waiterId: null,
-        cashierId: null,
-        kitchenTicketState: { is: { pickupStatus: { not: "DELIVERED" } } },
-      },
-      select: { id: true, orderNumber: true },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
-  const observedAt = Date.now();
+  const { cashiers, history, unassigned, observedAt } =
+    await getCashierStatusSnapshot();
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <h1 className="text-2xl font-bold">Cashier status and audit history</h1>

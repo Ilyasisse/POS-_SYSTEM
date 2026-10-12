@@ -11,17 +11,19 @@ function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
 }
 
-function SheetTrigger({
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
-}
+// function SheetTrigger({
+//   ...props
+// }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
+//   // Renders the control that opens a sheet. Preserved for future use.
+//   return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />;
+// }
 
-function SheetClose({
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Close>) {
-  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
-}
+// function SheetClose({
+//   ...props
+// }: React.ComponentProps<typeof SheetPrimitive.Close>) {
+//   // Renders the control that closes a sheet. Preserved for future use.
+//   return <SheetPrimitive.Close data-slot="sheet-close" {...props} />;
+// }
 
 function SheetPortal({
   ...props
@@ -95,15 +97,16 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="sheet-footer"
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
-      {...props}
-    />
-  );
-}
+// function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
+//   // Renders the sheet footer and its shared action layout. Preserved for future use.
+//   return (
+//     <div
+//       data-slot="sheet-footer"
+//       className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+//       {...props}
+//     />
+//   );
+// }
 
 function SheetTitle({
   className,

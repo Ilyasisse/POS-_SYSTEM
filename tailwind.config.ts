@@ -1,1 +1,3 @@
-export default {};
+const tailwindConfig = {};
+
+export default tailwindConfig;

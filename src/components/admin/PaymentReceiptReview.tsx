@@ -37,7 +37,10 @@ export default function PaymentReceiptReview() {
     }
   }, [toast]);
   useEffect(() => {
-    void refresh();
+    const initial = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(initial);
   }, [refresh]);
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

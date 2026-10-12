@@ -63,14 +63,15 @@ function AlertDescription({
   );
 }
 
-function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="alert-action"
-      className={cn("absolute top-2 right-2", className)}
-      {...props}
-    />
-  );
-}
+// function AlertAction({ className, ...props }: React.ComponentProps<"div">) {
+//   // Places an action control beside an alert's content. Preserved for future use.
+//   return (
+//     <div
+//       data-slot="alert-action"
+//       className={cn("absolute top-2 right-2", className)}
+//       {...props}
+//     />
+//   );
+// }
 
 export { Alert, AlertTitle, AlertDescription };

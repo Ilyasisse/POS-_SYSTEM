@@ -1,6 +1,6 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+// import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
@@ -105,126 +105,127 @@ export async function createPaymentRequestBatch(input: {
   });
 }
 
-async function matchPaymentRequest(input: {
-  paymentRequestId?: string;
-  payerPhone?: string;
-  provider?: PaymentMethod;
-  reference: string;
-  amount: number;
-  sender: string;
-  rawMessage: string;
-  paidAt?: Date;
-}) {
-  if (!input.reference.trim())
-    throw new Error("Payment reference is required.");
-  if (!Number.isFinite(input.amount) || input.amount <= 0)
-    throw new Error("Payment amount must be greater than zero.");
-  const expectedSender =
-    process.env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "A98";
-  if (input.sender.trim().toUpperCase() !== expectedSender.toUpperCase())
-    throw new Error("The SMS sender is not allowed.");
-  const paidAt = input.paidAt ?? new Date();
-  return prisma.$transaction(async (tx) => {
-    let request = input.paymentRequestId
-      ? await tx.paymentRequest.findUnique({
-          where: { id: input.paymentRequestId },
-        })
-      : null;
-    if (!request && input.payerPhone && input.provider) {
-      const candidates = await tx.paymentRequest.findMany({
-        where: {
-          status: "PENDING",
-          method: input.provider,
-          payerPhone: input.payerPhone.trim(),
-          expectedAmount: decimal(cents(input.amount) / 100),
-          expiresAt: { gt: paidAt },
-        },
-        orderBy: { createdAt: "asc" },
-        take: 2,
-      });
-      if (candidates.length > 1)
-        throw new Error(
-          "Payment matches more than one pending request; send paymentRequestId.",
-        );
-      request = candidates[0] ?? null;
-    }
-    if (!request) throw new Error("Payment request not found.");
-    if (request.status === "MATCHED") return { duplicate: true, request };
-    if (request.status !== "PENDING" || request.expiresAt < paidAt)
-      throw new Error("Payment request is no longer active.");
-    if (cents(request.expectedAmount) !== cents(input.amount))
-      throw new Error(
-        "Payment amount does not match the selected payer amount.",
-      );
-    const duplicate = await tx.paymentRequest.findFirst({
-      where: { method: request.method, providerReference: input.reference },
-    });
-    if (duplicate) return { duplicate: true, request: duplicate };
-    const orders = await tx.order.findMany({
-      where: { tableId: request.tableId, type: "DINE_IN", status: "OPEN" },
-      orderBy: { createdAt: "asc" },
-      include: { payments: { select: { amountPaid: true } } },
-    });
-    let remainingCents = cents(input.amount);
-    for (const order of orders) {
-      if (remainingCents <= 0) break;
-      const paidCents = order.payments.reduce(
-        (sum, payment) => sum + cents(payment.amountPaid),
-        0,
-      );
-      const orderRemaining = Math.max(0, cents(order.total) - paidCents);
-      const allocation = Math.min(orderRemaining, remainingCents);
-      if (!allocation) continue;
-      await tx.payment.create({
-        data: {
-          orderId: order.id,
-          cashierId: request.cashierId,
-          cashierName: request.cashierName,
-          method: request.method,
-          amountPaid: decimal(allocation / 100),
-          reference: `${input.reference}:${order.id}`,
-          payerName: request.payerName,
-          payerPhone: request.payerPhone,
-          paymentRequestId: request.id,
-          createdAt: paidAt,
-        },
-      });
-      remainingCents -= allocation;
-      if (allocation === orderRemaining)
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: "PAID", closedAt: paidAt },
-        });
-    }
-    if (remainingCents > 0)
-      throw new Error("Payment exceeds the remaining table balance.");
-    const matched = await tx.paymentRequest.update({
-      where: { id: request.id },
-      data: {
-        status: "MATCHED",
-        providerReference: input.reference,
-        rawMessage: input.rawMessage,
-        matchedAt: paidAt,
-      },
-    });
-    await closeSettledTableChecks(
-      tx,
-      orders.map((order) => order.tableCheckId),
-      paidAt,
-    );
-    const openOrderCount = await tx.order.count({
-      where: {
-        tableId: request.tableId,
-        type: "DINE_IN",
-        status: "OPEN",
-      },
-    });
-    if (openOrderCount === 0) {
-      await tx.paymentDeferral.updateMany({
-        where: { tableId: request.tableId, resolvedAt: null },
-        data: { resolvedAt: paidAt },
-      });
-    }
-    return { duplicate: false, request: matched };
-  });
-}
+// async function matchPaymentRequest(input: {
+//   paymentRequestId?: string;
+//   payerPhone?: string;
+//   provider?: PaymentMethod;
+//   reference: string;
+//   amount: number;
+//   sender: string;
+//   rawMessage: string;
+//   paidAt?: Date;
+// }) {
+//   // Matches an incoming payment to a request, records settlement, and closes settled table checks. Preserved for future use.
+//   if (!input.reference.trim())
+//     throw new Error("Payment reference is required.");
+//   if (!Number.isFinite(input.amount) || input.amount <= 0)
+//     throw new Error("Payment amount must be greater than zero.");
+//   const expectedSender =
+//     process.env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "A98";
+//   if (input.sender.trim().toUpperCase() !== expectedSender.toUpperCase())
+//     throw new Error("The SMS sender is not allowed.");
+//   const paidAt = input.paidAt ?? new Date();
+//   return prisma.$transaction(async (tx) => {
+//     let request = input.paymentRequestId
+//       ? await tx.paymentRequest.findUnique({
+//           where: { id: input.paymentRequestId },
+//         })
+//       : null;
+//     if (!request && input.payerPhone && input.provider) {
+//       const candidates = await tx.paymentRequest.findMany({
+//         where: {
+//           status: "PENDING",
+//           method: input.provider,
+//           payerPhone: input.payerPhone.trim(),
+//           expectedAmount: decimal(cents(input.amount) / 100),
+//           expiresAt: { gt: paidAt },
+//         },
+//         orderBy: { createdAt: "asc" },
+//         take: 2,
+//       });
+//       if (candidates.length > 1)
+//         throw new Error(
+//           "Payment matches more than one pending request; send paymentRequestId.",
+//         );
+//       request = candidates[0] ?? null;
+//     }
+//     if (!request) throw new Error("Payment request not found.");
+//     if (request.status === "MATCHED") return { duplicate: true, request };
+//     if (request.status !== "PENDING" || request.expiresAt < paidAt)
+//       throw new Error("Payment request is no longer active.");
+//     if (cents(request.expectedAmount) !== cents(input.amount))
+//       throw new Error(
+//         "Payment amount does not match the selected payer amount.",
+//       );
+//     const duplicate = await tx.paymentRequest.findFirst({
+//       where: { method: request.method, providerReference: input.reference },
+//     });
+//     if (duplicate) return { duplicate: true, request: duplicate };
+//     const orders = await tx.order.findMany({
+//       where: { tableId: request.tableId, type: "DINE_IN", status: "OPEN" },
+//       orderBy: { createdAt: "asc" },
+//       include: { payments: { select: { amountPaid: true } } },
+//     });
+//     let remainingCents = cents(input.amount);
+//     for (const order of orders) {
+//       if (remainingCents <= 0) break;
+//       const paidCents = order.payments.reduce(
+//         (sum, payment) => sum + cents(payment.amountPaid),
+//         0,
+//       );
+//       const orderRemaining = Math.max(0, cents(order.total) - paidCents);
+//       const allocation = Math.min(orderRemaining, remainingCents);
+//       if (!allocation) continue;
+//       await tx.payment.create({
+//         data: {
+//           orderId: order.id,
+//           cashierId: request.cashierId,
+//           cashierName: request.cashierName,
+//           method: request.method,
+//           amountPaid: decimal(allocation / 100),
+//           reference: `${input.reference}:${order.id}`,
+//           payerName: request.payerName,
+//           payerPhone: request.payerPhone,
+//           paymentRequestId: request.id,
+//           createdAt: paidAt,
+//         },
+//       });
+//       remainingCents -= allocation;
+//       if (allocation === orderRemaining)
+//         await tx.order.update({
+//           where: { id: order.id },
+//           data: { status: "PAID", closedAt: paidAt },
+//         });
+//     }
+//     if (remainingCents > 0)
+//       throw new Error("Payment exceeds the remaining table balance.");
+//     const matched = await tx.paymentRequest.update({
+//       where: { id: request.id },
+//       data: {
+//         status: "MATCHED",
+//         providerReference: input.reference,
+//         rawMessage: input.rawMessage,
+//         matchedAt: paidAt,
+//       },
+//     });
+//     await closeSettledTableChecks(
+//       tx,
+//       orders.map((order) => order.tableCheckId),
+//       paidAt,
+//     );
+//     const openOrderCount = await tx.order.count({
+//       where: {
+//         tableId: request.tableId,
+//         type: "DINE_IN",
+//         status: "OPEN",
+//       },
+//     });
+//     if (openOrderCount === 0) {
+//       await tx.paymentDeferral.updateMany({
+//         where: { tableId: request.tableId, resolvedAt: null },
+//         data: { resolvedAt: paidAt },
+//       });
+//     }
+//     return { duplicate: false, request: matched };
+//   });
+// }

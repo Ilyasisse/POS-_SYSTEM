@@ -1,4 +1,8 @@
-"use server";
+/*"use server";
+
+//! Marks this module's exported async functions as server actions and imports
+//! helpers for cache refreshes, validation, permissions, database access,
+//! inventory quantities, and stock-ledger operations.
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -18,13 +22,21 @@ import {
   updateSupplyStandardCost,
 } from "@/lib/inventory/stock-ledger";
 
-const costInput = z.object({
+/*const costInput = z.object({
+
+// Validates a non-empty item ID, a trimmed cost string or null,
+// and a reason between 3 and 500 characters.
+
   id: z.string().trim().min(1),
   cost: z.string().trim().nullable(),
   reason: z.string().trim().min(3).max(500),
-});
+});*/
 
-async function updateProductStandardCostAction(formData: FormData) {
+/*async function updateProductStandardCostAction(formData: FormData) {
+
+//! Updates a product's standard cost after checking permissions and validating
+//! the form, passes the user ID and reason, then refreshes the inventory page.
+
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const input = costInput.parse({
     id: formData.get("productId"),
@@ -38,25 +50,35 @@ async function updateProductStandardCostAction(formData: FormData) {
     reason: input.reason,
   });
   revalidatePath("/admin/inventory");
-}
+}*/
 
-async function updateSupplyStandardCostAction(formData: FormData) {
-  const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
-  const input = costInput.parse({
-    id: formData.get("supplyId"),
-    cost: String(formData.get("cost") ?? "").trim() || null,
-    reason: formData.get("reason"),
-  });
-  await updateSupplyStandardCost({
-    supplyId: input.id,
-    cost: input.cost,
-    actorUserId: user.id,
-    reason: input.reason,
-  });
-  revalidatePath("/admin/inventory");
-}
 
-async function savePurchaseUnitConversionAction(formData: FormData) {
+
+/*async function updateSupplyStandardCostAction(formData: FormData) {
+
+//! Updates a supply item's standard cost after checking permissions and validating
+//! the form, passes the user ID and reason, then refreshes the inventory page.
+
+const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
+const input = costInput.parse({
+  id: formData.get("supplyId"),
+  cost: String(formData.get("cost") ?? "").trim() || null,
+  reason: formData.get("reason"),
+});
+await updateSupplyStandardCost({
+  supplyId: input.id,
+  cost: input.cost,
+  actorUserId: user.id,
+  reason: input.reason,
+});
+revalidatePath("/admin/inventory");
+}*/
+
+/*async function savePurchaseUnitConversionAction(formData: FormData) {
+
+//! Checks inventory permissions and validates the purchase-unit conversion,
+//! then creates it or updates and reactivates it, and refreshes the inventory page.
+
   await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
   const supplyId = z.string().trim().min(1).parse(formData.get("supplyId"));
   const purchaseUnit = z
@@ -75,9 +97,14 @@ async function savePurchaseUnitConversionAction(formData: FormData) {
     update: { canonicalQuantity, isActive: true },
   });
   revalidatePath("/admin/inventory");
-}
+}*/
 
-async function mapLegacySupplyUnitAction(formData: FormData) {
+/*async function mapLegacySupplyUnitAction(formData: FormData) {
+
+//! Checks permissions and validates a legacy supply's unit mapping, then atomically
+//! converts stock and low-stock quantities, marks the mapping complete, and logs
+//! the user and reason. Rejects completed mappings and refreshes the inventory page.
+
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const supplyId = z.string().trim().min(1).parse(formData.get("supplyId"));
   const canonicalUnit = z
@@ -130,9 +157,13 @@ async function mapLegacySupplyUnitAction(formData: FormData) {
     });
   });
   revalidatePath("/admin/inventory");
-}
+}*/
 
-const recipeInput = z.object({
+/*const recipeInput = z.object({
+
+  //! Validates recipe input: a product ID, coerced effective dates (optional end),
+  //! non-empty yield and ingredient quantity strings, and at least one supply ingredient.
+
   productId: z.string().trim().min(1),
   effectiveFrom: z.coerce.date(),
   effectiveTo: z.coerce.date().nullable(),
@@ -145,9 +176,14 @@ const recipeInput = z.object({
       }),
     )
     .min(1),
-});
+});*/
 
-async function createRecipeVersionAction(formData: FormData) {
+/*async function createRecipeVersionAction(formData: FormData) {
+
+//! Checks cost-management permissions and validates the recipe dates, yield,
+//! and ingredients, then creates a version attributed to the current user
+//! and refreshes the inventory page.
+
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const parsed = recipeInput.parse({
     productId: formData.get("productId"),
@@ -160,10 +196,14 @@ async function createRecipeVersionAction(formData: FormData) {
   });
   await createRecipeVersion({ ...parsed, createdByUserId: user.id });
   revalidatePath("/admin/inventory");
-}
+}*/
 
-const countLineInput = z
-  .object({
+/*const countLineInput =
+
+//! Validates each count line has exactly one target (product or supply)
+//! and a non-empty physical quantity string.
+
+z.object({
     productId: z.string().trim().min(1).optional(),
     supplyId: z.string().trim().min(1).optional(),
     physicalQuantity: z.string().trim().min(1),
@@ -171,9 +211,15 @@ const countLineInput = z
   .refine(
     (line) => Boolean(line.productId) !== Boolean(line.supplyId),
     "Each count line must have exactly one inventory target.",
-  );
+  );*/
 
-async function createInventoryCountAction(formData: FormData) {
+/*async function createInventoryCountAction(formData: FormData) {
+
+//! Checks count-management permissions and validates the date, reason, and items,
+//! then creates a count session with expected stock, physical counts, variances,
+//! cost snapshots, and data coverage. Rejects missing items or canonical units
+//! and refreshes the inventory page.
+
   const user = await requirePermission(PERMISSIONS.INVENTORY_COUNT_MANAGE);
   const businessDate = z.coerce.date().parse(formData.get("businessDate"));
   const reason =
@@ -248,22 +294,30 @@ async function createInventoryCountAction(formData: FormData) {
     });
   });
   revalidatePath("/admin/inventory");
-}
+}*/
 
-async function submitInventoryCountAction(formData: FormData) {
+/*async function submitInventoryCountAction(formData: FormData) {
+
+//! Checks count-management permissions and validates the session ID,
+//! then submits the count as the current user and refreshes the inventory page.
+
   const user = await requirePermission(PERMISSIONS.INVENTORY_COUNT_MANAGE);
   await submitInventoryCount(
     z.string().trim().min(1).parse(formData.get("sessionId")),
     user.id,
   );
   revalidatePath("/admin/inventory");
-}
+}*/
 
-async function approveInventoryCountAction(formData: FormData) {
+/*async function approveInventoryCountAction(formData: FormData) {
+
+  //! Checks count-approval permissions and validates the session ID,
+  //! then approves the count as the current user and refreshes the inventory page.
+
   const user = await requirePermission(PERMISSIONS.INVENTORY_COUNT_APPROVE);
   await approveInventoryCount(
     z.string().trim().min(1).parse(formData.get("sessionId")),
     user.id,
   );
   revalidatePath("/admin/inventory");
-}
+}*/
