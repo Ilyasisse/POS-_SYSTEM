@@ -1,4 +1,5 @@
 import "server-only";
+import { getCafeteria } from "@/lib/cafeteria/context";
 import { createClient } from "@supabase/supabase-js";
 
 export type ReportInvalidation = {
@@ -28,7 +29,7 @@ export async function publishReportInvalidation(
     const client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const channel = client.channel("private:report-invalidations", {
+    const channel = client.channel("cafeteria:" + (await getCafeteria()).id + ":report-invalidations", {
       config: { private: true },
     });
     await channel.subscribe();
