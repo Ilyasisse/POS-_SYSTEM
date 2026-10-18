@@ -84,7 +84,9 @@ export default async function DailyCashSettingsPage() {
             )}
           </div>
           <Button asChild className="mt-5" variant="outline">
-            <Link prefetch={false} href="/admin/daily-cash">Back to Daily cash</Link>
+            <Link prefetch={false} href="/admin/daily-cash">
+              Back to Daily cash
+            </Link>
           </Button>
         </CardContent>
       </Card>

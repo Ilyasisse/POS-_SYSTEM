@@ -10,7 +10,7 @@ export default function NotFound() {
       <div className="absolute right-4 top-4 z-20">
         <ModeToggle />
       </div>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,#1d120d_0%,#2c1b12_48%,#15100d_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,var(--background)_0%,var(--card)_48%,var(--background)_100%)]" />
       <div className="absolute inset-x-0 top-0 h-48 bg-[linear-gradient(180deg,rgba(47,24,13,0.16),transparent)]" />
 
       <Card className="relative z-10 w-full max-w-lg gap-0 rounded-[30px] border-border bg-card/90 p-6 text-center shadow-[0_26px_80px_rgba(65,39,21,0.16)] backdrop-blur sm:p-8">
@@ -25,7 +25,7 @@ export default function NotFound() {
           />
         </div>
 
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45]">
+        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45] dark:text-primary">
           404
         </p>
         <h1 className="mt-3 text-3xl font-bold text-foreground">
@@ -37,7 +37,9 @@ export default function NotFound() {
         </p>
 
         <Button asChild variant="outline" className="mt-4 min-h-12 rounded-2xl">
-          <Link prefetch={false} href="/">Head back</Link>
+          <Link prefetch={false} href="/">
+            Head back
+          </Link>
         </Button>
       </Card>
     </main>

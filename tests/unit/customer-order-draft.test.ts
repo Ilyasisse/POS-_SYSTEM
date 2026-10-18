@@ -126,9 +126,15 @@ test("draft flags changed prices and drops unavailable choices", () => {
 test("dine-in selection survives OAuth navigation and is cleared with the cart", () => {
   storage.clear();
   saveCustomerFulfillment("DINE_IN", "table-one");
-  assert.deepEqual(restoreCustomerFulfillment(), { orderType: "DINE_IN", tableId: "table-one" });
+  assert.deepEqual(restoreCustomerFulfillment(), {
+    orderType: "DINE_IN",
+    tableId: "table-one",
+  });
   clearCustomerOrderDraft();
   assert.equal(restoreCustomerFulfillment(), null);
-  storage.set("customer-fulfillment-v1", '{"orderType":"DELIVERY","tableId":"table-one"}');
+  storage.set(
+    "customer-fulfillment-v1",
+    '{"orderType":"DELIVERY","tableId":"table-one"}',
+  );
   assert.equal(restoreCustomerFulfillment(), null);
 });

@@ -110,13 +110,13 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <form
         action={createActiveTableFromAdmin}
-        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_auto]"
+        className="grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_auto]"
       >
         <Input
           aria-label="Table name or number"
           name="tableName"
           type="text"
-          className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="h-11 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
           placeholder="Table name or number"
         />
         <Button type="submit">Add Table</Button>
@@ -125,7 +125,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <DataTableCard
           footer={
-            <p className="text-sm font-medium text-slate-500">
+            <p className="text-sm font-medium text-muted-foreground">
               Showing 1 to {tables.length} of {tables.length} tables
             </p>
           }
@@ -158,11 +158,11 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 tables.map((table, index) => {
                   const status = getTableStatus(table);
                   return (
-                    <tr key={table.id} className="border-b border-slate-50">
-                      <TableCell className="font-bold text-slate-400">
+                    <tr key={table.id} className="border-b border-border">
+                      <TableCell className="font-bold text-muted-foreground">
                         {index + 1}
                       </TableCell>
-                      <TableCell className="font-black text-slate-950">
+                      <TableCell className="font-black text-foreground">
                         {table.name}
                       </TableCell>
                       <TableCell>{4 + (index % 4)}</TableCell>
@@ -182,14 +182,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
         </DataTableCard>
 
         <Card className="p-5">
-          <h2 className="text-lg font-black text-slate-950">Floor Plan</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">
+          <h2 className="text-lg font-black text-foreground">Floor Plan</h2>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             Visual status map based on live table availability.
           </p>
           {/* REVIEW: This floor plan uses generated positions until editable table layout data is added. */}
-          <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-            <div className="absolute inset-x-8 top-8 h-20 rounded-xl border border-slate-200 bg-white" />
-            <div className="absolute bottom-8 right-8 h-32 w-20 rounded-xl border border-slate-200 bg-white" />
+          <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="absolute inset-x-8 top-8 h-20 rounded-xl border border-border bg-card" />
+            <div className="absolute bottom-8 right-8 h-32 w-20 rounded-xl border border-border bg-card" />
             {tables.slice(0, 8).map((table, index) => {
               const status = getTableStatus(table);
               const positions = [
@@ -207,7 +207,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                   ? "bg-emerald-500"
                   : status.tone === "red"
                     ? "bg-red-500"
-                    : "bg-slate-400";
+                    : "bg-muted";
 
               return (
                 <div
@@ -219,7 +219,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               );
             })}
           </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+          <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-muted-foreground">
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-500" />
               Available
@@ -229,7 +229,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               Occupied
             </span>
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-slate-400" />
+              <span className="size-2 rounded-full bg-muted" />
               Hidden
             </span>
           </div>

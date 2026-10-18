@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Tone } from "@/types/admin.types";
+import { Tone } from "@/types/admin/admin.types";
 import { getToneClasses } from "@/lib/admin/helper/getToneClasses";
 
 export default function NotificationCard({
@@ -17,7 +17,7 @@ export default function NotificationCard({
 }) {
   const toneClasses = getToneClasses(tone);
   return (
-    <div className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0">
+    <div className="flex items-center gap-3 border-b border-border py-3 last:border-0">
       <div
         className={`grid size-11 shrink-0 place-items-center rounded-xl ${toneClasses.icon}`}
       >
@@ -27,12 +27,12 @@ export default function NotificationCard({
         })()}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-slate-950">{title}</p>
-        <p className="truncate text-sm font-medium text-slate-500">
+        <p className="truncate text-sm font-black text-foreground">{title}</p>
+        <p className="truncate text-sm font-medium text-muted-foreground">
           {description}
         </p>
       </div>
-      <time className="shrink-0 text-xs font-semibold text-slate-500">
+      <time className="shrink-0 text-xs font-semibold text-muted-foreground">
         {time}
       </time>
     </div>

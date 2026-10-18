@@ -79,11 +79,15 @@ function OrderPeople({ rounds }: { rounds: readonly OrderCardRound[] }) {
   return (
     <dl className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-4 text-lg leading-relaxed">
       {roles.map(({ label, names }) => {
-        const assigned = [...new Set(names.filter((name): name is string => Boolean(name)))];
+        const assigned = [
+          ...new Set(names.filter((name): name is string => Boolean(name))),
+        ];
         return assigned.length ? (
           <div key={label} className="min-w-0">
             <dt className="text-base text-muted-foreground">{label}</dt>
-            <dd className="mt-1 break-words font-medium">{assigned.join(", ")}</dd>
+            <dd className="mt-1 break-words font-medium">
+              {assigned.join(", ")}
+            </dd>
           </div>
         ) : null;
       })}
@@ -106,7 +110,8 @@ export default async function AdminOrdersPage({
   startOfToday.setHours(0, 0, 0, 0);
   const startDate = date === "today" ? startOfToday : undefined;
   const searchNumber = Number(q);
-  const hasOrderNumber = Boolean(q) && Number.isSafeInteger(searchNumber) && searchNumber > 0;
+  const hasOrderNumber =
+    Boolean(q) && Number.isSafeInteger(searchNumber) && searchNumber > 0;
   const where = {
     ...(status !== "all"
       ? { status: status as "OPEN" | "PAID" | "CANCELLED" }
@@ -152,9 +157,13 @@ export default async function AdminOrdersPage({
 
   // Filters select matching orders, then load their complete checks so older,
   // paid, or otherwise filtered-out rounds are not lost from a mobile card.
-  const checkIds = [...new Set(
-    recentOrders.map((order) => order.tableCheckId).filter((id): id is string => Boolean(id)),
-  )];
+  const checkIds = [
+    ...new Set(
+      recentOrders
+        .map((order) => order.tableCheckId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
   const standaloneIds = recentOrders
     .filter((order) => !order.tableCheckId)
     .map((order) => order.id);
@@ -207,9 +216,22 @@ export default async function AdminOrdersPage({
   return (
     <AdminPage title="Orders" description="Track and manage customer orders">
       <dl className="grid grid-cols-3 gap-2 rounded-2xl border bg-card p-4 text-sm md:hidden">
-        <div><dt className="text-xs text-muted-foreground">Today</dt><dd className="mt-1 text-lg font-semibold">{ordersToday.length}</dd></div>
-        <div><dt className="text-xs text-muted-foreground">Open / Paid</dt><dd className="mt-1 text-lg font-semibold">{openToday} / {paidToday}</dd></div>
-        <div className="min-w-0"><dt className="text-xs text-muted-foreground">Revenue</dt><dd className="mt-1 break-words text-lg font-semibold">{formatMoney(revenueToday)}</dd></div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Today</dt>
+          <dd className="mt-1 text-lg font-semibold">{ordersToday.length}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Open / Paid</dt>
+          <dd className="mt-1 text-lg font-semibold">
+            {openToday} / {paidToday}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-xs text-muted-foreground">Revenue</dt>
+          <dd className="mt-1 break-words text-lg font-semibold">
+            {formatMoney(revenueToday)}
+          </dd>
+        </div>
       </dl>
       <section className="hidden gap-4 sm:grid-cols-3 md:grid">
         <MetricCard label="Orders Today" value={ordersToday.length} />
@@ -222,41 +244,54 @@ export default async function AdminOrdersPage({
 
       <DataTableCard
         footer={
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium text-muted-foreground">
             <span className="md:hidden">
-              {orderCards.length} {orderCards.length === 1 ? "order" : "orders"} from {recentOrders.length} matching tickets. All rounds included.
+              {orderCards.length} {orderCards.length === 1 ? "order" : "orders"}{" "}
+              from {recentOrders.length} matching tickets. All rounds included.
             </span>
-            <span className="hidden md:inline">Showing 1 to {recentOrders.length} orders</span>
+            <span className="hidden md:inline">
+              Showing 1 to {recentOrders.length} orders
+            </span>
           </p>
         }
       >
         <div className="max-md:[&_form]:grid max-md:[&_form]:grid-cols-2 max-md:[&_label]:col-span-2">
-        <SearchToolbar
-          placeholder="Search orders..."
-          defaultValue={q}
-          hasActiveFilters={Boolean(q || status !== "all" || date !== "today")}
-          clearHref="/admin/orders"
-        >
-          <AutoSubmitSelect name="status" defaultValue={status}>
-            <option value="all">Status All</option>
-            <option value="OPEN">Preparing</option>
-            <option value="PAID">Completed</option>
-            <option value="CANCELLED">Cancelled</option>
-          </AutoSubmitSelect>
-          <AutoSubmitSelect name="date" defaultValue={date}>
-            <option value="today">Date Today</option>
-            <option value="all">All Time</option>
-          </AutoSubmitSelect>
-        </SearchToolbar>
+          <SearchToolbar
+            placeholder="Search orders..."
+            defaultValue={q}
+            hasActiveFilters={Boolean(
+              q || status !== "all" || date !== "today",
+            )}
+            clearHref="/admin/orders"
+          >
+            <AutoSubmitSelect name="status" defaultValue={status}>
+              <option value="all">Status All</option>
+              <option value="OPEN">Preparing</option>
+              <option value="PAID">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </AutoSubmitSelect>
+            <AutoSubmitSelect name="date" defaultValue={date}>
+              <option value="today">Date Today</option>
+              <option value="all">All Time</option>
+            </AutoSubmitSelect>
+          </SearchToolbar>
         </div>
 
-        <section aria-label="Orders" className={`${orderFont.className} space-y-4 bg-muted/30 p-4 md:hidden`}>
+        <section
+          aria-label="Orders"
+          className={`${orderFont.className} space-y-4 bg-muted/30 p-4 md:hidden`}
+        >
           <h2 className="text-xl font-semibold">Recent orders</h2>
           {orderCards.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">No orders found.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              No orders found.
+            </p>
           ) : (
             orderCards.map((card) => (
-              <Card key={card.key} className="gap-6 rounded-2xl p-5 [&_[data-slot=badge]]:px-3 [&_[data-slot=badge]]:py-1.5 [&_[data-slot=badge]]:text-base">
+              <Card
+                key={card.key}
+                className="gap-6 rounded-2xl p-5 [&_[data-slot=badge]]:px-3 [&_[data-slot=badge]]:py-1.5 [&_[data-slot=badge]]:text-base"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-base text-muted-foreground">Order</p>
@@ -270,11 +305,15 @@ export default async function AdminOrdersPage({
                 </div>
                 <div className="min-w-0">
                   {card.latest.tableName ? (
-                    <p className="break-words text-2xl font-semibold">{card.latest.tableName}</p>
+                    <p className="break-words text-2xl font-semibold">
+                      {card.latest.tableName}
+                    </p>
                   ) : null}
                   <p className="mt-1 text-lg text-muted-foreground">
                     {getTypeLabel(card.latest.type)}
-                    {card.latest.tableCheckId ? ` · ${card.rounds.length} ${card.rounds.length === 1 ? "round" : "rounds"}` : ""}
+                    {card.latest.tableCheckId
+                      ? ` · ${card.rounds.length} ${card.rounds.length === 1 ? "round" : "rounds"}`
+                      : ""}
                   </p>
                 </div>
                 <OrderPeople rounds={card.rounds} />
@@ -282,14 +321,18 @@ export default async function AdminOrdersPage({
                   <p className="text-base text-muted-foreground">
                     {card.latest.tableCheckId ? "Check total" : "Total"}
                   </p>
-                  <p className="mt-1 text-3xl font-bold tracking-tight">{formatMoney(card.total)}</p>
+                  <p className="mt-1 text-3xl font-bold tracking-tight">
+                    {formatMoney(card.total)}
+                  </p>
                 </div>
                 <Button
                   asChild
                   variant="outline"
                   className="min-h-14 w-full rounded-xl border-primary/60 text-lg font-semibold text-primary"
                 >
-                  <Link href={`/admin/orders/${card.latest.id}`}>Review order</Link>
+                  <Link href={`/admin/orders/${card.latest.id}`}>
+                    Review order
+                  </Link>
                 </Button>
               </Card>
             ))
@@ -319,11 +362,11 @@ export default async function AdminOrdersPage({
                 </tr>
               ) : (
                 recentOrders.map((order, index) => (
-                  <tr key={order.id} className="border-b border-slate-50">
-                    <TableCell className="font-bold text-slate-400">
+                  <tr key={order.id} className="border-b border-border">
+                    <TableCell className="font-bold text-muted-foreground">
                       {index + 1}
                     </TableCell>
-                    <TableCell className="font-black text-slate-950">
+                    <TableCell className="font-black text-foreground">
                       #{order.orderNumber}
                     </TableCell>
                     <TableCell>

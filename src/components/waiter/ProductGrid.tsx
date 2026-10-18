@@ -17,7 +17,7 @@ export default function ProductGrid({
       {products.map((item) => (
         <div
           key={item.id}
-          className="group min-h-36 rounded-2xl border border-border bg-linear-to-br from-white via-slate-50 to-blue-50 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg"
+          className="group min-h-36 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 dark:hover:border-blue-800 hover:shadow-lg"
         >
           <Button
             onClick={() => onAddToCart(item)}
@@ -26,13 +26,13 @@ export default function ProductGrid({
           >
             <div className="flex flex-wrap items-center gap-2">
               {item.category?.name ? (
-                <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
                   {item.category.name}
                 </span>
               ) : null}
               {Array.isArray(item.modifierGroups) &&
               item.modifierGroups.length > 0 ? (
-                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                <span className="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
                   {item.modifierGroups.length} options
                 </span>
               ) : null}
@@ -52,7 +52,7 @@ export default function ProductGrid({
           </Button>
 
           <div className="mt-4 flex items-end justify-between gap-3">
-            <p className="text-lg font-black text-[#2E7D32]">
+            <p className="text-lg font-black text-emerald-700 dark:text-emerald-300">
               ${Number(item.price).toFixed(2)}
             </p>
 
@@ -61,7 +61,7 @@ export default function ProductGrid({
               onClick={() => onPlayPronunciation(item)}
               aria-label={`Play pronunciation for ${item.name}`}
               title={`Play pronunciation for ${item.name}`}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-sm font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/30"
             >
               <svg
                 aria-hidden="true"

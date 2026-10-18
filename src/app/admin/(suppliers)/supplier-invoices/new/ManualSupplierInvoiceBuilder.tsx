@@ -236,7 +236,10 @@ export default function ManualSupplierInvoiceBuilder({
             {selectedSupplier.name}.
           </p>
           <Button asChild className="mt-4">
-            <Link prefetch={false} href={`/admin/suppliers/${selectedSupplier.id}`}>
+            <Link
+              prefetch={false}
+              href={`/admin/suppliers/${selectedSupplier.id}`}
+            >
               Manage supplier catalog
             </Link>
           </Button>

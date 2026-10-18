@@ -24,7 +24,7 @@ const costInput = z.object({
   reason: z.string().trim().min(3).max(500),
 });
 
-export async function updateProductStandardCostAction(formData: FormData) {
+async function updateProductStandardCostAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const input = costInput.parse({
     id: formData.get("productId"),
@@ -40,7 +40,7 @@ export async function updateProductStandardCostAction(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
-export async function updateSupplyStandardCostAction(formData: FormData) {
+async function updateSupplyStandardCostAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const input = costInput.parse({
     id: formData.get("supplyId"),
@@ -56,7 +56,7 @@ export async function updateSupplyStandardCostAction(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
-export async function savePurchaseUnitConversionAction(formData: FormData) {
+async function savePurchaseUnitConversionAction(formData: FormData) {
   await requirePermission(PERMISSIONS.INVENTORY_MANAGE);
   const supplyId = z.string().trim().min(1).parse(formData.get("supplyId"));
   const purchaseUnit = z
@@ -77,7 +77,7 @@ export async function savePurchaseUnitConversionAction(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
-export async function mapLegacySupplyUnitAction(formData: FormData) {
+async function mapLegacySupplyUnitAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const supplyId = z.string().trim().min(1).parse(formData.get("supplyId"));
   const canonicalUnit = z
@@ -147,7 +147,7 @@ const recipeInput = z.object({
     .min(1),
 });
 
-export async function createRecipeVersionAction(formData: FormData) {
+async function createRecipeVersionAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COST_MANAGE);
   const parsed = recipeInput.parse({
     productId: formData.get("productId"),
@@ -173,7 +173,7 @@ const countLineInput = z
     "Each count line must have exactly one inventory target.",
   );
 
-export async function createInventoryCountAction(formData: FormData) {
+async function createInventoryCountAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COUNT_MANAGE);
   const businessDate = z.coerce.date().parse(formData.get("businessDate"));
   const reason =
@@ -250,7 +250,7 @@ export async function createInventoryCountAction(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
-export async function submitInventoryCountAction(formData: FormData) {
+async function submitInventoryCountAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COUNT_MANAGE);
   await submitInventoryCount(
     z.string().trim().min(1).parse(formData.get("sessionId")),
@@ -259,7 +259,7 @@ export async function submitInventoryCountAction(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
-export async function approveInventoryCountAction(formData: FormData) {
+async function approveInventoryCountAction(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.INVENTORY_COUNT_APPROVE);
   await approveInventoryCount(
     z.string().trim().min(1).parse(formData.get("sessionId")),

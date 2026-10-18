@@ -235,7 +235,7 @@ function InvoiceInstallmentsSection({
         <span
           className={
             Math.abs(invoiceTotal - scheduledTotal) < 0.005
-              ? "text-emerald-700"
+              ? "text-emerald-700 dark:text-emerald-300"
               : "text-destructive"
           }
         >
