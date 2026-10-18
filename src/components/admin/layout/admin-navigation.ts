@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Wrench,
   MessageCircle,
+  ContactRound,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
 
@@ -106,8 +107,20 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     permission: PERMISSIONS.TABLE_MANAGE,
     countKey: "tables",
   },
-  { key: "payment-review", href: "/admin/payment-review", label: "Payment review", icon: ReceiptText, permission: PERMISSIONS.PAYMENT_RECEIPT_MANAGE },
-  { key: "cashier-status", href: "/admin/cashier-status", label: "Cashier status", icon: Users, permission: PERMISSIONS.STAFF_MANAGE },
+  {
+    key: "payment-review",
+    href: "/admin/payment-review",
+    label: "Payment review",
+    icon: ReceiptText,
+    permission: PERMISSIONS.PAYMENT_RECEIPT_MANAGE,
+  },
+  {
+    key: "cashier-status",
+    href: "/admin/cashier-status",
+    label: "Cashier status",
+    icon: Users,
+    permission: PERMISSIONS.STAFF_MANAGE,
+  },
   {
     key: "orders",
     href: "/admin/orders",
@@ -171,6 +184,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     label: "Reports",
     icon: ChartNoAxesCombined,
     permission: PERMISSIONS.REPORT_VIEW,
+  },
+  {
+    key: "customers",
+    href: "/admin/customers",
+    label: "Customers",
+    icon: ContactRound,
+    permission: PERMISSIONS.REPORT_CUSTOMER_VIEW,
   },
   {
     key: "business-intelligence",

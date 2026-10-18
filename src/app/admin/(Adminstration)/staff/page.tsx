@@ -106,11 +106,13 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
         ].map(([title, description, href]) => (
           <Card className="p-5" key={href}>
             <h2 className="font-bold">{title}</h2>
-            <p className="mt-1 min-h-10 text-sm text-slate-500">
+            <p className="mt-1 min-h-10 text-sm text-muted-foreground">
               {description}
             </p>
             <Button asChild variant="outline" className="mt-4">
-              <Link prefetch={false} href={href}>Open {title}</Link>
+              <Link prefetch={false} href={href}>
+                Open {title}
+              </Link>
             </Button>
           </Card>
         ))}
@@ -118,7 +120,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
 
       <DataTableCard
         footer={
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium text-muted-foreground">
             Showing 1 to {staff.length} of {allStaff.length} staff
           </p>
         }
@@ -164,13 +166,13 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
               </tr>
             ) : (
               staff.map((member, index) => (
-                <tr key={member.id} className="border-b border-slate-50">
-                  <TableCell className="font-bold text-slate-400">
+                <tr key={member.id} className="border-b border-border">
+                  <TableCell className="font-bold text-muted-foreground">
                     {index + 1}
                   </TableCell>
-                  <TableCell className="font-black text-slate-950">
+                  <TableCell className="font-black text-foreground">
                     <div>{member.fullName}</div>
-                    <div className="text-xs font-medium text-slate-400">
+                    <div className="text-xs font-medium text-muted-foreground">
                       {member.email}
                     </div>
                   </TableCell>
