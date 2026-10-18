@@ -14,10 +14,10 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
   return (
     <Card
       data-aos="fade-right"
-      className="group gap-0 overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 py-0 shadow-[0_22px_60px_rgba(73,37,16,0.10)] dark:bg-card"
+      className="group gap-0 overflow-hidden rounded-[28px] border border-[#e4d2bf] bg-white/90 py-0 shadow-[0_22px_60px_rgba(73,37,16,0.10)] dark:border-border dark:bg-card"
     >
       {/* Product image container */}
-      <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)]">
+      <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)] dark:bg-none dark:bg-muted">
         {/* Only show image if product has imageUrl */}
         {product.imageUrl ? (
           <div
@@ -48,12 +48,12 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
         </h3>
 
         {/* Product description */}
-        <p className="break-words text-lg leading-6 text-[#6c5a4f] sm:text-base xl:text-lg">
+        <p className="break-words text-lg leading-6 text-muted-foreground sm:text-base xl:text-lg">
           {product.description}
         </p>
 
         {/* Product price */}
-        <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] lg:text-2xl xl:text-3xl">
+        <div className="rounded-full px-4 py-2 text-3xl font-semibold text-[#B5651D] dark:text-primary lg:text-2xl xl:text-3xl">
           {formatPrice(product.price)}
         </div>
       </div>

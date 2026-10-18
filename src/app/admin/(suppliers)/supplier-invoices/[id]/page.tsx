@@ -348,7 +348,10 @@ function RecurringDraftSourceCard({
         This draft was generated from a recurring supplier invoice template.
       </p>
       <Button asChild variant="outline" className="w-fit">
-        <Link prefetch={false} href={`/admin/supplier-invoices/${sourceInvoice.id}`}>
+        <Link
+          prefetch={false}
+          href={`/admin/supplier-invoices/${sourceInvoice.id}`}
+        >
           Open source invoice
           {` ${formatSupplierInvoiceNumber(sourceInvoice.invoiceNumber)}`}
         </Link>

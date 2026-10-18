@@ -15,8 +15,7 @@ import {
   scheduleCleaningRunAction,
 } from "./actions";
 
-const fieldClass =
-  "h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm";
+const fieldClass = "h-10 rounded-lg border border-border bg-card px-3 text-sm";
 
 export default async function OperationsPage() {
   const user = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
@@ -161,7 +160,7 @@ export default async function OperationsPage() {
       <Card className="space-y-3 p-5">
         <h2 className="text-lg font-black">Open incidents</h2>
         {incidents.length === 0 ? (
-          <p className="text-sm text-slate-500">No open incidents.</p>
+          <p className="text-sm text-muted-foreground">No open incidents.</p>
         ) : (
           incidents.map((incident) => (
             <div key={incident.id} className="rounded-xl border p-4">
@@ -179,7 +178,7 @@ export default async function OperationsPage() {
                 </ToneBadge>
               </div>
               <p className="mt-2 text-sm">{incident.description}</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Reported by {incident.reportedBy.fullName}
                 {incident.assignedTo
                   ? ` · Assigned to ${incident.assignedTo.fullName}`
@@ -238,7 +237,7 @@ export default async function OperationsPage() {
           {templates.map((template) => (
             <div key={template.id} className="rounded-xl border p-3">
               <strong>{template.name}</strong>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {template.schedule} · {template.tasks.length} tasks
               </p>
               {canManageCleaning ? (
@@ -270,12 +269,14 @@ export default async function OperationsPage() {
         <Card className="space-y-4 p-5">
           <h2 className="text-lg font-black">Active cleaning runs</h2>
           {runs.length === 0 ? (
-            <p className="text-sm text-slate-500">No pending cleaning runs.</p>
+            <p className="text-sm text-muted-foreground">
+              No pending cleaning runs.
+            </p>
           ) : (
             runs.map((run) => (
               <div key={run.id} className="rounded-xl border p-3">
                 <strong>{run.template.name}</strong>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Due{" "}
                   {run.scheduledFor.toLocaleString("en-US", {
                     timeZone: "Africa/Nairobi",

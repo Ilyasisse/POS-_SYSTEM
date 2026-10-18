@@ -5,5 +5,10 @@ import CustomerCheckoutReview from "@/components/cashier/CustomerCheckoutReview"
 
 export default async function CustomerCheckoutReviewPage() {
   await requirePermission(PERMISSIONS.PAYMENT_TAKE);
-  return <><CustomerCheckoutReview /><CustomerFulfillmentBoard /></>;
+  return (
+    <>
+      <CustomerCheckoutReview />
+      <CustomerFulfillmentBoard />
+    </>
+  );
 }

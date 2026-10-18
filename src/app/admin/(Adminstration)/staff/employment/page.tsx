@@ -14,7 +14,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 import { saveEmploymentAction } from "../actions";
 
-const label = "grid gap-1 text-sm font-semibold text-slate-700";
+const label = "grid gap-1 text-sm font-semibold text-foreground";
 
 export default async function EmploymentPage() {
   await requirePermission(PERMISSIONS.EMPLOYMENT_MANAGE);
@@ -108,7 +108,7 @@ export default async function EmploymentPage() {
                 <tr key={profile.id}>
                   <TableCell className="font-semibold">
                     {profile.user.fullName}
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {profile.user.role}
                     </div>
                   </TableCell>

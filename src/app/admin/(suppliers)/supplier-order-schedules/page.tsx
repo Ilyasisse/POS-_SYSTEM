@@ -56,7 +56,9 @@ export default async function SupplierOrderSchedulesPage({
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link prefetch={false} href="/admin/supplier-purchase-orders">Purchase orders</Link>
+            <Link prefetch={false} href="/admin/supplier-purchase-orders">
+              Purchase orders
+            </Link>
           </Button>
         </>
       }
