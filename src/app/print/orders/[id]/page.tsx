@@ -39,7 +39,7 @@ export default async function PrintableOrderReceiptPage({
         salesAdjustments: { orderBy: { createdAt: "asc" } },
       },
     }),
-    prisma.cafeSetting.findUnique({ where: { id: "default" } }),
+    prisma.cafeSetting.findUnique({ where: { id: "default" }, select:{businessName: true}}),
   ]);
   if (!order) notFound();
   if (!canViewOrderReceipt(currentUser, order)) {
