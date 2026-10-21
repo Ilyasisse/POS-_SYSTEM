@@ -9,8 +9,8 @@ type AdminLayoutProps = {
 };
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
+  const currentUser = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
   const [
-    currentUser,
     categoryCount,
     productCount,
     modifierCount,
@@ -19,7 +19,6 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     tableCount,
     openOrdersCount,
   ] = await Promise.all([
-    requirePermission(PERMISSIONS.ADMIN_ACCESS),
     prisma.category.count(),
     prisma.product.count(),
     prisma.modifier.count(),

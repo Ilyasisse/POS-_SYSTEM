@@ -37,25 +37,6 @@ export type MenuData = {
   hasLiveData: boolean;
 };
 
-// Used for: Keeping familiar categories in a predictable display order.
-// What it does: Controls the preferred display order for known categories.
-// Like you are 10: This tells the shelves which order to stand in.
-const CATEGORY_ORDER = [
-  "Coffee",
-  "Tea",
-  "Fast Food",
-  "Cunto Soomaali",
-  "Desserts",
-  "Drinks",
-] as const;
-
-// Used for: Fast category sorting without scanning CATEGORY_ORDER repeatedly.
-// What it does: Lets categoryRank find a category's display position quickly.
-// Like you are 10: This is a quick lookup list for shelf order.
-const CATEGORY_ORDER_LOOKUP = new Map(
-  CATEGORY_ORDER.map((name, index) => [name.toLowerCase(), index]),
-);
-
 // Used for: The /menu hero image in both live-data and empty-data states.
 // What it does: Stores the hero image path used by live and empty menu states.
 // Like you are 10: This is the top picture the menu keeps using.
@@ -91,15 +72,6 @@ function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-// Used for: Sorting grouped categories after live products are loaded.
-// What it does: Gets the sorting rank for a category name.
-// Like you are 10: This decides which shelf should come first.
-function categoryRank(name: string) {
-  const normalized = name.trim().toLowerCase();
-
-  return CATEGORY_ORDER_LOOKUP.get(normalized) ?? CATEGORY_ORDER.length + 1;
 }
 
 // Used for: Normalizing database image paths before rendering product images.
@@ -175,8 +147,12 @@ function buildCategoryArt(categoryName: string, productName: string) {
 // Used for: Converting the flat product list into the category data MenuShowcase expects.
 // What it does: Groups the flat product list into menu categories for the UI.
 // Like you are 10: This puts each item back onto the right shelf.
-function groupCategories(products: MenuProduct[]) {
+export function groupMenuCategories(
+  products: MenuProduct[],
+  categoryOrder: readonly string[],
+) {
   const groups = new Map<string, MenuCategory>();
+  const positions = new Map(categoryOrder.map((slug, index) => [slug, index]));
 
   for (const product of products) {
     const key = product.categorySlug;
@@ -196,7 +172,9 @@ function groupCategories(products: MenuProduct[]) {
   }
 
   return Array.from(groups.values()).sort((left, right) => {
-    const rankDiff = categoryRank(left.name) - categoryRank(right.name);
+    const rankDiff =
+      (positions.get(left.slug) ?? categoryOrder.length) -
+      (positions.get(right.slug) ?? categoryOrder.length);
 
     if (rankDiff !== 0) {
       return rankDiff;
@@ -232,7 +210,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
             },
           },
         },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }, { id: "asc" }],
         select: {
           id: true,
           name: true,
@@ -310,8 +288,11 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
       return null;
     }
 
-    // Rebuilds category sections from the sorted flat product list.
-    const categories = groupCategories(products);
+    // Product popularity must not replace the category order saved by staff.
+    const categories = groupMenuCategories(
+      products,
+      categoriesResult.map((category) => slugify(category.name)),
+    );
 
     // Featured items prefer real best sellers, then manually popular products,
     // then all products when there is no sales/popularity signal yet.

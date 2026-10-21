@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  productModifierRulesSelect,
+  validateProductModifierSelection,
+} from "@/lib/products/modifier-selection";
 import { isProductAvailableForSale } from "@/lib/products/availability";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
@@ -171,6 +175,7 @@ export async function POST(request: Request) {
             in: productIds,
           },
           isActive: true,
+          category: { isActive: true },
         },
         select: {
           id: true,
@@ -179,6 +184,7 @@ export async function POST(request: Request) {
           cost: true,
           availableForSale: true,
           availabilityRestoresAt: true,
+          modifiers: productModifierRulesSelect,
           recipeVersions: {
             where: { isActive: true },
             select: {
@@ -202,6 +208,7 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
@@ -260,6 +267,15 @@ export async function POST(request: Request) {
           { error: `${product.name} is temporarily unavailable.` },
           { status: 409 },
         );
+      }
+
+      const modifierError = validateProductModifierSelection(
+        product.name,
+        product.modifiers,
+        Array.isArray(item.modifiers) ? item.modifiers : [],
+      );
+      if (modifierError) {
+        return NextResponse.json({ error: modifierError }, { status: 400 });
       }
 
       const qty = Math.max(1, Number(item.qty) || 1);
