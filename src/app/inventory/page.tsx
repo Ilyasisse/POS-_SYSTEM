@@ -268,7 +268,7 @@ export default async function InventoryPage({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <h3 className="break-words text-base font-bold text-foreground">
+                          <h3 className="wrap-break-words text-base font-bold text-foreground">
                             {supply.name}
                           </h3>
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -363,7 +363,7 @@ export default async function InventoryPage({
                   >
                     <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="break-words text-sm font-semibold text-foreground">
+                        <p className="wrap-break-words text-sm font-semibold text-foreground">
                           {movement.itemName}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -381,7 +381,7 @@ export default async function InventoryPage({
                       </span>
                     </div>
                     {movement.note ? (
-                      <p className="mt-2 break-words text-xs text-muted-foreground">
+                      <p className="mt-2 wrapbreak-words text-xs text-muted-foreground">
                         {movement.note}
                       </p>
                     ) : null}
