@@ -175,10 +175,10 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         <div className="flex flex-wrap gap-2">
           <Link
             prefetch={false}
-            href="/cashier/takeaway"
+            href="/cashier/receipts"
             className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
           >
-            New takeaway
+            Receipts
           </Link>
           <Link
             prefetch={false}
@@ -187,14 +187,14 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           >
             New table order
           </Link>
-          <Link
-            prefetch={false}
-            href="/cashier/customer-checkouts"
-            className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
-          >
-            Customer payment review
-          </Link>
         </div>
+        <Link
+          prefetch={false}
+          href="/cashier/customer-checkouts"
+          className="rounded-xl border border-amber-600 dark:border-amber-800 px-4 py-2 text-sm font-semibold text-amber-900 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+        >
+          Customer payment review
+        </Link>
       </div>
 
       {notice ? (
@@ -252,7 +252,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                       {table.name}
                     </h2>
                   </div>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase text-amber-700">
+                  <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-3 py-1 text-xs font-semibold uppercase text-amber-700 dark:text-amber-300">
                     occupied
                   </span>
                 </div>

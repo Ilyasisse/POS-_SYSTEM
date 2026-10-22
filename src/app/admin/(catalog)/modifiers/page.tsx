@@ -113,11 +113,11 @@ export default async function AdminModifiersPage({
               </tr>
             ) : (
               modifiersList.map((modifier, index) => (
-                <tr key={modifier.id} className="border-b border-slate-50">
-                  <TableCell className="font-bold text-slate-400">
+                <tr key={modifier.id} className="border-b border-border">
+                  <TableCell className="font-bold text-muted-foreground">
                     {(currentPage - 1) * pageSize + index + 1}
                   </TableCell>
-                  <TableCell className="font-black text-slate-950">
+                  <TableCell className="font-black text-foreground">
                     {modifier.name}
                   </TableCell>
                   <TableCell>

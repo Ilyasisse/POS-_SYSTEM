@@ -32,11 +32,11 @@ export default async function PrintableSupplierPurchaseOrderPage({
   if (!order) notFound();
 
   return (
-    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
+    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:text-black print:p-0">
       <div className="mx-auto mb-4 flex max-w-4xl justify-end print:hidden">
         <PrintButton />
       </div>
-      <article className="mx-auto max-w-4xl rounded-2xl border bg-background p-6 shadow-sm print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
+      <article className="mx-auto max-w-4xl rounded-2xl border bg-background p-6 shadow-sm print:bg-white print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
         <header className="flex items-start justify-between gap-6 border-b pb-6">
           <div className="flex items-center gap-4">
             <Image

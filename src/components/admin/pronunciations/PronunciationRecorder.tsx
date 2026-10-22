@@ -189,14 +189,14 @@ export default function PronunciationRecorder({
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <Input type="hidden" name={inputName} value={audioUrl} />
 
       <div>
-        <p className="text-sm font-semibold text-slate-800">
+        <p className="text-sm font-semibold text-foreground">
           Pronunciation Audio
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Record yourself saying found &quot;{label}&quot; and the waiter will
           play this exact sound.
         </p>
@@ -216,24 +216,27 @@ export default function PronunciationRecorder({
             type="button"
             onClick={startRecording}
             disabled={isUploading}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {audioUrl ? "Re-record Audio" : "Start Recording"}
           </Button>
         )}
 
         <Button
+          variant="outline"
           type="button"
           onClick={clearRecording}
           disabled={!audioUrl || isUploading}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-50"
         >
           Clear Audio
         </Button>
       </div>
 
       {isUploading ? (
-        <p className="text-sm font-medium text-blue-700">Uploading audio...</p>
+        <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+          Uploading audio...
+        </p>
       ) : null}
 
       {audioUrl ? (
@@ -247,13 +250,15 @@ export default function PronunciationRecorder({
           Your browser does not support audio playback.
         </audio>
       ) : (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           No pronunciation audio saved yet.
         </p>
       )}
 
       {error ? (
-        <p className="text-sm font-medium text-red-600">{error}</p>
+        <p className="text-sm font-medium text-red-600 dark:text-red-300">
+          {error}
+        </p>
       ) : null}
     </div>
   );

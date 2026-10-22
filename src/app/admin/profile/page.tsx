@@ -44,16 +44,16 @@ export default async function AdminProfilePage({
       <section className="grid gap-5 xl:grid-cols-[20rem_minmax(0,1fr)]">
         <Card className="p-6">
           <div className="flex flex-col items-center text-center">
-            <div className="grid size-28 place-items-center rounded-full bg-slate-600 text-3xl font-black text-white shadow-lg shadow-slate-300">
+            <div className="grid size-28 place-items-center rounded-full bg-primary text-3xl font-black text-primary-foreground shadow-lg shadow-black">
               {getInitials(currentUser.fullName)}
             </div>
-            <h2 className="mt-5 text-xl font-black text-slate-950">
+            <h2 className="mt-5 text-xl font-black text-foreground">
               {currentUser.fullName}
             </h2>
-            <p className="text-sm font-semibold text-slate-500">
+            <p className="text-sm font-semibold text-muted-foreground">
               {formatRole(currentUser.role)}
             </p>
-            <p className="mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700">
+            <p className="mt-3 flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-300">
               <Circle className="size-2 fill-success text-success" />
               Online
             </p>
@@ -62,14 +62,14 @@ export default async function AdminProfilePage({
 
         <Card className="p-5">
           <div className="mb-5 flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-600">
+            <div className="grid size-10 place-items-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300">
               <User className="size-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-950">
+              <h2 className="text-lg font-black text-foreground">
                 Profile Information
               </h2>
-              <p className="text-sm font-medium text-slate-500">
+              <p className="text-sm font-medium text-muted-foreground">
                 Update the profile fields stored in the POS database.
               </p>
             </div>
@@ -80,7 +80,7 @@ export default async function AdminProfilePage({
             className="grid gap-4 lg:grid-cols-2"
           >
             <label htmlFor="profile-full-name" className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-700">
+              <span className="mb-1 block text-sm font-bold text-foreground">
                 Full Name
               </span>
               <Input
@@ -88,13 +88,13 @@ export default async function AdminProfilePage({
                 name="fullName"
                 type="text"
                 defaultValue={currentUser.fullName}
-                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                className="h-11 w-full rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
                 required
               />
             </label>
 
             <label htmlFor="profile-email" className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-700">
+              <span className="mb-1 block text-sm font-bold text-foreground">
                 Email
               </span>
               {/* REVIEW: Email is owned by Supabase auth; keep it read-only until auth update flow is designed. */}
@@ -103,12 +103,12 @@ export default async function AdminProfilePage({
                 type="email"
                 value={currentUser.email}
                 readOnly
-                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-500 outline-none"
+                className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm font-medium text-muted-foreground outline-none"
               />
             </label>
 
             <label htmlFor="profile-phone" className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-700">
+              <span className="mb-1 block text-sm font-bold text-foreground">
                 Phone
               </span>
               <Input
@@ -116,15 +116,15 @@ export default async function AdminProfilePage({
                 name="phoneNumber"
                 type="tel"
                 defaultValue={currentUser.phoneNumber ?? ""}
-                className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+                className="h-11 w-full rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
               />
             </label>
 
             <div className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-700">
+              <span className="mb-1 block text-sm font-bold text-foreground">
                 Role
               </span>
-              <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3">
+              <div className="flex h-11 items-center rounded-lg border border-border bg-card px-3">
                 <ToneBadge tone="blue">
                   {formatRole(currentUser.role)}
                 </ToneBadge>
@@ -132,7 +132,7 @@ export default async function AdminProfilePage({
             </div>
 
             <label htmlFor="profile-current-password" className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-700">
+              <span className="mb-1 block text-sm font-bold text-foreground">
                 Current Password
               </span>
               {/* REVIEW: Password changes require Supabase auth verification and are intentionally not wired yet. */}
@@ -141,12 +141,12 @@ export default async function AdminProfilePage({
                 type="password"
                 value="************"
                 readOnly
-                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-500 outline-none"
+                className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm font-medium text-muted-foreground outline-none"
               />
             </label>
 
             <label htmlFor="profile-new-password" className="block">
-              <span className="mb-1 block text-sm font-bold text-slate-700">
+              <span className="mb-1 block text-sm font-bold text-foreground">
                 New Password
               </span>
               <Input
@@ -155,7 +155,7 @@ export default async function AdminProfilePage({
                 value=""
                 readOnly
                 placeholder="Change password later"
-                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-500 outline-none"
+                className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm font-medium text-muted-foreground outline-none"
               />
             </label>
 
