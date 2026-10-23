@@ -7,6 +7,7 @@ export type MenuProduct = {
   id: string;
   name: string;
   description: string;
+  allergenInfo: string | null;
   price: number;
   categoryName: string;
   categorySlug: string;
@@ -246,6 +247,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
               id: true,
               name: true,
               description: true,
+              allergenInfo: true,
               price: true,
               imageUrl: true,
               isPopular: true,
@@ -283,6 +285,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
             id: product.id,
             name: product.name,
             description: product.description?.trim() || "NOTHING FOUND",
+            allergenInfo: product.allergenInfo?.trim() || null,
             price: Number(product.price),
             categoryName: category.name,
             categorySlug,
