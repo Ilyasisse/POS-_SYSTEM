@@ -15,6 +15,7 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import { parseGuestCount } from "@/lib/orders/guest-count";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type TableOrderItemModifierInput = {
@@ -31,6 +32,7 @@ type TableOrderItemInput = {
 
 type TableOrderBody = {
   tableId?: string;
+  guestCount?: unknown;
   items: TableOrderItemInput[];
   notes?: string;
 };
@@ -100,10 +102,18 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as TableOrderBody;
     const tableId = String(body.tableId ?? "").trim();
+    const guestCount = body.guestCount === undefined ? undefined : parseGuestCount(body.guestCount);
 
     if (!tableId) {
       return NextResponse.json(
         { error: "Select a table before sending the order." },
+        { status: 400 },
+      );
+    }
+
+    if (guestCount === null) {
+      return NextResponse.json(
+        { error: "Guest count must be a whole number from 1 to 100." },
         { status: 400 },
       );
     }
@@ -372,6 +382,7 @@ export async function POST(request: Request) {
               select: {
                 id: true,
                 checkNumber: true,
+                guestCount: true,
               },
             },
           },
@@ -381,6 +392,26 @@ export async function POST(request: Request) {
         let roundNumber = 1;
 
         if (latestOpenOrder && latestOpenOrder.tableCheck) {
+          if (guestCount !== undefined && latestOpenOrder.tableCheck.guestCount !== guestCount) {
+            await Promise.all([
+              tx.tableCheck.update({
+                where: { id: latestOpenOrder.tableCheck.id },
+                data: { guestCount },
+              }),
+              tx.auditLog.create({
+                data: {
+                  actorUserId: currentUser.id,
+                  action: "table_check.guest_count.updated",
+                  entityType: "TableCheck",
+                  entityId: latestOpenOrder.tableCheck.id,
+                  previousValue: {
+                    guestCount: latestOpenOrder.tableCheck.guestCount,
+                  },
+                  newValue: { guestCount },
+                },
+              }),
+            ]);
+          }
           const roundAggregate = await tx.order.aggregate({
             where: { tableCheckId: latestOpenOrder.tableCheck.id },
             _max: { tableCheckRound: true },
@@ -391,6 +422,7 @@ export async function POST(request: Request) {
             data: {
               checkNumber: latestOpenOrder.orderNumber,
               tableId: table.id,
+              guestCount: guestCount ?? 1,
             },
           });
           tableCheckId = legacyCheck.id;
@@ -438,6 +470,7 @@ export async function POST(request: Request) {
             data: {
               checkNumber: firstOrder.orderNumber,
               tableId: table.id,
+              guestCount: guestCount ?? 1,
             },
           });
 
