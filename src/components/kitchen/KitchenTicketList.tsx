@@ -24,7 +24,7 @@ export default function KitchenTicketList({
   onRecordQuality,
 }: KitchenTicketListProps) {
   return (
-    <section className="flex flex-col-reverse gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
+    <section className="flex flex-col gap-4 md:grid md:grid-cols-2 xl:grid-cols-3">
       {tickets.map((ticket) => (
         <KitchenTicketCard
           key={ticket.id}
