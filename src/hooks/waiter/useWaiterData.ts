@@ -12,7 +12,7 @@ type WaiterDataSnapshot = {
   loading: boolean;
 };
 
-const paymentMethods = ["GOLIS", "MYCASH", "Dahabshiil", "OTHER"];
+const paymentMethods = ["CASH", "GOLIS", "MYCASH", "Dahabshiil", "OTHER"];
 const initialSnapshot: WaiterDataSnapshot = {
   products: [],
   productsAll: [],

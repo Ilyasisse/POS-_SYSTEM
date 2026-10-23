@@ -7,23 +7,13 @@ import {
   closeSettledTableChecks,
   resolveTableCheckIdentity,
 } from "@/lib/cashier/table-checks";
+import { isPosPaymentMethod } from "@/lib/payments/payment-methods";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type PayOrderBody = {
   orderId?: string;
   paymentMethod?: PaymentMethod | string;
 };
-
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
-
-function isPaymentMethod(value: string): value is PaymentMethod {
-  return PAYMENT_METHODS.has(value as PaymentMethod);
-}
 
 function toDecimal(value: number) {
   return new Prisma.Decimal(value);
@@ -72,7 +62,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isPaymentMethod(paymentMethod)) {
+    if (!isPosPaymentMethod(paymentMethod)) {
       return NextResponse.json(
         { error: "Payment method is invalid." },
         { status: 400 },

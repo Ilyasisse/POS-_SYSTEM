@@ -432,8 +432,7 @@ async function restoreDeletedWaiterOrderItem(formData: FormData) {
             orderId: snapshot.order.id,
             cashierId: payment.cashierId,
             cashierName: payment.cashierName,
-            method: payment.method as
-              "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
+            method: payment.method as "CASH" | "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
             amountPaid: toDecimal(payment.amountPaid),
             reference: payment.reference,
             createdAt: new Date(payment.createdAt),
@@ -530,7 +529,7 @@ async function restoreDeletedWaiterOrderItem(formData: FormData) {
           orderId: snapshot.order.id,
           cashierId: payment.cashierId,
           cashierName: payment.cashierName,
-          method: payment.method as "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
+          method: payment.method as "CASH" | "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
           amountPaid: toDecimal(recalculatedTotal),
           reference: payment.reference,
           createdAt: new Date(payment.createdAt),
