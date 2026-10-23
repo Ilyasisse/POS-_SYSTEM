@@ -20,6 +20,8 @@ export type CashierOpenOrderRound = TableCheckIdentityOrder & {
   total: number;
   createdAt: Date;
   cashierName: string | null;
+  isHeld?: boolean;
+  courseLabel?: string | null;
   items: Array<{
     id: string;
     productName: string;
