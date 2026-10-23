@@ -88,6 +88,7 @@ export async function createProduct(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
+  const isOpenPrice = formData.get("isOpenPrice") === "on";
   const trackStock = formData.get("trackStock") === "on";
   const categoryId = String(formData.get("categoryId") || "").trim();
   const pronunciationAudioUrl = String(
@@ -110,6 +111,7 @@ export async function createProduct(formData: FormData) {
     data: {
       name,
       price,
+      isOpenPrice,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
       category: {
@@ -127,6 +129,7 @@ export async function updateProduct(formData: FormData) {
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
+  const isOpenPrice = formData.get("isOpenPrice") === "on";
   const trackStock = formData.get("trackStock") === "on";
   const categoryId = String(formData.get("categoryId") || "").trim();
   const pronunciationAudioUrl = String(
@@ -154,6 +157,7 @@ export async function updateProduct(formData: FormData) {
     data: {
       name,
       price,
+      isOpenPrice,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
       category: {

@@ -8,6 +8,8 @@ export type Product = {
   id: string;
   name: string;
   price: number;
+  isOpenPrice?: boolean;
+  openPriceEntered?: boolean;
   description?: string | null;
   imageUrl?: string | null;
   pronunciationAudioUrl?: string | null;
