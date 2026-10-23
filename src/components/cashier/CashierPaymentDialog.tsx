@@ -17,6 +17,10 @@ import {
   MAX_EQUAL_SPLIT_PEOPLE,
   splitBillEqually,
 } from "@/lib/payments/equal-bill-split";
+import {
+  splitBillByItems,
+  type BillItem,
+} from "@/lib/payments/item-bill-split";
 
 type Line = {
   id: string;
@@ -75,16 +79,19 @@ export default function CashierPaymentDialog({
   tableName,
   amountDue,
   showEqualSplit,
+  billItems,
 }: {
   tableId: string;
   tableName: string;
   amountDue: number;
   showEqualSplit: boolean;
+  billItems: BillItem[];
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState("");
   const [equalSplitCount, setEqualSplitCount] = useState("2");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [lines, setLines] = useState<Line[]>([
     {
       id: crypto.randomUUID(),
@@ -112,6 +119,9 @@ export default function CashierPaymentDialog({
     () => lines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0),
     [lines],
   );
+  const itemSplitAvailable =
+    Math.round(billItems.reduce((sum, item) => sum + item.amount, 0) * 100) ===
+    Math.round(amountDue * 100);
   const remaining = Math.max(0, amountDue - entered);
   const complete =
     requests.length > 0 && requests.every((item) => item.status === "MATCHED");
@@ -196,6 +206,26 @@ export default function CashierPaymentDialog({
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : "Could not split the bill.",
+      );
+    }
+  }
+
+  function applyItemSplit() {
+    try {
+      const amounts = splitBillByItems(amountDue, billItems, selectedItemIds);
+      setLines(
+        amounts.map((amount) => ({
+          id: crypto.randomUUID(),
+          payerName: "",
+          payerPhone: "",
+          amount: amount.toFixed(2),
+        })),
+      );
+      setPayLater(false);
+      setError("");
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Could not split by item.",
       );
     }
   }
@@ -364,6 +394,12 @@ export default function CashierPaymentDialog({
                 <p className="mt-1 text-sm text-muted-foreground">
                   Divide the full table balance exactly between each payer.
                 </p>
+                {!itemSplitAvailable ? (
+                  <p className="mt-2 text-sm text-amber-800">
+                    Item amounts differ from the unpaid balance. Split the
+                    balance by amount after payments or adjustments.
+                  </p>
+                ) : null}
                 <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
                   <Input
                     aria-label="Number of people sharing the bill"
@@ -382,6 +418,49 @@ export default function CashierPaymentDialog({
                     Create equal shares
                   </Button>
                 </div>
+              </div>
+            ) : null}
+            {billItems.length >= 2 ? (
+              <div className="rounded-2xl border bg-muted/30 p-4">
+                <p className="font-semibold">Split amounts by item</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Select whole item lines for the first payer. The other items
+                  go to the second payer. This fills payment amounts; it does
+                  not create separate item-owned checks.
+                </p>
+                <div className="mt-3 max-h-40 space-y-2 overflow-y-auto">
+                  {billItems.map((item) => (
+                    <label
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedItemIds.includes(item.id)}
+                          onChange={(event) =>
+                            setSelectedItemIds((current) =>
+                              event.target.checked
+                                ? [...current, item.id]
+                                : current.filter((id) => id !== item.id),
+                            )
+                          }
+                        />
+                        {item.label}
+                      </span>
+                      <span>{money(item.amount)}</span>
+                    </label>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3"
+                  disabled={!itemSplitAvailable}
+                  onClick={applyItemSplit}
+                >
+                  Create item-based amounts
+                </Button>
               </div>
             ) : null}
             <div className="space-y-3">
