@@ -4,6 +4,7 @@
 export type ModifierOption = {
   id: string;
   name: string;
+  allergenInfo?: string | null;
   price: number;
   pronunciationAudioUrl?: string | null;
 };
