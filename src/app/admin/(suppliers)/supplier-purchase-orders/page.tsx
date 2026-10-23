@@ -6,6 +6,7 @@ import {
   ClearFiltersLink,
   DataTableCard,
   MetricCard,
+  PaginationBar,
   Table,
   TableCell,
   TableHead,
@@ -16,6 +17,11 @@ import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import {
+  PURCHASE_ORDER_PAGE_SIZE,
+  purchaseOrderFilterQuery,
+  purchaseOrderPage,
+} from "@/lib/suppliers/purchase-order-pagination";
 
 const ORDER_STATUSES = ["OPEN", "COMPLETED", "CANCELLED"] as const;
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -34,7 +40,7 @@ function statusTone(status: SupplierPurchaseOrderStatus) {
 export default async function SupplierPurchaseOrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ supplier?: string; status?: string }>;
+  searchParams?: Promise<{ supplier?: string; status?: string; page?: string }>;
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
@@ -43,33 +49,41 @@ export default async function SupplierPurchaseOrdersPage({
   )
     ? (query.status as SupplierPurchaseOrderStatus)
     : undefined;
-  const [orders, suppliers] = await Promise.all([
-    prisma.supplierPurchaseOrder.findMany({
-      where: {
-        supplierId: query.supplier || undefined,
-        status,
-      },
-      include: {
-        supplier: { select: { name: true } },
-        createdBy: { select: { fullName: true } },
-        _count: { select: { items: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 500,
+  const where = { supplierId: query.supplier || undefined, status };
+  const [statusSummaries, suppliers] = await Promise.all([
+    prisma.supplierPurchaseOrder.groupBy({
+      by: ["status"],
+      where,
+      _count: { _all: true },
+      _sum: { totalAmount: true },
     }),
     prisma.supplier.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
   ]);
-  const openOrders = orders.filter((order) => order.status === "OPEN");
-  const openTotal = openOrders.reduce(
-    (total, order) => total + Number(order.totalAmount),
+  const totalOrders = statusSummaries.reduce(
+    (total, summary) => total + summary._count._all,
     0,
   );
-  const completedCount = orders.filter(
-    (order) => order.status === "COMPLETED",
-  ).length;
+  const openSummary = statusSummaries.find(
+    (summary) => summary.status === "OPEN",
+  );
+  const completedCount =
+    statusSummaries.find((summary) => summary.status === "COMPLETED")?._count
+      ._all ?? 0;
+  const { page, totalPages, skip } = purchaseOrderPage(query.page, totalOrders);
+  const orders = await prisma.supplierPurchaseOrder.findMany({
+    where,
+    include: {
+      supplier: { select: { name: true } },
+      createdBy: { select: { fullName: true } },
+      _count: { select: { items: true } },
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip,
+    take: PURCHASE_ORDER_PAGE_SIZE,
+  });
 
   return (
     <AdminPage
@@ -132,9 +146,12 @@ export default async function SupplierPurchaseOrdersPage({
       </form>
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Open orders" value={openOrders.length} />
-        <MetricCard label="Open order value" value={formatMoney(openTotal)} />
-        <MetricCard label="Completed in results" value={completedCount} />
+        <MetricCard label="Open orders" value={openSummary?._count._all ?? 0} />
+        <MetricCard
+          label="Open order value"
+          value={formatMoney(Number(openSummary?._sum.totalAmount ?? 0))}
+        />
+        <MetricCard label="Completed orders" value={completedCount} />
       </section>
 
       <DataTableCard>
@@ -184,13 +201,21 @@ export default async function SupplierPurchaseOrdersPage({
               ))
             ) : (
               <tr>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={6}>
                   No supplier purchase orders match these filters.
                 </TableCell>
               </tr>
             )}
           </tbody>
         </Table>
+        <div className="border-t p-4">
+          <PaginationBar
+            currentPage={page}
+            totalPages={totalPages}
+            totalLabel={`Showing ${totalOrders ? skip + 1 : 0}–${skip + orders.length} of ${totalOrders} purchase orders`}
+            baseQuery={purchaseOrderFilterQuery(query.supplier, status)}
+          />
+        </div>
       </DataTableCard>
     </AdminPage>
   );
