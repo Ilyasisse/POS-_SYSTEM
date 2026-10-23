@@ -61,6 +61,22 @@ function getPaymentStatusMessage(paymentStatus?: string) {
   }
 }
 
+function getOrderStatusMessage(orderStatus?: string) {
+  if (orderStatus === "takeaway_paid") {
+    return {
+      tone: "success" as const,
+      message: "The takeaway order was paid and sent to the kitchen.",
+    };
+  }
+  if (orderStatus === "sent") {
+    return {
+      tone: "success" as const,
+      message: "The table order was sent to the kitchen.",
+    };
+  }
+  return null;
+}
+
 export default async function CashierPage({ searchParams }: CashierPageProps) {
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
@@ -76,13 +92,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   ]);
   const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
-  const orderNotice =
-    params?.orderStatus === "sent"
-      ? {
-          tone: "success" as const,
-          message: "The table order was sent to the kitchen.",
-        }
-      : null;
+  const orderNotice = getOrderStatusMessage(params?.orderStatus);
   const notice = paymentNotice ?? orderNotice;
 
   const tables = await prisma.table.findMany({
