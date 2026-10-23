@@ -217,6 +217,7 @@ export default function CashierOrderExperience({
     cart,
     addToCart,
     changeQuantity,
+    updateItemNote,
     removeFromCart,
     clearCart,
     calculateCartTotal,
@@ -355,6 +356,7 @@ export default function CashierOrderExperience({
               modifierId: modifier.optionId,
               qty: modifier.qty,
             })),
+            note: item.note,
           })),
         }),
       });
@@ -442,6 +444,7 @@ export default function CashierOrderExperience({
             onCustomerPhoneChange={() => undefined}
             onOrderNoteChange={(value) => dispatch({ type: "note", value })}
             onChangeQuantity={changeQuantity}
+            onItemNoteChange={updateItemNote}
             onRemove={removeFromCart}
             onClearCart={() => {
               clearCart();
@@ -476,6 +479,7 @@ export default function CashierOrderExperience({
         onCustomerPhoneChange={() => undefined}
         onOrderNoteChange={(value) => dispatch({ type: "note", value })}
         onChangeQuantity={changeQuantity}
+        onItemNoteChange={updateItemNote}
         onRemove={removeFromCart}
         onClearCart={() => {
           clearCart();

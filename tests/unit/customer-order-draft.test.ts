@@ -138,3 +138,11 @@ test("dine-in selection survives OAuth navigation and is cleared with the cart",
   );
   assert.equal(restoreCustomerFulfillment(), null);
 });
+
+
+test("item instructions survive sign-in draft restoration", () => {
+  storage.clear();
+  saveCustomerOrderDraft([{ ...cart[0], note: "No sugar" }], "Customer", "901234567", "");
+  const restored = restoreCustomerOrderDraft([product], baristas);
+  assert.equal(restored?.cart[0]?.note, "No sugar");
+});
