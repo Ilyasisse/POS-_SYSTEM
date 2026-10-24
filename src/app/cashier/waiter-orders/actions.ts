@@ -64,7 +64,7 @@ function revalidateCashierViews() {
   revalidatePath("/manager/waiter-orders");
 }
 
-export async function deleteWaiterOrderItem(formData: FormData) {
+async function deleteWaiterOrderItem(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const orderId = String(formData.get("orderId") ?? "").trim();
@@ -320,7 +320,7 @@ export async function deleteWaiterOrderItem(formData: FormData) {
   redirect(returnPath);
 }
 
-export async function restoreDeletedWaiterOrderItem(formData: FormData) {
+async function restoreDeletedWaiterOrderItem(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const undoId = String(formData.get("undoId") ?? "").trim();
@@ -544,7 +544,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
   redirect(getReturnPath(snapshot.waiterId));
 }
 
-export async function discardDeletedWaiterOrderItem(formData: FormData) {
+async function discardDeletedWaiterOrderItem(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const undoId = String(formData.get("undoId") ?? "").trim();

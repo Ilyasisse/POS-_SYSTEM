@@ -1,0 +1,2 @@
+export const THERMAL_PAGE_HEIGHT_MM = 200;
+export const THERMAL_PAGE_MARGIN_MM = 4;

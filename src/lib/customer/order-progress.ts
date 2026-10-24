@@ -51,11 +51,18 @@ export function getCustomerOrderProgress(input: ProgressInput) {
       description: "Every kitchen station is done. Staff are preparing handoff.",
     };
   }
-  if (stationStatuses.some((status) => status === "IN_PROGRESS")) {
+  if (stationStatuses.some((status) => status !== "NEW")) {
     return {
       label: "Preparing",
       tone: "active" as const,
       description: "The kitchen is preparing your order now.",
+    };
+  }
+  if (input.pickupStatus === "PREPARING") {
+    return {
+      label: "Queued",
+      tone: "queued" as const,
+      description: "The cafe received your order and queued it for preparation.",
     };
   }
   if (input.orderStatus === "PAID") {

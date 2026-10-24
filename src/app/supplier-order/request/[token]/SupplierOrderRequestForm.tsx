@@ -77,7 +77,7 @@ export default function SupplierOrderRequestForm({
   return (
     <div className="space-y-5">
       {status !== "PENDING" ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4 text-emerald-900 dark:text-emerald-300">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
           <p className="text-sm font-semibold">
             {status === "NO_ORDER"
@@ -87,10 +87,10 @@ export default function SupplierOrderRequestForm({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        <div className="border-b bg-slate-50 px-4 py-3">
-          <h2 className="font-bold text-slate-950">Items needed</h2>
-          <p className="text-sm text-slate-600">
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="border-b bg-card px-4 py-3">
+          <h2 className="font-bold text-foreground">Items needed</h2>
+          <p className="text-sm text-muted-foreground">
             Enter a quantity only for items you need.
           </p>
         </div>
@@ -101,10 +101,10 @@ export default function SupplierOrderRequestForm({
               className="grid grid-cols-[1fr_7rem] items-center gap-4 p-4"
             >
               <span>
-                <span className="block font-semibold text-slate-950">
+                <span className="block font-semibold text-foreground">
                   {item.name}
                 </span>
-                <span className="block text-sm text-slate-500">
+                <span className="block text-sm text-muted-foreground">
                   Unit: {item.unit}
                 </span>
               </span>
@@ -151,7 +151,7 @@ export default function SupplierOrderRequestForm({
           </Button>
         </div>
       ) : (
-        <p className="rounded-2xl bg-slate-100 p-4 text-center font-semibold text-slate-700">
+        <p className="rounded-2xl bg-muted p-4 text-center font-semibold text-foreground">
           This order window is closed. Your recorded response can no longer be
           changed.
         </p>

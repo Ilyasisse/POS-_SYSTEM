@@ -18,7 +18,7 @@ export default function ProductSearch({
         value={searchTerm}
         onChange={(event) => onSearchTermChange(event.target.value)}
         placeholder="Raadi dalab..."
-        className="h-11 w-full rounded-lg border border-border px-3 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
+        className="h-11 w-full rounded-lg border border-border px-3 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
       />
     </label>
   );

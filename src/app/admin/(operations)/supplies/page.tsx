@@ -157,7 +157,10 @@ function SupplyDateControls({
             size="icon"
             aria-label="Previous day"
           >
-            <Link prefetch={false} href={`/admin/supplies?date=${previousDate}`}>
+            <Link
+              prefetch={false}
+              href={`/admin/supplies?date=${previousDate}`}
+            >
               <ChevronLeft className="size-4" />
             </Link>
           </Button>

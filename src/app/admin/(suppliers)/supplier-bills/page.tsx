@@ -80,7 +80,7 @@ function SupplierBillsFilters({
   return (
     <form
       method="get"
-      className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}
+      className={`grid gap-3 rounded-2xl border border-border bg-card p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}
     >
       {showingDueThroughTomorrow ? (
         <Input type="hidden" name="scope" value="due-through-tomorrow" />
@@ -89,7 +89,7 @@ function SupplierBillsFilters({
         name="supplier"
         defaultValue={params.supplier || ""}
         aria-label="Supplier"
-        className="h-10 w-full rounded-lg border border-slate-200 px-2"
+        className="h-10 w-full rounded-lg border border-border px-2"
       >
         <option value="">All suppliers</option>
         {suppliers.map((row) => (
@@ -102,7 +102,7 @@ function SupplierBillsFilters({
         name="status"
         defaultValue={selectedPaymentStatus || ""}
         aria-label="Payment status"
-        className="h-10 w-full rounded-lg border border-slate-200 px-2"
+        className="h-10 w-full rounded-lg border border-border px-2"
       >
         <option value="">
           {showingDueThroughTomorrow
@@ -195,7 +195,7 @@ function SupplierBillsSummary({
           {supplierAccounts.map((supplier) => (
             <div
               key={supplier.id}
-              className="rounded-xl bg-slate-50 px-3 py-2 text-sm"
+              className="rounded-xl bg-card px-3 py-2 text-sm"
             >
               <div className="flex justify-between gap-3 font-semibold">
                 <span>{supplier.name}</span>
@@ -537,8 +537,8 @@ export default async function SupplierBillsReportPage({
       />
 
       {report.showingDueThroughTomorrow ? (
-        <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-semibold text-amber-900">
+        <Card className="flex flex-col gap-3 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-amber-900 dark:text-amber-300">
             Showing every unpaid or partially paid invoice bill due through
             tomorrow, regardless of invoice date.
           </p>

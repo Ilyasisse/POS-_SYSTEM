@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Clock3, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PERMISSIONS } from "@/lib/auth/permissions";
-import { requirePermission } from "@/lib/auth/require-permission";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { getDefaultRouteForUser } from "@/lib/auth/get-default-route-for-user";
 import { getCustomerOrderProgress } from "@/lib/customer/order-progress";
 import { prisma } from "@/lib/prisma";
 import AutoRefresh from "./AutoRefresh";
@@ -24,7 +25,10 @@ const toneClass = {
 };
 
 export default async function CustomerOrderHistoryPage() {
-  const customer = await requirePermission(PERMISSIONS.CUSTOMER_ORDER);
+  const customer = await getCurrentUser();
+  if (!customer) redirect("/login?next=%2Fcustomer%2Forders");
+  if (customer.role !== "CUSTOMER") redirect(getDefaultRouteForUser(customer));
+  if (!customer.isActive) redirect("/customer");
   const orders = await prisma.order.findMany({
     where: { customerId: customer.id },
     orderBy: { createdAt: "desc" },
@@ -40,9 +44,16 @@ export default async function CustomerOrderHistoryPage() {
     },
   });
 
+  const hasActiveOrders = orders.some(
+    (order) =>
+      order.status !== "CANCELLED" &&
+      order.kitchenTicketState?.pickupStatus !== "DELIVERED" &&
+      (order.status === "OPEN" || Boolean(order.kitchenTicketState)),
+  );
+
   return (
     <main className="min-h-dvh bg-[#f6efe5] p-4 text-stone-950 sm:p-6">
-      <AutoRefresh />
+      <AutoRefresh enabled={hasActiveOrders} />
       <div className="mx-auto max-w-4xl space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div>

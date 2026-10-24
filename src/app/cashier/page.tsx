@@ -162,17 +162,26 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </p>
         </div>
 
-        <Link
-          prefetch={false}
-          href="/cashier/order"
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          New table order
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            prefetch={false}
+            href="/cashier/receipts"
+            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            Receipts
+          </Link>
+          <Link
+            prefetch={false}
+            href="/cashier/order"
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            New table order
+          </Link>
+        </div>
         <Link
           prefetch={false}
           href="/cashier/customer-checkouts"
-          className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+          className="rounded-xl border border-amber-600 dark:border-amber-800 px-4 py-2 text-sm font-semibold text-amber-900 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30"
         >
           Customer payment review
         </Link>
@@ -233,7 +242,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                       {table.name}
                     </h2>
                   </div>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase text-amber-700">
+                  <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-3 py-1 text-xs font-semibold uppercase text-amber-700 dark:text-amber-300">
                     occupied
                   </span>
                 </div>
