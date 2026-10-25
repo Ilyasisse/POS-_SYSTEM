@@ -1,4 +1,9 @@
-﻿"use client";
+"use client";
+
+import {
+  CustomerLanguageSelect,
+  useCustomerTranslations,
+} from "@/components/customer/i18n/CustomerLanguageProvider";
 
 import { Button } from "@/components/ui/button";
 
@@ -45,9 +50,7 @@ function createMenuShowcaseState(firstCategorySlug: string): MenuShowcaseState {
   return {
     selectedCategory: firstCategorySlug,
     openedCategories: new Set(firstCategorySlug ? [firstCategorySlug] : []),
-    visibleCounts: firstCategorySlug
-      ? { [firstCategorySlug]: INITIAL_CATEGORY_ITEMS }
-      : {},
+    visibleCounts: firstCategorySlug ? { [firstCategorySlug]: INITIAL_CATEGORY_ITEMS } : {},
     mobileNavOpen: false,
   };
 }
@@ -64,8 +67,7 @@ function menuShowcaseReducer(
         openedCategories: new Set(state.openedCategories).add(action.slug),
         visibleCounts: {
           ...state.visibleCounts,
-          [action.slug]:
-            state.visibleCounts[action.slug] ?? INITIAL_CATEGORY_ITEMS,
+          [action.slug]: state.visibleCounts[action.slug] ?? INITIAL_CATEGORY_ITEMS,
         },
       };
     }
@@ -75,8 +77,7 @@ function menuShowcaseReducer(
         visibleCounts: {
           ...state.visibleCounts,
           [action.slug]:
-            (state.visibleCounts[action.slug] ?? INITIAL_CATEGORY_ITEMS) +
-            LOAD_MORE_ITEMS,
+            (state.visibleCounts[action.slug] ?? INITIAL_CATEGORY_ITEMS) + LOAD_MORE_ITEMS,
         },
       };
     }
@@ -129,28 +130,22 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
 
   // Finds currently selected category object
   const selectedCategoryData =
-    data.categories.find(
-      (category) => category.slug === menuState.selectedCategory,
-    ) ?? data.categories[0];
+    data.categories.find((category) => category.slug === menuState.selectedCategory) ??
+    data.categories[0];
 
   // Gets products from currently selected category
   const selectedCategoryProducts =
-    selectedCategoryData &&
-    menuState.openedCategories.has(selectedCategoryData.slug)
+    selectedCategoryData && menuState.openedCategories.has(selectedCategoryData.slug)
       ? selectedCategoryData.products
       : [];
 
   // Gets number of products currently visible
   const visibleProductCount = selectedCategoryData
-    ? (menuState.visibleCounts[selectedCategoryData.slug] ??
-      INITIAL_CATEGORY_ITEMS)
+    ? (menuState.visibleCounts[selectedCategoryData.slug] ?? INITIAL_CATEGORY_ITEMS)
     : 0;
 
   // Creates sliced array containing only visible products
-  const visibleProducts = selectedCategoryProducts.slice(
-    0,
-    visibleProductCount,
-  );
+  const visibleProducts = selectedCategoryProducts.slice(0, visibleProductCount);
 
   // Calculates how many products are left hidden
   const remainingProductCount = Math.max(
@@ -224,14 +219,12 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   useAos(visibleProducts.length, menuState.selectedCategory);
 
   return (
-    <main className="min-h-screen bg-[#f7efe6] text-foreground dark:bg-background dark:text-foreground">
+    <main className="text-foreground dark:bg-background dark:text-foreground min-h-screen bg-[#f7efe6]">
       <MenuHeader
         cafeName={data.cafeName}
         mobileNavOpen={menuState.mobileNavOpen}
         onCloseMobileNav={() => dispatchMenuState({ type: "mobileNavClosed" })}
-        onToggleMobileNav={() =>
-          dispatchMenuState({ type: "mobileNavToggled" })
-        }
+        onToggleMobileNav={() => dispatchMenuState({ type: "mobileNavToggled" })}
       />
 
       <MenuHero heroImage={data.heroImage} />
@@ -252,9 +245,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
 
       <MenuFooter cafeName={data.cafeName} />
 
-      {showBackToTop && !menuState.mobileNavOpen ? (
-        <BackToTopButton onClick={scrollToTop} />
-      ) : null}
+      {showBackToTop && !menuState.mobileNavOpen ? <BackToTopButton onClick={scrollToTop} /> : null}
     </main>
   );
 }
@@ -270,11 +261,12 @@ function MenuHeader({
   onCloseMobileNav: () => void;
   onToggleMobileNav: () => void;
 }) {
+  const t = useCustomerTranslations();
   return (
-    <div className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#120906]/74 dark:bg-background/90 backdrop-blur-xl">
+    <div className="dark:bg-background/90 fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#120906]/74 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header data-aos="fade-down" className="py-3">
-          <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 md:px-6">
+          <div className="flex items-center justify-between gap-2 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 md:px-6">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[#e4b06d] shadow-[0_16px_36px_rgba(11,6,3,0.28)]">
                 <Image
@@ -285,8 +277,8 @@ function MenuHeader({
                   className="h-9 w-9 object-contain"
                 />
               </div>
-              <div className="min-w-0 hidden sm:block">
-                <p className="truncate text-sm uppercase tracking-[0.34em] text-[#f3d9b9]">
+              <div className="hidden min-w-0 sm:block">
+                <p className="truncate text-sm tracking-[0.34em] text-[#f3d9b9] uppercase">
                   {cafeName}
                 </p>
                 <p className="text-sm text-white/70"></p>
@@ -299,14 +291,14 @@ function MenuHeader({
                 href="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
-                Home
+                {t("home")}
               </Link>
               <Link
                 prefetch={false}
                 href="/menu"
                 className="rounded-full border border-[#d7aa6a]/60 bg-[#d7aa6a]/12 px-4 py-2 text-white"
               >
-                Menu
+                {t("menu")}
               </Link>
 
               <Link
@@ -314,25 +306,33 @@ function MenuHeader({
                 href="#contact"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
-                Contact
+                {t("contact")}
               </Link>
             </nav>
 
             <div className="flex items-center gap-3">
-              <ModeToggle />
+              <CustomerLanguageSelect />
+              <ModeToggle
+                labels={{
+                  changeTheme: t("changeTheme"),
+                  light: t("lightTheme"),
+                  dark: t("darkTheme"),
+                  system: t("systemTheme"),
+                }}
+              />
               <Link
                 prefetch={false}
                 href="/customer"
                 className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] lg:inline-flex"
               >
-                Order Now
+                {t("orderNow")}
               </Link>
 
               <Button
                 type="button"
                 onClick={onToggleMobileNav}
                 aria-expanded={mobileNavOpen}
-                aria-label="Toggle navigation"
+                aria-label={t("toggleNavigation")}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white transition hover:bg-white/12 lg:hidden"
               >
                 <span className="flex flex-col gap-1.5">
@@ -354,7 +354,7 @@ function MenuHeader({
             <div
               data-aos="fade-down"
               data-aos-duration="180"
-              className="mt-3 rounded-[24px] border border-white/10 bg-[#1a0d08]/95 dark:bg-popover/95 p-3 text-white shadow-[0_20px_50px_rgba(12,7,4,0.32)] lg:hidden"
+              className="dark:bg-popover/95 mt-3 rounded-[24px] border border-white/10 bg-[#1a0d08]/95 p-3 text-white shadow-[0_20px_50px_rgba(12,7,4,0.32)] lg:hidden"
             >
               <div className="grid gap-2">
                 <Link
@@ -363,7 +363,7 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                 >
-                  Home
+                  {t("home")}
                 </Link>
                 <Link
                   prefetch={false}
@@ -371,7 +371,7 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] border border-[#d7aa6a]/30 bg-[#d7aa6a]/12 px-4 py-3 text-sm font-medium text-white"
                 >
-                  Menu
+                  {t("menu")}
                 </Link>
 
                 <Link
@@ -380,15 +380,15 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                 >
-                  Contact
+                  {t("contact")}
                 </Link>
                 <Link
                   prefetch={false}
                   href="/customer"
                   onClick={onCloseMobileNav}
-                  className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition "
+                  className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition"
                 >
-                  Order Now
+                  {t("orderNow")}
                 </Link>
               </div>
             </div>
@@ -400,8 +400,9 @@ function MenuHeader({
 }
 
 function MenuHero({ heroImage }: { heroImage: string }) {
+  const t = useCustomerTranslations();
   return (
-    <section className="relative isolate min-h-[560px] overflow-hidden bg-[#120906] dark:bg-background pt-28 text-white sm:min-h-[620px] sm:pt-32 lg:min-h-[680px] xl:min-h-[720px]">
+    <section className="dark:bg-background relative isolate min-h-[560px] overflow-hidden bg-[#120906] pt-28 text-white sm:min-h-[620px] sm:pt-32 lg:min-h-[680px] xl:min-h-[720px]">
       <div className="absolute inset-0 -z-10">
         <Image
           src={heroImage}
@@ -417,7 +418,7 @@ function MenuHero({ heroImage }: { heroImage: string }) {
       <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(14,7,4,0.88)_0%,rgba(14,7,4,0.72)_48%,rgba(14,7,4,0.52)_100%)] sm:bg-[linear-gradient(90deg,rgba(14,7,4,0.92)_0%,rgba(14,7,4,0.76)_44%,rgba(14,7,4,0.40)_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(231,177,110,0.22),transparent_34%)]" />
 
-      <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-6 sm:px-6 lg:px-8 lg:pb-24">
+      <div className="relative mx-auto max-w-7xl px-4 pt-6 pb-20 sm:px-6 lg:px-8 lg:pb-24">
         <div className="grid gap-12 pt-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end lg:pt-20">
           <div data-aos="fade-up" className="max-w-3xl">
             <h1
@@ -426,30 +427,29 @@ function MenuHero({ heroImage }: { heroImage: string }) {
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
-              Our Menu
+              {t("ourMenu")}
             </h1>
             <p className="mt-4 max-w-2xl text-[14px] leading-7 text-white/80 sm:text-xl">
-              Fresh coffee, tasty food, and refreshing drinks made for you.
+              {t("heroDescription")}
             </p>
             <p className="mt-4 max-w-2xl text-[12px] leading-7 text-white/60 sm:text-base">
-              Take a look at our menu, find your favorites, and order when
-              youâ€™re ready.
+              {t("heroHelp")}
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4 md:flex-nowrap">
               <Link
                 prefetch={false}
                 href="#menu-grid"
-                className="w-full rounded-full bg-white px-6 py-3.5 text-center text-md font-semibold tracking-widest text-[#24140c] transition hover:bg-[#f8efe4] sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
+                className="text-md w-full rounded-full bg-white px-6 py-3.5 text-center font-semibold tracking-widest text-[#24140c] transition hover:bg-[#f8efe4] sm:max-w-[60%] md:w-auto md:max-w-none md:min-w-48"
               >
-                Explore Menu
+                {t("exploreMenu")}
               </Link>
               <Link
                 prefetch={false}
                 href="/customer"
-                className="w-full rounded-full border border-white/16 bg-white/6 px-6 py-3.5 text-center text-xl font-semibold tracking-widest text-white transition hover:bg-white/12 sm:max-w-[60%] md:w-auto md:min-w-48 md:max-w-none"
+                className="w-full rounded-full border border-white/16 bg-white/6 px-6 py-3.5 text-center text-xl font-semibold tracking-widest text-white transition hover:bg-white/12 sm:max-w-[60%] md:w-auto md:max-w-none md:min-w-48"
               >
-                Order Now
+                {t("orderNow")}
               </Link>
             </div>
           </div>
@@ -468,9 +468,10 @@ function MenuCategoryTabs({
   selectedCategory: string;
   onOpenCategory: (slug: string) => void;
 }) {
+  const t = useCustomerTranslations();
   return (
-    <section className="relative z-10 -mt-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="rounded-[32px] border border-border bg-card px-4 py-5 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-6">
+    <section className="relative z-10 mx-auto -mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="border-border bg-card rounded-[32px] border px-4 py-5 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-6">
         <div className="flex flex-wrap gap-3 md:justify-center">
           {categories.length > 0 ? (
             categories.map((category) => {
@@ -494,8 +495,8 @@ function MenuCategoryTabs({
               );
             })
           ) : (
-            <p className="px-2 py-3 text-sm font-medium text-muted-foreground">
-              Menu items will appear here when active products are available.
+            <p className="text-muted-foreground px-2 py-3 text-sm font-medium">
+              {t("menuWillAppear")}
             </p>
           )}
         </div>
@@ -513,54 +514,48 @@ function MenuProductSection({
   remainingProductCount: number;
   onLoadMore: () => void;
 }) {
+  const t = useCustomerTranslations();
   return (
-    <section
-      id="menu-grid"
-      className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
-    >
+    <section id="menu-grid" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
       <div data-aos="fade-up" className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          Explore our menu
+        <p className="text-muted-foreground text-sm font-semibold tracking-[0.3em] uppercase">
+          {t("exploreOurMenu")}
         </p>
         <h2
-          className="mt-4 text-4xl text-foreground sm:text-5xl"
+          className="text-foreground mt-4 text-4xl sm:text-5xl"
           style={{
             fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
           }}
         >
-          What We Serve
+          {t("whatWeServe")}
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-          From warm drinks to fresh meals and sweet treats, explore something
-          delicious made just for you.
+        <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-base leading-7 sm:text-lg">
+          {t("serveDescription")}
         </p>
       </div>
 
       <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {visibleProducts.length > 0 ? (
-          visibleProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))
+          visibleProducts.map((product) => <ProductCard key={product.id} product={product} />)
         ) : (
-          <div className="rounded-[28px] border border-border bg-card/80 p-8 text-center shadow-[0_18px_46px_rgba(67,39,20,0.06)] sm:col-span-2 lg:col-span-3">
+          <div className="border-border bg-card/80 rounded-[28px] border p-8 text-center shadow-[0_18px_46px_rgba(67,39,20,0.06)] sm:col-span-2 lg:col-span-3">
             <p
-              className="text-3xl text-foreground"
+              className="text-foreground text-3xl"
               style={{
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
-              Menu updating
+              {t("menuUpdating")}
             </p>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-              No active menu products are available right now. Please check back
-              soon or place an order from the customer screen.
+            <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm leading-7 sm:text-base">
+              {t("menuEmpty")}
             </p>
             <Link
               prefetch={false}
               href="/customer"
-              className="mt-6 inline-flex rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 inline-flex rounded-full px-5 py-3 text-sm font-semibold transition"
             >
-              Order Now
+              {t("orderNow")}
             </Link>
           </div>
         )}
@@ -570,9 +565,9 @@ function MenuProductSection({
           <Button
             type="button"
             onClick={onLoadMore}
-            className="rounded-full bg-primary px-8 py-5 text-sm font-bold text-primary-foreground shadow-[0_16px_34px_rgba(42,23,13,0.16)] transition hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8 py-5 text-sm font-bold shadow-[0_16px_34px_rgba(42,23,13,0.16)] transition"
           >
-            Load More
+            {t("loadMore")}
           </Button>
         </div>
       ) : null}
@@ -581,28 +576,25 @@ function MenuProductSection({
 }
 
 function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
+  const t = useCustomerTranslations();
   return (
-    <section
-      id="featured"
-      className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20"
-    >
-      <div className="rounded-[36px] border border-border bg-[linear-gradient(135deg,#f3e3d0_0%,#f9f2e9_52%,#efe0cb_100%)] dark:bg-none dark:bg-card px-6 py-8 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-8 lg:px-10 lg:py-10">
+    <section id="featured" className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20">
+      <div className="border-border dark:bg-card rounded-[36px] border bg-[linear-gradient(135deg,#f3e3d0_0%,#f9f2e9_52%,#efe0cb_100%)] px-6 py-8 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-8 lg:px-10 lg:py-10 dark:bg-none">
         <div className="grid gap-8 xl:grid-cols-[290px_minmax(0,1fr)] xl:items-center">
           <div data-aos="fade-right">
-            <p className="text-lg font-semibold uppercase tracking-[0.3em] text-muted-foreground text-center">
-              Our favorites
+            <p className="text-muted-foreground text-center text-lg font-semibold tracking-[0.3em] uppercase">
+              {t("ourFavorites")}
             </p>
             <h2
-              className="mt-4 text-5xl text-foreground text-center"
+              className="text-foreground mt-4 text-center text-5xl"
               style={{
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
-              Customer Favorites
+              {t("customerFavorites")}
             </h2>
-            <p className="mt-6 text-md leading-7 text-muted-foreground text-center">
-              Discover the dishes, drinks, and cafe classics our customers love
-              the most.
+            <p className="text-md text-muted-foreground mt-6 text-center leading-7">
+              {t("favoritesDescription")}
             </p>
           </div>
 
@@ -614,9 +606,9 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
           <Link
             prefetch={false}
             href="/customer"
-            className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition"
           >
-            Order Now
+            {t("orderNow")}
           </Link>
         </div>
       </div>
@@ -625,12 +617,10 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
 }
 
 function MenuFooter({ cafeName }: { cafeName: string }) {
+  const t = useCustomerTranslations();
   return (
-    <footer
-      id="contact"
-      className="bg-[#201108] dark:bg-background text-[#f8eee3]"
-    >
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr_1fr] lg:px-8">
+    <footer id="contact" className="dark:bg-background bg-[#201108] text-[#f8eee3]">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 lg:px-8 xl:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#d09a59]">
@@ -643,38 +633,26 @@ function MenuFooter({ cafeName }: { cafeName: string }) {
               />
             </div>
             <div>
-              <p className="text-sm uppercase tracking-[0.32em] text-[#f0d4ae]">
-                {cafeName}
-              </p>
-              <p className="text-sm text-white/65">
-                Warm coffee, quality food, and daily comfort.
-              </p>
+              <p className="text-sm tracking-[0.32em] text-[#f0d4ae] uppercase">{cafeName}</p>
+              <p className="text-sm text-white/65">{t("footerTagline")}</p>
             </div>
           </div>
-          <p className="mt-5 max-w-sm text-sm leading-7 text-white/62">
-            Fresh meals, warm drinks, and daily comfort served with care.
-          </p>
+          <p className="mt-5 max-w-sm text-sm leading-7 text-white/62">{t("footerDescription")}</p>
         </div>
 
         <div>
-          <p className="text-lg font-semibold text-white">Address</p>
-          <p className="mt-4 text-md leading-7 text-white/68">
-            Jidka Airport Bosaso
-          </p>
+          <p className="text-lg font-semibold text-white">{t("address")}</p>
+          <p className="text-md mt-4 leading-7 text-white/68">Jidka Airport Bosaso</p>
         </div>
 
         <div>
-          <p className="text-lg font-semibold text-white">Contact</p>
-          <p className="mt-4 text-sm leading-7 text-white/68">
-            +252 90 7796071
-          </p>
+          <p className="text-lg font-semibold text-white">{t("contact")}</p>
+          <p className="mt-4 text-sm leading-7 text-white/68">+252 90 7796071</p>
         </div>
 
         <div>
-          <p className="text-lg font-semibold text-white">Opening Hours</p>
-          <p className="mt-4 text-sm leading-7 text-white/68">
-            Saturday - Friday: 7:00 AM - 2:00 AM
-          </p>
+          <p className="text-lg font-semibold text-white">{t("openingHours")}</p>
+          <p className="mt-4 text-sm leading-7 text-white/68">{t("hours")}</p>
         </div>
       </div>
     </footer>
@@ -682,12 +660,13 @@ function MenuFooter({ cafeName }: { cafeName: string }) {
 }
 
 function BackToTopButton({ onClick }: { onClick: () => void }) {
+  const t = useCustomerTranslations();
   return (
     <Button
       type="button"
-      aria-label="Back to top"
+      aria-label={t("backToTop")}
       onClick={onClick}
-      className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f4dcc2]/50 bg-[#201108] dark:bg-background text-[#fff6ec] shadow-[0_18px_45px_rgba(32,17,8,0.35)] transition hover:-translate-y-0.5 hover:bg-[#3d2417] dark:hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
+      className="dark:bg-background dark:hover:bg-accent fixed right-5 bottom-5 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-[#f4dcc2]/50 bg-[#201108] text-[#fff6ec] shadow-[0_18px_45px_rgba(32,17,8,0.35)] transition hover:-translate-y-0.5 hover:bg-[#3d2417] focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 focus:outline-none sm:right-7 sm:bottom-7 sm:h-14 sm:w-14"
     >
       <svg
         aria-hidden="true"

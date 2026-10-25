@@ -9,6 +9,8 @@ import {
   useState,
   useTransition,
 } from "react";
+import { useCustomerTranslations } from "./i18n/CustomerLanguageProvider";
+import { formatCustomerMessage, type CustomerMessage } from "@/i18n/customer";
 import posthog from "posthog-js";
 import { useAos } from "@/components/AosInitializer";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
@@ -44,8 +46,7 @@ import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 
 const posthogConfigured = Boolean(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {
@@ -57,9 +58,7 @@ function scrollToTop() {
 }
 
 function useBackToTopVisibility(offset: number) {
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(offset),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(() => isPastScrollOffset(offset));
 
   useEffect(() => {
     function handleScroll() {
@@ -123,18 +122,18 @@ type CustomerOrderAction =
   | { type: "modifierOpened"; product: Product }
   | { type: "modifierClosed" }
   | { type: "modifierConfirmed" }
-  | { type: "checkoutBlocked"; error: string }
+  | { type: "checkoutBlocked"; error: CustomerMessage }
   | { type: "checkoutStarted" }
-  | { type: "checkoutSucceeded"; orderNumber: number; message: string }
-  | { type: "checkoutFailed"; error: string }
+  | { type: "checkoutSucceeded"; orderNumber: number; message: CustomerMessage }
+  | { type: "checkoutFailed"; error: CustomerMessage }
   | { type: "checkoutFinished" }
   | {
       type: "draftRestored";
       customerName: string;
       customerPhone: string;
       orderNote: string;
-      message: string;
-      error: string;
+      message: CustomerMessage;
+      error: CustomerMessage;
     };
 
 const initialCustomerOrderState: CustomerOrderState = {
@@ -184,7 +183,7 @@ function customerOrderReducer(
     case "baristaUnavailable":
       return {
         ...state,
-        submitError: "Barista items are unavailable right now.",
+        submitError: { key: "baristaUnavailable" },
         submitMessage: "",
       };
     case "modifierOpened":
@@ -216,7 +215,7 @@ function customerOrderReducer(
         ...state,
         isSubmitting: true,
         submitError: "",
-        submitMessage: "Sending your order...",
+        submitMessage: { key: "sendingOrder" },
       };
     case "checkoutSucceeded":
       return {
@@ -255,10 +254,8 @@ type CustomerOrderPageProps = {
   accountName?: string;
 };
 
-export default function CustomerOrderPage({
-  authState,
-  accountName = "",
-}: CustomerOrderPageProps) {
+export default function CustomerOrderPage({ authState, accountName = "" }: CustomerOrderPageProps) {
+  const t = useCustomerTranslations();
   const {
     productsAll,
     categories,
@@ -281,7 +278,7 @@ export default function CustomerOrderPage({
     customerName: accountName,
   });
   const [signInOpen, setSignInOpen] = useState(false);
-  const [signInError, setSignInError] = useState("");
+  const [signInError, setSignInError] = useState<CustomerMessage>("");
   const [draftReady, setDraftReady] = useState(false);
   const restoredRef = useRef(false);
   const checkoutKeyRef = useRef<string | null>(null);
@@ -316,24 +313,20 @@ export default function CustomerOrderPage({
     () => [
       {
         id: "all",
-        name: "All",
+        name: t("all"),
         count: kioskProducts.length,
       },
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: kioskProducts.filter((product) => product.category?.id === category.id).length,
       })),
     ],
-    [kioskCategories, kioskProducts],
+    [kioskCategories, kioskProducts, t],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
-    categoryChips.some(
-      (category) => category.id === orderState.selectedCategoryValue,
-    )
+    categoryChips.some((category) => category.id === orderState.selectedCategoryValue)
       ? orderState.selectedCategoryValue
       : "all";
 
@@ -353,8 +346,7 @@ export default function CustomerOrderPage({
   }, [deferredSearch, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ??
-    "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ?? t("all");
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
@@ -365,28 +357,25 @@ export default function CustomerOrderPage({
     const restored = restoreCustomerOrderDraft(productsAll, baristas);
     if (restored) {
       replaceCart(restored.cart);
-      const issues = [
-        restored.skipped > 0
-          ? `${restored.skipped} unavailable item(s) were removed. Add them again if needed.`
-          : "",
-        restored.repriced > 0
-          ? `${restored.repriced} item(s) have updated prices. Review the total before checkout.`
-          : "",
-      ].filter(Boolean);
+      const issues = (
+        [
+          restored.skipped > 0 ? { key: "draftRemoved", values: { count: restored.skipped } } : "",
+          restored.repriced > 0
+            ? { key: "draftRepriced", values: { count: restored.repriced } }
+            : "",
+        ] satisfies CustomerMessage[]
+      ).filter(Boolean);
       dispatchOrderState({
         type: "draftRestored",
         customerName: accountName || restored.customerName,
         customerPhone: restored.customerPhone,
         orderNote: "",
-        message: issues.length
-          ? ""
-          : "Your order is ready to review. Press Checkout when you are ready.",
-        error: issues.join(" "),
+        message: issues.length ? "" : { key: "draftReady" },
+        error: issues.length ? issues : "",
       });
     }
     const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment)
-      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
   }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
 
@@ -443,10 +432,7 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (
-      getProductModifierGroups(product).length > 0 ||
-      product.category?.station === "BARISTA"
-    ) {
+    if (getProductModifierGroups(product).length > 0 || product.category?.station === "BARISTA") {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -504,7 +490,7 @@ export default function CustomerOrderPage({
     if (cart.length === 0) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Add at least one item to your cart.",
+        error: { key: "cartRequired" },
       });
       return;
     }
@@ -516,22 +502,21 @@ export default function CustomerOrderPage({
     if (authState === "blocked") {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "This account cannot place customer orders.",
+        error: { key: "accountBlocked" },
       });
       return;
     }
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error:
-          "Enter 90 followed by seven digits for the phone sending payment.",
+        error: { key: "paymentPhoneError" },
       });
       return;
     }
     if (!orderState.customerName.trim()) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Enter your name before checkout.",
+        error: { key: "nameError" },
       });
       return;
     }
@@ -539,7 +524,7 @@ export default function CustomerOrderPage({
     if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Select your table before checkout.",
+        error: { key: "tableError" },
       });
       return;
     }
@@ -584,15 +569,13 @@ export default function CustomerOrderPage({
         error?: string;
       };
       if (!response.ok || !data.checkout?.id) {
-        throw new Error(data.error || "Could not start mobile money checkout.");
+        throw new Error(data.error || t("startCheckoutError"));
       }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",
-        error: error instanceof Error ? error.message : "Something went wrong.",
+        error: error instanceof Error ? error.message : t("somethingWrong"),
       });
     } finally {
       dispatchOrderState({ type: "checkoutFinished" });
@@ -608,9 +591,7 @@ export default function CustomerOrderPage({
       orderState.orderNote,
     );
     if (!saved) {
-      setSignInError(
-        "Your browser could not save this order. Please allow session storage and try again.",
-      );
+      setSignInError({ key: "saveDraftError" });
       return;
     }
     window.location.assign("/auth/google/start?next=%2Fcustomer");
@@ -618,7 +599,7 @@ export default function CustomerOrderPage({
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -633,9 +614,9 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           >
-            {catalogError}
+            {t("catalogError")}
           </div>
         ) : null}
 
@@ -643,9 +624,7 @@ export default function CustomerOrderPage({
           searchTerm={orderState.searchTerm}
           categoryChips={categoryChips}
           selectedCategory={selectedCategory}
-          onSearchChange={(searchTerm) =>
-            dispatchOrderState({ type: "searchChanged", searchTerm })
-          }
+          onSearchChange={(searchTerm) => dispatchOrderState({ type: "searchChanged", searchTerm })}
           onCategorySelect={(category) =>
             startFiltering(() => {
               dispatchOrderState({ type: "categorySelected", category });
@@ -664,9 +643,7 @@ export default function CustomerOrderPage({
       </div>
 
       <BackToTopButton
-        show={
-          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
-        }
+        show={showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen}
         onClick={scrollToTop}
       />
 
@@ -703,26 +680,16 @@ export default function CustomerOrderPage({
       <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">
           <DialogHeader>
-            <DialogTitle>Sign in to place your order</DialogTitle>
-            <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
-            </DialogDescription>
+            <DialogTitle>{t("signInTitle")}</DialogTitle>
+            <DialogDescription>{t("signInDescription")}</DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
-              {signInError}
+            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+              {formatCustomerMessage(signInError, t)}
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
-            Continue with Google
+          <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
+            {t("continueGoogle")}
           </Button>
           <Button
             type="button"
@@ -730,7 +697,7 @@ export default function CustomerOrderPage({
             onClick={() => setSignInOpen(false)}
             className="w-full rounded-full"
           >
-            Keep editing
+            {t("keepEditing")}
           </Button>
         </DialogContent>
       </Dialog>
