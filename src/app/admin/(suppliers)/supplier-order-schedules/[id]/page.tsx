@@ -14,6 +14,12 @@ import { ToastOnMount } from "@/components/ui/toast";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import {
+  RUN_HISTORY_PAGE_SIZE,
+  runHistoryPage,
+  runHistoryParams,
+  runHistoryStatuses,
+} from "@/lib/supplier-orders/run-history-browser";
 import { formatDateTimeLocal } from "@/lib/supplier-orders/scheduling";
 import {
   retrySupplierOrderRun,
@@ -37,30 +43,21 @@ export default async function SupplierOrderScheduleDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ status?: string }>;
+  searchParams?: Promise<{
+    status?: string;
+    runStatus?: string;
+    page?: string;
+  }>;
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const { id } = await params;
   const query = (await searchParams) ?? {};
+  const requested = runHistoryParams(query.runStatus, query.page);
   const [schedule, suppliers, employees] = await Promise.all([
     prisma.supplierOrderSchedule.findFirst({
       where: { id, deletedAt: null },
       include: {
         recipients: { select: { userId: true } },
-        runs: {
-          orderBy: { createdAt: "desc" },
-          take: 100,
-          include: {
-            recipients: { select: { status: true } },
-            purchaseOrder: { select: { id: true, orderNumber: true } },
-            deliveries: {
-              where: { type: "SUPPLIER_ORDER" },
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { status: true },
-            },
-          },
-        },
       },
     }),
     prisma.supplier.findMany({
@@ -75,6 +72,30 @@ export default async function SupplierOrderScheduleDetailPage({
     }),
   ]);
   if (!schedule) notFound();
+  const where = {
+    scheduleId: schedule.id,
+    ...(requested.status === "ALL" ? {} : { status: requested.status }),
+  };
+  const totalRuns = await prisma.supplierOrderRun.count({ where });
+  const { page, pages } = runHistoryPage(requested.page, totalRuns);
+  const runs = await prisma.supplierOrderRun.findMany({
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: (page - 1) * RUN_HISTORY_PAGE_SIZE,
+    take: RUN_HISTORY_PAGE_SIZE,
+    include: {
+      recipients: { select: { status: true } },
+      purchaseOrder: { select: { id: true, orderNumber: true } },
+      deliveries: {
+        where: { type: "SUPPLIER_ORDER" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { status: true },
+      },
+    },
+  });
+  const historyHref = (target: number) =>
+    `/admin/supplier-order-schedules/${schedule.id}?runStatus=${requested.status}&page=${target}`;
   const dateTime = new Intl.DateTimeFormat("en-US", {
     timeZone: schedule.timeZone,
     dateStyle: "medium",
@@ -121,6 +142,26 @@ export default async function SupplierOrderScheduleDetailPage({
 
       <section>
         <h2 className="mb-3 text-xl font-semibold">Run history</h2>
+        <nav
+          className="mb-3 flex flex-wrap gap-2"
+          aria-label="Run history status"
+        >
+          {runHistoryStatuses.map((status) => (
+            <Link
+              key={status}
+              prefetch={false}
+              href={`/admin/supplier-order-schedules/${schedule.id}?runStatus=${status}`}
+              aria-current={requested.status === status ? "page" : undefined}
+              className={`rounded-lg border px-3 py-2 text-sm ${requested.status === status ? "border-blue-600 bg-blue-50 font-semibold" : "border-slate-200"}`}
+            >
+              {status === "ALL" ? "All runs" : status}
+            </Link>
+          ))}
+        </nav>
+        <p className="mb-3 text-sm text-muted-foreground">
+          {totalRuns} {totalRuns === 1 ? "run" : "runs"} · Page {page} of{" "}
+          {pages}
+        </p>
         <DataTableCard>
           <Table>
             <thead>
@@ -134,8 +175,8 @@ export default async function SupplierOrderScheduleDetailPage({
               </tr>
             </thead>
             <tbody>
-              {schedule.runs.length ? (
-                schedule.runs.map((run) => {
+              {runs.length ? (
+                runs.map((run) => {
                   const responded = run.recipients.filter(
                     (recipient) => recipient.status === "RESPONDED",
                   ).length;
@@ -199,12 +240,32 @@ export default async function SupplierOrderScheduleDetailPage({
                 })
               ) : (
                 <tr>
-                  <TableCell colSpan={6}>No runs have started yet.</TableCell>
+                  <TableCell colSpan={6}>No runs match this status.</TableCell>
                 </tr>
               )}
             </tbody>
           </Table>
         </DataTableCard>
+        <nav className="mt-3 flex gap-4 text-sm" aria-label="Run history pages">
+          {page > 1 ? (
+            <Link
+              prefetch={false}
+              className="font-semibold text-primary underline"
+              href={historyHref(page - 1)}
+            >
+              Previous
+            </Link>
+          ) : null}
+          {page < pages ? (
+            <Link
+              prefetch={false}
+              className="font-semibold text-primary underline"
+              href={historyHref(page + 1)}
+            >
+              Next
+            </Link>
+          ) : null}
+        </nav>
       </section>
 
       <section>
