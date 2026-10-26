@@ -83,19 +83,27 @@ export default function CatalogWorkspace({ data }: { data: CatalogData }) {
       row={row}
       product={kind === "products"}
       onEdit={() => navigate(hrefWith("edit", row.id))}
-      onStatus={() => startTransition(async () => {
-        const form = new FormData();
-        form.set("id", row.id);
-        form.set("updatedAt", row.updatedAt);
-        form.set("isActive", row.isActive ? "off" : "on");
-        try {
-          const result = await changeCatalogStatus(kind, form);
-          toast({ tone: result.ok ? "success" : "error", description: result.message });
-          if (result.ok) router.refresh();
-        } catch {
-          toast({ tone: "error", description: "Could not update status. Please try again." });
-        }
-      })}
+      onStatus={() =>
+        startTransition(async () => {
+          const form = new FormData();
+          form.set("id", row.id);
+          form.set("updatedAt", row.updatedAt);
+          form.set("isActive", row.isActive ? "off" : "on");
+          try {
+            const result = await changeCatalogStatus(kind, form);
+            toast({
+              tone: result.ok ? "success" : "error",
+              description: result.message,
+            });
+            if (result.ok) router.refresh();
+          } catch {
+            toast({
+              tone: "error",
+              description: "Could not update status. Please try again.",
+            });
+          }
+        })
+      }
       onDelete={() => setDeleting(row)}
       onAvailability={() => setAvailability(row)}
     />
@@ -199,10 +207,16 @@ export default function CatalogWorkspace({ data }: { data: CatalogData }) {
             </FilterSelect>
           )}
           {kind === "categories" && (
-            <FilterSelect name="station" label="Kitchen station" value={data.params.station}>
+            <FilterSelect
+              name="station"
+              label="Kitchen station"
+              value={data.params.station}
+            >
               <option value="all">All stations</option>
               {Object.entries(stationLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </FilterSelect>
           )}

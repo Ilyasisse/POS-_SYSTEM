@@ -115,7 +115,12 @@ function harness() {
       },
       findMany: async (input: unknown) => {
         capture("category", "findMany", input);
-        return state.categories.map((row) => ({ ...row, isActive: true, station: "BARISTA", _count: { products: 0 } }));
+        return state.categories.map((row) => ({
+          ...row,
+          isActive: true,
+          station: "BARISTA",
+          _count: { products: 0 },
+        }));
       },
       count: async (input: unknown) => {
         capture("category", "count", input);
@@ -731,13 +736,16 @@ test("quick status changes authorize before validation and preserve inventory", 
   assert.ok(denied.calls.every((call) => call.model === "auth"));
   const h = harness();
   const result = await h.actions.changeCatalogStatus(
-    "products", form({ ...identity, isActive: "off", stockQty: "999" }),
+    "products",
+    form({ ...identity, isActive: "off", stockQty: "999" }),
   );
   assert.equal(result.ok, true);
   assert.equal(h.state.product.isActive, false);
   assert.equal(h.state.product.stockQty, 7);
   assert.equal(h.state.product.availableForSale, false);
-  const write = h.calls.find((call) => call.model === "product" && call.method === "update")!.input as Query;
+  const write = h.calls.find(
+    (call) => call.model === "product" && call.method === "update",
+  )!.input as Query;
   assert.deepEqual(Object.keys(write.data!), ["isActive"]);
   assert.equal(write.where!.updatedAt!.toISOString(), version);
   assert.ok(h.refreshed.includes("/menu"));
@@ -749,17 +757,25 @@ test("quick status rejects malformed versions and statuses without writes", asyn
     { ...identity, isActive: "invalid" },
   ]) {
     const h = harness();
-    assert.equal((await h.actions.changeCatalogStatus("products", form(values))).ok, false);
+    assert.equal(
+      (await h.actions.changeCatalogStatus("products", form(values))).ok,
+      false,
+    );
     assert.ok(!h.calls.some((call) => call.method === "update"));
   }
 });
 
 test("category station filters accept only known kitchen stations", async () => {
-  for (const [station, expected] of [["BARISTA", "BARISTA"], ["invalid", undefined]]) {
+  for (const [station, expected] of [
+    ["BARISTA", "BARISTA"],
+    ["invalid", undefined],
+  ]) {
     const h = harness();
     const result = await h.queries.getCatalogData("categories", { station });
     assert.equal(result.params.station, station);
-    const read = h.calls.find((call) => call.model === "category" && call.method === "count")!.input as { where: { station?: string } };
+    const read = h.calls.find(
+      (call) => call.model === "category" && call.method === "count",
+    )!.input as { where: { station?: string } };
     assert.equal(read.where.station, expected);
   }
 });

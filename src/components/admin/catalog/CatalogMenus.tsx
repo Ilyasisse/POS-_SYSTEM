@@ -64,8 +64,12 @@ export default function CatalogMenus({
       : []),
     {
       label: product
-        ? row.isActive ? "Hide from menu" : "Enable product"
-        : row.isActive ? "Make inactive" : "Make active",
+        ? row.isActive
+          ? "Hide from menu"
+          : "Enable product"
+        : row.isActive
+          ? "Make inactive"
+          : "Make active",
       icon: row.isActive ? EyeOff : Eye,
       action: onStatus,
     },
