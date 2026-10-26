@@ -27,8 +27,7 @@ function tone(status: SupplierOrderRunStatus) {
   if (status === "SENT") return "green" as const;
   if (status === "FAILED" || status === "CANCELLED") return "red" as const;
   if (status === "SKIPPED") return "slate" as const;
-  if (status === "COLLECTING" || status === "FINALIZING")
-    return "amber" as const;
+  if (status === "COLLECTING" || status === "FINALIZING") return "amber" as const;
   return "blue" as const;
 }
 
@@ -81,8 +80,7 @@ export default async function SupplierOrderScheduleDetailPage({
     timeStyle: "short",
   });
   const formInviteAt = schedule.nextInviteAt ?? schedule.firstInviteAt;
-  const formSendAt =
-    schedule.nextSupplierSendAt ?? schedule.firstSupplierSendAt;
+  const formSendAt = schedule.nextSupplierSendAt ?? schedule.firstSupplierSendAt;
 
   return (
     <AdminPage
@@ -92,17 +90,11 @@ export default async function SupplierOrderScheduleDetailPage({
         <>
           <form action={toggleSupplierOrderSchedule}>
             <input type="hidden" name="id" value={schedule.id} />
-            <Button
-              type="submit"
-              variant={schedule.isActive ? "outline" : "default"}
-            >
+            <Button type="submit" variant={schedule.isActive ? "outline" : "default"}>
               {schedule.isActive ? "Pause schedule" : "Resume schedule"}
             </Button>
           </form>
-          <DeleteScheduleButton
-            scheduleId={schedule.id}
-            scheduleName={schedule.name}
-          />
+          <DeleteScheduleButton scheduleId={schedule.id} scheduleName={schedule.name} />
           <Button asChild variant="outline">
             <Link prefetch={false} href="/admin/supplier-order-schedules">
               Back to schedules
@@ -122,7 +114,7 @@ export default async function SupplierOrderScheduleDetailPage({
       <section>
         <h2 className="mb-3 text-xl font-semibold">Run history</h2>
         <DataTableCard>
-          <Table>
+          <Table data-supplier-cards>
             <thead>
               <tr>
                 <TableHead>Run</TableHead>
@@ -145,28 +137,28 @@ export default async function SupplierOrderScheduleDetailPage({
                   const pending = run.recipients.length - responded - noOrder;
                   return (
                     <tr key={run.id} className="border-t align-top">
-                      <TableCell className="font-semibold">
+                      <TableCell className="font-semibold" data-label="Run">
                         #{run.sequence}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Window">
                         <div>{dateTime.format(run.inviteAt)}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-muted-foreground text-xs">
                           to {dateTime.format(run.supplierSendAt)}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Responses">
                         <div>
                           {responded} ordered · {noOrder} no order
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-muted-foreground text-xs">
                           {pending} missed deadline / pending
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Purchase order">
                         {run.purchaseOrder ? (
                           <Link
                             prefetch={false}
-                            className="font-semibold text-primary hover:underline"
+                            className="text-primary font-semibold hover:underline"
                             href={`/admin/supplier-purchase-orders/${run.purchaseOrder.id}`}
                           >
                             PO #{run.purchaseOrder.orderNumber}
@@ -175,13 +167,13 @@ export default async function SupplierOrderScheduleDetailPage({
                           "—"
                         )}
                       </TableCell>
-                      <TableCell>{run.deliveries[0]?.status ?? "—"}</TableCell>
-                      <TableCell>
-                        <ToneBadge tone={tone(run.status)}>
-                          {run.status}
-                        </ToneBadge>
+                      <TableCell data-label="Delivery">
+                        {run.deliveries[0]?.status ?? "—"}
+                      </TableCell>
+                      <TableCell data-label="Status">
+                        <ToneBadge tone={tone(run.status)}>{run.status}</ToneBadge>
                         {run.failureReason ? (
-                          <p className="mt-1 max-w-64 text-xs text-destructive">
+                          <p className="text-destructive mt-1 max-w-64 text-xs">
                             {run.failureReason}
                           </p>
                         ) : null}
@@ -223,20 +215,13 @@ export default async function SupplierOrderScheduleDetailPage({
             supplierId: schedule.supplierId,
             timeZone: schedule.timeZone,
             firstInviteAt: formatDateTimeLocal(formInviteAt, schedule.timeZone),
-            firstSupplierSendAt: formatDateTimeLocal(
-              formSendAt,
-              schedule.timeZone,
-            ),
+            firstSupplierSendAt: formatDateTimeLocal(formSendAt, schedule.timeZone),
             reminderIntervalMinutes: schedule.reminderIntervalMinutes,
             recurrenceUnit: schedule.recurrenceUnit ?? "",
             recurrenceInterval: schedule.recurrenceInterval,
-            endAt: schedule.endAt
-              ? formatDateTimeLocal(schedule.endAt, schedule.timeZone)
-              : "",
+            endAt: schedule.endAt ? formatDateTimeLocal(schedule.endAt, schedule.timeZone) : "",
             deliveryLeadDays: schedule.deliveryLeadDays,
-            employeeIds: schedule.recipients.map(
-              (recipient) => recipient.userId,
-            ),
+            employeeIds: schedule.recipients.map((recipient) => recipient.userId),
           }}
         />
       </section>

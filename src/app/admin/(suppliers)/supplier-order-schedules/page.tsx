@@ -41,9 +41,7 @@ export default async function SupplierOrderSchedulesPage({
     orderBy: { createdAt: "desc" },
   });
   const active = schedules.filter((schedule) => schedule.isActive).length;
-  const failed = schedules.filter(
-    (schedule) => schedule.runs[0]?.status === "FAILED",
-  ).length;
+  const failed = schedules.filter((schedule) => schedule.runs[0]?.status === "FAILED").length;
   return (
     <AdminPage
       title="WhatsApp supplier ordering"
@@ -76,7 +74,7 @@ export default async function SupplierOrderSchedulesPage({
         <MetricCard label="Latest run failed" value={failed} />
       </section>
       <DataTableCard>
-        <Table>
+        <Table data-supplier-cards>
           <thead>
             <tr>
               <TableHead>Schedule</TableHead>
@@ -91,31 +89,38 @@ export default async function SupplierOrderSchedulesPage({
             {schedules.length ? (
               schedules.map((schedule) => (
                 <tr key={schedule.id} className="border-t">
-                  <TableCell>
+                  <TableCell data-label="Schedule">
                     <Link
                       prefetch={false}
                       href={`/admin/supplier-order-schedules/${schedule.id}`}
-                      className="font-semibold text-primary hover:underline"
+                      className="text-primary font-semibold hover:underline"
                     >
                       {schedule.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">
-                      {schedule._count.runs} runs
-                    </div>
+                    <div className="text-muted-foreground text-xs">{schedule._count.runs} runs</div>
                   </TableCell>
-                  <TableCell>{schedule.supplier.name}</TableCell>
-                  <TableCell>{schedule._count.recipients}</TableCell>
-                  <TableCell>
-                    {schedule.nextInviteAt
-                      ? dateTime.format(schedule.nextInviteAt)
-                      : "Complete"}
+                  <TableCell data-label="Supplier">{schedule.supplier.name}</TableCell>
+                  <TableCell data-label="Employees">{schedule._count.recipients}</TableCell>
+                  <TableCell data-label="Next invitation">
+                    {schedule.nextInviteAt ? dateTime.format(schedule.nextInviteAt) : "Complete"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Recurrence">
                     {schedule.recurrenceUnit
                       ? `Every ${schedule.recurrenceInterval} ${schedule.recurrenceUnit.toLowerCase()}${schedule.recurrenceInterval === 1 ? "" : "s"}`
                       : "One time"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Status">
+                    {schedule.runs[0]?.status === "FAILED" ? (
+                      <div>
+                        <ToneBadge tone="red">Latest run failed</ToneBadge>
+                        <Link
+                          className="ml-2 underline"
+                          href={`/admin/supplier-order-schedules/${schedule.id}`}
+                        >
+                          Review run →
+                        </Link>
+                      </div>
+                    ) : null}
                     <ToneBadge tone={schedule.isActive ? "green" : "slate"}>
                       {schedule.isActive ? "ACTIVE" : "PAUSED / COMPLETE"}
                     </ToneBadge>

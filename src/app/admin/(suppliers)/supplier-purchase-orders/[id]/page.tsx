@@ -99,11 +99,7 @@ export default async function SupplierPurchaseOrderDetailPage({
     (invoice) => invoice.status === "DRAFT" || invoice.status === "FINALIZED",
   );
   const statusTone =
-    order.status === "COMPLETED"
-      ? "green"
-      : order.status === "CANCELLED"
-        ? "red"
-        : "amber";
+    order.status === "COMPLETED" ? "green" : order.status === "CANCELLED" ? "red" : "amber";
 
   return (
     <AdminPage
@@ -132,41 +128,34 @@ export default async function SupplierPurchaseOrderDetailPage({
       {notice ? (
         <ToastOnMount
           tone={notice.tone as "success" | "error"}
-          title={
-            notice.tone === "error"
-              ? "Status not changed"
-              : "Purchase order updated"
-          }
+          title={notice.tone === "error" ? "Status not changed" : "Purchase order updated"}
           description={notice.message}
         />
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <ToneBadge tone={statusTone}>{order.status}</ToneBadge>
-        <span className="text-sm text-muted-foreground">
-          Created {order.createdAt.toLocaleString()} by{" "}
-          {order.createdBy.fullName}
+        <span className="text-muted-foreground text-sm">
+          Created {order.createdAt.toLocaleString()} by {order.createdBy.fullName}
         </span>
       </div>
 
       <section className="grid gap-4 md:grid-cols-3">
         <Card className="gap-1 p-5">
-          <div className="text-sm text-muted-foreground">Supplier</div>
+          <div className="text-muted-foreground text-sm">Supplier</div>
           <div className="text-lg font-semibold">{order.supplier.name}</div>
-          <div className="text-sm text-muted-foreground">
-            {order.supplier.phone ||
-              order.supplier.email ||
-              "No contact recorded"}
+          <div className="text-muted-foreground text-sm">
+            {order.supplier.phone || order.supplier.email || "No contact recorded"}
           </div>
         </Card>
         <Card className="gap-1 p-5">
-          <div className="text-sm text-muted-foreground">Expected delivery</div>
+          <div className="text-muted-foreground text-sm">Expected delivery</div>
           <div className="text-lg font-semibold">
             {DATE_FORMATTER.format(order.expectedDeliveryDate)}
           </div>
         </Card>
         <Card className="gap-1 p-5">
-          <div className="text-sm text-muted-foreground">Order total</div>
+          <div className="text-muted-foreground text-sm">Order total</div>
           <div className="text-2xl font-semibold tabular-nums">
             {formatMoney(Number(order.totalAmount))}
           </div>
@@ -174,7 +163,7 @@ export default async function SupplierPurchaseOrderDetailPage({
       </section>
 
       <DataTableCard>
-        <Table>
+        <Table data-supplier-cards>
           <thead>
             <tr>
               <TableHead>Item</TableHead>
@@ -187,13 +176,15 @@ export default async function SupplierPurchaseOrderDetailPage({
           <tbody>
             {order.items.map((item) => (
               <tr key={item.id} className="border-t">
-                <TableCell className="font-semibold">{item.itemName}</TableCell>
-                <TableCell>{item.itemUnit}</TableCell>
-                <TableCell>{item.quantity.toString()}</TableCell>
-                <TableCell className="tabular-nums">
+                <TableCell className="font-semibold" data-label="Item">
+                  {item.itemName}
+                </TableCell>
+                <TableCell data-label="Unit">{item.itemUnit}</TableCell>
+                <TableCell data-label="Quantity">{item.quantity.toString()}</TableCell>
+                <TableCell className="tabular-nums" data-label="Unit price">
                   {formatMoney(Number(item.unitPrice))}
                 </TableCell>
-                <TableCell className="font-semibold tabular-nums">
+                <TableCell className="font-semibold tabular-nums" data-label="Line total">
                   {formatMoney(Number(item.lineTotal))}
                 </TableCell>
               </tr>
@@ -205,25 +196,19 @@ export default async function SupplierPurchaseOrderDetailPage({
       {order.notes ? (
         <Card className="p-5">
           <h2 className="font-semibold">Order notes</h2>
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {order.notes}
-          </p>
+          <p className="text-muted-foreground text-sm whitespace-pre-wrap">{order.notes}</p>
         </Card>
       ) : null}
 
       {activeInvoice ? (
         <Card className="p-5">
           <h2 className="font-semibold">Linked supplier invoice</h2>
-          <p className="text-sm text-muted-foreground">
-            This purchase order has a {activeInvoice.status.toLowerCase()}{" "}
-            invoice.
+          <p className="text-muted-foreground text-sm">
+            This purchase order has a {activeInvoice.status.toLowerCase()} invoice.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild>
-              <Link
-                prefetch={false}
-                href={`/admin/supplier-invoices/${activeInvoice.id}`}
-              >
+              <Link prefetch={false} href={`/admin/supplier-invoices/${activeInvoice.id}`}>
                 Open invoice
               </Link>
             </Button>
@@ -244,23 +229,20 @@ export default async function SupplierPurchaseOrderDetailPage({
       {order.status === "OPEN" ? (
         <Card className="p-5">
           <h2 className="font-semibold">Order status</h2>
-          <p className="text-sm text-muted-foreground">
-            Completing this order creates an editable invoice draft. The draft
-            does not update inventory or create money owed until it is
-            finalized.
+          <p className="text-muted-foreground text-sm">
+            Completing this order creates an editable invoice draft. The draft does not update
+            inventory or create money owed until it is finalized.
           </p>
           <PurchaseOrderStatusActions orderId={order.id} />
         </Card>
       ) : null}
 
       {order.status === "COMPLETED" && !activeInvoice ? (
-        <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5">
-          <h2 className="font-semibold text-amber-950 dark:text-amber-300">
-            Invoice not created
-          </h2>
+        <Card className="border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/40">
+          <h2 className="font-semibold text-amber-950 dark:text-amber-300">Invoice not created</h2>
           <p className="text-sm text-amber-900 dark:text-amber-300">
-            This order was completed before the invoice workflow was added. Use
-            the recovery action to create its editable invoice draft.
+            This order was completed before the invoice workflow was added. Use the recovery action
+            to create its editable invoice draft.
           </p>
           <PurchaseOrderStatusActions orderId={order.id} mode="recovery" />
         </Card>
