@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { availableForSaleWhere } from "@/lib/products/availability";
+import { stations } from "@/lib/catalog/catalog";
 import type { CatalogData, CatalogKind, CatalogRecord } from "./catalog";
 
 export type CatalogSearchParams = Record<string, string | string[] | undefined>;
@@ -92,6 +93,7 @@ export async function getCatalogData(
   for (const key of [
     "q",
     "category",
+    "station",
     "status",
     "availability",
     "product",
@@ -196,7 +198,8 @@ export async function getCatalogData(
     rows = list.map(productRecord);
     if (selected) editor = productRecord(selected);
   } else if (kind === "categories") {
-    const where = { ...name, ...active };
+    const station = stations.find((value) => value === params.station);
+    const where = { ...name, ...active, ...(station ? { station } : {}) };
     const pagination = paginate(await prisma.category.count({ where }));
     const [list, selected] = await Promise.all([
       prisma.category.findMany({

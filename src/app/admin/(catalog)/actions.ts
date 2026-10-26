@@ -407,6 +407,40 @@ export async function deleteCatalogItem(
   }
 }
 
+export async function changeCatalogStatus(
+  kind: CatalogKind,
+  formData: FormData,
+): Promise<CatalogResult> {
+  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  if (!z.enum(catalogKinds).safeParse(kind).success)
+    return { ok: false, message: "Invalid catalog section." };
+  const parsed = identitySchema
+    .extend({ isActive: z.enum(["on", "off"]) })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success)
+    return { ok: false, message: "Invalid item version or status. Refresh the list." };
+  const { id, updatedAt, isActive } = parsed.data;
+  const where = { id, updatedAt: new Date(updatedAt) };
+  const data = { isActive: isActive === "on" };
+  try {
+    if (kind === "products") await prisma.product.update({ where, data });
+    else if (kind === "categories") await prisma.category.update({ where, data });
+    else if (kind === "modifiers") await prisma.modifier.update({ where, data });
+    else await prisma.modifierGroup.update({ where, data });
+    refreshCatalog();
+    return {
+      ok: true,
+      message: kind === "products"
+        ? data.isActive
+          ? "Product enabled. Category and sale availability still apply."
+          : "Product hidden from ordering. Stock is unchanged."
+        : data.isActive ? "Catalog item activated." : "Catalog item deactivated.",
+    };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
 export async function saveCategoryOrder(
   input: unknown,
 ): Promise<CatalogResult> {

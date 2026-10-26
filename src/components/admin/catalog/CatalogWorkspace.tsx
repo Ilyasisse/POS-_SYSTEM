@@ -13,6 +13,8 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { changeCatalogStatus } from "@/app/admin/(catalog)/actions";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,7 @@ import {
 
 export default function CatalogWorkspace({ data }: { data: CatalogData }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [pending, startTransition] = useTransition();
   const [deleting, setDeleting] = useState<CatalogRecord | null>(null);
   const [availability, setAvailability] = useState<CatalogRecord | null>(null);
@@ -80,6 +83,19 @@ export default function CatalogWorkspace({ data }: { data: CatalogData }) {
       row={row}
       product={kind === "products"}
       onEdit={() => navigate(hrefWith("edit", row.id))}
+      onStatus={() => startTransition(async () => {
+        const form = new FormData();
+        form.set("id", row.id);
+        form.set("updatedAt", row.updatedAt);
+        form.set("isActive", row.isActive ? "off" : "on");
+        try {
+          const result = await changeCatalogStatus(kind, form);
+          toast({ tone: result.ok ? "success" : "error", description: result.message });
+          if (result.ok) router.refresh();
+        } catch {
+          toast({ tone: "error", description: "Could not update status. Please try again." });
+        }
+      })}
       onDelete={() => setDeleting(row)}
       onAvailability={() => setAvailability(row)}
     />
@@ -179,6 +195,14 @@ export default function CatalogWorkspace({ data }: { data: CatalogData }) {
                 <option key={row.id} value={row.id}>
                   {row.name}
                 </option>
+              ))}
+            </FilterSelect>
+          )}
+          {kind === "categories" && (
+            <FilterSelect name="station" label="Kitchen station" value={data.params.station}>
+              <option value="all">All stations</option>
+              {Object.entries(stationLabels).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
               ))}
             </FilterSelect>
           )}

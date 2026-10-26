@@ -2,6 +2,8 @@
 
 import { useState, useSyncExternalStore } from "react";
 import {
+  Eye,
+  EyeOff,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -35,12 +37,14 @@ export default function CatalogMenus({
   row,
   product,
   onEdit,
+  onStatus,
   onDelete,
   onAvailability,
 }: {
   row: CatalogRecord;
   product: boolean;
   onEdit: () => void;
+  onStatus: () => void;
   onDelete: () => void;
   onAvailability: () => void;
 }) {
@@ -58,6 +62,13 @@ export default function CatalogMenus({
           },
         ]
       : []),
+    {
+      label: product
+        ? row.isActive ? "Hide from menu" : "Enable product"
+        : row.isActive ? "Make inactive" : "Make active",
+      icon: row.isActive ? EyeOff : Eye,
+      action: onStatus,
+    },
     { label: "Delete", icon: Trash2, action: onDelete },
   ];
   const trigger = (
