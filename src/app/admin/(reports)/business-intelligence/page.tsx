@@ -3,6 +3,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 
 const reportCards = [
+  ["Order types", "/api/admin/reports/order-types", PERMISSIONS.REPORT_DAILY_VIEW],
   ["Sales", "/api/admin/reports/sales", PERMISSIONS.REPORT_DAILY_VIEW],
   [
     "Inventory & waste",
