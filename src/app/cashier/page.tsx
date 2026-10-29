@@ -187,6 +187,13 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           >
             New table order
           </Link>
+          <Link
+            prefetch={false}
+            href="/cashier/takeaway"
+            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            Takeaway order
+          </Link>
         </div>
         <Link
           prefetch={false}
