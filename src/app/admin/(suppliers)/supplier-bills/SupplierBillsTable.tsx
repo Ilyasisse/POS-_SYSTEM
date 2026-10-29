@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  DataTableCard,
-  Table,
-  TableCell,
-  TableHead,
-  ToneBadge,
-} from "@/components/admin/shared";
+import { DataTableCard, Table, TableCell, TableHead, ToneBadge } from "@/components/admin/shared";
 import { getSupplierBillDueState } from "@/lib/suppliers/supplier-bills";
 import {
   getSupplierInvoiceDisplayStatus,
@@ -73,7 +67,7 @@ export default function SupplierBillsTable({
 }) {
   return (
     <DataTableCard>
-      <Table>
+      <Table data-supplier-cards>
         <thead>
           <tr>
             <TableHead>Supplier / invoice</TableHead>
@@ -89,8 +83,7 @@ export default function SupplierBillsTable({
           {rows.length ? (
             rows.map(({ invoice, bill }) => {
               const remaining =
-                Number(bill.totalAmount.toString()) -
-                Number(bill.paidAmount.toString());
+                Number(bill.totalAmount.toString()) - Number(bill.paidAmount.toString());
               const dueState = getSupplierBillDueState(bill.dueDate, now);
               const displayStatus = getSupplierInvoiceDisplayStatus(
                 {
@@ -103,8 +96,8 @@ export default function SupplierBillsTable({
               const hasInstallments = bill.installments.length > 0;
 
               return (
-                <tr key={bill.id} className="border-t border-border align-top">
-                  <TableCell>
+                <tr key={bill.id} className="border-border border-t align-top">
+                  <TableCell data-label="Supplier / invoice">
                     <Link
                       prefetch={false}
                       href={`/admin/supplier-invoices/${invoice.id}`}
@@ -113,11 +106,10 @@ export default function SupplierBillsTable({
                       {invoice.supplierName}
                     </Link>
                     <div className="text-xs">
-                      {invoice.submittedAt.toLocaleDateString()} ·{" "}
-                      {invoice.invoiceNumber}
+                      {invoice.submittedAt.toLocaleDateString()} · {invoice.invoiceNumber}
                     </div>
                     {invoice.supplierReference ? (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         Supplier ref: {invoice.supplierReference}
                       </div>
                     ) : null}
@@ -126,13 +118,13 @@ export default function SupplierBillsTable({
                         href={invoice.receiptUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs font-bold text-muted-foreground underline"
+                        className="text-muted-foreground text-xs font-bold underline"
                       >
                         Receipt image
                       </a>
                     ) : null}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Due date">
                     <div className="space-y-2">
                       <ToneBadge
                         tone={
@@ -164,33 +156,24 @@ export default function SupplierBillsTable({
                               Number(installment.amount.toString()) -
                               Number(installment.paidAmount.toString());
                             return (
-                              <div
-                                key={installment.id}
-                                className="rounded border bg-card p-2"
-                              >
+                              <div key={installment.id} className="bg-card rounded border p-2">
                                 <div className="flex justify-between gap-2">
                                   <span>
-                                    {installment.dueDate.toLocaleDateString(
-                                      "en-US",
-                                      { timeZone: "UTC" },
-                                    )}
+                                    {installment.dueDate.toLocaleDateString("en-US", {
+                                      timeZone: "UTC",
+                                    })}
                                   </span>
-                                  <strong>
-                                    {money(
-                                      Number(installment.amount.toString()),
-                                    )}
-                                  </strong>
+                                  <strong>{money(Number(installment.amount.toString()))}</strong>
                                 </div>
                                 <div>
-                                  Remaining {money(installmentRemaining)} ·{" "}
-                                  {installment.status}
+                                  Remaining {money(installmentRemaining)} · {installment.status}
                                 </div>
                               </div>
                             );
                           })}
                         </div>
                       ) : bill.status === "PAID" ? (
-                        <p className="text-xs font-bold text-muted-foreground">
+                        <p className="text-muted-foreground text-xs font-bold">
                           {bill.dueDate.toLocaleDateString("en-US", {
                             timeZone: "UTC",
                           })}
@@ -203,49 +186,38 @@ export default function SupplierBillsTable({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Total / balance">
                     {money(Number(bill.totalAmount.toString()))}
                     <div className="text-sm text-red-500 dark:text-red-300">
                       Balance {money(remaining)}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <ToneBadge
-                      tone={
-                        SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]
-                      }
-                    >
+                  <TableCell data-label="Status">
+                    <ToneBadge tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[displayStatus]}>
                       {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[displayStatus]}
                     </ToneBadge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Audit">
                     <div>Finalized: {invoice.finalizedByName || "--"}</div>
                     <div>Paid: {bill.settledBy?.fullName || "--"}</div>
-                    <div className="text-xs">
-                      {bill.settledAt?.toLocaleString() || ""}
-                    </div>
+                    <div className="text-xs">{bill.settledAt?.toLocaleString() || ""}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Payments">
                     {bill.payments.length
                       ? bill.payments.map((payment) => (
                           <div
                             key={payment.id}
-                            className="mb-2 border-b border-border pb-2 text-xs last:border-0"
+                            className="border-border mb-2 border-b pb-2 text-xs last:border-0"
                           >
-                            <strong>
-                              {money(payment.allocatedAmount)} applied
-                            </strong>{" "}
-                            · {payment.paymentMethod || "Unspecified"}
-                            {payment.totalPaymentAmount !==
-                            payment.allocatedAmount ? (
+                            <strong>{money(payment.allocatedAmount)} applied</strong> ·{" "}
+                            {payment.paymentMethod || "Unspecified"}
+                            {payment.totalPaymentAmount !== payment.allocatedAmount ? (
                               <div className="text-muted-foreground">
-                                From {money(payment.totalPaymentAmount)}{" "}
-                                supplier payment
+                                From {money(payment.totalPaymentAmount)} supplier payment
                               </div>
                             ) : null}
                             <br />
-                            {payment.recordedBy.fullName} ·{" "}
-                            {payment.paidAt.toLocaleDateString()}
+                            {payment.recordedBy.fullName} · {payment.paidAt.toLocaleDateString()}
                             {payment.dailyCashBusinessDate ? (
                               <div className="text-muted-foreground">
                                 Daily Cash {payment.dailyCashBusinessDate}
@@ -260,7 +232,7 @@ export default function SupplierBillsTable({
                         ))
                       : "--"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Record payment">
                     {hasInstallments ? (
                       <div className="grid gap-2">
                         {bill.installments.map((installment) =>
@@ -300,9 +272,7 @@ export default function SupplierBillsTable({
             })
           ) : (
             <tr>
-              <TableCell colSpan={7}>
-                No supplier bills match these filters.
-              </TableCell>
+              <TableCell colSpan={7}>No supplier bills match these filters.</TableCell>
             </tr>
           )}
         </tbody>

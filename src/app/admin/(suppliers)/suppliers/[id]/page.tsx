@@ -1,10 +1,10 @@
+import SupplierDialog from "../../SupplierDialog";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import {
   AdminPage,
   Button,
-  Card,
   DataTableCard,
   MetricCard,
   StatusBadge,
@@ -27,7 +27,7 @@ import { updateSupplierCatalogItem } from "./actions";
 
 type SupplierCatalogPageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ catalogStatus?: string }>;
+  searchParams?: Promise<{ catalogStatus?: string; tab?: string; q?: string }>;
 };
 
 function statusNotice(status: string | undefined) {
@@ -89,7 +89,7 @@ function SupplierCatalogTable({
 }) {
   return (
     <DataTableCard>
-      <Table>
+      <Table data-supplier-cards>
         <thead>
           <tr>
             <TableHead>Item</TableHead>
@@ -103,15 +103,10 @@ function SupplierCatalogTable({
           {rows.length ? (
             rows.map((item) => {
               const itemName =
-                item.product?.name ??
-                item.inventorySupply?.name ??
-                "Unavailable item";
+                item.product?.name ?? item.inventorySupply?.name ?? "Unavailable item";
               const itemType = item.product ? "Product" : "Inventory supply";
               const lastOrder = item.purchaseOrderItems[0];
-              const trend = getSupplierCatalogPriceTrend(
-                item.unitPrice,
-                lastOrder?.unitPrice,
-              );
+              const trend = getSupplierCatalogPriceTrend(item.unitPrice, lastOrder?.unitPrice);
               const trendTone =
                 trend === "increased"
                   ? "red"
@@ -123,101 +118,87 @@ function SupplierCatalogTable({
 
               return (
                 <tr key={item.id} className="border-t align-top">
-                  <TableCell>
+                  <TableCell data-label="Item">
                     <div className="font-semibold">{itemName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {itemType}
-                    </div>
+                    <div className="text-muted-foreground text-xs">{itemType}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Current price">
                     <div className="font-semibold tabular-nums">
                       {formatMoney(Number(item.unitPrice))} / {item.unit}
                     </div>
                     <ToneBadge tone={trendTone}>{trend}</ToneBadge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Last ordered">
                     {lastOrder ? (
                       <>
                         <div className="tabular-nums">
                           {formatMoney(Number(lastOrder.unitPrice))}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-muted-foreground text-xs">
                           PO #{lastOrder.purchaseOrder.orderNumber}
                         </div>
                       </>
                     ) : (
-                      <span className="text-muted-foreground">
-                        No order history
-                      </span>
+                      <span className="text-muted-foreground">No order history</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Status">
                     <StatusBadge active={item.isActive} />
                   </TableCell>
-                  <TableCell>
-                    <form
-                      action={updateSupplierCatalogItem}
-                      className="grid min-w-64 gap-3 sm:grid-cols-2"
-                    >
-                      <Input
-                        type="hidden"
-                        name="supplierId"
-                        value={supplierId}
-                      />
-                      <Input
-                        type="hidden"
-                        name="catalogItemId"
-                        value={item.id}
-                      />
-                      <div className="grid gap-1.5">
-                        <Label htmlFor={`catalog-${item.id}-unit`}>Unit</Label>
-                        <Input
-                          id={`catalog-${item.id}-unit`}
-                          name="unit"
-                          defaultValue={item.unit}
-                          maxLength={40}
-                          required
-                        />
-                      </div>
-                      <div className="grid gap-1.5">
-                        <Label htmlFor={`catalog-${item.id}-price`}>
-                          Price
-                        </Label>
-                        <Input
-                          id={`catalog-${item.id}-price`}
-                          name="unitPrice"
-                          type="number"
-                          min="0"
-                          max="9999999999.99"
-                          step="0.01"
-                          defaultValue={Number(item.unitPrice).toFixed(2)}
-                          required
-                        />
-                      </div>
-                      <Input type="hidden" name="isActive" value="false" />
-                      <label className="flex items-center gap-2 text-sm font-medium">
-                        <Input
-                          type="checkbox"
-                          name="isActive"
-                          value="true"
-                          defaultChecked={item.isActive}
-                          className="size-4"
-                        />
-                        Active
-                      </label>
-                      <Button type="submit" size="sm">
-                        Save item
-                      </Button>
-                    </form>
+                  <TableCell data-label="Update">
+                    <SupplierDialog title={`Edit ${itemName}`}>
+                      <form
+                        action={updateSupplierCatalogItem}
+                        className="grid gap-3 sm:grid-cols-2"
+                      >
+                        <Input type="hidden" name="supplierId" value={supplierId} />
+                        <Input type="hidden" name="catalogItemId" value={item.id} />
+                        <div className="grid gap-1.5">
+                          <Label htmlFor={`catalog-${item.id}-unit`}>Unit</Label>
+                          <Input
+                            id={`catalog-${item.id}-unit`}
+                            name="unit"
+                            defaultValue={item.unit}
+                            maxLength={40}
+                            required
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label htmlFor={`catalog-${item.id}-price`}>Price</Label>
+                          <Input
+                            id={`catalog-${item.id}-price`}
+                            name="unitPrice"
+                            type="number"
+                            min="0"
+                            max="9999999999.99"
+                            step="0.01"
+                            defaultValue={Number(item.unitPrice).toFixed(2)}
+                            required
+                          />
+                        </div>
+                        <Input type="hidden" name="isActive" value="false" />
+                        <label className="flex items-center gap-2 text-sm font-medium">
+                          <Input
+                            type="checkbox"
+                            name="isActive"
+                            value="true"
+                            defaultChecked={item.isActive}
+                            className="size-4"
+                          />
+                          Active
+                        </label>
+                        <Button type="submit" size="sm">
+                          Save item
+                        </Button>
+                      </form>
+                    </SupplierDialog>
                   </TableCell>
                 </tr>
               );
             })
           ) : (
             <tr>
-              <TableCell colSpan={5}>
-                No catalog items have been assigned.
-              </TableCell>
+              <TableCell colSpan={5}>No catalog items have been assigned.</TableCell>
             </tr>
           )}
         </tbody>
@@ -322,36 +303,27 @@ export default async function SupplierCatalogPage({
     const rightName = right.product?.name ?? right.inventorySupply?.name ?? "";
     return leftName.localeCompare(rightName);
   });
-  const activeCount = rows.filter((item) => item.isActive).length;
-  const changedCount = rows.filter((item) => {
-    const lastPrice = item.purchaseOrderItems[0]?.unitPrice;
-    const trend = getSupplierCatalogPriceTrend(item.unitPrice, lastPrice);
-    return trend === "increased" || trend === "decreased";
-  }).length;
   const outstanding = supplier.bills.reduce(
     (sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount),
     0,
   );
-  const totalCashPaid = supplier.payments.reduce(
-    (sum, payment) => sum + Number(payment.amount),
-    0,
-  );
+  const totalCashPaid = supplier.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
   const credit = supplier.payments.reduce(
     (sum, payment) =>
       sum +
       Number(payment.amount) -
       payment.allocations.reduce(
-        (allocationSum, allocation) =>
-          allocationSum + Number(allocation.amount),
+        (allocationSum, allocation) => allocationSum + Number(allocation.amount),
         0,
       ),
     0,
   );
   const notice = statusNotice(query?.catalogStatus);
+  const accountTab = query?.tab === "payments";
 
   return (
     <AdminPage
-      title={`${supplier.name} catalog`}
+      title={supplier.name}
       description="Choose what this supplier sells, maintain current prices, and compare them with the latest purchase order."
       action={
         <>
@@ -374,47 +346,75 @@ export default async function SupplierCatalogPage({
       {notice ? (
         <ToastOnMount
           tone={notice.tone as "success" | "error"}
-          title={
-            notice.tone === "error" ? "Catalog not changed" : "Catalog updated"
-          }
+          title={notice.tone === "error" ? "Catalog not changed" : "Catalog updated"}
           description={notice.message}
         />
       ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Catalog items" value={rows.length} />
-        <MetricCard label="Active items" value={activeCount} />
-        <MetricCard
-          label="Prices changed since last order"
-          value={changedCount}
-        />
+        <MetricCard label="Outstanding invoices" value={formatMoney(outstanding)} />
+        <MetricCard label="Available credit" value={formatMoney(credit)} />
+        <MetricCard label="Total paid" value={formatMoney(totalCashPaid)} />
       </section>
 
-      <SupplierAccountSection
-        supplierId={supplier.id}
-        outstanding={outstanding}
-        credit={credit}
-        totalCashPaid={totalCashPaid}
-        currentUser={currentUser}
-        payments={supplier.payments}
-      />
-
-      <Card className="p-5">
-        <div className="mb-4">
-          <h2 className="font-semibold">Add catalog item</h2>
-          <p className="text-sm text-muted-foreground">
-            Only active products and inventory supplies not already assigned are
-            shown.
-          </p>
-        </div>
-        <CatalogItemCreateForm
+      <nav aria-label="Supplier profile" className="flex flex-wrap gap-2 border-b pb-3">
+        {[
+          ["Catalog", `/admin/suppliers/${supplier.id}`],
+          ["Account & payments", `/admin/suppliers/${supplier.id}?tab=payments`],
+          ["Purchase orders", `/admin/supplier-purchase-orders?supplier=${supplier.id}`],
+          ["Invoices", `/admin/supplier-invoices?supplier=${supplier.id}`],
+          ["Schedules", "/admin/supplier-order-schedules"],
+        ].map(([label, href]) => (
+          <Button key={label} asChild variant="outline">
+            <Link href={href}>{label}</Link>
+          </Button>
+        ))}
+      </nav>
+      {accountTab ? (
+        <SupplierAccountSection
           supplierId={supplier.id}
-          products={availableProducts}
-          supplies={availableSupplies}
+          outstanding={outstanding}
+          credit={credit}
+          totalCashPaid={totalCashPaid}
+          currentUser={currentUser}
+          payments={supplier.payments}
         />
-      </Card>
-
-      <SupplierCatalogTable rows={rows} supplierId={supplier.id} />
+      ) : (
+        <>
+          {" "}
+          <SupplierDialog title="Add catalog item">
+            <div className="mb-4">
+              <h2 className="font-semibold">Add catalog item</h2>
+              <p className="text-muted-foreground text-sm">
+                Only active products and inventory supplies not already assigned are shown.
+              </p>
+            </div>
+            <CatalogItemCreateForm
+              supplierId={supplier.id}
+              products={availableProducts}
+              supplies={availableSupplies}
+            />
+          </SupplierDialog>
+          <form method="get" className="flex items-end gap-3">
+            <label className="grid flex-1 gap-1 text-sm">
+              Search catalog
+              <Input name="q" defaultValue={query?.q} placeholder="Product or supply name" />
+            </label>
+            <Button>Search</Button>
+          </form>
+          <SupplierCatalogTable
+            rows={rows.filter((item) =>
+              (item.product?.name ?? item.inventorySupply?.name ?? "")
+                .toLowerCase()
+                .includes((query?.q ?? "").trim().toLowerCase()),
+            )}
+            supplierId={supplier.id}
+          />
+          <p className="text-muted-foreground text-sm">
+            Price changes affect future orders. Existing order prices are preserved.
+          </p>
+        </>
+      )}
     </AdminPage>
   );
 }

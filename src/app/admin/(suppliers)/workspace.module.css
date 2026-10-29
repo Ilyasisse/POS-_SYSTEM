@@ -1,0 +1,45 @@
+.workspace {
+  min-width: 0;
+}
+@media (max-width: 767px) {
+  .workspace :global(table[data-supplier-cards]) {
+    display: block;
+  }
+  .workspace :global(table[data-supplier-cards] thead) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .workspace :global(table[data-supplier-cards] tbody) {
+    display: grid;
+    gap: 1rem;
+    padding: 0.75rem;
+  }
+  .workspace :global(table[data-supplier-cards] tbody tr) {
+    display: grid;
+    gap: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: var(--card);
+  }
+  .workspace :global(table[data-supplier-cards] td) {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.25rem 0;
+  }
+  .workspace :global(table[data-supplier-cards] td[data-label]::before) {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+  .workspace :global(button),
+  .workspace :global(a[data-slot="button"]) {
+    min-height: 44px;
+  }
+}

@@ -90,8 +90,7 @@ export default async function SupplierInvoicesPage({
     displayStatus: getSupplierInvoiceDisplayStatus(invoice, now),
   }));
   const countStatus = (displayStatus: SupplierInvoiceDisplayStatus) =>
-    invoiceRows.filter((invoice) => invoice.displayStatus === displayStatus)
-      .length;
+    invoiceRows.filter((invoice) => invoice.displayStatus === displayStatus).length;
   const outstandingBalance = invoiceRows.reduce((sum, invoice) => {
     if (
       !invoice.bill ||
@@ -99,9 +98,7 @@ export default async function SupplierInvoicesPage({
     ) {
       return sum;
     }
-    return (
-      sum + Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
-    );
+    return sum + Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount);
   }, 0);
 
   return (
@@ -125,7 +122,7 @@ export default async function SupplierInvoicesPage({
     >
       <form
         method="get"
-        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+        className="bg-card grid gap-3 rounded-xl border p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
       >
         <AutoSubmitSelect
           name="supplier"
@@ -162,20 +159,14 @@ export default async function SupplierInvoicesPage({
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard label="Draft invoices" value={countStatus("DRAFT")} />
         <MetricCard label="Pending invoices" value={countStatus("PENDING")} />
-        <MetricCard
-          label="Partially paid"
-          value={countStatus("PARTIALLY_PAID")}
-        />
+        <MetricCard label="Partially paid" value={countStatus("PARTIALLY_PAID")} />
         <MetricCard label="Overdue invoices" value={countStatus("OVERDUE")} />
         <MetricCard label="Paid invoices" value={countStatus("PAID")} />
-        <MetricCard
-          label="Outstanding balance"
-          value={formatMoney(outstandingBalance)}
-        />
+        <MetricCard label="Outstanding balance" value={formatMoney(outstandingBalance)} />
       </section>
 
       <DataTableCard>
-        <Table>
+        <Table data-supplier-cards>
           <thead>
             <tr>
               <TableHead>Invoice</TableHead>
@@ -191,27 +182,27 @@ export default async function SupplierInvoicesPage({
             {invoiceRows.length ? (
               invoiceRows.map((invoice) => (
                 <tr key={invoice.id} className="border-t">
-                  <TableCell>
+                  <TableCell data-label="Invoice">
                     <Link
                       prefetch={false}
                       href={`/admin/supplier-invoices/${invoice.id}`}
-                      className="font-semibold text-primary hover:underline"
+                      className="text-primary font-semibold hover:underline"
                     >
                       {formatSupplierInvoiceNumber(invoice.invoiceNumber)}
                     </Link>
                     {invoice.supplierReference ? (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         Supplier ref: {invoice.supplierReference}
                       </div>
                     ) : null}
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium" data-label="Supplier">
                     {invoice.supplier.name}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Purchase order">
                     {invoice.purchaseOrder ? (
                       `PO #${invoice.purchaseOrder.orderNumber}`
                     ) : invoice.generatedByRecurrence ? (
@@ -228,48 +219,33 @@ export default async function SupplierInvoicesPage({
                       "Legacy"
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Invoice / due date">
                     <div>{DATE_FORMATTER.format(invoice.invoiceDate)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Due{" "}
-                      {DATE_FORMATTER.format(
-                        invoice.bill?.dueDate ?? invoice.dueDate,
-                      )}
+                    <div className="text-muted-foreground text-xs">
+                      Due {DATE_FORMATTER.format(invoice.bill?.dueDate ?? invoice.dueDate)}
                     </div>
                   </TableCell>
-                  <TableCell>{invoice._count.items}</TableCell>
-                  <TableCell className="font-semibold tabular-nums">
+                  <TableCell data-label="Items">{invoice._count.items}</TableCell>
+                  <TableCell className="font-semibold tabular-nums" data-label="Total">
                     {formatMoney(Number(invoice.totalAmount))}
                     {invoice.bill ? (
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         {invoice.displayStatus === "PAID"
                           ? "Paid in full"
                           : `${formatMoney(Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount))} remaining`}
                       </div>
                     ) : null}
                   </TableCell>
-                  <TableCell>
-                    <ToneBadge
-                      tone={
-                        SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[
-                          invoice.displayStatus
-                        ]
-                      }
-                    >
-                      {
-                        SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[
-                          invoice.displayStatus
-                        ]
-                      }
+                  <TableCell data-label="Status">
+                    <ToneBadge tone={SUPPLIER_INVOICE_DISPLAY_STATUS_TONES[invoice.displayStatus]}>
+                      {SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS[invoice.displayStatus]}
                     </ToneBadge>
                   </TableCell>
                 </tr>
               ))
             ) : (
               <tr>
-                <TableCell colSpan={7}>
-                  No supplier invoices match these filters.
-                </TableCell>
+                <TableCell colSpan={7}>No supplier invoices match these filters.</TableCell>
               </tr>
             )}
           </tbody>

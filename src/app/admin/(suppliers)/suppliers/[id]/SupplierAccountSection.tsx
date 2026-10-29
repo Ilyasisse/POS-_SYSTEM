@@ -1,7 +1,7 @@
+import SupplierPaymentComposer from "./SupplierPaymentComposer";
 import Link from "next/link";
 import type { UserRole } from "@prisma/client";
 import {
-  Button,
   Card,
   DataTableCard,
   MetricCard,
@@ -9,8 +9,6 @@ import {
   TableCell,
   TableHead,
 } from "@/components/admin/shared";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
@@ -18,7 +16,6 @@ import { formatSupplierInvoiceNumber } from "@/lib/suppliers/invoice-number";
 import { getSupplierPaymentReversalError } from "@/lib/suppliers/payment-reversal";
 import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
 import RevertPaymentButton from "../../supplier-bills/RevertPaymentButton";
-import { recordSupplierAdvance } from "./actions";
 
 type MoneyValue = { toString(): string };
 
@@ -61,73 +58,24 @@ export default function SupplierAccountSection({
   return (
     <>
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          label="Outstanding invoices"
-          value={formatMoney(outstanding)}
-        />
+        <MetricCard label="Outstanding invoices" value={formatMoney(outstanding)} />
         <MetricCard label="Available credit" value={formatMoney(credit)} />
-        <MetricCard
-          label="Total cash paid"
-          value={formatMoney(totalCashPaid)}
-        />
+        <MetricCard label="Total cash paid" value={formatMoney(totalCashPaid)} />
       </section>
 
       <Card className="p-5">
         <div className="mb-4">
           <h2 className="font-semibold">Supplier account</h2>
-          <p className="text-sm text-muted-foreground">
-            Payments clear open invoices oldest-first. Any remainder stays as
-            credit and is applied automatically when a future invoice is
-            finalized.
+          <p className="text-muted-foreground text-sm">
+            Payments clear open invoices oldest-first. Any remainder stays as credit and is applied
+            automatically when a future invoice is finalized.
           </p>
         </div>
-        <form
-          action={recordSupplierAdvance}
-          className="grid gap-3 md:grid-cols-[9rem_10rem_1fr_auto] md:items-end"
-        >
-          <Input type="hidden" name="supplierId" value={supplierId} />
-          <div className="grid gap-1.5">
-            <Label htmlFor="supplier-payment-amount">Amount</Label>
-            <Input
-              id="supplier-payment-amount"
-              name="amount"
-              type="number"
-              min="0.01"
-              step="0.01"
-              required
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="supplier-payment-method">Method</Label>
-            <select
-              id="supplier-payment-method"
-              name="paymentMethod"
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">Unspecified</option>
-              <option>MYCASH</option>
-              <option>GOLIS</option>
-              <option>Dahabshiil</option>
-              <option>Cash</option>
-              <option>Bank</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="supplier-payment-note">Note</Label>
-            <Input
-              id="supplier-payment-note"
-              name="notes"
-              maxLength={500}
-              placeholder="Advance or payment reference"
-            />
-          </div>
-          <Button type="submit">Record payment</Button>
-        </form>
+        <SupplierPaymentComposer supplierId={supplierId} />
       </Card>
 
       <DataTableCard>
-        <Table>
+        <Table data-supplier-cards>
           <thead>
             <tr>
               <TableHead>Paid</TableHead>
@@ -147,67 +95,57 @@ export default function SupplierAccountSection({
                 );
                 const unused = Number(payment.amount) - allocated;
                 const dailyCashDate = payment.dailyCashPayment
-                  ? formatBusinessDateKey(
-                      payment.dailyCashPayment.dailyCashDay.businessDate,
-                    )
+                  ? formatBusinessDateKey(payment.dailyCashPayment.dailyCashDay.businessDate)
                   : null;
                 const reversalError = getSupplierPaymentReversalError({
                   legacyAllocationAfterSchedule: payment.allocations.some(
                     (allocation) =>
-                      !allocation.installmentId &&
-                      allocation.bill._count.installments > 0,
+                      !allocation.installmentId && allocation.bill._count.installments > 0,
                   ),
                   dailyCashLinked: Boolean(payment.dailyCashPayment),
-                  dailyCashLocked: dailyCashDate
-                    ? isDailyCashLocked(dailyCashDate)
-                    : false,
-                  canManageDailyCash: hasPermission(
-                    currentUser,
-                    PERMISSIONS.DAILY_CASH_MANAGE,
-                  ),
+                  dailyCashLocked: dailyCashDate ? isDailyCashLocked(dailyCashDate) : false,
+                  canManageDailyCash: hasPermission(currentUser, PERMISSIONS.DAILY_CASH_MANAGE),
                 });
                 return (
                   <tr key={payment.id} className="border-t align-top">
-                    <TableCell>
+                    <TableCell data-label="Paid">
                       <div>{payment.paidAt.toLocaleDateString()}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-muted-foreground text-xs">
                         {payment.recordedBy.fullName}
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums">
+                    <TableCell className="font-semibold tabular-nums" data-label="Cash amount">
                       {formatMoney(Number(payment.amount))}
                     </TableCell>
-                    <TableCell className="tabular-nums">
+                    <TableCell className="tabular-nums" data-label="Applied">
                       {formatMoney(allocated)}
                     </TableCell>
-                    <TableCell className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    <TableCell
+                      className="font-semibold text-emerald-700 tabular-nums dark:text-emerald-300"
+                      data-label="Unused credit"
+                    >
                       {formatMoney(unused)}
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="text-xs" data-label="Details">
                       <div>
                         {payment.paymentMethod || "Unspecified method"}
                         {dailyCashDate ? ` · Daily Cash ${dailyCashDate}` : ""}
                       </div>
                       <div>{payment.notes || "No note"}</div>
                       {payment.allocations.map((allocation) => (
-                        <div
-                          key={allocation.id}
-                          className="text-muted-foreground"
-                        >
+                        <div key={allocation.id} className="text-muted-foreground">
                           {formatMoney(Number(allocation.amount))} →{" "}
                           <Link
                             prefetch={false}
                             className="underline"
                             href={`/admin/supplier-invoices/${allocation.bill.invoice.id}`}
                           >
-                            {formatSupplierInvoiceNumber(
-                              allocation.bill.invoice.invoiceNumber,
-                            )}
+                            {formatSupplierInvoiceNumber(allocation.bill.invoice.invoiceNumber)}
                           </Link>
                         </div>
                       ))}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Action">
                       <RevertPaymentButton
                         paymentId={payment.id}
                         amount={formatMoney(Number(payment.amount))}
@@ -219,9 +157,7 @@ export default function SupplierAccountSection({
               })
             ) : (
               <tr>
-                <TableCell colSpan={6}>
-                  No supplier payments have been recorded.
-                </TableCell>
+                <TableCell colSpan={6}>No supplier payments have been recorded.</TableCell>
               </tr>
             )}
           </tbody>
