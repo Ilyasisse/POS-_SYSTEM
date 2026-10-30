@@ -27,6 +27,7 @@ const refresh = () => {
   revalidatePath("/admin/staff/schedules");
   revalidatePath("/admin/staff/attendance");
   revalidatePath("/admin/staff/payroll");
+  revalidatePath("/admin/staff/payroll/runs");
 };
 
 export async function saveEmploymentAction(formData: FormData) {
