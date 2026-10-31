@@ -408,9 +408,9 @@ function MenuHero({ heroImage }: { heroImage: string }) {
           alt=""
           aria-hidden="true"
           fill
-          priority
+          loading="eager"
+          fetchPriority="high"
           sizes="100vw"
-          unoptimized
           className="h-full w-full object-cover object-[57%_center] sm:object-center lg:object-[50%_center]"
         />
       </div>

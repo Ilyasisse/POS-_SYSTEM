@@ -61,6 +61,22 @@ function getPaymentStatusMessage(paymentStatus?: string) {
   }
 }
 
+function getOrderStatusMessage(orderStatus?: string) {
+  if (orderStatus === "takeaway_paid") {
+    return {
+      tone: "success" as const,
+      message: "The takeaway order was paid and sent to the kitchen.",
+    };
+  }
+  if (orderStatus === "sent") {
+    return {
+      tone: "success" as const,
+      message: "The table order was sent to the kitchen.",
+    };
+  }
+  return null;
+}
+
 export default async function CashierPage({ searchParams }: CashierPageProps) {
   const { start: businessDayStart, end: businessDayEnd } =
     getCashierBusinessDayRange();
@@ -76,13 +92,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   ]);
   const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
-  const orderNotice =
-    params?.orderStatus === "sent"
-      ? {
-          tone: "success" as const,
-          message: "The table order was sent to the kitchen.",
-        }
-      : null;
+  const orderNotice = getOrderStatusMessage(params?.orderStatus);
   const notice = paymentNotice ?? orderNotice;
 
   const tables = await prisma.table.findMany({
@@ -162,13 +172,29 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </p>
         </div>
 
-        <Link
-          prefetch={false}
-          href="/cashier/order"
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          New table order
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            prefetch={false}
+            href="/cashier/receipts"
+            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            Receipts
+          </Link>
+          <Link
+            prefetch={false}
+            href="/cashier/order"
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            New table order
+          </Link>
+          <Link
+            prefetch={false}
+            href="/cashier/takeaway"
+            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+          >
+            Takeaway order
+          </Link>
+        </div>
         <Link
           prefetch={false}
           href="/cashier/customer-checkouts"

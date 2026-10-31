@@ -59,7 +59,7 @@ const CATEGORY_ORDER_LOOKUP = new Map(
 // Used for: The /menu hero image in both live-data and empty-data states.
 // What it does: Stores the hero image path used by live and empty menu states.
 // Like you are 10: This is the top picture the menu keeps using.
-const heroImage = "/menu-hero-bg.png";
+const heroImage = "/menu-hero-bg.webp";
 
 // Used for: Safely inserting category/product names into generated SVG fallback art.
 // What it does: Escapes special characters so text is safe inside generated SVG art.
