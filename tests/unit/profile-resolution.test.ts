@@ -5,6 +5,7 @@ import { hasPermission, PERMISSIONS } from "../../src/lib/auth/permissions";
 
 const customer = {
   id: "auth-customer",
+  cafeteriaId: "mashallah",
   email: "customer@example.com",
   fullName: "Customer",
   phoneNumber: null,
@@ -32,6 +33,7 @@ test("customer profile receives only customer permissions and no station", async
 test("inactive staff cannot fall back to an active customer profile", async () => {
   const staff = {
     ...customer,
+    isPlatformAdmin: false,
     role: "CASHIER" as const,
     availability: "OFFLINE" as const,
     lastSeenAt: null,

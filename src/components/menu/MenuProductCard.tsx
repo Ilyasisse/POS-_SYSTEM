@@ -1,5 +1,6 @@
 import { MenuProduct } from "@/lib/menu/menu-data";
 import { Card } from "@/components/ui/card";
+import MenuProductImage from "./MenuProductImage";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -20,9 +21,10 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
       <div className="relative aspect-4/3 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)] dark:bg-none dark:bg-muted">
         {/* Only show image if product has imageUrl */}
         {product.imageUrl ? (
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${product.imageUrl})` }}
+          <MenuProductImage
+            src={product.imageUrl}
+            alt={product.name}
+            sizes="(min-width: 1280px) 390px, (min-width: 1024px) calc(33.333vw - 38px), (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)"
           />
         ) : null}
 

@@ -8,6 +8,9 @@ datasource db {
 
 /// Staff profile. id is the existing Supabase Auth user ID.
 model Staff {
+  isPlatformAdmin Boolean @default(false)
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                                  String                           @id
   phoneNumber                         String?                          @unique
   fullName                            String
@@ -107,6 +110,8 @@ model Staff {
 /// Customer profile. id is the verified Supabase Auth user ID.
 /// Credentials remain in Supabase auth.users; customers have no staff role.
 model Customer {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   kitchenTransitions KitchenTransitionEvent[] @relation("KitchenTransitionActorCustomer")
   stockEventsCreated StockEvent[]             @relation("StockEventActorCustomer")
   auditLogsCreated   AuditLog[]               @relation("AuditLogActorCustomer")
@@ -122,6 +127,8 @@ model Customer {
 }
 
 model CafeSetting {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                     String   @id @default("default")
   businessName           String   @default("Mash Allah Cafe")
   currencyCode           String   @default("USD")
@@ -139,6 +146,8 @@ model CafeSetting {
 
 /// Versioned compensation is deliberately separated from operational staff data.
 model EmploymentProfile {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String             @id @default(cuid())
   userId           String             @unique
   compensationType CompensationType
@@ -155,6 +164,8 @@ model EmploymentProfile {
 }
 
 model AttendancePolicy {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String   @id @default("default")
   shiftMinutes          Int      @default(480)
   graceMinutes          Int      @default(10)
@@ -164,6 +175,8 @@ model AttendancePolicy {
 }
 
 model ScheduledShift {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String           @id @default(cuid())
   workerId        String
   startsAt        DateTime
@@ -183,6 +196,8 @@ model ScheduledShift {
 
 /// Raw clock records are append-only. Attendance approval stores the reviewed result.
 model ClockEvent {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id        String         @id @default(cuid())
   workerId  String
   type      ClockEventType
@@ -195,6 +210,8 @@ model ClockEvent {
 }
 
 model AttendanceRecord {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                     String           @id @default(cuid())
   workerId               String
   scheduledShiftId       String?          @unique
@@ -219,6 +236,8 @@ model AttendanceRecord {
 }
 
 model PayrollAdjustment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String                @id @default(cuid())
   workerId         String
   periodStart      DateTime              @db.Date
@@ -239,6 +258,8 @@ model PayrollAdjustment {
 }
 
 model PayrollRun {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String            @id @default(cuid())
   periodStart      DateTime          @db.Date
   periodEnd        DateTime          @db.Date
@@ -261,6 +282,8 @@ model PayrollRun {
 }
 
 model PayrollLine {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String     @id @default(cuid())
   payrollRunId          String
   workerId              String
@@ -282,6 +305,8 @@ model PayrollLine {
 }
 
 model AuditLog {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   actorCustomerId   String?
   actorCustomer     Customer? @relation("AuditLogActorCustomer", fields: [actorCustomerId], references: [id], onDelete: SetNull)
   id                String    @id @default(cuid())
@@ -305,6 +330,8 @@ model AuditLog {
 }
 
 model ExpenseCategory {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String   @id @default(cuid())
   name            String   @unique
   isActive        Boolean  @default(true)
@@ -316,6 +343,8 @@ model ExpenseCategory {
 }
 
 model ExpenseTransaction {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String            @id @default(cuid())
   categoryId       String
   vendor           String?
@@ -341,6 +370,8 @@ model ExpenseTransaction {
 }
 
 model OwnerWithdrawal {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String   @id @default(cuid())
   amount           Decimal  @db.Decimal(14, 2)
   withdrawnAt      DateTime @db.Date
@@ -354,6 +385,8 @@ model OwnerWithdrawal {
 }
 
 model SupplierReceiving {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String                @id @default(cuid())
   purchaseOrderId       String                @unique
   receivedAt            DateTime              @default(now())
@@ -370,6 +403,8 @@ model SupplierReceiving {
 }
 
 model SupplierReceivingItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String             @id @default(cuid())
   receivingId           String
   purchaseOrderItemId   String
@@ -383,6 +418,8 @@ model SupplierReceivingItem {
 }
 
 model CustomerFeedback {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String   @id @default(cuid())
   orderId          String?
   rating           Int?
@@ -396,6 +433,8 @@ model CustomerFeedback {
 }
 
 model ComplaintCase {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String          @id @default(cuid())
   orderId          String?
   category         ComplaintCategory
@@ -419,6 +458,8 @@ model ComplaintCase {
 }
 
 model ReportExportAudit {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String   @id @default(cuid())
   actorUserId      String
   report           String
@@ -431,6 +472,8 @@ model ReportExportAudit {
 }
 
 model Category {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id        String    @id @default(cuid())
   name      String    @unique
   iconUrl   String?
@@ -446,6 +489,8 @@ model Category {
 }
 
 model Product {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id   String @id @default(cuid())
   name String
 
@@ -487,6 +532,8 @@ model Product {
 }
 
 model InventorySupply {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                          String                    @id @default(cuid())
   name                        String
   unit                        String                    @default("unit")
@@ -518,6 +565,8 @@ model InventorySupply {
 /// Product stock still lives on Product, but product changes are no longer written here
 /// because the Supabase "InventoryMovement"."productId" column was intentionally removed.
 model InventoryMovement {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                       String                @id @default(cuid())
   supplyId                 String?
   itemName                 String
@@ -538,6 +587,8 @@ model InventoryMovement {
 }
 
 model ModifierGroup {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id         String     @id @default(cuid())
   name       String     @unique
   isRequired Boolean    @default(false)
@@ -552,6 +603,8 @@ model ModifierGroup {
 }
 
 model Modifier {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String              @id @default(cuid())
   productId             String
   modifierGroupId       String
@@ -570,6 +623,8 @@ model Modifier {
 }
 
 model Table {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String            @id @default(cuid())
   name             String            @unique
   isActive         Boolean           @default(true)
@@ -587,6 +642,8 @@ model Table {
 /// Customer-facing table bill. Each kitchen submission remains a separate
 /// Order round so completed food never reappears on a later kitchen ticket.
 model TableCheck {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id          String    @id @default(cuid())
   checkNumber Int       @unique
   tableId     String
@@ -600,6 +657,8 @@ model TableCheck {
 }
 
 model Order {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                 String              @id @default(cuid())
   orderNumber        Int                 @unique @default(autoincrement())
   type               OrderType           @default(DINE_IN)
@@ -640,6 +699,8 @@ model Order {
 }
 
 model OrderItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                   String                @id @default(cuid())
   orderId              String
   productId            String
@@ -669,6 +730,8 @@ model OrderItem {
 }
 
 model InventoryUnitConversion {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String          @id @default(cuid())
   supplyId          String
   purchaseUnit      String
@@ -683,6 +746,8 @@ model InventoryUnitConversion {
 }
 
 model RecipeVersion {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String                @id @default(cuid())
   productId       String
   version         Int
@@ -704,6 +769,8 @@ model RecipeVersion {
 }
 
 model RecipeIngredient {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                       String          @id @default(cuid())
   recipeVersionId          String
   supplyId                 String
@@ -718,6 +785,8 @@ model RecipeIngredient {
 }
 
 model StockEvent {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   actorCustomerId          String?
   actorCustomer            Customer?             @relation("StockEventActorCustomer", fields: [actorCustomerId], references: [id], onDelete: SetNull)
   id                       String                @id @default(cuid())
@@ -751,6 +820,8 @@ model StockEvent {
 }
 
 model InventoryCountSession {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String               @id @default(cuid())
   businessDate      DateTime             @db.Date
   status            InventoryCountStatus @default(DRAFT)
@@ -771,6 +842,8 @@ model InventoryCountSession {
 }
 
 model InventoryCountLine {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                       String                @id @default(cuid())
   sessionId                String
   productId                String?
@@ -797,6 +870,8 @@ model InventoryCountLine {
 }
 
 model SalesAdjustment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String              @id @default(cuid())
   orderId          String
   orderItemId      String?
@@ -823,6 +898,8 @@ model SalesAdjustment {
 /// Durable kitchen workflow state for an order. The order and its ticket state
 /// are created atomically so Supabase Realtime can always rebuild a snapshot.
 model KitchenTicketState {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   orderId             String                      @id
   pickupStatus        KitchenPickupStatus         @default(PREPARING)
   customerName        String?
@@ -842,6 +919,8 @@ model KitchenTicketState {
 
 /// One independently updateable kitchen status per order station.
 model KitchenTicketStationState {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   orderId   String
   station   Station
   status    KitchenStationTicketStatus @default(NEW)
@@ -854,6 +933,8 @@ model KitchenTicketStationState {
 }
 
 model KitchenPreparationTarget {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String   @id @default(cuid())
   station         Station  @unique
   targetMinutes   Int
@@ -866,6 +947,8 @@ model KitchenPreparationTarget {
 }
 
 model KitchenTransitionEvent {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   actorCustomerId       String?
   actorCustomer         Customer?                   @relation("KitchenTransitionActorCustomer", fields: [actorCustomerId], references: [id], onDelete: SetNull)
   id                    String                      @id @default(cuid())
@@ -890,6 +973,8 @@ model KitchenTransitionEvent {
 }
 
 model KitchenQualityEvent {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id          String                  @id @default(cuid())
   orderId     String
   orderItemId String?
@@ -910,6 +995,8 @@ model KitchenQualityEvent {
 }
 
 model OperationalIncident {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String                  @id @default(cuid())
   type             OperationalIncidentType
   severity         IncidentSeverity
@@ -933,6 +1020,8 @@ model OperationalIncident {
 }
 
 model CleaningChecklistTemplate {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id        String                  @id @default(cuid())
   name      String
   station   Station?
@@ -947,6 +1036,8 @@ model CleaningChecklistTemplate {
 }
 
 model CleaningChecklistTask {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id         String                     @id @default(cuid())
   templateId String
   label      String
@@ -960,6 +1051,8 @@ model CleaningChecklistTask {
 }
 
 model CleaningChecklistRun {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String                     @id @default(cuid())
   templateId        String
   station           Station?
@@ -984,6 +1077,8 @@ model CleaningChecklistRun {
 }
 
 model CleaningChecklistRunTask {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String                @id @default(cuid())
   runId             String
   taskId            String
@@ -1002,6 +1097,8 @@ model CleaningChecklistRunTask {
 }
 
 model OrderItemModifier {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id           String    @id @default(cuid())
   orderItemId  String
   modifierId   String
@@ -1016,6 +1113,8 @@ model OrderItemModifier {
 }
 
 model Payment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id          String        @id @default(cuid())
   orderId     String
   cashierId   String?
@@ -1042,6 +1141,8 @@ model Payment {
 }
 
 model PaymentRequest {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String               @id @default(cuid())
   batchKey          String
   lineIndex         Int
@@ -1070,6 +1171,8 @@ model PaymentRequest {
 }
 
 model MobileMoneyReceipt {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                       String                   @id @default(cuid())
   sender                   String
   providerLabel            String?
@@ -1104,6 +1207,8 @@ model MobileMoneyReceipt {
 }
 
 model CustomerCheckout {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id             String                 @id @default(cuid())
   customerId     String
   customerName   String
@@ -1133,6 +1238,8 @@ model CustomerCheckout {
 }
 
 model PaymentGatewayStatus {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String   @id @default("macrodroid-898")
   sender          String
   lastHeartbeatAt DateTime
@@ -1144,6 +1251,8 @@ model PaymentGatewayStatus {
 }
 
 model PaymentDeferral {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String   @id @default(cuid())
   batchKey        String   @unique
   tableId         String
@@ -1162,6 +1271,8 @@ model PaymentDeferral {
 }
 
 model Shift {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String    @id @default(cuid())
   userId          String
   openedAt        DateTime  @default(now())
@@ -1182,6 +1293,8 @@ model Shift {
 }
 
 model WaiterBalanceInitialization {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String   @id @default(cuid())
   waiterId              String   @unique
   effectiveBusinessDate DateTime @db.Date
@@ -1195,6 +1308,8 @@ model WaiterBalanceInitialization {
 }
 
 model Supplier {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id             String                      @id @default(cuid())
   name           String
   slug           String                      @unique
@@ -1218,6 +1333,8 @@ model Supplier {
 }
 
 model SupplierBill {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String                       @id @default(cuid())
   supplierId      String
   invoiceId       String                       @unique
@@ -1242,6 +1359,8 @@ model SupplierBill {
 }
 
 model SupplierPayment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String                      @id @default(cuid())
   supplierId       String
   amount           Decimal
@@ -1262,6 +1381,8 @@ model SupplierPayment {
 /// Applies part of one physical supplier payment to an invoice bill or installment.
 /// Any payment amount not represented by allocations is available supplier credit.
 model SupplierPaymentAllocation {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String                      @id @default(cuid())
   supplierPaymentId String
   billId            String
@@ -1284,6 +1405,8 @@ model SupplierPaymentAllocation {
 /// A versioned combined salary amount. DailyCashDay stores the resolved amount so
 /// a later rate change never changes a historical business day.
 model DailySalaryRate {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String         @id @default(cuid())
   effectiveBusinessDate DateTime       @unique @db.Date
   amount                Decimal        @db.Decimal(14, 2)
@@ -1298,6 +1421,8 @@ model DailySalaryRate {
 /// Financial record for one POS business day. Its snapshots are populated only
 /// when the administrator finalizes the day.
 model DailyCashDay {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                                 String                     @id @default(cuid())
   businessDate                       DateTime                   @unique @db.Date
   salaryAmount                       Decimal                    @db.Decimal(14, 2)
@@ -1336,6 +1461,8 @@ model DailyCashDay {
 
 /// A one-time expense paid as part of one Daily Cash day.
 model DailyCashManualExpense {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String       @id @default(cuid())
   dailyCashDayId  String
   description     String
@@ -1355,6 +1482,8 @@ model DailyCashManualExpense {
 
 /// Links a real supplier payment to the Daily Cash day and records its funding.
 model DailyCashSupplierPayment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String          @id @default(cuid())
   dailyCashDayId    String
   supplierPaymentId String          @unique
@@ -1373,6 +1502,8 @@ model DailyCashSupplierPayment {
 
 /// A payment toward a closed daily supply batch, funded by one Daily Cash day.
 model DailyCashSupplyPayment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String       @id @default(cuid())
   dailyCashDayId   String
   supplyDayId      String
@@ -1393,6 +1524,8 @@ model DailyCashSupplyPayment {
 /// An auditable transfer of remaining Daily Cash revenue into the business's
 /// deposit-only savings account.
 model DailyCashSavingsDeposit {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String       @id @default(cuid())
   dailyCashDayId   String
   amount           Decimal      @db.Decimal(14, 2)
@@ -1407,6 +1540,8 @@ model DailyCashSavingsDeposit {
 }
 
 model SupplierCatalogItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                 String                          @id @default(cuid())
   supplierId         String
   productId          String?
@@ -1432,6 +1567,8 @@ model SupplierCatalogItem {
 }
 
 model SupplierPurchaseOrder {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                   String                      @id @default(cuid())
   orderNumber          Int                         @unique @default(autoincrement())
   supplierId           String
@@ -1458,6 +1595,8 @@ model SupplierPurchaseOrder {
 }
 
 model SupplierPurchaseOrderItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String                @id @default(cuid())
   purchaseOrderId       String
   supplierCatalogItemId String
@@ -1476,6 +1615,8 @@ model SupplierPurchaseOrderItem {
 }
 
 model SchedulerLease {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   key        String   @id
   ownerToken String
   expiresAt  DateTime
@@ -1486,6 +1627,8 @@ model SchedulerLease {
 }
 
 model SupplierOrderSchedule {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                      String                           @id @default(cuid())
   name                    String
   supplierId              String
@@ -1515,6 +1658,8 @@ model SupplierOrderSchedule {
 }
 
 model SupplierOrderScheduleRecipient {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id         String                @id @default(cuid())
   scheduleId String
   userId     String
@@ -1527,6 +1672,8 @@ model SupplierOrderScheduleRecipient {
 }
 
 model SupplierOrderRun {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                      String                          @id @default(cuid())
   scheduleId              String
   sequence                Int
@@ -1557,6 +1704,8 @@ model SupplierOrderRun {
 }
 
 model SupplierOrderRunRecipient {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id             String                          @id @default(cuid())
   runId          String
   userId         String
@@ -1581,6 +1730,8 @@ model SupplierOrderRunRecipient {
 }
 
 model SupplierOrderResponseItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String                    @id @default(cuid())
   recipientId           String
   supplierCatalogItemId String
@@ -1595,6 +1746,8 @@ model SupplierOrderResponseItem {
 }
 
 model SupplierOrderWhatsAppDelivery {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                     String                           @id @default(cuid())
   runId                  String
   recipientId            String?
@@ -1623,6 +1776,8 @@ model SupplierOrderWhatsAppDelivery {
 }
 
 model SupplierInvoice {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                       String                       @id @default(cuid())
   supplierId               String
   purchaseOrderId          String?
@@ -1673,6 +1828,8 @@ model SupplierInvoice {
 }
 
 model SupplierInvoiceRecurrence {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                String                          @id @default(cuid())
   supplierId        String
   sourceInvoiceId   String                          @unique
@@ -1704,6 +1861,8 @@ model SupplierInvoiceRecurrence {
 }
 
 model SupplierInvoiceRecurrenceItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String                    @id @default(cuid())
   recurrenceId          String
   supplierCatalogItemId String
@@ -1722,6 +1881,8 @@ model SupplierInvoiceRecurrenceItem {
 /// A dated portion of a supplier invoice. Existing invoices without rows here
 /// keep their legacy single-due-date behaviour until explicitly split.
 model SupplierInvoiceInstallment {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id          String                      @id @default(cuid())
   invoiceId   String
   billId      String?
@@ -1742,6 +1903,8 @@ model SupplierInvoiceInstallment {
 }
 
 model SupplierInvoiceItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id                    String               @id @default(cuid())
   invoiceId             String
   supplierCatalogItemId String?
@@ -1761,6 +1924,8 @@ model SupplierInvoiceItem {
 }
 
 model SupplyCatalogItem {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String           @id @default(cuid())
   name             String
   unit             String
@@ -1778,6 +1943,8 @@ model SupplyCatalogItem {
 }
 
 model SupplyDay {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id               String                   @id @default(cuid())
   purchaseDate     DateTime                 @unique @db.Date
   closedTotal      Decimal?                 @db.Decimal(14, 2)
@@ -1798,6 +1965,8 @@ model SupplyDay {
 }
 
 model SupplyPurchase {
+  cafeteriaId String @default(dbgenerated("current_setting('app.cafeteria_id', true)"))
+  @@index([cafeteriaId])
   id              String             @id @default(cuid())
   purchaseDate    DateTime           @db.Date
   catalogItemId   String?
@@ -2142,4 +2311,19 @@ enum StaffAvailability {
   BUSY
   AWAY
   OFFLINE
+}
+
+model Cafeteria {
+  id String @id
+  name String
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  domains CafeteriaDomain[]
+}
+model CafeteriaDomain {
+  hostname String @id
+  cafeteriaId String
+  cafeteria Cafeteria @relation(fields: [cafeteriaId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([cafeteriaId])
 }
