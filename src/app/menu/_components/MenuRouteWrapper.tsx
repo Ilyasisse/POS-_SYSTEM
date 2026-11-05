@@ -1,5 +1,5 @@
 import MenuShowcase from "@/components/menu/MenuShowcase";
-import type { MenuData } from "@/lib/menu/menu-data";
+import type { MenuData } from "@/types/menu/menu-types";
 
 type MenuRouteWrapperProps = {
   data: MenuData;

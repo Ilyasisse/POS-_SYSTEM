@@ -1,41 +1,8 @@
 import { availableForSaleWhere } from "@/lib/products/availability";
+import { MenuProduct, MenuCategory, MenuData } from "@/types/menu/menu-types";
 
-// Used for: The product cards, featured items, filtering, and sorting on /menu.
-// What it does: Defines the shape of one product shown on the menu page.
-// Like you are 10: This is the checklist every food or drink item must follow.
-export type MenuProduct = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  categoryName: string;
-  categorySlug: string;
-  imageUrl: string | null;
-  isPopular: boolean;
-  bestSellerScore: number;
-};
+const heroImage = "/menu-hero-bg.webp";
 
-// Used for: Grouping menu products into category sections/tabs on /menu.
-// What it does: Defines one menu category and the products inside it.
-// Like you are 10: This is one menu shelf with items on it.
-export type MenuCategory = {
-  id: string;
-  name: string;
-  slug: string;
-  products: MenuProduct[];
-};
-
-// Used for: The full data payload passed from the server page to MenuShowcase.
-// What it does: Defines all data the menu page needs to render.
-// Like you are 10: This is the full lunchbox the menu page opens.
-export type MenuData = {
-  cafeName: string;
-  heroImage: string;
-  categories: MenuCategory[];
-  products: MenuProduct[];
-  featuredItems: MenuProduct[];
-  hasLiveData: boolean;
-};
 
 // Used for: Keeping familiar categories in a predictable display order.
 // What it does: Controls the preferred display order for known categories.
@@ -59,7 +26,6 @@ const CATEGORY_ORDER_LOOKUP = new Map(
 // Used for: The /menu hero image in both live-data and empty-data states.
 // What it does: Stores the hero image path used by live and empty menu states.
 // Like you are 10: This is the top picture the menu keeps using.
-const heroImage = "/menu-hero-bg.png";
 
 // Used for: Safely inserting category/product names into generated SVG fallback art.
 // What it does: Escapes special characters so text is safe inside generated SVG art.
@@ -77,9 +43,7 @@ function escapeSvgText(value: string) {
 // What it does: Converts raw SVG code into an image URL the browser can show.
 // Like you are 10: This turns drawing instructions into a picture card.
 function svgToDataUri(svg: string) {
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-    svg.replace(/\s+/g, " ").trim(),
-  )}`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg.replace(/\s+/g, " ").trim())}`;
 }
 
 // Used for: Category ids, tab ids, and product grouping keys in the menu UI.
@@ -110,11 +74,7 @@ function resolveAssetUrl(value?: string | null) {
     return null;
   }
 
-  if (
-    value.startsWith("http://") ||
-    value.startsWith("https://") ||
-    value.startsWith("data:")
-  ) {
+  if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:")) {
     return value;
   }
 
@@ -134,9 +94,11 @@ function buildCategoryArt(categoryName: string, productName: string) {
     drinks: ["#352012", "#d98b38", "#ffe2b8"],
   };
 
-  const [primary, secondary, highlight] = palettes[
-    categoryName.trim().toLowerCase()
-  ] ?? ["#352012", "#ba7437", "#f4dcc0"];
+  const [primary, secondary, highlight] = palettes[categoryName.trim().toLowerCase()] ?? [
+    "#352012",
+    "#ba7437",
+    "#f4dcc0",
+  ];
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
@@ -287,8 +249,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
             categoryName: category.name,
             categorySlug,
             imageUrl:
-              resolveAssetUrl(product.imageUrl) ??
-              buildCategoryArt(category.name, product.name),
+              resolveAssetUrl(product.imageUrl) ?? buildCategoryArt(category.name, product.name),
             isPopular: product.isPopular,
             bestSellerScore: bestSellerMap.get(product.id) ?? 0,
           } satisfies MenuProduct;
@@ -315,9 +276,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
 
     // Featured items prefer real best sellers, then manually popular products,
     // then all products when there is no sales/popularity signal yet.
-    const featuredSource = products.some(
-      (product) => product.bestSellerScore > 0,
-    )
+    const featuredSource = products.some((product) => product.bestSellerScore > 0)
       ? products.filter((product) => product.bestSellerScore > 0)
       : products.some((product) => product.isPopular)
         ? products.filter((product) => product.isPopular)

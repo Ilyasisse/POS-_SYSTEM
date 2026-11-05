@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useReducer, useState } from "react";
 import { useAos } from "@/components/AosInitializer";
 
 // TypeScript types for menu data and products
-import type { MenuData, MenuProduct } from "@/lib/menu/menu-data";
+import type { MenuData, MenuProduct } from "@/types/menu/menu-types";
 import { ModeToggle } from "@/components/mode-toggle";
 
 // Props type for the MenuShowcase component
@@ -409,7 +409,7 @@ function MenuHero({ heroImage }: { heroImage: string }) {
           aria-hidden="true"
           fill
           priority
-          sizes="100vw"
+          sizes="1vw"
           unoptimized
           className="h-full w-full object-cover object-[57%_center] sm:object-center lg:object-[50%_center]"
         />

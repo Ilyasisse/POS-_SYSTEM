@@ -1,4 +1,4 @@
-import { MenuProduct } from "@/lib/menu/menu-data";
+import type { MenuProduct } from "@/types/menu/menu-types";
 import { Card } from "@/components/ui/card";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
