@@ -39,12 +39,17 @@ import {
 } from "@/components/customer/customer-order-utils";
 
 type TableOption = { id: string; name: string };
-type Props = { tables: TableOption[]; initialTableId?: string };
+type Props = {
+  tables: TableOption[];
+  initialTableId?: string;
+  orderType?: "DINE_IN" | "TAKEOUT";
+};
 type State = {
   tableId: string;
   categoryId: string;
   searchTerm: string;
   orderNote: string;
+  paymentMethod: string;
   selectedProduct: Product | null;
   modifierOpen: boolean;
   cartOpen: boolean;
@@ -57,6 +62,7 @@ type Action =
   | { type: "category"; value: string }
   | { type: "search"; value: string }
   | { type: "note"; value: string }
+  | { type: "paymentMethod"; value: string }
   | { type: "modifierOpen"; product: Product }
   | { type: "modifierClose" }
   | { type: "cartOpen" }
@@ -77,6 +83,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, searchTerm: action.value };
     case "note":
       return { ...state, orderNote: action.value };
+    case "paymentMethod":
+      return { ...state, paymentMethod: action.value, error: "" };
     case "modifierOpen":
       return { ...state, selectedProduct: action.product, modifierOpen: true };
     case "modifierClose":
@@ -155,11 +163,11 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-amber-100 bg-[#fffaf5] p-6 sm:p-8"
+        className="max-w-2xl rounded-[2rem] border border-border bg-card p-6 sm:p-8"
       >
         <DialogHeader>
           <DialogTitle
-            className="text-center text-3xl text-stone-950 sm:text-4xl"
+            className="text-center text-3xl text-foreground sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
             Select an available table
@@ -174,8 +182,9 @@ function TablePicker({
               <Button
                 key={table.id}
                 type="button"
+                variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-amber-200 bg-card text-xl font-semibold text-stone-950 shadow-sm hover:border-amber-400 hover:bg-amber-50"
+                className="min-h-24 rounded-[1.5rem] border border-border bg-card text-xl font-semibold text-foreground shadow-sm hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent"
               >
                 {table.name}
               </Button>
@@ -194,7 +203,9 @@ function TablePicker({
 export default function CashierOrderExperience({
   tables,
   initialTableId = "",
+  orderType = "DINE_IN",
 }: Props) {
+  const isTakeaway = orderType === "TAKEOUT";
   const router = useRouter();
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
@@ -204,6 +215,7 @@ export default function CashierOrderExperience({
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
+    paymentMethod: "",
     selectedProduct: null,
     modifierOpen: false,
     cartOpen: false,
@@ -324,11 +336,15 @@ export default function CashierOrderExperience({
   }
 
   async function sendOrder() {
-    if (!state.tableId) {
+    if (!isTakeaway && !state.tableId) {
       dispatch({
         type: "failed",
         error: "Select a table before sending the order.",
       });
+      return;
+    }
+    if (isTakeaway && !state.paymentMethod) {
+      dispatch({ type: "failed", error: "Select a payment method." });
       return;
     }
     if (!cart.length) {
@@ -340,11 +356,13 @@ export default function CashierOrderExperience({
     }
     try {
       dispatch({ type: "submitting" });
-      const response = await fetch("/api/orders/table", {
+      const response = await fetch(isTakeaway ? "/api/orders" : "/api/orders/table", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tableId: state.tableId,
+          ...(isTakeaway
+            ? { orderType, paymentMethod: state.paymentMethod }
+            : { tableId: state.tableId }),
           notes: state.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
@@ -359,9 +377,9 @@ export default function CashierOrderExperience({
       });
       const data = await response.json();
       if (!response.ok)
-        throw new Error(data?.error || "The table order could not be sent.");
+        throw new Error(data?.error || "The order could not be sent.");
       clearCart();
-      router.push("/cashier?orderStatus=sent");
+      router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
       router.refresh();
     } catch (error) {
       dispatch({
@@ -375,11 +393,11 @@ export default function CashierOrderExperience({
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
+      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <TablePicker
-        open={!state.tableId}
+        open={!isTakeaway && !state.tableId}
         tables={tables}
         onSelect={(value) => dispatch({ type: "table", value })}
       />
@@ -387,7 +405,11 @@ export default function CashierOrderExperience({
         <CustomerOrderHeader
           title="Cashier order"
           subtitle={
-            tableName ? `Ordering for ${tableName}` : "Select a table to begin"
+            isTakeaway
+              ? "Takeaway · paid at the counter"
+              : tableName
+                ? `Ordering for ${tableName}`
+                : "Select a table to begin"
           }
           resetLabel="Clear order"
           cartLabel="Order"
@@ -426,7 +448,7 @@ export default function CashierOrderExperience({
           </div>
           <CustomerCartPanel
             mode="cashier"
-            tableName={tableName}
+            tableName={isTakeaway ? "Takeaway order" : tableName}
             cart={cart}
             customerName=""
             customerPhone=""
@@ -440,6 +462,13 @@ export default function CashierOrderExperience({
             onCustomerNameChange={() => undefined}
             onCustomerPhoneChange={() => undefined}
             onOrderNoteChange={(value) => dispatch({ type: "note", value })}
+            paymentMethod={isTakeaway ? state.paymentMethod : undefined}
+            checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
+            onPaymentMethodChange={
+              isTakeaway
+                ? (value) => dispatch({ type: "paymentMethod", value })
+                : undefined
+            }
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
             onClearCart={() => {
@@ -459,7 +488,7 @@ export default function CashierOrderExperience({
       />
       <CustomerCartSheet
         mode="cashier"
-        tableName={tableName}
+        tableName={isTakeaway ? "Takeaway order" : tableName}
         open={state.cartOpen && !isDesktopCartPanel}
         cart={cart}
         customerName=""
@@ -474,6 +503,13 @@ export default function CashierOrderExperience({
         onCustomerNameChange={() => undefined}
         onCustomerPhoneChange={() => undefined}
         onOrderNoteChange={(value) => dispatch({ type: "note", value })}
+        paymentMethod={isTakeaway ? state.paymentMethod : undefined}
+        checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
+        onPaymentMethodChange={
+          isTakeaway
+            ? (value) => dispatch({ type: "paymentMethod", value })
+            : undefined
+        }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
         onClearCart={() => {

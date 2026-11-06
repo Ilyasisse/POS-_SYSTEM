@@ -51,30 +51,30 @@ export default async function ModifierDetailsPage({
 
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Modifier Details</h1>
-            <p className="text-sm text-slate-500">{modifier.name}</p>
+            <p className="text-sm text-muted-foreground">{modifier.name}</p>
           </div>
 
           <Link
             prefetch={false}
             href="/admin/modifiers"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-slate-800">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
+          <h2 className="mb-4 text-lg font-bold text-foreground">
             Edit Modifier
           </h2>
 
@@ -93,7 +93,7 @@ export default async function ModifierDetailsPage({
                 name="name"
                 type="text"
                 defaultValue={modifier.name}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
@@ -111,7 +111,7 @@ export default async function ModifierDetailsPage({
                 type="number"
                 step="0.01"
                 defaultValue={Number(modifier.price)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
@@ -127,7 +127,7 @@ export default async function ModifierDetailsPage({
                 id="modifier-product"
                 name="productId"
                 defaultValue={modifier.productId}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               >
                 {products.map((product) => (
@@ -149,7 +149,7 @@ export default async function ModifierDetailsPage({
                 id="modifier-group"
                 name="modifierGroupId"
                 defaultValue={modifier.modifierGroupId}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               >
                 {modifierGroups.map((group) => (
@@ -184,7 +184,7 @@ export default async function ModifierDetailsPage({
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 Save Changes
               </Button>
@@ -192,12 +192,12 @@ export default async function ModifierDetailsPage({
           </form>
         </section>
 
-        <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600">
+        <section className="rounded-2xl border border-red-200 dark:border-red-800 bg-card p-6 shadow-lg">
+          <h2 className="mb-4 text-lg font-bold text-red-600 dark:text-red-300">
             Delete Modifier
           </h2>
 
-          <p className="mb-4 text-sm text-slate-600">
+          <p className="mb-4 text-sm text-muted-foreground">
             This will permanently delete{" "}
             <span className="font-semibold">{modifier.name}</span>.
           </p>

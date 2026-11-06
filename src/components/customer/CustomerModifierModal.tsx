@@ -142,9 +142,10 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
           </div>
 
           <Button
+            variant="outline"
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/15 bg-card/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-card/15 sm:px-4"
+            className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/15 hover:text-white dark:bg-white/10 dark:hover:bg-white/15 sm:px-4"
           >
             Close
           </Button>
@@ -207,7 +208,7 @@ function ModifierGroupList({
               {errors[group.id] ? (
                 <span
                   role="alert"
-                  className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700"
+                  className="rounded-full bg-rose-100 dark:bg-rose-950/40 px-3 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300"
                 >
                   {errors[group.id]}
                 </span>
@@ -220,13 +221,14 @@ function ModifierGroupList({
 
                 return (
                   <Button
+                    variant="outline"
                     key={option.id}
                     type="button"
                     aria-pressed={checked}
                     onClick={() => onToggleOption(group, option.id)}
                     className={`min-w-0 rounded-[1.25rem] border px-4 py-4 text-left transition ${
                       checked
-                        ? "border-[#7c5c37] bg-[#f5ebde] shadow-[0_16px_32px_rgba(124,92,55,0.15)]"
+                        ? "border-primary bg-primary/10 shadow-sm"
                         : "border-border bg-muted/50 hover:border-border hover:bg-card"
                     }`}
                   >
@@ -244,7 +246,7 @@ function ModifierGroupList({
                       <span
                         className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold uppercase ${
                           checked
-                            ? "border-[#7c5c37] bg-[#7c5c37] text-white"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-card text-transparent"
                         }`}
                       >
@@ -268,20 +270,20 @@ function BaristaAssignment({
   onSelectedBaristaIdChange,
 }: BaristaAssignmentProps) {
   return (
-    <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4">
+    <div className="rounded-[1.5rem] border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-amber-950">
+          <p className="text-sm font-semibold text-amber-950 dark:text-amber-300">
             Barista assignment
           </p>
-          <p className="mt-1 text-sm text-amber-900/80">
+          <p className="mt-1 text-sm text-amber-900 dark:text-amber-300/80">
             Choose who will prepare this drink.
           </p>
         </div>
         <NativeSelect
           value={selectedBaristaId}
           onChange={(event) => onSelectedBaristaIdChange(event.target.value)}
-          className="w-full rounded-full border border-amber-300 bg-card px-4 py-2 text-sm font-medium text-foreground outline-none sm:w-auto"
+          className="w-full rounded-full border border-amber-300 dark:border-amber-800 bg-card px-4 py-2 text-sm font-medium text-foreground outline-none sm:w-auto"
         >
           <option value="">Select barista</option>
           {baristas.map((barista) => (
@@ -328,7 +330,7 @@ function ModifierModalFooter({
         type="button"
         onClick={onAddToCart}
         disabled={disabled}
-        className="mt-5 w-full rounded-full bg-stone-950 px-6 py-4 text-base font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+        className="mt-5 w-full rounded-full bg-primary px-6 py-4 text-base font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Add to cart
       </Button>
@@ -429,10 +431,10 @@ function CustomerModifierContent({
     <div className="grid flex-1 items-start lg:h-[min(90dvh,54rem)] lg:grid-cols-[minmax(0,0.9fr)_minmax(28rem,1.1fr)] lg:items-stretch lg:overflow-hidden">
       <CustomerModifierHero product={product} onClose={onClose} />
 
-      <div className="min-h-0 min-w-0 flex flex-col bg-[#f9f4ee]">
+      <div className="min-h-0 min-w-0 flex flex-col bg-muted/50">
         <div className="border-b border-border px-4 py-4 sm:px-6 hidden sm:block">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-stone-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white">
+            <span className="rounded-full bg-primary px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary-foreground">
               {modifierGroups.length} groups
             </span>
           </div>
@@ -489,7 +491,7 @@ export default function CustomerModifierModal({
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
+        className="max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-card p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Customize {product.name}</DialogTitle>

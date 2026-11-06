@@ -22,7 +22,7 @@ export default function MenuBrowserPanel({
     <section
       data-aos="zoom-in"
       data-aos-delay="100"
-      className="mt-4 rounded-[1.25rem] border border-white/80 bg-card/88 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
+      className="mt-4 rounded-[1.25rem] border border-border bg-card/88 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
     >
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -59,17 +59,21 @@ export default function MenuBrowserPanel({
             <Button
               key={category.id}
               type="button"
+              variant="outline"
+              aria-pressed={active}
               onClick={() => onCategorySelect(category.id)}
               className={`min-w-28 snap-start rounded-full px-4 py-3 text-left text-sm font-semibold transition sm:min-w-32 sm:px-5 ${
                 active
-                  ? "bg-stone-950 text-white shadow-[0_14px_28px_rgba(28,16,10,0.22)]"
-                  : "border border-border bg-card text-foreground hover:border-amber-300 hover:bg-amber-50"
+                  ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground dark:bg-primary dark:hover:bg-primary/90 shadow-sm"
+                  : "border border-border bg-card text-foreground hover:border-ring hover:bg-accent hover:text-accent-foreground dark:bg-card dark:hover:bg-accent"
               }`}
             >
               <div>{category.name}</div>
               <div
                 className={`mt-1 text-[11px] uppercase tracking-[0.18em] ${
-                  active ? "text-stone-200" : "text-muted-foreground"
+                  active
+                    ? "text-primary-foreground/80"
+                    : "text-muted-foreground"
                 }`}
               >
                 {category.count} items

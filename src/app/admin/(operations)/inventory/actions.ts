@@ -89,7 +89,7 @@ export async function createSupply(formData: FormData) {
 }
 
 // Sets a menu product's stock quantity and low-stock threshold.
-export async function updateProductInventory(formData: FormData) {
+async function updateProductInventory(formData: FormData) {
   const user = await requireInventoryAccess();
 
   // Pulls the submitted product inventory fields from the update form.
@@ -119,7 +119,7 @@ export async function updateProductInventory(formData: FormData) {
 }
 
 // Adds to or removes from a menu product's stock level.
-export async function adjustProductInventory(formData: FormData) {
+async function adjustProductInventory(formData: FormData) {
   const user = await requireInventoryAccess();
 
   // Pulls the submitted product adjustment fields from the form.

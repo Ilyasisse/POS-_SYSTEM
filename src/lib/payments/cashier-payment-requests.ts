@@ -11,8 +11,11 @@ export type PaymentRequestLineInput = {
   amount: number;
 };
 
-export async function getOpenTableBalance(tableId: string) {
-  const orders = await prisma.order.findMany({
+async function getOpenTableBalance(
+  tx: Pick<Prisma.TransactionClient, "order">,
+  tableId: string,
+) {
+  const orders = await tx.order.findMany({
     where: { tableId, type: "DINE_IN", status: "OPEN" },
     orderBy: { createdAt: "asc" },
     include: { payments: { select: { amountPaid: true } } },
@@ -45,31 +48,40 @@ export async function createPaymentRequestBatch(input: {
     orderBy: { lineIndex: "asc" },
   });
   if (existing.length) return existing;
-  const dueCents = await getOpenTableBalance(input.tableId);
-  if (dueCents <= 0)
-    throw new Error("This table no longer has an unpaid balance.");
-  const lines = input.lines.map((line) => ({
-    payerName: line.payerName.trim(),
-    payerPhone: line.payerPhone.trim(),
-    amountCents: cents(line.amount),
-  }));
-  if (
-    !lines.length ||
-    lines.some(
-      (line) => !line.payerName || !line.payerPhone || line.amountCents <= 0,
-    )
-  ) {
-    throw new Error("Every payment needs a name, phone number, and amount.");
-  }
-  const requestedCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
-  if (requestedCents > dueCents)
-    throw new Error("Split payments cannot exceed the table balance.");
-  if (requestedCents < dueCents && !input.payLater)
-    throw new Error(
-      "Add another payer or choose Pay later for the remaining balance.",
-    );
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
   return prisma.$transaction(async (tx) => {
+    // Serialize payer creation with table transfers and settlement.
+    await tx.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${input.tableId} FOR UPDATE`,
+    );
+    const existingAfterLock = await tx.paymentRequest.findMany({
+      where: { batchKey: input.batchKey },
+      orderBy: { lineIndex: "asc" },
+    });
+    if (existingAfterLock.length) return existingAfterLock;
+    const dueCents = await getOpenTableBalance(tx, input.tableId);
+    if (dueCents <= 0)
+      throw new Error("This table no longer has an unpaid balance.");
+    const lines = input.lines.map((line) => ({
+      payerName: line.payerName.trim(),
+      payerPhone: line.payerPhone.trim(),
+      amountCents: cents(line.amount),
+    }));
+    if (
+      !lines.length ||
+      lines.some(
+        (line) => !line.payerName || !line.payerPhone || line.amountCents <= 0,
+      )
+    ) {
+      throw new Error("Every payment needs a name, phone number, and amount.");
+    }
+    const requestedCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
+    if (requestedCents > dueCents)
+      throw new Error("Split payments cannot exceed the table balance.");
+    if (requestedCents < dueCents && !input.payLater)
+      throw new Error(
+        "Add another payer or choose Pay later for the remaining balance.",
+      );
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     const requests = await Promise.all(
       lines.map((line, lineIndex) =>
         tx.paymentRequest.create({
@@ -105,7 +117,7 @@ export async function createPaymentRequestBatch(input: {
   });
 }
 
-export async function matchPaymentRequest(input: {
+async function matchPaymentRequest(input: {
   paymentRequestId?: string;
   payerPhone?: string;
   provider?: PaymentMethod;

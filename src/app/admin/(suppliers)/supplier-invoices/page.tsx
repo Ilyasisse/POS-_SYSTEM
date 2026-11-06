@@ -111,10 +111,14 @@ export default async function SupplierInvoicesPage({
       action={
         <>
           <Button asChild>
-            <Link prefetch={false} href="/admin/supplier-invoices/new">Create invoice</Link>
+            <Link prefetch={false} href="/admin/supplier-invoices/new">
+              Create invoice
+            </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link prefetch={false} href="/admin/supplier-purchase-orders">Purchase orders</Link>
+            <Link prefetch={false} href="/admin/supplier-purchase-orders">
+              Purchase orders
+            </Link>
           </Button>
         </>
       }

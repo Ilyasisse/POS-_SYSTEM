@@ -28,7 +28,7 @@ type Supplier = {
 type SupplierEditDialogProps = { supplier: Supplier };
 
 const fieldClass =
-  "h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500";
+  "h-10 rounded-lg border border-border px-3 text-sm outline-none focus:border-blue-500 dark:focus:border-blue-800";
 
 export function SupplierEditDialog({ supplier }: SupplierEditDialogProps) {
   const fieldId = (field: string) => `supplier-${supplier.id}-${field}`;
@@ -127,7 +127,7 @@ export function SupplierEditDialog({ supplier }: SupplierEditDialogProps) {
           </div>
           <Input type="hidden" name="isActive" value="false" />
           <label
-            className="flex items-center gap-2 text-sm font-medium text-slate-700"
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
             htmlFor={fieldId("active")}
           >
             <Input

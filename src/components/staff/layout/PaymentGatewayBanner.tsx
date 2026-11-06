@@ -47,7 +47,7 @@ export default function PaymentGatewayBanner() {
   return (
     <div
       role="alert"
-      className="flex items-start gap-3 border-b border-red-300 bg-red-50 px-4 py-3 text-red-950 dark:border-red-900 dark:bg-red-950 dark:text-red-50"
+      className="flex items-start gap-3 border-b border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-4 py-3 text-red-950 dark:text-red-300 dark:border-red-900 dark:bg-red-950 dark:text-red-50"
     >
       <TriangleAlert aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
       <div>

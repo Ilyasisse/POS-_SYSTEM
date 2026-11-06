@@ -103,15 +103,12 @@ export default function SupplierBillsTable({
               const hasInstallments = bill.installments.length > 0;
 
               return (
-                <tr
-                  key={bill.id}
-                  className="border-t border-slate-100 align-top"
-                >
+                <tr key={bill.id} className="border-t border-border align-top">
                   <TableCell>
                     <Link
                       prefetch={false}
                       href={`/admin/supplier-invoices/${invoice.id}`}
-                      className="font-bold text-blue-600"
+                      className="font-bold text-blue-600 dark:text-blue-300"
                     >
                       {invoice.supplierName}
                     </Link>
@@ -129,7 +126,7 @@ export default function SupplierBillsTable({
                         href={invoice.receiptUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs font-bold text-slate-500 underline"
+                        className="text-xs font-bold text-muted-foreground underline"
                       >
                         Receipt image
                       </a>
@@ -169,7 +166,7 @@ export default function SupplierBillsTable({
                             return (
                               <div
                                 key={installment.id}
-                                className="rounded border bg-slate-50 p-2"
+                                className="rounded border bg-card p-2"
                               >
                                 <div className="flex justify-between gap-2">
                                   <span>
@@ -193,7 +190,7 @@ export default function SupplierBillsTable({
                           })}
                         </div>
                       ) : bill.status === "PAID" ? (
-                        <p className="text-xs font-bold text-slate-600">
+                        <p className="text-xs font-bold text-muted-foreground">
                           {bill.dueDate.toLocaleDateString("en-US", {
                             timeZone: "UTC",
                           })}
@@ -208,7 +205,7 @@ export default function SupplierBillsTable({
                   </TableCell>
                   <TableCell>
                     {money(Number(bill.totalAmount.toString()))}
-                    <div className="text-sm text-red-500">
+                    <div className="text-sm text-red-500 dark:text-red-300">
                       Balance {money(remaining)}
                     </div>
                   </TableCell>
@@ -233,7 +230,7 @@ export default function SupplierBillsTable({
                       ? bill.payments.map((payment) => (
                           <div
                             key={payment.id}
-                            className="mb-2 border-b border-slate-100 pb-2 text-xs last:border-0"
+                            className="mb-2 border-b border-border pb-2 text-xs last:border-0"
                           >
                             <strong>
                               {money(payment.allocatedAmount)} applied
@@ -241,7 +238,7 @@ export default function SupplierBillsTable({
                             · {payment.paymentMethod || "Unspecified"}
                             {payment.totalPaymentAmount !==
                             payment.allocatedAmount ? (
-                              <div className="text-slate-500">
+                              <div className="text-muted-foreground">
                                 From {money(payment.totalPaymentAmount)}{" "}
                                 supplier payment
                               </div>
@@ -250,7 +247,7 @@ export default function SupplierBillsTable({
                             {payment.recordedBy.fullName} ·{" "}
                             {payment.paidAt.toLocaleDateString()}
                             {payment.dailyCashBusinessDate ? (
-                              <div className="text-slate-500">
+                              <div className="text-muted-foreground">
                                 Daily Cash {payment.dailyCashBusinessDate}
                               </div>
                             ) : null}
