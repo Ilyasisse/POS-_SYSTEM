@@ -115,11 +115,11 @@ export default async function AdminCategoriesPage({
               </tr>
             ) : (
               categoriesList.map((category, index) => (
-                <tr key={category.id} className="border-b border-slate-50">
-                  <TableCell className="font-bold text-slate-400">
+                <tr key={category.id} className="border-b border-border">
+                  <TableCell className="font-bold text-muted-foreground">
                     {(currentPage - 1) * pageSize + index + 1}
                   </TableCell>
-                  <TableCell className="font-black text-slate-950">
+                  <TableCell className="font-black text-foreground">
                     {category.name}
                   </TableCell>
                   <TableCell>

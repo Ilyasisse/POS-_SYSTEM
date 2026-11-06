@@ -241,7 +241,7 @@ function OperationalAlertsPanel({ alerts }: { alerts: Alert[] }) {
         </p>
       </div>
       {alerts.length === 0 ? (
-        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+        <p className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
           No unusual activity detected.
         </p>
       ) : (
@@ -251,8 +251,8 @@ function OperationalAlertsPanel({ alerts }: { alerts: Alert[] }) {
               key={alert.id}
               className={`rounded-xl border px-4 py-3 ${
                 alert.tone === "danger"
-                  ? "border-red-200 bg-red-50 text-red-800"
-                  : "border-amber-200 bg-amber-50 text-amber-900"
+                  ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300"
+                  : "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-300"
               }`}
             >
               <p className="font-semibold">{alert.title}</p>
@@ -294,7 +294,7 @@ function WaiterBalanceManagement({
           <AutoSubmitSelect
             name="waiterId"
             defaultValue={selectedWaiterId}
-            className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500"
+            className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500 dark:focus:border-blue-800"
           >
             {waiters.length === 0 ? (
               <option value="">No waiters found</option>
@@ -343,7 +343,7 @@ function WaiterBalanceManagement({
               Defaults to $0.00, or yesterday&apos;s negative carry-over.
             </p>
             {showNextShiftCarryOver ? (
-              <p className="mt-2 text-xs font-semibold text-red-600">
+              <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-300">
                 Next shift carry-over: {formatMoney(recommendedOpeningAmount)}
               </p>
             ) : null}
@@ -355,7 +355,7 @@ function WaiterBalanceManagement({
               Boolean(selectedWaiterIsClosed) ||
               Boolean(selectedWaiterHasOpenShift)
             }
-            className="mt-4 rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="mt-4 rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Start shift
           </Button>
@@ -382,14 +382,14 @@ function WaiterBalanceManagement({
                 ) ??
                 ""
               }
-              className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500"
+              className="w-full rounded-xl border border-border px-4 py-2 outline-none focus:border-blue-500 dark:focus:border-blue-800"
               placeholder="0.00"
             />
           </label>
           <Button
             type="submit"
             disabled={!selectedWaiterId || Boolean(selectedWaiterIsClosed)}
-            className="mt-4 rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="mt-4 rounded-xl bg-primary px-4 py-2 font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Close balance
           </Button>
@@ -397,7 +397,7 @@ function WaiterBalanceManagement({
             <Button
               type="submit"
               formAction={reopenWaiterBalanceFromManager}
-              className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 font-semibold text-amber-800 hover:bg-amber-100"
+              className="mt-3 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-2 font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
             >
               Reopen balance
             </Button>
@@ -454,7 +454,7 @@ function SelectedWaiterSummaryCard({
               className={`mt-1 font-semibold ${
                 selectedWaiterSummary.shiftSummary.variance != null &&
                 selectedWaiterSummary.shiftSummary.variance < 0
-                  ? "text-red-600"
+                  ? "text-red-600 dark:text-red-300"
                   : "text-foreground"
               }`}
             >
@@ -591,7 +591,7 @@ function WaiterBalanceSummaryTable({
                   className={`px-4 py-3 ${
                     staff.shiftSummary.variance != null &&
                     staff.shiftSummary.variance < 0
-                      ? "font-semibold text-red-600"
+                      ? "font-semibold text-red-600 dark:text-red-300"
                       : ""
                   }`}
                 >

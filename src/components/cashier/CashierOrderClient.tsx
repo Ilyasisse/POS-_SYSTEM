@@ -208,7 +208,7 @@ function CashierProductPicker({
           <NativeSelect
             value={selectedTableId}
             onChange={(event) => onTableSelect(event.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 font-semibold outline-none focus:border-blue-500"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 font-semibold outline-none focus:border-blue-500 dark:focus:border-blue-800"
           >
             {tables.length === 0 ? (
               <option value="">No active tables</option>
@@ -262,7 +262,7 @@ function CurrentTableOrderPanel({
   onPlayFullOrder,
 }: CurrentTableOrderPanelProps) {
   return (
-    <section className="space-y-4 rounded-2xl border border-border bg-card/95 p-4 shadow-xl shadow-slate-300/40">
+    <section className="space-y-4 rounded-2xl border border-border bg-card/95 p-4 shadow-xl shadow-black/40">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-foreground">
@@ -301,14 +301,14 @@ function CurrentTableOrderPanel({
           onChange={(event) => onOrderNoteChange(event.target.value)}
           placeholder="Fadlan halkan ku qor qoraallada dalabka..."
           rows={3}
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200"
+          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none transition focus:border-[#4F7CFF] focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800"
         />
       </label>
 
-      <div className="space-y-1 rounded-xl bg-slate-900 p-4 text-sm text-slate-100">
+      <div className="space-y-1 rounded-xl bg-primary p-4 text-sm text-primary-foreground">
         <div className="flex justify-between text-lg">
           <span>Totalka</span>
-          <span className="text-green-300">
+          <span className="text-green-700 dark:text-green-300">
             ${roundToTwo(total).toFixed(2)}
           </span>
         </div>
@@ -317,8 +317,9 @@ function CurrentTableOrderPanel({
       <div className="grid grid-cols-2 gap-2">
         <Button
           type="button"
+          variant="secondary"
           onClick={onClearOrder}
-          className="min-h-11 rounded-lg bg-muted text-sm font-semibold text-foreground"
+          className="min-h-11 rounded-lg text-sm font-semibold"
         >
           Nadiifi
         </Button>
@@ -326,7 +327,7 @@ function CurrentTableOrderPanel({
         <Button
           type="button"
           onClick={onSendOrder}
-          className="min-h-11 rounded-lg bg-[#2E7D32] text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-lg bg-success text-sm font-semibold text-success-foreground hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={isDisabled}
         >
           {isSubmitting ? "Fadlan sug..." : "Send to kitchen"}
@@ -337,19 +338,19 @@ function CurrentTableOrderPanel({
         type="button"
         onClick={onPlayFullOrder}
         disabled={cart.length === 0}
-        className="min-h-10 w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className="min-h-10 w-full rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Ciyaar codka dalabka
       </Button>
 
       {statusMessage ? (
-        <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+        <p className="rounded-lg bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
           {statusMessage}
         </p>
       ) : null}
 
       {lastOrderMessage ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+        <p className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
           {lastOrderMessage}
         </p>
       ) : null}
@@ -357,7 +358,7 @@ function CurrentTableOrderPanel({
   );
 }
 
-export default function CashierOrderClient({
+function CashierOrderClient({
   tables,
   initialTableId = "",
 }: CashierOrderClientProps) {

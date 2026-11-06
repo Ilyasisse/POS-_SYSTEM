@@ -15,7 +15,7 @@ import { createSupplier } from "./actions";
 import { SupplierEditDialog } from "./SupplierEditDialog";
 
 const fieldClass =
-  "h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500";
+  "h-10 rounded-lg border border-border px-3 text-sm outline-none focus:border-blue-500 dark:focus:border-blue-800";
 
 function Fields({
   supplier,
@@ -79,7 +79,7 @@ function Fields({
       <Input type="hidden" name="isActive" value="false" />
       <label
         htmlFor={activeInputId}
-        className="flex items-center gap-2 text-md font-semibold text-slate-700"
+        className="flex items-center gap-2 text-md font-semibold text-foreground"
       >
         <Input
           id={activeInputId}
@@ -111,7 +111,9 @@ export default async function SuppliersPage() {
       description="Manage supplier contacts, catalogs, purchase orders, and invoice history."
       action={
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/admin/supplier-invoices">View supplier invoices</Link>
+          <Link prefetch={false} href="/admin/supplier-invoices">
+            View supplier invoices
+          </Link>
         </Button>
       }
     >
@@ -122,7 +124,7 @@ export default async function SuppliersPage() {
           className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
         >
           <Fields />
-          <Button className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white">
+          <Button className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">
             Create supplier
           </Button>
         </form>
@@ -145,7 +147,7 @@ export default async function SuppliersPage() {
               suppliers.map((supplier) => (
                 <tr
                   key={supplier.id}
-                  className="border-t border-slate-100 align-top"
+                  className="border-t border-border align-top"
                 >
                   <TableCell>
                     <div className="font-black">{supplier.name}</div>
@@ -155,7 +157,7 @@ export default async function SuppliersPage() {
                   </TableCell>
                   <TableCell>
                     <div>{supplier.contactName || "No contact name"}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {supplier.phone || supplier.email || "No contact details"}
                     </div>
                   </TableCell>
@@ -205,7 +207,10 @@ export default async function SuppliersPage() {
                       size="sm"
                       className="mt-2"
                     >
-                      <Link prefetch={false} href={`/admin/suppliers/${supplier.id}`}>
+                      <Link
+                        prefetch={false}
+                        href={`/admin/suppliers/${supplier.id}`}
+                      >
                         Manage catalog
                       </Link>
                     </Button>
