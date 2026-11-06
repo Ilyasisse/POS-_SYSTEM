@@ -5,10 +5,16 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { afterCashierItemAdded } from "@/lib/cashier/cashier-presentation";
+import { useToast } from "@/components/ui/toast";
+import CashierMenu from "./CashierMenu";
+import { useAos } from "@/components/AosInitializer";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,21 +23,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAos } from "@/components/AosInitializer";
 import { useWaiterCart } from "@/hooks/waiter/useWaiterCart";
 import { useWaiterData } from "@/hooks/waiter/useWaiterData";
 import type { Category, Product } from "@/lib/types";
-import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
-import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
-import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet, {
-  CustomerCartPanel,
-} from "@/components/customer/CustomerCartSheet";
-import {
-  bodyFont,
-  displayFont,
-} from "@/components/customer/customer-order-styles";
+import CustomerCartSheet, { CustomerCartPanel } from "@/components/customer/CustomerCartSheet";
 import {
   buildModifierLines,
   getProductModifierGroups,
@@ -96,7 +92,7 @@ function reducer(state: State, action: Action): State {
     case "cleared":
       return { ...state, orderNote: "", message: "", error: "" };
     case "added":
-      return { ...state, cartOpen: true, message: "", error: "" };
+      return afterCashierItemAdded(state);
     case "submitting":
       return {
         ...state,
@@ -163,13 +159,10 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-border bg-card p-6 sm:p-8"
+        className="border-border bg-card max-h-[90dvh] overflow-y-auto rounded-2xl border p-4 sm:max-w-2xl sm:p-6"
       >
         <DialogHeader>
-          <DialogTitle
-            className="text-center text-3xl text-foreground sm:text-4xl"
-            style={{ fontFamily: displayFont }}
-          >
+          <DialogTitle className="text-foreground text-center text-3xl sm:text-4xl">
             Select an available table
           </DialogTitle>
           <DialogDescription className="text-center text-base">
@@ -184,17 +177,20 @@ function TablePicker({
                 type="button"
                 variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-border bg-card text-xl font-semibold text-foreground shadow-sm hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent"
+                className="border-border bg-card text-foreground hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent min-h-24 rounded-[1.5rem] border text-xl font-semibold shadow-sm"
               >
                 {table.name}
               </Button>
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-border p-8 text-center text-muted-foreground">
+          <div className="border-border text-muted-foreground mt-4 rounded-[1.5rem] border border-dashed p-8 text-center">
             Every active table is currently occupied.
           </div>
         )}
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href="/cashier">Back to tables</Link>
+        </Button>
       </DialogContent>
     </Dialog>
   );
@@ -207,11 +203,11 @@ export default function CashierOrderExperience({
 }: Props) {
   const isTakeaway = orderType === "TAKEOUT";
   const router = useRouter();
+  const sendingRef = useRef(false);
+  const { toast } = useToast();
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
-    tableId: tables.some((table) => table.id === initialTableId)
-      ? initialTableId
-      : "",
+    tableId: tables.some((table) => table.id === initialTableId) ? initialTableId : "",
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
@@ -224,14 +220,8 @@ export default function CashierOrderExperience({
     error: "",
   });
   const { productsAll, categories, baristas, loading } = useWaiterData();
-  const {
-    cart,
-    addToCart,
-    changeQuantity,
-    removeFromCart,
-    clearCart,
-    calculateCartTotal,
-  } = useWaiterCart();
+  const { cart, addToCart, changeQuantity, removeFromCart, clearCart, calculateCartTotal } =
+    useWaiterCart();
   const deferredSearch = useDeferredValue(state.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const products = useMemo(
@@ -242,51 +232,35 @@ export default function CashierOrderExperience({
       })),
     [productsAll],
   );
-  const menuCategories = useMemo(
-    () => getCategories(categories, products),
-    [categories, products],
-  );
+  const menuCategories = useMemo(() => getCategories(categories, products), [categories, products]);
   const categoryChips = useMemo(
     () => [
       { id: "all", name: "All", count: products.length },
       ...menuCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: products.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: products.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [menuCategories, products],
   );
-  const selectedCategory = categoryChips.some(
-    (category) => category.id === state.categoryId,
-  )
+  const selectedCategory = categoryChips.some((category) => category.id === state.categoryId)
     ? state.categoryId
     : "all";
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
     return products.filter(
       (product) =>
-        (selectedCategory === "all" ||
-          product.category?.id === selectedCategory) &&
+        (selectedCategory === "all" || product.category?.id === selectedCategory) &&
         (!term ||
           product.name.toLowerCase().includes(term) ||
           (product.description ?? "").toLowerCase().includes(term)),
     );
   }, [deferredSearch, products, selectedCategory]);
-  const tableName =
-    tables.find((table) => table.id === state.tableId)?.name ?? "";
+  const tableName = tables.find((table) => table.id === state.tableId)?.name ?? "";
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
-  useAos(
-    cart.length,
-    state.cartOpen,
-    filteredProducts.length,
-    isFiltering,
-    state.modifierOpen,
-    selectedCategory,
-  );
+  useAos(state.cartOpen, state.modifierOpen, cart.length);
 
   function addProduct(product: Product) {
     if (product.category?.station === "BARISTA" && !baristas.length) {
@@ -307,6 +281,7 @@ export default function CashierOrderExperience({
       finalPrice: Number(product.price) || 0,
     });
     dispatch({ type: "added" });
+    toast({ tone: "success", description: `${product.name} added to the current order.` });
   }
 
   function confirmModifiers(
@@ -315,27 +290,24 @@ export default function CashierOrderExperience({
     baristaId: string | null,
   ) {
     const modifiers = buildModifierLines(product, selected);
-    const barista = baristaId
-      ? baristas.find((item) => item.id === baristaId)
-      : null;
+    const barista = baristaId ? baristas.find((item) => item.id === baristaId) : null;
     addToCart({
       ...product,
       station: product.category?.station ?? null,
       selectedModifiers: modifiers,
       finalPrice:
         (Number(product.price) || 0) +
-        modifiers.reduce(
-          (sum, modifier) => sum + modifier.price * modifier.qty,
-          0,
-        ),
+        modifiers.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0),
       assignedUserId: barista?.id ?? null,
       assignedUserName: barista?.fullName ?? null,
     });
     dispatch({ type: "modifierClose" });
     dispatch({ type: "added" });
+    toast({ tone: "success", description: `${product.name} added to the current order.` });
   }
 
   async function sendOrder() {
+    if (sendingRef.current) return;
     if (!isTakeaway && !state.tableId) {
       dispatch({
         type: "failed",
@@ -354,6 +326,7 @@ export default function CashierOrderExperience({
       });
       return;
     }
+    sendingRef.current = true;
     try {
       dispatch({ type: "submitting" });
       const response = await fetch(isTakeaway ? "/api/orders" : "/api/orders/table", {
@@ -376,8 +349,7 @@ export default function CashierOrderExperience({
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "The order could not be sent.");
+      if (!response.ok) throw new Error(data?.error || "The order could not be sent.");
       clearCart();
       router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
       router.refresh();
@@ -387,63 +359,63 @@ export default function CashierOrderExperience({
         error: error instanceof Error ? error.message : "Something went wrong.",
       });
     } finally {
+      sendingRef.current = false;
       dispatch({ type: "finished" });
     }
   }
 
   return (
-    <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
-      style={{ fontFamily: bodyFont }}
-    >
+    <main className="bg-muted/35 text-foreground min-h-dvh pb-28 lg:pb-6">
       <TablePicker
         open={!isTakeaway && !state.tableId}
         tables={tables}
         onSelect={(value) => dispatch({ type: "table", value })}
       />
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
-        <CustomerOrderHeader
-          title="Cashier order"
-          subtitle={
-            isTakeaway
-              ? "Takeaway · paid at the counter"
-              : tableName
-                ? `Ordering for ${tableName}`
-                : "Select a table to begin"
-          }
-          resetLabel="Clear order"
-          cartLabel="Order"
-          cartSubtotal={cartSubtotal}
-          cartCount={cartCount}
-          hideCartOnDesktop
-          onReset={() => {
-            clearCart();
-            dispatch({ type: "cleared" });
-          }}
-          onOpenCart={() => dispatch({ type: "cartOpen" })}
-        />
+        <header className="bg-card mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4">
+          <div className="min-w-0">
+            <Link
+              href="/cashier"
+              className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
+            >
+              Back to tables
+            </Link>
+            <h1 className="text-2xl font-bold">{isTakeaway ? "Takeaway order" : "Add items"}</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {isTakeaway
+                ? "Takeaway · paid at the counter"
+                : tableName
+                  ? `Ordering for ${tableName}`
+                  : "Select a table to begin"}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={!cart.length || state.submitting}
+            onClick={() => {
+              if (window.confirm("Clear this unsent order?")) {
+                clearCart();
+                dispatch({ type: "cleared" });
+              }
+            }}
+          >
+            Clear order
+          </Button>
+        </header>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
-            <MenuBrowserPanel
-              searchTerm={state.searchTerm}
-              categoryChips={categoryChips}
-              selectedCategory={selectedCategory}
-              onSearchChange={(value) => dispatch({ type: "search", value })}
-              onCategorySelect={(value) =>
-                startFiltering(() => dispatch({ type: "category", value }))
-              }
-            />
-            <ProductGridPanel
-              loading={loading}
-              filteredProducts={filteredProducts}
+            <CashierMenu
+              search={state.searchTerm}
+              onSearch={(value) => dispatch({ type: "search", value })}
+              categories={categoryChips}
+              category={selectedCategory}
+              onCategory={(value) => startFiltering(() => dispatch({ type: "category", value }))}
+              products={filteredProducts}
               baristas={baristas}
-              selectedCategoryName={
-                categoryChips.find(
-                  (category) => category.id === selectedCategory,
-                )?.name ?? "All"
-              }
-              isFiltering={isFiltering}
-              onProductClick={addProduct}
+              loading={loading || isFiltering}
+              disabled={state.submitting}
+              onAdd={addProduct}
             />
           </div>
           <CustomerCartPanel
@@ -465,9 +437,7 @@ export default function CashierOrderExperience({
             paymentMethod={isTakeaway ? state.paymentMethod : undefined}
             checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
             onPaymentMethodChange={
-              isTakeaway
-                ? (value) => dispatch({ type: "paymentMethod", value })
-                : undefined
+              isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
             }
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
@@ -479,6 +449,22 @@ export default function CashierOrderExperience({
           />
         </div>
       </div>
+      {!state.cartOpen && (isTakeaway || state.tableId) ? (
+        <div className="bg-card fixed inset-x-0 bottom-0 z-20 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm lg:hidden">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <p role="status" className="min-w-0 text-sm">
+              <strong className="block truncate">{isTakeaway ? "Takeaway" : tableName}</strong>
+              {cartCount} items · ${cartSubtotal.toFixed(2)}
+            </p>
+            <Button
+              className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800"
+              onClick={() => dispatch({ type: "cartOpen" })}
+            >
+              View order
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <CustomerModifierModal
         open={state.modifierOpen}
         product={state.selectedProduct}
@@ -506,9 +492,7 @@ export default function CashierOrderExperience({
         paymentMethod={isTakeaway ? state.paymentMethod : undefined}
         checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
         onPaymentMethodChange={
-          isTakeaway
-            ? (value) => dispatch({ type: "paymentMethod", value })
-            : undefined
+          isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
         }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
