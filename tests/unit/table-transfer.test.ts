@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import { Prisma } from "@prisma/client";
+import { preparePaymentRequestLines } from "../../src/lib/payments/payment-request-lines";
 import { assertTableTransferAllowed } from "../../src/lib/cashier/table-transfer-validation";
 
 const valid = {
@@ -57,6 +58,7 @@ function loadService(path: string, prisma: unknown) {
       if (name === "@/lib/prisma") return { prisma };
       if (name === "@/lib/cashier/table-transfer-validation") return { assertTableTransferAllowed };
       if (name === "@/lib/cashier/table-checks") return {};
+      if (name === "@/lib/payments/payment-request-lines") return { preparePaymentRequestLines };
       throw new Error(`Unexpected dependency: ${name}`);
     },
   });
@@ -127,4 +129,24 @@ test("payer retry returns a batch created while waiting for the table lock", asy
     }),
   });
   assert.equal(await service.createPaymentRequestBatch(batchInput as never), existing);
+});
+
+test("locked batch creation persists each payer's selected provider", async () => {
+  const saved: Array<{ method: string; expectedAmount: Prisma.Decimal }> = [];
+  const service = loadService("src/lib/payments/cashier-payment-requests.ts", {
+    paymentRequest: { findMany: async () => [] },
+    $transaction: async (run: (tx: unknown) => Promise<unknown>) => run({
+      $queryRaw: async () => [],
+      order: { findMany: async () => [{ total: 10, payments: [] }] },
+      paymentRequest: {
+        findMany: async () => [],
+        create: async ({ data }: { data: { method: string; expectedAmount: Prisma.Decimal } }) => { saved.push(data); return data; },
+      },
+    }),
+  });
+  await service.createPaymentRequestBatch({ ...batchInput, method: undefined, lines: [
+    { payerName: "Guest one", payerPhone: "123", amount: 4, method: "GOLIS" },
+    { payerName: "Guest two", payerPhone: "456", amount: 6, method: "MYCASH" },
+  ] } as never);
+  assert.deepEqual(saved.map((row) => [row.method, row.expectedAmount.toFixed(2)]), [["GOLIS", "4.00"], ["MYCASH", "6.00"]]);
 });
