@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 /** 60s fallback keeps reports current when private realtime is unavailable. */
-export function useReportRefresh(intervalMs = 60_000) {
+function useReportRefresh(intervalMs = 60_000) {
   const router = useRouter();
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const busy = useRef(false);

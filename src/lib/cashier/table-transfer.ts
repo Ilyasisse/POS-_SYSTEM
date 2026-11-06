@@ -26,6 +26,12 @@ export async function transferOpenTableService(input: {
       Prisma.sql`SELECT "id" FROM "Table" WHERE "id" IN (${Prisma.join(tableIds)}) ORDER BY "id" FOR UPDATE`,
     );
 
+    // Receipt assignment locks payer rows before touching their orders.
+    // Follow that order before reading balances or relocating the service.
+    await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT "id" FROM "PaymentRequest" WHERE "tableId" = ${sourceTableId} AND "status" IN ('PENDING', 'PARTIALLY_MATCHED') ORDER BY "id" FOR UPDATE`,
+    );
+
     const [tables, sourceOpenOrderCount, targetOpenOrderCount] =
       await Promise.all([
         tx.table.findMany({
@@ -65,7 +71,10 @@ export async function transferOpenTableService(input: {
         data: { tableId: targetTableId },
       }),
       tx.paymentRequest.updateMany({
-        where: { tableId: sourceTableId, status: "PENDING" },
+        where: {
+          tableId: sourceTableId,
+          status: { in: ["PENDING", "PARTIALLY_MATCHED"] },
+        },
         data: { tableId: targetTableId },
       }),
       tx.paymentDeferral.updateMany({

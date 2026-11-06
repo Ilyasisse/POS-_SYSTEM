@@ -14,7 +14,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
 import { cancelScheduleAction, createScheduleAction } from "../actions";
 
-const label = "grid gap-1 text-sm font-semibold text-slate-700";
+const label = "grid gap-1 text-sm font-semibold text-foreground";
 
 export default async function StaffSchedulesPage() {
   await requirePermission(PERMISSIONS.ATTENDANCE_SCHEDULE);

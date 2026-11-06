@@ -1,13 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { calculatePayrollLine, money } from "./payroll-formulas";
 
-export {
-  attendanceMinutes,
-  attendanceOutcome,
-  calculatePayrollLine,
-} from "./payroll-formulas";
-
-export async function assertNoFinalizedPayroll(
+async function assertNoFinalizedPayroll(
   workerId: string,
   periodStart: Date,
   periodEnd: Date,
@@ -29,7 +23,7 @@ export async function assertNoFinalizedPayroll(
     );
 }
 
-export async function buildPayrollRun(input: {
+async function buildPayrollRun(input: {
   periodStart: Date;
   periodEnd: Date;
   actorUserId: string;
