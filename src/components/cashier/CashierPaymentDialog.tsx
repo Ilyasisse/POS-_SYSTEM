@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { receiptAssignmentIssue } from "@/lib/cashier/cashier-presentation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,10 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToast } from "@/components/ui/toast";
-import {
-  MAX_EQUAL_SPLIT_PEOPLE,
-  splitBillEqually,
-} from "@/lib/payments/equal-bill-split";
+import { MAX_EQUAL_SPLIT_PEOPLE, splitBillEqually } from "@/lib/payments/equal-bill-split";
 
 type Line = {
   id: string;
@@ -82,6 +81,12 @@ export default function CashierPaymentDialog({
   showEqualSplit: boolean;
 }) {
   const { toast } = useToast();
+  const router = useRouter();
+  const mutationRef = useRef(false);
+  const refreshVersion = useRef(0);
+  const [viewPayers, setViewPayers] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState("");
   const [equalSplitCount, setEqualSplitCount] = useState("2");
@@ -101,55 +106,63 @@ export default function CashierPaymentDialog({
   const [tab, setTab] = useState<ReceiptTab>("AVAILABLE");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [attempted, setAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [busyReceiptId, setBusyReceiptId] = useState("");
   const [canManage, setCanManage] = useState(false);
-  const [reversalReasons, setReversalReasons] = useState<
-    Record<string, string>
-  >({});
+  const [reversalReasons, setReversalReasons] = useState<Record<string, string>>({});
 
   const entered = useMemo(
     () => lines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0),
     [lines],
   );
   const remaining = Math.max(0, amountDue - entered);
-  const complete =
-    requests.length > 0 && requests.every((item) => item.status === "MATCHED");
-  const selectedRequest =
-    requests.find((item) => item.id === selectedRequestId) ?? null;
+  const complete = requests.length > 0 && requests.every((item) => item.status === "MATCHED");
+  const selectedRequest = requests.find((item) => item.id === selectedRequestId) ?? null;
 
   const refresh = useCallback(async () => {
-    const calls: Promise<Response>[] = [
-      fetch("/api/cashier/payment-receipts", { cache: "no-store" }),
-    ];
-    if (batchKey)
-      calls.push(
-        fetch(
-          `/api/cashier/payment-requests?batchKey=${encodeURIComponent(batchKey)}`,
-          { cache: "no-store" },
-        ),
-      );
-    const [receiptResponse, requestResponse] = await Promise.all(calls);
-    if (receiptResponse.ok) {
-      const data = await receiptResponse.json();
-      setReceipts(data.receipts ?? []);
-      setCanManage(data.canManage === true);
-    }
-    if (requestResponse?.ok) {
-      const data = await requestResponse.json();
-      setRequests(data.requests ?? []);
+    const version = ++refreshVersion.current;
+    try {
+      const [receiptResponse, requestResponse] = await Promise.all([
+        fetch("/api/cashier/payment-receipts", { cache: "no-store" }),
+        fetch(`/api/cashier/payment-requests?batchKey=${encodeURIComponent(batchKey)}`, {
+          cache: "no-store",
+        }),
+      ]);
+      if (!receiptResponse.ok || !requestResponse.ok)
+        throw new Error("Could not refresh payments. Check your connection and retry.");
+      const [receiptData, requestData] = await Promise.all([
+        receiptResponse.json(),
+        requestResponse.json(),
+      ]);
+      if (version !== refreshVersion.current) return;
+      setReceipts(receiptData.receipts ?? []);
+      setCanManage(receiptData.canManage === true);
+      setRequests(requestData.requests ?? []);
+      setLoaded(true);
+      setSyncError("");
+    } catch (reason) {
+      if (version === refreshVersion.current)
+        setSyncError(reason instanceof Error ? reason.message : "Could not refresh payments.");
     }
   }, [batchKey]);
 
+  const invalidateRefresh = useCallback(() => {
+    ++refreshVersion.current;
+  }, []);
   useEffect(() => {
     if (!open || !batchKey) return;
-    const initial = window.setTimeout(() => void refresh(), 0);
-    const timer = window.setInterval(() => void refresh(), 2500);
+    const poll = () => {
+      if (document.visibilityState === "visible" && !mutationRef.current) void refresh();
+    };
+    const initial = window.setTimeout(poll, 0);
+    const timer = window.setInterval(poll, 2500);
     return () => {
+      invalidateRefresh();
       window.clearTimeout(initial);
       window.clearInterval(timer);
     };
-  }, [batchKey, open, refresh]);
+  }, [batchKey, open, refresh, invalidateRefresh]);
 
   const visibleReceipts = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -167,15 +180,9 @@ export default function CashierPaymentDialog({
     );
   }, [receipts, search, tab]);
 
-  function updateLine(
-    id: string,
-    field: keyof Omit<Line, "id">,
-    value: string,
-  ) {
+  function updateLine(id: string, field: keyof Omit<Line, "id">, value: string) {
     setLines((current) =>
-      current.map((line) =>
-        line.id === id ? { ...line, [field]: value } : line,
-      ),
+      current.map((line) => (line.id === id ? { ...line, [field]: value } : line)),
     );
   }
 
@@ -194,16 +201,29 @@ export default function CashierPaymentDialog({
       setPayLater(false);
       setError("");
     } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Could not split the bill.",
-      );
+      setError(reason instanceof Error ? reason.message : "Could not split the bill.");
     }
   }
 
   async function startChecks() {
+    if (mutationRef.current) return;
+    setAttempted(true);
     setError("");
+    if (
+      lines.some(
+        (line) =>
+          !line.payerName.trim() ||
+          !line.payerPhone.trim() ||
+          !Number.isFinite(Number(line.amount)) ||
+          Number(line.amount) <= 0,
+      )
+    ) {
+      setError("Check the highlighted payer fields.");
+      return;
+    }
     if (!method) return setError("Select a payment method first.");
     const key = crypto.randomUUID();
+    mutationRef.current = true;
     setSubmitting(true);
     try {
       const response = await fetch("/api/cashier/payment-requests", {
@@ -222,9 +242,9 @@ export default function CashierPaymentDialog({
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not start payment checks.");
+      if (!response.ok) throw new Error(data.error || "Could not start payment checks.");
       setBatchKey(key);
+      setViewPayers(false);
       setRequests(
         (data.requests ?? []).map((item: RequestLine) => ({
           ...item,
@@ -235,36 +255,39 @@ export default function CashierPaymentDialog({
       setSelectedRequestId(data.requests?.[0]?.id ?? "");
       toast({
         tone: "success",
-        description:
-          "Payment rows are ready. Choose an incoming SAHAL receipt.",
+        description: "Payment rows are ready. Choose an incoming SAHAL receipt.",
       });
     } catch (reason) {
-      const message =
-        reason instanceof Error
-          ? reason.message
-          : "Could not start payment checks.";
+      const message = reason instanceof Error ? reason.message : "Could not start payment checks.";
       setError(message);
       toast({ tone: "error", description: message });
     } finally {
+      mutationRef.current = false;
       setSubmitting(false);
     }
   }
 
   async function assignReceipt(receipt: Receipt) {
+    if (
+      mutationRef.current ||
+      !loaded ||
+      syncError ||
+      receiptAssignmentIssue(selectedRequest, receipt)
+    )
+      return;
     if (!selectedRequest) return;
+    mutationRef.current = true;
+    ++refreshVersion.current;
+    setLoaded(false);
     setBusyReceiptId(receipt.id);
     try {
-      const response = await fetch(
-        `/api/cashier/payment-receipts/${receipt.id}/assign`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentRequestId: selectedRequest.id }),
-        },
-      );
+      const response = await fetch(`/api/cashier/payment-receipts/${receipt.id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentRequestId: selectedRequest.id }),
+      });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not assign this receipt.");
+      if (!response.ok) throw new Error(data.error || "Could not assign this receipt.");
       toast({
         tone: "success",
         description: `${money(receipt.amount ?? 0)} assigned to ${selectedRequest.payerName}.`,
@@ -273,425 +296,481 @@ export default function CashierPaymentDialog({
     } catch (reason) {
       toast({
         tone: "error",
-        description:
-          reason instanceof Error
-            ? reason.message
-            : "Could not assign this receipt.",
+        description: reason instanceof Error ? reason.message : "Could not assign this receipt.",
       });
     } finally {
+      mutationRef.current = false;
       setBusyReceiptId("");
     }
   }
 
   async function reverseReceipt(receipt: Receipt) {
+    if (mutationRef.current) return;
     const reason = reversalReasons[receipt.id]?.trim();
     if (!reason)
       return void toast({
         tone: "warning",
         description: "Enter a reason before reversing the assignment.",
       });
+    mutationRef.current = true;
+    ++refreshVersion.current;
+    setLoaded(false);
     setBusyReceiptId(receipt.id);
     try {
-      const response = await fetch(
-        `/api/manager/payment-receipts/${receipt.id}/reverse`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reason }),
-        },
-      );
+      const response = await fetch(`/api/manager/payment-receipts/${receipt.id}/reverse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not reverse this assignment.");
+      if (!response.ok) throw new Error(data.error || "Could not reverse this assignment.");
       setReversalReasons((current) => ({ ...current, [receipt.id]: "" }));
       toast({
         tone: "success",
-        description:
-          "Receipt assignment reversed and recorded in the audit log.",
+        description: "Receipt assignment reversed and recorded in the audit log.",
       });
       await refresh();
     } catch (reasonValue) {
       toast({
         tone: "error",
         description:
-          reasonValue instanceof Error
-            ? reasonValue.message
-            : "Could not reverse this assignment.",
+          reasonValue instanceof Error ? reasonValue.message : "Could not reverse this assignment.",
       });
     } finally {
+      mutationRef.current = false;
       setBusyReceiptId("");
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (mutationRef.current) return;
+        if (value && batchKey) setLoaded(false);
+        setOpen(value);
+      }}
+    >
       <DialogTrigger asChild>
-        <Button className="min-h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
+        <Button className="min-h-11 w-full rounded-xl bg-emerald-700 text-white hover:bg-emerald-800">
           Take payment · {money(amountDue)}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto rounded-[2rem] p-6 sm:p-8">
-        <DialogHeader>
-          <DialogTitle className="text-3xl">
-            Payment for {tableName}
-          </DialogTitle>
+      <DialogContent className="flex h-dvh max-h-dvh max-w-full flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-[90dvh] sm:max-h-[90dvh] sm:max-w-4xl sm:rounded-2xl [&>button]:size-11">
+        <DialogHeader className="bg-card shrink-0 border-b p-4 pr-14 sm:p-6 sm:pr-16">
+          <DialogTitle className="text-xl font-bold">Payment · {tableName}</DialogTitle>
           <DialogDescription>
-            Create a row for each payer, then attach one or more incoming SAHAL
-            receipts.
+            Set up payers, then match incoming receipts. Closing this dialog keeps your current
+            setup until you leave this page.
           </DialogDescription>
         </DialogHeader>
-        {!batchKey ? (
-          <div className="space-y-5">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">
-                Payment method
-              </span>
-              <NativeSelect
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="w-full rounded-xl"
-              >
-                <option value="">Select payment method</option>
-                <option value="GOLIS">GOLIS / SAHAL</option>
-                <option value="MYCASH">MYCASH</option>
-                <option value="Dahabshiil">Dahabshiil</option>
-                <option value="OTHER">OTHER</option>
-              </NativeSelect>
-            </label>
-            {showEqualSplit ? (
-              <div className="rounded-2xl border bg-muted/30 p-4">
-                <p className="font-semibold">Split equally</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Divide the full table balance exactly between each payer.
+        <div
+          className="bg-card flex shrink-0 flex-wrap items-center gap-2 border-b p-3"
+          aria-label="Payment progress"
+        >
+          <Button
+            className="min-h-11"
+            variant={!batchKey || viewPayers ? "default" : "outline"}
+            onClick={() => setViewPayers(true)}
+            aria-pressed={!batchKey || viewPayers}
+          >
+            1 · Payers
+          </Button>
+          <Button
+            className="min-h-11"
+            variant={batchKey && !viewPayers ? "default" : "outline"}
+            disabled={!batchKey}
+            onClick={() => setViewPayers(false)}
+            aria-pressed={Boolean(batchKey) && !viewPayers}
+          >
+            2 · Receipts
+          </Button>
+          <p className="text-muted-foreground ml-auto text-right text-xs">
+            Table amount due
+            <strong className="text-foreground block text-lg">{money(amountDue)}</strong>
+          </p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+          {!batchKey || viewPayers ? (
+            <div className="space-y-4">
+              {batchKey ? (
+                <p className="bg-muted rounded-xl p-3 text-sm">
+                  Payer setup is saved. It cannot be edited after requests are created. Return to
+                  receipts to continue matching.
                 </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input
-                    aria-label="Number of people sharing the bill"
-                    type="number"
-                    min={2}
-                    max={MAX_EQUAL_SPLIT_PEOPLE}
-                    step={1}
-                    value={equalSplitCount}
-                    onChange={(event) => setEqualSplitCount(event.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={applyEqualSplit}
+              ) : null}
+              <fieldset disabled={Boolean(batchKey) || submitting} className="space-y-4">
+                <label className="block text-sm font-semibold">
+                  Payment method
+                  <NativeSelect
+                    className="mt-2 min-h-11 w-full [&>select]:min-h-11"
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value)}
                   >
-                    Create equal shares
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            <div className="space-y-3">
-              {lines.map((line, index) => (
-                <div
-                  key={line.id}
-                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[1fr_1fr_7rem_auto]"
-                >
-                  <Input
-                    aria-label={`Payer ${index + 1} name`}
-                    placeholder="Name"
-                    value={line.payerName}
-                    onChange={(event) =>
-                      updateLine(line.id, "payerName", event.target.value)
-                    }
-                  />
-                  <Input
-                    aria-label={`Payer ${index + 1} phone`}
-                    placeholder="Phone number"
-                    value={line.payerPhone}
-                    onChange={(event) =>
-                      updateLine(line.id, "payerPhone", event.target.value)
-                    }
-                  />
-                  <Input
-                    aria-label={`Payer ${index + 1} amount`}
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={line.amount}
-                    onChange={(event) =>
-                      updateLine(line.id, "amount", event.target.value)
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={lines.length === 1}
-                    onClick={() =>
-                      setLines((current) =>
-                        current.filter((item) => item.id !== line.id),
-                      )
-                    }
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                setLines((current) => [
-                  ...current,
-                  {
-                    id: crypto.randomUUID(),
-                    payerName: "",
-                    payerPhone: "",
-                    amount: remaining ? remaining.toFixed(2) : "",
-                  },
-                ])
-              }
-            >
-              + Add another payer
-            </Button>
-            <div
-              className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40" : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40"}`}
-            >
-              <div className="flex justify-between">
-                <span>Table balance</span>
-                <strong>{money(amountDue)}</strong>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span>Entered payments</span>
-                <strong>{money(entered)}</strong>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span>Remaining</span>
-                <strong>{money(remaining)}</strong>
-              </div>
-            </div>
-            {remaining > 0.001 ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
-                <input
-                  type="checkbox"
-                  checked={payLater}
-                  onChange={(event) => setPayLater(event.target.checked)}
-                  className="mt-1 size-4"
-                />
-                <span>
-                  <strong>Pay later</strong>
-                  <span className="block text-sm text-amber-900 dark:text-amber-300">
-                    Create a manager alert for the {money(remaining)} balance.
-                  </span>
-                </span>
-              </label>
-            ) : null}
-            {error ? (
-              <p className="rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-sm font-semibold text-red-700 dark:text-red-300">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="button"
-              onClick={startChecks}
-              disabled={
-                submitting ||
-                entered <= 0 ||
-                entered > amountDue ||
-                (remaining > 0.001 && !payLater)
-              }
-              className="w-full rounded-full bg-primary py-4 text-primary-foreground"
-            >
-              {submitting ? "Starting…" : "Start payment check"}
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-900 dark:text-blue-300">
-              Incoming SMS messages from 898 appear below automatically. Select
-              the payer first, then assign a receipt.
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {requests.map((request) => (
-                <button
-                  key={request.id}
-                  type="button"
-                  onClick={() => setSelectedRequestId(request.id)}
-                  className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-100 dark:ring-blue-800" : "hover:bg-muted/40"}`}
-                >
-                  <span className="font-semibold">
-                    {request.payerName} · {request.payerPhone}
-                  </span>
-                  <span className="mt-2 block text-sm">
-                    Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
-                    · Remaining {money(request.remainingAmount)}
-                  </span>
-                  <span
-                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"}`}
-                  >
-                    {request.status.replaceAll("_", " ")}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div
-              className="flex flex-wrap gap-2"
-              role="tablist"
-              aria-label="Payment receipts"
-            >
-              {(Object.keys(tabLabels) as ReceiptTab[]).map((item) => (
+                    <option value="">Select payment method</option>
+                    <option value="GOLIS">GOLIS / SAHAL</option>
+                    <option value="MYCASH">MYCASH</option>
+                    <option value="Dahabshiil">Dahabshiil</option>
+                    <option value="OTHER">OTHER</option>
+                  </NativeSelect>
+                </label>
+                {showEqualSplit ? (
+                  <div className="bg-muted/30 rounded-xl border p-4">
+                    <label className="text-sm font-semibold">
+                      Split equally · number of people
+                      <Input
+                        aria-label="Number of people sharing the bill"
+                        type="number"
+                        min={2}
+                        max={MAX_EQUAL_SPLIT_PEOPLE}
+                        step={1}
+                        className="mt-2 min-h-11"
+                        value={equalSplitCount}
+                        onChange={(e) => setEqualSplitCount(e.target.value)}
+                      />
+                    </label>
+                    <Button variant="outline" className="mt-2 min-h-11" onClick={applyEqualSplit}>
+                      Create equal shares
+                    </Button>
+                  </div>
+                ) : null}
+                {lines.map((line, index) => (
+                  <div key={line.id} className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2">
+                    <h3 className="font-semibold sm:col-span-2">Payer {index + 1}</h3>
+                    <label className="text-sm">
+                      Name
+                      <Input
+                        className="mt-1 min-h-11"
+                        aria-invalid={attempted && !line.payerName.trim()}
+                        value={line.payerName}
+                        onChange={(e) => updateLine(line.id, "payerName", e.target.value)}
+                      />
+                      {attempted && !line.payerName.trim() ? (
+                        <span className="text-destructive mt-1 block text-xs">
+                          Enter this payer’s name.
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="text-sm">
+                      Phone
+                      <Input
+                        type="tel"
+                        className="mt-1 min-h-11"
+                        aria-invalid={attempted && !line.payerPhone.trim()}
+                        value={line.payerPhone}
+                        onChange={(e) => updateLine(line.id, "payerPhone", e.target.value)}
+                      />
+                      {attempted && !line.payerPhone.trim() ? (
+                        <span className="text-destructive mt-1 block text-xs">
+                          Enter this payer’s phone number.
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="text-sm">
+                      Amount ($)
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        className="mt-1 min-h-11"
+                        aria-invalid={
+                          attempted &&
+                          (!Number.isFinite(Number(line.amount)) || Number(line.amount) <= 0)
+                        }
+                        value={line.amount}
+                        onChange={(e) => updateLine(line.id, "amount", e.target.value)}
+                      />
+                    </label>
+                    <Button
+                      variant="outline"
+                      className="min-h-11 self-end"
+                      aria-label={`Remove payer ${index + 1}`}
+                      disabled={lines.length === 1}
+                      onClick={() =>
+                        setLines((current) => current.filter((item) => item.id !== line.id))
+                      }
+                    >
+                      Remove payer
+                    </Button>
+                  </div>
+                ))}
                 <Button
-                  key={item}
-                  type="button"
-                  variant={tab === item ? "default" : "outline"}
-                  onClick={() => setTab(item)}
-                  role="tab"
-                  aria-selected={tab === item}
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() =>
+                    setLines((current) => [
+                      ...current,
+                      {
+                        id: crypto.randomUUID(),
+                        payerName: "",
+                        payerPhone: "",
+                        amount: remaining ? remaining.toFixed(2) : "",
+                      },
+                    ])
+                  }
                 >
-                  {tabLabels[item]} (
-                  {receipts.filter((receipt) => receipt.status === item).length}
-                  )
+                  + Add payer
                 </Button>
-              ))}
+                <dl className="bg-muted/30 space-y-2 rounded-xl border p-4 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <dt>Table balance</dt>
+                    <dd className="font-semibold">{money(amountDue)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt>Allocated to payers</dt>
+                    <dd className="font-semibold">{money(entered)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <dt>Unallocated</dt>
+                    <dd className="font-semibold">{money(remaining)}</dd>
+                  </div>
+                  {entered > amountDue ? (
+                    <p role="alert" className="text-destructive">
+                      Payer amounts exceed the table balance.
+                    </p>
+                  ) : null}
+                </dl>
+                {remaining > 0.001 ? (
+                  <label className="flex min-h-11 items-start gap-3 rounded-xl border p-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={payLater}
+                      onChange={(e) => setPayLater(e.target.checked)}
+                      className="mt-1 size-4"
+                    />
+                    <span>
+                      <strong>Pay later</strong>
+                      <span className="text-muted-foreground block">
+                        Create a manager alert for the {money(remaining)} unallocated balance.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
+              </fieldset>
+              {error ? (
+                <p role="alert" className="border-destructive rounded-xl border p-3 text-sm">
+                  {error}
+                </p>
+              ) : null}
+              <Button
+                className="min-h-11 w-full bg-emerald-700 text-white hover:bg-emerald-800"
+                disabled={
+                  submitting ||
+                  (!batchKey &&
+                    (entered <= 0 || entered > amountDue || (remaining > 0.001 && !payLater)))
+                }
+                onClick={() => (batchKey ? setViewPayers(false) : void startChecks())}
+              >
+                {submitting
+                  ? "Starting…"
+                  : batchKey
+                    ? "Return to receipts"
+                    : "Continue to receipts"}
+              </Button>
             </div>
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, number, Tix, table, or payer"
-              aria-label="Search receipts"
-            />
-            <div className="space-y-3">
-              {visibleReceipts.length === 0 ? (
-                <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-card sticky -top-4 z-10 rounded-xl border p-3 shadow-sm sm:-top-6">
+                <label className="block text-sm font-semibold">
+                  Selected payer
+                  <NativeSelect
+                    className="mt-2 min-h-11 w-full [&>select]:min-h-11"
+                    value={selectedRequestId}
+                    onChange={(e) => setSelectedRequestId(e.target.value)}
+                  >
+                    <option value="">Select a payer</option>
+                    {requests.map((request) => (
+                      <option key={request.id} value={request.id}>
+                        {request.payerName} · {money(request.remainingAmount)} remaining
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </label>
+                {selectedRequest ? (
+                  <div className="mt-2 text-sm">
+                    <p>
+                      {selectedRequest.payerPhone} · {selectedRequest.status.replaceAll("_", " ")}
+                    </p>
+                    <p>
+                      Paid {money(selectedRequest.paidAmount)} / {money(selectedRequest.amount)}
+                    </p>
+                    <strong>Remaining {money(selectedRequest.remainingAmount)}</strong>
+                  </div>
+                ) : null}
+              </div>
+              {syncError ? (
+                <div role="alert" className="border-destructive rounded-xl border p-3 text-sm">
+                  <p>{syncError}</p>
+                  <Button
+                    variant="outline"
+                    className="mt-2 min-h-11"
+                    onClick={() => void refresh()}
+                  >
+                    Retry refresh
+                  </Button>
+                </div>
+              ) : null}
+              <div
+                role="group"
+                aria-label="Receipt status filters"
+                className="flex flex-wrap gap-2"
+              >
+                {(Object.keys(tabLabels) as ReceiptTab[]).map((item) => (
+                  <Button
+                    key={item}
+                    className="min-h-11"
+                    variant={tab === item ? "default" : "outline"}
+                    aria-pressed={tab === item}
+                    onClick={() => setTab(item)}
+                  >
+                    {tabLabels[item]} (
+                    {receipts.filter((receipt) => receipt.status === item).length})
+                  </Button>
+                ))}
+              </div>
+              <Input
+                aria-label="Search receipts"
+                type="search"
+                className="min-h-11"
+                placeholder="Name, phone, Tix, table or payer"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {!loaded && !syncError ? (
+                <p role="status">Refreshing receipts and payer balances…</p>
+              ) : null}
+              {loaded && !visibleReceipts.length ? (
+                <p className="rounded-xl border border-dashed p-4 text-sm">
                   No {tabLabels[tab].toLowerCase()} receipts match.
                 </p>
-              ) : (
-                visibleReceipts.map((receipt) => {
-                  const over = Boolean(
-                    selectedRequest &&
-                    receipt.amount != null &&
-                    receipt.amount - selectedRequest.remainingAmount > 0.001,
-                  );
-                  return (
-                    <article
-                      key={receipt.id}
-                      className="rounded-2xl border p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold">
-                            {receipt.counterpartyLabel ??
-                              "Unrecognized SAHAL message"}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Tix {receipt.reference ?? "not found"} ·{" "}
-                            {receipt.amount == null
-                              ? "Amount not found"
-                              : money(receipt.amount)}
-                          </p>
-                          <p className="mt-1 text-sm">
-                            Numbers:{" "}
-                            {receipt.counterpartyIdentifiers.join(", ") ||
-                              "none found"}
-                          </p>
-                          <p className="mt-1 text-sm">
-                            {receipt.transactionAt
-                              ? new Date(receipt.transactionAt).toLocaleString(
-                                  "en-GB",
-                                  { timeZone: "Africa/Nairobi" },
-                                )
-                              : "Time not found"}{" "}
-                            · Balance{" "}
-                            {receipt.providerBalance == null
-                              ? "not found"
-                              : money(receipt.providerBalance)}
-                          </p>
-                          {receipt.customerCheckout ? (
-                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
-                              Assigned to customer checkout{" "}
-                              {receipt.customerCheckout.customerName} (
-                              {receipt.customerCheckout.payerPhone}) ·{" "}
-                              {money(receipt.customerCheckout.amount)}.
-                            </p>
-                          ) : null}{" "}
-                          {receipt.assignment ? (
-                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
-                              Assigned to {receipt.assignment.payerName} at{" "}
-                              {receipt.assignment.table.name} by{" "}
-                              {receipt.assignedByName ?? "staff"}.
-                            </p>
-                          ) : null}
-                          {receipt.parseError ? (
-                            <>
-                              <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
-                                {receipt.parseError}
-                              </p>
-                              <p className="mt-2 break-words rounded-lg bg-muted p-2 text-xs">
-                                {receipt.rawMessage}
-                              </p>
-                            </>
-                          ) : null}
-                        </div>
-                        {tab === "AVAILABLE" ? (
-                          <div className="text-right">
-                            <Button
-                              type="button"
-                              disabled={
-                                !selectedRequest ||
-                                selectedRequest.status === "MATCHED" ||
-                                over ||
-                                busyReceiptId === receipt.id
-                              }
-                              onClick={() => void assignReceipt(receipt)}
-                            >
-                              {busyReceiptId === receipt.id
-                                ? "Assigning…"
-                                : selectedRequest
-                                  ? `Assign to ${selectedRequest.payerName}`
-                                  : "Select a payer"}
-                            </Button>
-                            {over ? (
-                              <p className="mt-2 max-w-52 text-xs font-semibold text-red-700 dark:text-red-300">
-                                Receipt is larger than this payer&apos;s
-                                remaining amount.
-                              </p>
-                            ) : null}
-                          </div>
+              ) : null}
+              {visibleReceipts.map((receipt) => {
+                const issue = receiptAssignmentIssue(selectedRequest, receipt);
+                return (
+                  <article key={receipt.id} className="min-w-0 space-y-3 rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold break-words">
+                          {receipt.counterpartyLabel ?? "Unrecognized SAHAL message"}
+                        </h3>
+                        <p className="text-muted-foreground text-sm">
+                          Tix {receipt.reference ?? "not found"}
+                        </p>
+                      </div>
+                      <strong className="shrink-0">
+                        {receipt.amount == null ? "Unknown amount" : money(receipt.amount)}
+                      </strong>
+                    </div>
+                    <p className="text-sm break-words">
+                      {receipt.counterpartyIdentifiers.join(", ") || "Phone not found"}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {receipt.transactionAt
+                        ? new Date(receipt.transactionAt).toLocaleString("en-GB", {
+                            timeZone: "Africa/Mogadishu",
+                          })
+                        : "Time not found"}
+                    </p>
+                    {receipt.parseError ? (
+                      <p className="text-destructive text-sm">{receipt.parseError}</p>
+                    ) : null}
+                    <details className="bg-muted/40 rounded-lg p-3">
+                      <summary className="min-h-11 cursor-pointer text-sm font-semibold">
+                        Details / original SMS
+                      </summary>
+                      <p className="text-xs break-words whitespace-pre-wrap">
+                        {receipt.rawMessage}
+                      </p>
+                      <p className="mt-2 text-xs">
+                        Provider balance:{" "}
+                        {receipt.providerBalance == null
+                          ? "not found"
+                          : money(receipt.providerBalance)}
+                      </p>
+                      {receipt.assignment ? (
+                        <p className="mt-2 text-sm">
+                          Assigned to {receipt.assignment.payerName} at{" "}
+                          {receipt.assignment.table.name} by {receipt.assignedByName ?? "staff"}.
+                        </p>
+                      ) : null}
+                      {receipt.customerCheckout ? (
+                        <p className="mt-2 text-sm">
+                          Assigned to customer checkout: {receipt.customerCheckout.customerName} ·{" "}
+                          {receipt.customerCheckout.payerPhone} ·{" "}
+                          {money(receipt.customerCheckout.amount)}.
+                        </p>
+                      ) : null}
+                    </details>
+                    {tab === "AVAILABLE" ? (
+                      <div>
+                        <Button
+                          className="h-auto min-h-11 w-full bg-emerald-700 whitespace-normal text-white hover:bg-emerald-800"
+                          disabled={
+                            Boolean(issue) ||
+                            !loaded ||
+                            Boolean(syncError) ||
+                            Boolean(busyReceiptId)
+                          }
+                          onClick={() => void assignReceipt(receipt)}
+                        >
+                          {busyReceiptId === receipt.id
+                            ? "Assigning…"
+                            : selectedRequest
+                              ? `Assign ${money(receipt.amount ?? 0)} to ${selectedRequest.payerName}`
+                              : "Select a payer"}
+                        </Button>
+                        {issue ? (
+                          <p className="text-muted-foreground mt-2 text-sm">{issue}</p>
                         ) : null}
                       </div>
-                      {tab === "ASSIGNED" && canManage ? (
-                        <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
+                    ) : null}
+                    {tab === "ASSIGNED" && canManage ? (
+                      <div className="space-y-2 border-t pt-3">
+                        <label className="text-sm">
+                          Reversal reason (required)
                           <Input
+                            className="mt-1 min-h-11"
                             value={reversalReasons[receipt.id] ?? ""}
-                            onChange={(event) =>
+                            onChange={(e) =>
                               setReversalReasons((current) => ({
                                 ...current,
-                                [receipt.id]: event.target.value,
+                                [receipt.id]: e.target.value,
                               }))
                             }
-                            placeholder="Required reversal reason"
-                            aria-label={`Reversal reason for ${receipt.reference}`}
                           />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={busyReceiptId === receipt.id}
-                            onClick={() => void reverseReceipt(receipt)}
-                          >
-                            Reverse assignment
-                          </Button>
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })
-              )}
+                        </label>
+                        <Button
+                          variant="destructive"
+                          className="min-h-11"
+                          disabled={Boolean(busyReceiptId) || !loaded || Boolean(syncError)}
+                          onClick={() => void reverseReceipt(receipt)}
+                        >
+                          Reverse assignment
+                        </Button>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+              <p className="text-muted-foreground text-sm">
+                Check the reference, payer, amount and time. Only server-confirmed assignments count
+                as paid; any deferred balance still requires settlement.
+              </p>
+              {complete && loaded && !syncError ? (
+                <Button
+                  className="h-auto min-h-11 w-full whitespace-normal"
+                  onClick={() => {
+                    setOpen(false);
+                    router.refresh();
+                  }}
+                >
+                  All payer rows matched · return to tables
+                </Button>
+              ) : null}
             </div>
-            {complete ? (
-              <Button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="w-full rounded-full bg-emerald-700 hover:bg-emerald-700/90 py-4 text-white"
-              >
-                Payment confirmed · return to cashier
-              </Button>
-            ) : null}
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

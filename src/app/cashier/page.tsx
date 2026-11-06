@@ -11,7 +11,7 @@ import {
 import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
 import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
-import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
+import CashierTableBoard from "@/components/cashier/CashierTableBoard";
 import { ToastOnMount } from "@/components/ui/toast";
 
 type CashierPageProps = {
@@ -21,13 +21,10 @@ type CashierPageProps = {
   }>;
 };
 
-function formatMoney(value: number) {
-  return `$${value.toFixed(2)}`;
-}
-
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
+  timeZone: "Africa/Mogadishu",
 });
 
 function formatDateTime(date: Date) {
@@ -78,12 +75,8 @@ function getOrderStatusMessage(orderStatus?: string) {
 }
 
 export default async function CashierPage({ searchParams }: CashierPageProps) {
-  const { start: businessDayStart, end: businessDayEnd } =
-    getCashierBusinessDayRange();
-  const businessDayLabel = formatCashierBusinessDayRange(
-    businessDayStart,
-    businessDayEnd,
-  );
+  const { start: businessDayStart, end: businessDayEnd } = getCashierBusinessDayRange();
+  const businessDayLabel = formatCashierBusinessDayRange(businessDayStart, businessDayEnd);
 
   // Resolve URL state with auth, but keep protected table reads after auth.
   const [currentUser, params] = await Promise.all([
@@ -145,10 +138,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           total: Math.max(
             0,
             Number(order.total) -
-              order.payments.reduce(
-                (paid, payment) => paid + Number(payment.amountPaid),
-                0,
-              ),
+              order.payments.reduce((paid, payment) => paid + Number(payment.amountPaid), 0),
           ),
           createdAt: order.createdAt,
           cashierName: order.cashier?.fullName ?? null,
@@ -159,38 +149,34 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   );
 
   return (
-    <main className="min-h-screen bg-muted/35 p-4 text-foreground sm:p-6">
+    <main className="bg-muted/35 text-foreground min-h-screen p-4 sm:p-6">
       <CashierLiveSync />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Cashier table settlement</h1>
-          <p className="mt-2 text-lg text-foreground">
-            Welcome {currentUser.fullName}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Business day: {businessDayLabel}
-          </p>
+          <h1 className="text-2xl font-bold">Open tables</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Welcome {currentUser.fullName}</p>
+          <p className="text-muted-foreground text-sm">Business day: {businessDayLabel}</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <Link
             prefetch={false}
             href="/cashier/receipts"
-            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+            className="border-border bg-card hover:bg-muted inline-flex min-h-11 items-center rounded-xl border px-4 py-2 text-sm font-semibold"
           >
             Receipts
           </Link>
           <Link
             prefetch={false}
             href="/cashier/order"
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="inline-flex min-h-11 items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
           >
             New table order
           </Link>
           <Link
             prefetch={false}
             href="/cashier/takeaway"
-            className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
+            className="border-border bg-card hover:bg-muted inline-flex min-h-11 items-center rounded-xl border px-4 py-2 text-sm font-semibold"
           >
             Takeaway order
           </Link>
@@ -198,146 +184,33 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         <Link
           prefetch={false}
           href="/cashier/customer-checkouts"
-          className="rounded-xl border border-amber-600 dark:border-amber-800 px-4 py-2 text-sm font-semibold text-amber-900 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30"
+          className="inline-flex min-h-11 items-center rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-900/30"
         >
           Customer payment review
         </Link>
       </div>
 
-      {notice ? (
-        <ToastOnMount tone={notice.tone} description={notice.message} />
-      ) : null}
+      {notice ? <ToastOnMount tone={notice.tone} description={notice.message} /> : null}
 
-      {/*
-      
-      BRING BACK IF YOU WANT Occupied tables,Open order,Open order total
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Occupied tables</p>
-          <h2 className="mt-2 text-2xl font-bold">{tables.length}</h2>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Open orders</p>
-          <h2 className="mt-2 text-2xl font-bold">{openChecks.length}</h2>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">Open order total</p>
-          <h2 className="mt-2 text-2xl font-bold">
-            {formatMoney(openOrderTotal)}
-          </h2>
-        </div>
-      </div> */}
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {tables.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground shadow-sm md:col-span-2 xl:col-span-3">
-            <h2 className="text-lg font-bold text-foreground">
-              No occupied tables
-            </h2>
-            <p className="mt-2">
-              Tables appear here only after an unpaid table order is sent. Use
-              New table order to start service for an active table.
-            </p>
-          </div>
-        ) : (
-          tables.map((table) => {
-            const tableChecks = openChecksByTable.get(table.id) ?? [];
-            const tableTotal = tableChecks.reduce(
-              (sum, check) => sum + check.total,
-              0,
-            );
-
-            return (
-              <article
-                key={table.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-              >
-                <div className="mb-4 flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-3xl font-bold text-foreground">
-                      {table.name}
-                    </h2>
-                  </div>
-                  <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-3 py-1 text-xs font-semibold uppercase text-amber-700 dark:text-amber-300">
-                    occupied
-                  </span>
-                </div>
-
-                <div className="mb-4 rounded-xl bg-muted/50 px-3 py-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Open orders</span>
-                    <span className="font-semibold">{tableChecks.length}</span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Table total</span>
-                    <span className="font-semibold">
-                      {formatMoney(tableTotal)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {tableChecks.map((check) => (
-                    <div
-                      key={check.key}
-                      className="rounded-xl border border-border px-3 py-3"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="font-semibold text-foreground">
-                          Order #{check.orderNumber}
-                        </p>
-                        <p className="font-bold text-foreground">
-                          {formatMoney(check.total)}
-                        </p>
-                      </div>
-
-                      <div className="mt-2 space-y-2">
-                        {check.rounds.map((round) => (
-                          <div
-                            key={round.id}
-                            className="rounded-lg bg-muted/50 px-2.5 py-2"
-                          >
-                            <p className="text-xs font-semibold text-muted-foreground">
-                              Round {round.tableCheckRound ?? 1} ·{" "}
-                              {formatDateTime(round.createdAt)}
-                              {round.cashierName
-                                ? ` by ${round.cashierName}`
-                                : ""}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {round.items
-                                .map(
-                                  (item) => `${item.qty}x ${item.productName}`,
-                                )
-                                .join(", ")}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 grid gap-2">
-                  <Link
-                    prefetch={false}
-                    href={`/cashier/order?tableId=${encodeURIComponent(table.id)}`}
-                    className="block rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
-                  >
-                    Add order
-                  </Link>
-                  <CashierPaymentDialog
-                    tableId={table.id}
-                    tableName={table.name}
-                    amountDue={tableTotal}
-                    showEqualSplit={showEqualSplit}
-                  />
-                </div>
-              </article>
-            );
-          })
-        )}
-      </section>
+      <CashierTableBoard
+        showEqualSplit={showEqualSplit}
+        tables={tables.map((table) => ({
+          id: table.id,
+          name: table.name,
+          checks: (openChecksByTable.get(table.id) ?? []).map((check) => ({
+            key: check.key,
+            orderNumber: check.orderNumber,
+            total: check.total,
+            rounds: check.rounds.map((round) => ({
+              id: round.id,
+              roundNumber: round.tableCheckRound ?? 1,
+              time: formatDateTime(round.createdAt),
+              cashierName: round.cashierName,
+              items: round.items,
+            })),
+          })),
+        }))}
+      />
     </main>
   );
 }
