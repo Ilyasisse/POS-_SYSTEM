@@ -292,7 +292,10 @@ export default function PurchaseOrderBuilder({
               </div>
               <div className="flex flex-wrap gap-3 lg:col-span-2 lg:justify-end">
                 <Button asChild type="button" variant="outline">
-                  <Link prefetch={false} href={`/admin/suppliers/${selectedSupplier.id}`}>
+                  <Link
+                    prefetch={false}
+                    href={`/admin/suppliers/${selectedSupplier.id}`}
+                  >
                     Manage supplier catalog
                   </Link>
                 </Button>
@@ -308,7 +311,10 @@ export default function PurchaseOrderBuilder({
               {selectedSupplier.name}.
             </p>
             <Button asChild className="mt-4">
-              <Link prefetch={false} href={`/admin/suppliers/${selectedSupplier.id}`}>
+              <Link
+                prefetch={false}
+                href={`/admin/suppliers/${selectedSupplier.id}`}
+              >
                 Manage catalog
               </Link>
             </Button>

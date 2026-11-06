@@ -99,7 +99,7 @@ test("spoofed placeholder with catalog ID cannot satisfy a required group", asyn
   const response = await checkout([
     { modifierId: "large", isPlaceholder: true, price: 0 },
   ]);
-  assert.notEqual(response.status, 201);
+  assert.equal(response.status, 400);
   assert.match(
     (await response.json()).error,
     /requires at least 1 choice from Size/,
@@ -108,7 +108,7 @@ test("spoofed placeholder with catalog ID cannot satisfy a required group", asyn
 });
 test("missing required modifier creates no checkout", async () => {
   const response = await checkout([]);
-  assert.notEqual(response.status, 201);
+  assert.equal(response.status, 400);
   assert.match(
     (await response.json()).error,
     /requires at least 1 choice from Size/,

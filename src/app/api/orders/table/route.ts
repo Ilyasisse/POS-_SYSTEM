@@ -15,7 +15,7 @@ import {
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
-import { validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
+import { ModifierSelectionError, validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type TableOrderItemModifierInput = {
@@ -578,6 +578,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Table order error:", error);
 
     return NextResponse.json(

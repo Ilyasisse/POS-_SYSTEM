@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --font-heading: var(--font-geist-sans);
@@ -98,20 +98,20 @@
 }
 
 .dark {
-  --background: oklch(0.18 0.025 48);
-  --foreground: oklch(0.955 0.025 79);
-  --card: oklch(0.225 0.035 50);
-  --card-foreground: oklch(0.955 0.025 79);
-  --popover: oklch(0.225 0.035 50);
-  --popover-foreground: oklch(0.955 0.025 79);
-  --primary: oklch(0.78 0.15 78);
-  --primary-foreground: oklch(0.22 0.04 50);
-  --secondary: oklch(0.29 0.045 52);
-  --secondary-foreground: oklch(0.95 0.025 79);
-  --muted: oklch(0.27 0.035 52);
-  --muted-foreground: oklch(0.72 0.04 72);
-  --accent: oklch(0.38 0.07 62);
-  --accent-foreground: oklch(0.96 0.025 79);
+  --background: oklch(0.145 0.006 260);
+  --foreground: oklch(0.965 0.003 260);
+  --card: oklch(0.205 0.008 260);
+  --card-foreground: oklch(0.965 0.003 260);
+  --popover: oklch(0.235 0.01 260);
+  --popover-foreground: oklch(0.965 0.003 260);
+  --primary: oklch(0.82 0.15 78);
+  --primary-foreground: oklch(0.18 0.006 260);
+  --secondary: oklch(0.285 0.01 260);
+  --secondary-foreground: oklch(0.965 0.003 260);
+  --muted: oklch(0.265 0.008 260);
+  --muted-foreground: oklch(0.75 0.012 260);
+  --accent: oklch(0.32 0.012 260);
+  --accent-foreground: oklch(0.965 0.003 260);
   --destructive: oklch(0.704 0.191 22.216);
   --success: oklch(0.7 0.15 151);
   --success-foreground: oklch(0.19 0.04 151);
@@ -119,22 +119,22 @@
   --warning-foreground: oklch(0.23 0.05 58);
   --info: oklch(0.7 0.14 249);
   --info-foreground: oklch(0.2 0.045 249);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.72 0.13 75);
+  --border: oklch(0.36 0.012 260);
+  --input: oklch(0.4 0.012 260);
+  --ring: oklch(0.82 0.15 78);
   --chart-1: oklch(0.78 0.15 78);
   --chart-2: oklch(0.7 0.15 151);
   --chart-3: oklch(0.7 0.14 249);
   --chart-4: oklch(0.71 0.17 31);
   --chart-5: oklch(0.68 0.14 307);
-  --sidebar: oklch(0.155 0.025 48);
-  --sidebar-foreground: oklch(0.955 0.025 79);
-  --sidebar-primary: oklch(0.78 0.15 78);
-  --sidebar-primary-foreground: oklch(0.22 0.04 50);
-  --sidebar-accent: oklch(0.28 0.045 53);
-  --sidebar-accent-foreground: oklch(0.955 0.025 79);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.17 0.008 260);
+  --sidebar-foreground: oklch(0.965 0.003 260);
+  --sidebar-primary: oklch(0.82 0.15 78);
+  --sidebar-primary-foreground: oklch(0.18 0.006 260);
+  --sidebar-accent: oklch(0.285 0.012 260);
+  --sidebar-accent-foreground: oklch(0.965 0.003 260);
+  --sidebar-border: oklch(0.34 0.012 260);
+  --sidebar-ring: oklch(0.82 0.15 78);
 }
 
 @layer base {
@@ -194,89 +194,27 @@
     }
   }
 
-  .dark [data-surface-tone="light"] [class*="bg-white"] {
+  .dark
+    [data-surface-tone="light"]
+    :is(
+      [class~="bg-white"],
+      [class~="bg-white/80"],
+      [class~="bg-white/90"],
+      [class~="bg-white/95"]
+    ) {
     background-color: color-mix(in oklab, var(--card) 92%, transparent);
   }
+}
 
-  .dark [data-surface-tone="light"] [class*="bg-slate-50"] {
-    background-color: var(--card);
-  }
-
-  .dark [data-surface-tone="light"] [class*="bg-slate-100"] {
-    background-color: var(--muted);
-  }
-
-  .dark [data-surface-tone="light"] [class*="bg-red-50"] {
-    background-color: oklch(0.27 0.06 25);
-  }
-
-  .dark [data-surface-tone="light"] [class*="bg-amber-50"] {
-    background-color: oklch(0.28 0.05 72);
-  }
-
-  .dark [data-surface-tone="light"] [class*="bg-emerald-50"] {
-    background-color: oklch(0.25 0.05 151);
-  }
-
-  .dark [data-surface-tone="light"] [class*="bg-blue-50"] {
-    background-color: oklch(0.24 0.05 250);
-  }
-
-  .dark [data-surface-tone="light"] [class*="border-slate-200"],
-  .dark [data-surface-tone="light"] [class*="border-slate-300"] {
-    border-color: var(--border);
-  }
-
-  .dark [data-surface-tone="light"] [class*="border-red-200"] {
-    border-color: oklch(0.42 0.12 25);
-  }
-
-  .dark [data-surface-tone="light"] [class*="border-amber-200"] {
-    border-color: oklch(0.47 0.09 72);
-  }
-
-  .dark [data-surface-tone="light"] [class*="border-emerald-200"] {
-    border-color: oklch(0.43 0.09 151);
-  }
-
-  .dark [data-surface-tone="light"] [class*="border-blue-200"] {
-    border-color: oklch(0.42 0.09 250);
-  }
-
-  .dark [data-surface-tone="light"] [class*="text-slate-950"],
-  .dark [data-surface-tone="light"] [class*="text-slate-900"],
-  .dark [data-surface-tone="light"] [class*="text-slate-800"],
-  .dark [data-surface-tone="light"] [class*="text-slate-700"] {
-    color: var(--foreground);
-  }
-
-  .dark [data-surface-tone="light"] [class*="text-slate-600"],
-  .dark [data-surface-tone="light"] [class*="text-slate-500"],
-  .dark [data-surface-tone="light"] [class*="text-slate-400"] {
-    color: var(--muted-foreground);
-  }
-
-  .dark [data-surface-tone="light"] [class*="text-red-700"],
-  .dark [data-surface-tone="light"] [class*="text-red-800"],
-  .dark [data-surface-tone="light"] [class*="text-red-900"] {
-    color: oklch(0.8 0.14 25);
-  }
-
-  .dark [data-surface-tone="light"] [class*="text-amber-700"],
-  .dark [data-surface-tone="light"] [class*="text-amber-800"],
-  .dark [data-surface-tone="light"] [class*="text-amber-900"] {
-    color: oklch(0.84 0.11 72);
-  }
-
-  .dark [data-surface-tone="light"] [class*="text-emerald-700"],
-  .dark [data-surface-tone="light"] [class*="text-emerald-800"],
-  .dark [data-surface-tone="light"] [class*="text-emerald-900"] {
-    color: oklch(0.82 0.1 151);
-  }
-
-  .dark [data-surface-tone="light"] [class*="text-blue-700"],
-  .dark [data-surface-tone="light"] [class*="text-blue-800"],
-  .dark [data-surface-tone="light"] [class*="text-blue-900"] {
-    color: oklch(0.82 0.1 250);
+@media print {
+  :root,
+  .dark {
+    --background: white;
+    --foreground: black;
+    --card: white;
+    --card-foreground: black;
+    --muted: #f5f5f5;
+    --muted-foreground: #525252;
+    --border: #d4d4d4;
   }
 }

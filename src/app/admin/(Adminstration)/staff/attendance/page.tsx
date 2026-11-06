@@ -18,7 +18,7 @@ import {
   saveAttendancePolicyAction,
 } from "../actions";
 
-const label = "grid gap-1 text-sm font-semibold text-slate-700";
+const label = "grid gap-1 text-sm font-semibold text-foreground";
 
 export default async function AttendanceAdminPage() {
   await requirePermission(PERMISSIONS.ATTENDANCE_APPROVE);
@@ -107,7 +107,7 @@ export default async function AttendanceAdminPage() {
                 <input type="hidden" name="shiftId" value={shift.id} />
                 <div>
                   <strong>{shift.worker.fullName}</strong>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted-foreground">
                     {shift.startsAt.toLocaleString()}
                   </div>
                 </div>
@@ -139,7 +139,9 @@ export default async function AttendanceAdminPage() {
               </form>
             ))
           ) : (
-            <p className="text-sm text-slate-500">No shifts await approval.</p>
+            <p className="text-sm text-muted-foreground">
+              No shifts await approval.
+            </p>
           )}
         </div>
       </Card>

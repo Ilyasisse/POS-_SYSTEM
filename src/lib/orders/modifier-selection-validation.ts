@@ -1,3 +1,5 @@
+export class ModifierSelectionError extends Error {}
+
 type ModifierOptionRule = {
   id: string;
   isActive: boolean;
@@ -42,12 +44,12 @@ export function validateModifierSelections(input: {
     const minimum = Math.max(group.minSelect, group.isRequired ? 1 : 0);
 
     if (selectedCount < minimum) {
-      throw new Error(
+      throw new ModifierSelectionError(
         `${input.productName} requires at least ${minimum} choice${minimum === 1 ? "" : "s"} from ${group.name}.`,
       );
     }
     if (selectedCount > group.maxSelect) {
-      throw new Error(
+      throw new ModifierSelectionError(
         `${input.productName} allows at most ${group.maxSelect} choice${group.maxSelect === 1 ? "" : "s"} from ${group.name}.`,
       );
     }

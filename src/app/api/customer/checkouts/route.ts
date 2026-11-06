@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
-import { validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
+import { ModifierSelectionError, validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
   selectEffectiveRecipe,
@@ -75,10 +75,15 @@ export async function POST(request: Request) {
     if (!authorization.ok) return authorization.response;
 
     const body = (await request.json()) as CustomerOrderBody;
-    const customerName = String(body.customerName ?? authorization.user.fullName).trim();
+    const customerName = String(
+      body.customerName ?? authorization.user.fullName,
+    ).trim();
     const orderType = body.orderType ?? "TAKEOUT";
-    const tableId = orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
-    const payerPhone = normalizeCustomerPaymentPhone(String(body.paymentPhone ?? ""));
+    const tableId =
+      orderType === "DINE_IN" ? String(body.tableId ?? "").trim() : null;
+    const payerPhone = normalizeCustomerPaymentPhone(
+      String(body.paymentPhone ?? ""),
+    );
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
 
     if (authorization.user.role !== "CUSTOMER") {
@@ -89,7 +94,10 @@ export async function POST(request: Request) {
     }
     if (!payerPhone) {
       return NextResponse.json(
-        { error: "Enter 90 followed by seven digits for the phone sending payment." },
+        {
+          error:
+            "Enter 90 followed by seven digits for the phone sending payment.",
+        },
         { status: 400 },
       );
     }
@@ -105,10 +113,23 @@ export async function POST(request: Request) {
     }
 
     if (orderType !== "DINE_IN" && orderType !== "TAKEOUT") {
-      return NextResponse.json({ error: "Choose dine-in or to-go." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Choose dine-in or to-go." },
+        { status: 400 },
+      );
     }
-    if (orderType === "DINE_IN" && (!tableId || !await prisma.table.findFirst({ where: { id: tableId, isActive: true }, select: { id: true } }))) {
-      return NextResponse.json({ error: "Select an active table." }, { status: 400 });
+    if (
+      orderType === "DINE_IN" &&
+      (!tableId ||
+        !(await prisma.table.findFirst({
+          where: { id: tableId, isActive: true },
+          select: { id: true },
+        })))
+    ) {
+      return NextResponse.json(
+        { error: "Select an active table." },
+        { status: 400 },
+      );
     }
 
     if (customerName.length < 1) {
@@ -434,6 +455,10 @@ export async function POST(request: Request) {
       throw error;
     }
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Customer checkout error:", error);
     return NextResponse.json(
       {

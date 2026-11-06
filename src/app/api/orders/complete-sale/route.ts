@@ -11,12 +11,13 @@ import {
   snapshotInventoryCost,
 } from "@/lib/inventory/inventory-domain";
 import { getActiveWaiterOrderingShift } from "@/lib/waiter/waiter-shifts";
-import { validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
+import { ModifierSelectionError, validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { parseCounterOrderType } from "@/lib/orders/counter-order-type";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -33,6 +34,7 @@ type CompleteSaleItemInput = {
 type CompleteSaleBody = {
   items: CompleteSaleItemInput[];
   paymentMethod: PaymentMethod | string;
+  orderType?: string;
   notes?: string;
 };
 
@@ -146,6 +148,14 @@ export async function POST(request: Request) {
     }
 
     const paymentMethod: PaymentMethod = body.paymentMethod;
+    const orderType = parseCounterOrderType(body.orderType);
+
+    if (!orderType) {
+      return NextResponse.json(
+        { error: "Counter orders must use the takeaway order type." },
+        { status: 400 },
+      );
+    }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
     const modifierIds = [
@@ -396,7 +406,7 @@ export async function POST(request: Request) {
       async (tx) => {
         const order = await tx.order.create({
           data: {
-            type: "DINE_IN",
+            type: orderType,
             status: "PAID",
             notes: body.notes?.trim() || null,
             total: toDecimal(calculatedTotal),
@@ -516,6 +526,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Complete sale error:", error);
 
     return NextResponse.json(

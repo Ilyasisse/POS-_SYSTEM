@@ -57,11 +57,11 @@ export default async function PrintableSupplierInvoicePage({
     : null;
 
   return (
-    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
+    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:text-black print:p-0">
       <div className="mx-auto mb-4 flex max-w-4xl justify-end print:hidden">
         <PrintButton />
       </div>
-      <article className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl border bg-background p-6 shadow-sm print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
+      <article className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl border bg-background p-6 shadow-sm print:bg-white print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
         {invoice.status === "DRAFT" ? (
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center"

@@ -25,7 +25,7 @@ export default function ProductGridPanel({
     <section
       data-aos="fade-up"
       data-aos-delay="100"
-      className="mt-4 rounded-[1.25rem] border border-white/80 bg-card/84 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
+      className="mt-4 rounded-[1.25rem] border border-border bg-card/84 p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] backdrop-blur-xl sm:mt-5 sm:rounded-[1.75rem] sm:p-5"
     >
       <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div>

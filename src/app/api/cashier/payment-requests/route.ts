@@ -5,13 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createPaymentRequestBatch } from "@/lib/payments/cashier-payment-requests";
 import { getPostHogClient } from "@/lib/posthog-server";
-
-const METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+import { isPaymentMethod } from "@/lib/payments/payment-request-lines";
 
 async function currentCashier() {
   const supabase = await createClient();
@@ -34,23 +28,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   try {
     const body = await request.json();
-    const method = String(body.method ?? "") as PaymentMethod;
-    if (!METHODS.has(method))
+    const rawFallbackMethod = String(body.method ?? "");
+    const fallbackMethod = rawFallbackMethod
+      ? (rawFallbackMethod as PaymentMethod)
+      : undefined;
+    if (fallbackMethod && !isPaymentMethod(fallbackMethod))
       return NextResponse.json(
-        { error: "Select a payment method." },
+        { error: "The default payment method is invalid." },
         { status: 400 },
       );
     const requests = await createPaymentRequestBatch({
       batchKey: String(body.batchKey ?? "").trim(),
       tableId: String(body.tableId ?? "").trim(),
       cashier,
-      method,
+      method: fallbackMethod,
       payLater: body.payLater === true,
       lines: Array.isArray(body.lines)
         ? body.lines.map((line: Record<string, unknown>) => ({
             payerName: String(line.payerName ?? ""),
             payerPhone: String(line.payerPhone ?? ""),
             amount: Number(line.amount),
+            method: String(line.method ?? ""),
           }))
         : [],
     });
@@ -60,7 +58,7 @@ export async function POST(request: Request) {
         distinctId: cashier.id,
         event: "payment_check_started",
         properties: {
-          payment_method: method,
+          payment_methods: [...new Set(requests.map((item) => item.method))],
           payer_count: requests.length,
           pay_later: body.payLater === true,
           cashier_role: cashier.role,
@@ -76,6 +74,7 @@ export async function POST(request: Request) {
         payerName: item.payerName,
         payerPhone: item.payerPhone,
         amount: Number(item.expectedAmount),
+        method: item.method,
         status: item.status,
       })),
     });
@@ -121,6 +120,7 @@ export async function GET(request: Request) {
         amount: Number(item.expectedAmount),
         paidAmount,
         remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
+        method: item.method,
         status: item.status,
         reference: item.providerReference,
       };

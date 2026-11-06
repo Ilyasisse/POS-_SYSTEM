@@ -220,7 +220,10 @@ export default async function SupplierPurchaseOrderDetailPage({
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Button asChild>
-              <Link prefetch={false} href={`/admin/supplier-invoices/${activeInvoice.id}`}>
+              <Link
+                prefetch={false}
+                href={`/admin/supplier-invoices/${activeInvoice.id}`}
+              >
                 Open invoice
               </Link>
             </Button>
@@ -251,9 +254,11 @@ export default async function SupplierPurchaseOrderDetailPage({
       ) : null}
 
       {order.status === "COMPLETED" && !activeInvoice ? (
-        <Card className="border-amber-200 bg-amber-50 p-5">
-          <h2 className="font-semibold text-amber-950">Invoice not created</h2>
-          <p className="text-sm text-amber-900">
+        <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5">
+          <h2 className="font-semibold text-amber-950 dark:text-amber-300">
+            Invoice not created
+          </h2>
+          <p className="text-sm text-amber-900 dark:text-amber-300">
             This order was completed before the invoice workflow was added. Use
             the recovery action to create its editable invoice draft.
           </p>

@@ -90,3 +90,11 @@ test("blocks required groups that have no active choices", () => {
     /requires at least 1 choice from Size/,
   );
 });
+
+test("duplicate option IDs cannot satisfy a group's minimum", () => {
+  assert.throws(() => validateModifierSelections({
+    productName: "Coffee",
+    availableOptions: [option("small", { minSelect: 2, maxSelect: 2 }), option("large", { minSelect: 2, maxSelect: 2 })],
+    selectedModifierIds: ["small", "small"],
+  }), /requires at least 2 choices from Size/);
+});
