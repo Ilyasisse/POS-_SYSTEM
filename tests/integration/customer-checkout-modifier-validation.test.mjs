@@ -62,9 +62,11 @@ after(() => {
   hooks.deregister();
   delete globalThis.__checkoutRegression;
 });
-const { POST } = await import(
+const routeModule = await import(
   new URL("../../src/app/api/customer/checkouts/route.ts", import.meta.url).href
 );
+const POST = routeModule.POST ?? routeModule.default?.POST;
+assert.equal(typeof POST, "function", "Checkout route must export POST");
 const base = {
   customerName: "Customer",
   paymentPhone: "901234567",
