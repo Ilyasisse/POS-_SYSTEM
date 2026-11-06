@@ -14,6 +14,7 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
+import { ModifierSelectionError, validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
 import { parseCounterOrderType } from "@/lib/orders/counter-order-type";
 
 type CompleteSaleItemModifierInput = {
@@ -184,6 +185,23 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -196,6 +214,7 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
@@ -272,6 +291,12 @@ export async function POST(request: Request) {
       }
 
       const uniqueModifierIds = Array.from(incomingModifierMap.keys());
+
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: uniqueModifierIds,
+      });
 
       const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map(
         (modifierId) => {
@@ -466,6 +491,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Complete sale error:", error);
 
     return NextResponse.json(
