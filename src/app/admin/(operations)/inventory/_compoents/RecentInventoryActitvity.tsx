@@ -41,9 +41,9 @@ export default function RecentInventoryActivity({
                   {movement.reason} ~ {formatDateTime(movement.createdAt)}
                 </p>
               </div>
-              <ToneBadge tone={movement.delta < 0 ? "red" : "green"}>
-                {movement.delta > 0 ? "+" : ""}
-                {movement.delta}
+              <ToneBadge tone={movement.delta.startsWith("-") ? "red" : "green"}>
+                {Number(movement.delta) > 0 ? "+" : ""}
+                {movement.delta} {movement.unit}
               </ToneBadge>
             </div>
           ))

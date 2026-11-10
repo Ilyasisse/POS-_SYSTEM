@@ -3,7 +3,11 @@ import { bodyFont, displayFont } from "@/components/customer/customer-order-styl
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
-import { canonicalUnitLabel } from "@/lib/inventory/inventory-domain";
+import {
+  supplyDisplayQuantity,
+  supplyMovementDisplay,
+  supplyStockUnit,
+} from "@/lib/inventory/supply-units";
 import { prisma } from "@/lib/prisma";
 import { takeSupplyInventory } from "./actions";
 import InventorySupplyPicker from "./InventorySupplyPicker";
@@ -60,6 +64,7 @@ export default async function InventoryPage() {
             gte: todayStart,
           },
         },
+        include: { supply: { select: { unit: true } } },
         take: 12,
         orderBy: {
           createdAt: "desc",
@@ -72,7 +77,7 @@ export default async function InventoryPage() {
     (accumulator, supply) => {
       addStatus(
         accumulator,
-        getInventoryAlertStatus(Number(supply.stockQty), Number(supply.lowStockThreshold)),
+        getInventoryAlertStatus(supply.stockQty, supply.lowStockThreshold),
       );
       return accumulator;
     },
@@ -141,18 +146,22 @@ export default async function InventoryPage() {
         <InventorySupplyPicker
           takeSupply={takeSupplyInventory}
           canTake={hasPermission(user, PERMISSIONS.INVENTORY_MANAGE)}
-          supplies={supplies.map((supply) => ({
-            id: supply.id,
-            name: supply.name,
-            unit: supply.canonicalUnit ? canonicalUnitLabel(supply.canonicalUnit) : supply.unit,
-            stockQty: supply.stockQty.toString(),
-            status: getInventoryAlertStatus(
-              Number(supply.stockQty),
-              Number(supply.lowStockThreshold),
-            ),
-            hasUnitMapping: supply.canonicalUnit !== null,
-            hasCompleteCoverage: supply.quantityCoverage === "COMPLETE",
-          }))}
+          supplies={supplies.map((supply) => {
+            const stockUnit = supplyStockUnit(supply);
+            return {
+              id: supply.id,
+              name: supply.name,
+              unit: stockUnit.label,
+              stockUnit: stockUnit.token,
+              step: stockUnit.step,
+              stockQty: supplyDisplayQuantity(supply.stockQty, stockUnit.factor),
+              status: getInventoryAlertStatus(
+                supply.stockQty,
+                supply.lowStockThreshold,
+              ),
+              hasUnitMapping: supply.canonicalUnit !== null,
+            };
+          })}
         />
 
         <section className="border-border bg-card/88 rounded-3xl border p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] sm:p-5">
@@ -167,37 +176,40 @@ export default async function InventoryPage() {
                 No supplies taken today.
               </div>
             ) : (
-              takenTodayMovements.map((movement) => (
-                <div
-                  key={movement.id}
-                  className="border-border bg-muted/50 min-w-0 rounded-xl border p-3"
-                >
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="wrap-break-words text-foreground text-sm font-semibold">
-                        {movement.itemName}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {movement.createdAt.toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                          timeZone: "Africa/Nairobi",
-                        })}
-                      </p>
+              takenTodayMovements.map((movement) => {
+                const display = supplyMovementDisplay(movement);
+                return (
+                  <div
+                    key={movement.id}
+                    className="border-border bg-muted/50 min-w-0 rounded-xl border p-3"
+                  >
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="wrap-break-words text-foreground text-sm font-semibold">
+                          {display.name}
+                        </p>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {movement.createdAt.toLocaleString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            timeZone: "Africa/Nairobi",
+                          })}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                        {display.quantity} {display.unit}
+                      </span>
                     </div>
-                    <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-                      {movement.delta.toString()}
-                    </span>
+                    {movement.note ? (
+                      <p className="wrap-break-words text-muted-foreground mt-2 text-xs">
+                        {movement.note}
+                      </p>
+                    ) : null}
                   </div>
-                  {movement.note ? (
-                    <p className="wrap-break-words text-muted-foreground mt-2 text-xs">
-                      {movement.note}
-                    </p>
-                  ) : null}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </section>

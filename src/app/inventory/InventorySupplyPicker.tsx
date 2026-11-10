@@ -39,7 +39,8 @@ type Supply = {
   stockQty: string;
   status: StockStatus;
   hasUnitMapping: boolean;
-  hasCompleteCoverage: boolean;
+  stockUnit: string;
+  step: string;
 };
 
 const stockFilters: ("ALL" | StockStatus)[] = ["ALL", "OK", "LOW", "OUT"];
@@ -71,20 +72,22 @@ export default function InventorySupplyPicker({
     () => window.matchMedia(desktopQuery).matches,
     () => true,
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Pick<Supply, "id" | "stockUnit"> | null>(null);
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [quantityError, setQuantityError] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const selected = supplies.find((supply) => supply.id === selectedId);
+  const selected = supplies.find(
+    (supply) => supply.id === selection?.id && supply.stockUnit === selection.stockUnit,
+  );
   const stockQty = Number(selected?.stockQty ?? 0);
   const canSubmit = canTake && selected?.hasUnitMapping && stockQty > 0;
 
   function selectSupply(supply: Supply | null) {
-    if (requestInFlight.current || selectedId === supply?.id) return;
-    setSelectedId(supply?.id ?? null);
+    if (requestInFlight.current || selected?.id === supply?.id) return;
+    setSelection(supply ? { id: supply.id, stockUnit: supply.stockUnit } : null);
     setQuantity(supply && Number(supply.stockQty) >= 1 ? "1" : "");
     setNote("");
     setQuantityError("");
@@ -106,9 +109,9 @@ export default function InventorySupplyPicker({
       if (validity.rangeOverflow) {
         setQuantityError("Enter a quantity within the available stock.");
       } else if (validity.stepMismatch) {
-        setQuantityError("Enter a quantity with up to three decimal places.");
+        setQuantityError("Enter a quantity in increments of " + quantityInput.step + ".");
       } else {
-        setQuantityError("Enter a quantity of at least 0.001.");
+        setQuantityError("Enter a quantity greater than zero.");
       }
       quantityInput.focus();
       return;
@@ -128,7 +131,7 @@ export default function InventorySupplyPicker({
           return;
         }
 
-        setSelectedId(null);
+        setSelection(null);
         setQuantity("");
         setNote("");
         setSheetOpen(false);
@@ -186,7 +189,7 @@ export default function InventorySupplyPicker({
       <SupplyCatalog
         supplies={supplies}
         canTake={canTake}
-        selectedId={selectedId}
+        selectedId={selected?.id ?? null}
         pending={pending}
         onSelect={selectSupply}
       />
@@ -360,8 +363,10 @@ function SupplyCatalog({
                   <p className="text-muted-foreground mt-1 text-sm">
                     {supply.stockQty} {supply.unit} on hand
                   </p>
-                  {!supply.hasCompleteCoverage || !supply.hasUnitMapping ? (
-                    <p className="text-muted-foreground mt-1 text-xs">Unit mapping incomplete</p>
+                  {!supply.hasUnitMapping ? (
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Ask an admin to configure the stock unit.
+                    </p>
                   ) : null}
                 </div>
                 {canTake ? (
@@ -408,18 +413,23 @@ function SupplyReviewForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const quantityId = useId();
+  const quantityRef = useRef<HTMLInputElement>(null);
   const noteId = useId();
   const stockQty = Number(selected.stockQty);
   const numericQuantity = Number(quantity);
   const canSubmit = selected.hasUnitMapping && stockQty > 0;
 
   function stepQuantity(delta: number) {
-    onQuantityChange(String(Number((numericQuantity + delta).toFixed(3))));
+    const input = quantityRef.current;
+    if (!input) return;
+    input.stepUp(Math.round(delta / Number(selected.step)));
+    onQuantityChange(input.value);
   }
 
   return (
     <form onSubmit={submit} noValidate className="space-y-4 p-4 sm:p-5">
       <input type="hidden" name="supplyId" value={selected.id} />
+      <input type="hidden" name="stockUnit" value={selected.stockUnit} />
       <div className="border-border bg-muted/30 rounded-2xl border p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -449,19 +459,20 @@ function SupplyReviewForm({
             size="icon"
             aria-label="Decrease quantity"
             className="shrink-0 rounded-full"
-            disabled={pending || !canSubmit || numericQuantity - 1 < 0.001}
+            disabled={pending || !canSubmit || numericQuantity - 1 < Number(selected.step)}
             onClick={() => stepQuantity(-1)}
           >
             <Minus />
           </Button>
           <Input
+            ref={quantityRef}
             id={quantityId}
             name="quantity"
             type="number"
             inputMode="decimal"
-            min="0.001"
+            min={selected.step}
             max={selected.stockQty}
-            step="0.001"
+            step={selected.step}
             placeholder="0"
             required
             value={quantity}

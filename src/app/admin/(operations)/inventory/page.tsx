@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import {
+  supplyDisplayQuantity,
+  supplyMovementDisplay,
+  supplyStockUnit,
+} from "@/lib/inventory/supply-units";
+import {
   AdminInventoryPageProps,
   InventoryStatus,
   StatusSummary,
@@ -13,7 +18,6 @@ import InventorySummary from "./_compoents/InventorySummary";
 import InventorySuppliesTable from "./_compoents/InventorySuppliesTable";
 import RecentInventoryActivity from "./_compoents/RecentInventoryActitvity";
 import { getEatDayStart } from "@/app/inventory/page";
-const EAT_OFFSET_HOURS = 3;
 
 function addStatus(summary: StatusSummary, status: InventoryStatus) {
   if (status === "OUT") {
@@ -80,6 +84,7 @@ export default async function AdminInventoryPage({
           not: null,
         },
       },
+      include: { supply: { select: { unit: true } } },
       take: 8,
       orderBy: {
         createdAt: "desc",
@@ -106,15 +111,20 @@ export default async function AdminInventoryPage({
     }),
   ]);
 
-  const enrichedSupplies = supplies.map((supply) => ({
-    ...supply,
-    stockQty: Number(supply.stockQty),
-    lowStockThreshold: Number(supply.lowStockThreshold),
-    status: getInventoryAlertStatus(
-      Number(supply.stockQty),
-      Number(supply.lowStockThreshold),
-    ),
-  }));
+  const enrichedSupplies = supplies.map((supply) => {
+    const stockUnit = supplyStockUnit(supply);
+    return {
+      id: supply.id,
+      name: supply.name,
+      unit: stockUnit.label,
+      stockUnit: stockUnit.token,
+      step: stockUnit.step,
+      hasUnitMapping: supply.canonicalUnit !== null,
+      stockQty: supplyDisplayQuantity(supply.stockQty, stockUnit.factor),
+      lowStockThreshold: supplyDisplayQuantity(supply.lowStockThreshold, stockUnit.factor),
+      status: getInventoryAlertStatus(supply.stockQty, supply.lowStockThreshold),
+    };
+  });
   const visibleSupplies = enrichedSupplies.filter((supply) => {
     const matchesSearch = !q || supply.name.toLowerCase().includes(q);
     const matchesStatus =
@@ -147,10 +157,15 @@ export default async function AdminInventoryPage({
         statusFilter={statusFilter}
       />
       <RecentInventoryActivity
-        movements={movements.map((movement) => ({
-          ...movement,
-          delta: Number(movement.delta),
-        }))}
+        movements={movements.map((movement) => {
+          const display = supplyMovementDisplay(movement);
+          return {
+            ...movement,
+            itemName: display.name,
+            delta: display.quantity,
+            unit: display.unit,
+          };
+        })}
       />
     </AdminPage>
   );

@@ -5,7 +5,11 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { sendInventoryAlerts, setSupplyInventoryLevel } from "@/lib/inventory/inventory";
 import { prisma } from "@/lib/prisma";
-import { positiveDecimalQuantity } from "@/lib/inventory/inventory-domain";
+import {
+  supplyDisplayQuantity,
+  supplyInputQuantity,
+  supplyStockUnit,
+} from "@/lib/inventory/supply-units";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type TakeSupplyResult =
@@ -27,17 +31,6 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
     return { ok: false, error: "Select a supply first." };
   }
 
-  let quantity;
-  try {
-    quantity = positiveDecimalQuantity(getString(formData, "quantity"));
-  } catch {
-    return {
-      ok: false,
-      field: "quantity",
-      error: "Enter a quantity greater than zero.",
-    };
-  }
-
   let result;
   try {
     result = await prisma.$transaction(
@@ -49,6 +42,7 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
             lowStockThreshold: true,
             isActive: true,
             canonicalUnit: true,
+            unit: true,
           },
         });
 
@@ -58,16 +52,48 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
         if (!supply.canonicalUnit) {
           return { ok: false, error: "Ask an admin to configure the supply's unit." } as const;
         }
+        const stockUnit = supplyStockUnit(supply);
+        const unitToken = formData.get("stockUnit");
+        if (unitToken !== null && unitToken !== stockUnit.token) {
+          return {
+            ok: false,
+            error: "The stock unit changed. Refresh and select the supply again.",
+          } as const;
+        }
+
+        // Submissions from earlier versions already contain canonical quantities.
+        const inputUnit =
+          unitToken === null
+            ? supplyStockUnit({ unit: "", canonicalUnit: supply.canonicalUnit })
+            : stockUnit;
+        let quantity;
+        try {
+          quantity = supplyInputQuantity(getString(formData, "quantity"), inputUnit.factor, {
+            positive: true,
+          });
+        } catch (error) {
+          return {
+            ok: false,
+            field: "quantity",
+            error: error instanceof Error ? error.message : "Enter a valid quantity.",
+          } as const;
+        }
         if (quantity.gt(supply.stockQty)) {
           return {
             ok: false,
             field: "quantity",
-            error: "Only " + supply.stockQty.toString() + " is currently in stock.",
+            error:
+              "Only " +
+              supplyDisplayQuantity(supply.stockQty, inputUnit.factor) +
+              " " +
+              inputUnit.label +
+              " is currently in stock.",
           } as const;
         }
 
         return {
           ok: true as const,
+          quantity,
           alerts: await setSupplyInventoryLevel(
             tx,
             supplyId,
@@ -104,7 +130,7 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
         event: "inventory_taken",
         properties: {
           supply_id: supplyId,
-          quantity: quantity.toNumber(),
+          quantity: result.quantity.toNumber(),
           staff_role: user.role,
         },
       });
