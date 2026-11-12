@@ -9,6 +9,7 @@ import {
   ratioPercent,
 } from "@/lib/reports/financial-formulas";
 import type { ReportRange } from "@/lib/reports/reporting-calendar";
+import { calculateTableTurnMetrics } from "@/lib/reports/table-turn-metrics";
 import type { ReportQuery } from "@/lib/reports/validation";
 
 type SalesRow = {
@@ -84,6 +85,9 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
         waiter: { select: { id: true, fullName: true } },
         cashier: { select: { id: true, fullName: true } },
         table: { select: { id: true, name: true } },
+        tableCheck: {
+          select: { id: true, createdAt: true, closedAt: true },
+        },
         orderItems: {
           include: {
             product: {
@@ -187,6 +191,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
     discounts.plus(complimentary).plus(staffMeals),
     refunds,
   );
+  const tableTurnMetrics = calculateTableTurnMetrics(orders);
   const profit =
     totalLines > 0 && costCoveredLines === totalLines
       ? grossProfit(net, cogs)
@@ -233,6 +238,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       ),
       costCoveredLines,
       totalLines,
+      ...tableTurnMetrics,
     },
     paymentMethods: [...paymentTotals.entries()].map(([method, amount]) => ({
       method,
