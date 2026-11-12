@@ -172,12 +172,12 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
         >
           <defs>
             <linearGradient id="weeklySalesFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity={0.24} />
-              <stop offset="100%" stopColor="#2563eb" stopOpacity={0.03} />
+              <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.24} />
+              <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.03} />
             </linearGradient>
           </defs>
           <CartesianGrid
-            stroke="#e2e8f0"
+            stroke="var(--border)"
             strokeDasharray="4 4"
             vertical={false}
           />
@@ -185,7 +185,7 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
             axisLine={false}
             dataKey="label"
             tickLine={false}
-            tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
           />
           <YAxis
             axisLine={false}
@@ -193,14 +193,14 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
             tickLine={false}
             tickMargin={8}
             width={56}
-            tick={{ fill: "#64748b", fontSize: 12, fontWeight: 700 }}
+            tick={{ fill: "var(--muted-foreground)", fontSize: 12, fontWeight: 700 }}
           />
-          <Tooltip content={<SalesTooltip />} cursor={{ stroke: "#bfdbfe" }} />
+          <Tooltip content={<SalesTooltip />} cursor={{ stroke: "var(--border)" }} />
           <Area
             activeDot={{
               r: 6,
-              fill: "#2563eb",
-              stroke: "#dbeafe",
+              fill: "var(--primary)",
+              stroke: "var(--muted)",
               strokeWidth: 4,
             }}
             animationDuration={900}
@@ -208,14 +208,14 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
             dataKey="value"
             dot={{
               r: 4,
-              fill: "#2563eb",
-              stroke: "#dbeafe",
+              fill: "var(--primary)",
+              stroke: "var(--muted)",
               strokeWidth: 3,
             }}
             fill="url(#weeklySalesFill)"
-            isAnimationActive
+            isAnimationActive={false}
             name="Sales"
-            stroke="#2563eb"
+            stroke="var(--primary)"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={3}
