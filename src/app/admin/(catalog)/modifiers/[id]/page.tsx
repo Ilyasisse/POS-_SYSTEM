@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole as requireAuth } from "@/lib/auth/require-role";
 import { deleteModifier, updateModifier } from "../actions";
+import { DeleteCatalogItemSection } from "../../DeleteCatalogItemSection";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
 type ModifierDetailsPageProps = {
@@ -192,26 +193,12 @@ export default async function ModifierDetailsPage({
           </form>
         </section>
 
-        <section className="rounded-2xl border border-red-200 dark:border-red-800 bg-card p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600 dark:text-red-300">
-            Delete Modifier
-          </h2>
-
-          <p className="mb-4 text-sm text-muted-foreground">
-            This will permanently delete{" "}
-            <span className="font-semibold">{modifier.name}</span>.
-          </p>
-
-          <form action={deleteModifier}>
-            <Input type="hidden" name="id" value={modifier.id} />
-            <Button
-              type="submit"
-              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Delete Modifier
-            </Button>
-          </form>
-        </section>
+        <DeleteCatalogItemSection
+          id={modifier.id}
+          name={modifier.name}
+          label="Delete Modifier"
+          action={deleteModifier}
+        />
       </div>
     </div>
   );
