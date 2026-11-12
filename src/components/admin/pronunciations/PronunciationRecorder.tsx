@@ -11,6 +11,8 @@ type PronunciationRecorderProps = {
   entityType: "product" | "modifier";
   label: string;
   currentUrl?: string | null;
+  onAudioChange?: () => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 type AudioUrlOverride = {
@@ -38,6 +40,8 @@ export default function PronunciationRecorder({
   entityType,
   label,
   currentUrl,
+  onAudioChange,
+  onBusyChange,
 }: PronunciationRecorderProps) {
   const sourceAudioUrl = currentUrl ?? "";
   const [audioUrlOverride, setAudioUrlOverride] =
@@ -49,6 +53,8 @@ export default function PronunciationRecorder({
   const [error, setError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const busy = isStarting || isRecording || isUploading;
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -88,7 +94,6 @@ export default function PronunciationRecorder({
     );
     formData.append("label", label);
     formData.append("entityType", entityType);
-    formData.append("previousUrl", audioUrl);
 
     const response = await fetch("/api/admin/pronunciations", {
       method: "POST",
@@ -105,6 +110,7 @@ export default function PronunciationRecorder({
       sourceUrl: sourceAudioUrl,
       value: data.url,
     });
+    onAudioChange?.();
   }
 
   async function startRecording() {
@@ -120,7 +126,10 @@ export default function PronunciationRecorder({
     }
 
     try {
+      setIsStarting(true);
+      onBusyChange?.(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
       const mimeType = getSupportedMimeType();
       const recorder = mimeType
         ? new MediaRecorder(stream, { mimeType })
@@ -146,6 +155,7 @@ export default function PronunciationRecorder({
 
         if (blob.size === 0) {
           setError("No audio was recorded.");
+          onBusyChange?.(false);
           return;
         }
 
@@ -160,17 +170,23 @@ export default function PronunciationRecorder({
           );
         } finally {
           setIsUploading(false);
+          onBusyChange?.(false);
         }
       };
 
       recorder.start();
       setIsRecording(true);
     } catch (recordError) {
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      onBusyChange?.(false);
       setError(
         recordError instanceof Error
           ? recordError.message
           : "Microphone access was denied.",
       );
+    } finally {
+      setIsStarting(false);
     }
   }
 
@@ -186,6 +202,7 @@ export default function PronunciationRecorder({
       value: "",
     });
     setError("");
+    onAudioChange?.();
   }
 
   return (
@@ -215,10 +232,14 @@ export default function PronunciationRecorder({
           <Button
             type="button"
             onClick={startRecording}
-            disabled={isUploading}
+            disabled={busy}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {audioUrl ? "Re-record Audio" : "Start Recording"}
+            {isStarting
+              ? "Waiting for microphone…"
+              : audioUrl
+                ? "Re-record Audio"
+                : "Start Recording"}
           </Button>
         )}
 
@@ -226,7 +247,7 @@ export default function PronunciationRecorder({
           variant="outline"
           type="button"
           onClick={clearRecording}
-          disabled={!audioUrl || isUploading}
+          disabled={!audioUrl || busy}
           className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-50"
         >
           Clear Audio

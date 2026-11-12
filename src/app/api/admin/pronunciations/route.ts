@@ -1,16 +1,9 @@
-import { unlink } from "node:fs/promises";
-import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 
-const LEGACY_UPLOAD_ROOT = path.join(
-  process.cwd(),
-  "public",
-  "uploads",
-  "pronunciations",
-);
 const PRONUNCIATION_BUCKET =
   process.env.SUPABASE_PRONUNCIATION_BUCKET?.trim() || "pronunciations";
 
@@ -58,79 +51,9 @@ async function ensureAdminUser(
   });
 }
 
-// Old pronunciation uploads used to live inside public/uploads/pronunciations.
-// If a saved URL points there, this converts it back into a local disk path so
-// replacement uploads can clean up the old file.
-function getLegacyAbsolutePath(previousUrl: string) {
-  if (!previousUrl.startsWith("/uploads/pronunciations/")) {
-    return null;
-  }
-
-  const relativePath = previousUrl.replace(/^\/+/, "");
-  const absolutePath = path.join(process.cwd(), "public", relativePath);
-
-  if (!absolutePath.startsWith(LEGACY_UPLOAD_ROOT)) {
-    return null;
-  }
-
-  return absolutePath;
-}
-
-// New pronunciation uploads live in Supabase Storage. Given a public Supabase
-// URL, this extracts the private storage path that the remove() API expects.
-function getStoragePathFromPublicUrl(previousUrl: string) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  if (!supabaseUrl) {
-    return null;
-  }
-
-  try {
-    const publicPrefix = new URL(
-      `/storage/v1/object/public/${PRONUNCIATION_BUCKET}/`,
-      supabaseUrl,
-    ).toString();
-
-    if (!previousUrl.startsWith(publicPrefix)) {
-      return null;
-    }
-
-    return decodeURIComponent(previousUrl.slice(publicPrefix.length));
-  } catch {
-    return null;
-  }
-}
-
-// When an admin records a better pronunciation, this removes the old audio.
-// It supports both the old local-file world and the current Supabase bucket.
-async function removePreviousUpload(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  previousUrl: string,
-) {
-  const legacyAbsolutePath = getLegacyAbsolutePath(previousUrl);
-
-  if (legacyAbsolutePath) {
-    try {
-      await unlink(legacyAbsolutePath);
-    } catch {
-      // Ignore missing or already-removed files.
-    }
-
-    return;
-  }
-
-  const storagePath = getStoragePathFromPublicUrl(previousUrl);
-
-  if (!storagePath) {
-    return;
-  }
-
-  await supabase.storage.from(PRONUNCIATION_BUCKET).remove([storagePath]);
-}
-
 // POST /api/admin/pronunciations
 // Receives one recorded audio file from the admin UI, stores it in Supabase,
-// optionally deletes the old recording, and returns the new public audio URL.
+// and returns a new public audio URL for the catalog form to save.
 export async function POST(request: Request) {
   try {
     // Step 1: identify the user. The API is private because only staff should
@@ -148,12 +71,26 @@ export async function POST(request: Request) {
     }
 
     // Step 3: unpack the multipart form. The recorder sends the audio file plus
-    // a label, whether it belongs to a product/modifier, and maybe an old URL.
+    // a label and whether it belongs to a product or modifier.
     const formData = await request.formData();
     const file = formData.get("file");
-    const label = String(formData.get("label") || "").trim();
-    const entityType = String(formData.get("entityType") || "product").trim();
-    const previousUrl = String(formData.get("previousUrl") || "").trim();
+    const rawLabel = formData.get("label") ?? "";
+    const rawEntityType = formData.get("entityType");
+    if (typeof rawLabel !== "string" || rawLabel.trim().length > 120) {
+      return NextResponse.json(
+        { error: "Audio label must use 120 characters or fewer." },
+        { status: 400 },
+      );
+    }
+    const label = rawLabel.trim();
+    const entityType =
+      typeof rawEntityType === "string" ? rawEntityType.trim() : "";
+    if (entityType !== "product" && entityType !== "modifier") {
+      return NextResponse.json(
+        { error: "Choose a product or modifier recording." },
+        { status: 400 },
+      );
+    }
 
     // Step 4: make sure we actually received audio. This keeps random uploads
     // and empty recordings from sneaking into the storage bucket.
@@ -178,12 +115,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 5: build a storage path like product/1712345678-latte.webm. The
+    // Step 5: give each recording its own UUID-based storage path. The
     // entity folder keeps product and modifier audio easy to browse later.
-    const safeEntityType = entityType === "modifier" ? "modifier" : "product";
     const extension = getExtension(file.type);
-    const fileName = `${Date.now()}-${slugifyLabel(label)}.${extension}`;
-    const storagePath = `${safeEntityType}/${fileName}`;
+    const fileName = `${randomUUID()}-${slugifyLabel(label)}.${extension}`;
+    const storagePath = `${entityType}/${fileName}`;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     // Step 6: upload the fresh recording to Supabase Storage. upsert is false so
@@ -203,14 +139,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 7: if this recording replaces an older one, clean up the old audio
-    // after the new upload succeeds. That order avoids losing the only copy.
-    if (previousUrl) {
-      await removePreviousUpload(supabase, previousUrl);
-    }
-
-    // Step 8: Supabase gives us a public URL that can be saved on the product or
-    // modifier record and played back by the waiter/cashier ordering screens.
+    // Uploads do not replace saved audio. The editor may be cancelled, and
+    // multiple products/modifiers can reference the same recording. Cleanup must
+    // check committed catalog references separately before removing any object.
     const { data: publicUrlData } = supabase.storage
       .from(PRONUNCIATION_BUCKET)
       .getPublicUrl(storagePath);

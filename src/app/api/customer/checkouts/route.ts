@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableForSale } from "@/lib/products/availability";
+import {
+  productModifierRulesSelect,
+  validateProductModifierSelection,
+} from "@/lib/products/modifier-selection";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
@@ -56,17 +61,6 @@ function toDecimal(value: number) {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
-}
-
-function isPlaceholderModifier(
-  modifier: CustomerOrderItemModifierInput | SelectedModifierLine,
-) {
-  const modifierId =
-    "modifierId" in modifier ? modifier.modifierId : modifier.optionId;
-  const explicitPlaceholder =
-    "isPlaceholder" in modifier ? modifier.isPlaceholder === true : false;
-
-  return modifierId.startsWith("placeholder__") || explicitPlaceholder;
 }
 
 export async function POST(request: Request) {
@@ -155,7 +149,7 @@ export async function POST(request: Request) {
             : [],
         ),
       ),
-    ].filter((modifierId) => !modifierId.startsWith("placeholder__"));
+    ];
     const assignedBaristaIds = [
       ...new Set(
         body.items
@@ -169,12 +163,16 @@ export async function POST(request: Request) {
         where: {
           id: { in: productIds },
           isActive: true,
+          category: { isActive: true },
         },
         select: {
           id: true,
           name: true,
           price: true,
           cost: true,
+          availableForSale: true,
+          availabilityRestoresAt: true,
+          modifiers: productModifierRulesSelect,
           recipeVersions: {
             where: { isActive: true },
             select: {
@@ -269,6 +267,22 @@ export async function POST(request: Request) {
         );
       }
 
+      if (!isProductAvailableForSale(product)) {
+        return NextResponse.json(
+          { error: `${product.name} is temporarily unavailable.` },
+          { status: 409 },
+        );
+      }
+
+      const modifierError = validateProductModifierSelection(
+        product.name,
+        product.modifiers,
+        Array.isArray(item.modifiers) ? item.modifiers : [],
+      );
+      if (modifierError) {
+        return NextResponse.json({ error: modifierError }, { status: 400 });
+      }
+
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
       const incomingModifiers = Array.isArray(item.modifiers)
@@ -287,21 +301,6 @@ export async function POST(request: Request) {
         }
 
         handledModifierIds.add(incomingModifier.modifierId);
-
-        if (isPlaceholderModifier(incomingModifier)) {
-          selectedModifiers.push({
-            groupId: `placeholder-group-${incomingModifier.groupName ?? "custom"}`,
-            groupName: incomingModifier.groupName?.trim() || "Custom",
-            optionId: incomingModifier.modifierId,
-            optionName:
-              incomingModifier.modifierName?.trim() || "Custom option",
-            price: roundCurrency(
-              Math.max(0, Number(incomingModifier.price) || 0),
-            ),
-            qty: Math.max(1, Number(incomingModifier.qty) || 1),
-          });
-          continue;
-        }
 
         const modifier = modifierMap.get(incomingModifier.modifierId);
 
