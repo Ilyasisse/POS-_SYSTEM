@@ -20,24 +20,27 @@ export default function PaymentReceiptReview() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [selected, setSelected] = useState<Receipt | null>(null);
   const [busy, setBusy] = useState(false);
-  const refresh = useCallback(async () => {
-    try {
-      const response = await fetch("/api/cashier/payment-receipts", {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Could not load receipt review inbox.");
-      const data = (await response.json()) as { receipts: Receipt[] };
-      setReceipts(data.receipts);
-    } catch (cause) {
-      toast({
-        tone: "error",
-        description:
-          cause instanceof Error ? cause.message : "Could not load receipts.",
-      });
-    }
-  }, [toast]);
+  const refresh = useCallback(
+    (signal?: AbortSignal) =>
+      fetch("/api/cashier/payment-receipts", { cache: "no-store", signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Could not load receipt review inbox.");
+          const data = (await response.json()) as { receipts: Receipt[] };
+          if (!signal?.aborted) setReceipts(data.receipts);
+        })
+        .catch((cause: unknown) => {
+          if (signal?.aborted) return;
+          toast({
+            tone: "error",
+            description: cause instanceof Error ? cause.message : "Could not load receipts.",
+          });
+        }),
+    [toast],
+  );
   useEffect(() => {
-    void refresh();
+    const controller = new AbortController();
+    void refresh(controller.signal);
+    return () => controller.abort();
   }, [refresh]);
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
