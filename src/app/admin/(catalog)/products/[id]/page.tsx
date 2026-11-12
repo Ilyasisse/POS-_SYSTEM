@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteProduct, updateProduct } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
+import { ProductMenuFields } from "../ProductMenuFields";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -84,6 +85,11 @@ export default async function ProductDetailsPage({
                 required
               />
             </div>
+
+            <ProductMenuFields
+              description={product.description}
+              imageUrl={product.imageUrl}
+            />
 
             <div>
               <label
