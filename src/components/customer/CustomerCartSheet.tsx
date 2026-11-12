@@ -38,6 +38,7 @@ type CustomerCartSheetProps = {
   onCustomerPhoneChange: (value: string) => void;
   onOrderNoteChange: (value: string) => void;
   onChangeQuantity: (cartKey: string, delta: number) => void;
+  onItemNoteChange: (cartKey: string, note: string) => void;
   onRemove: (cartKey: string) => void;
   onClearCart: () => void;
   onCheckout: () => void;
@@ -54,12 +55,13 @@ type CustomerCartContentProps = Omit<CustomerCartSheetProps, "open"> & {
 
 type CartLineItemsProps = Pick<
   CustomerCartSheetProps,
-  "cart" | "onChangeQuantity" | "onRemove"
+  "cart" | "onChangeQuantity" | "onItemNoteChange" | "onRemove"
 >;
 
 function CartLineItems({
   cart,
   onChangeQuantity,
+  onItemNoteChange,
   onRemove,
 }: CartLineItemsProps) {
   return (
@@ -102,6 +104,8 @@ function CartLineItems({
               ))}
             </div>
           ) : null}
+
+          <Textarea aria-label={`Special instructions for ${item.name}`} value={item.note ?? ""} maxLength={500} rows={2} onChange={(event) => onItemNoteChange(item.cartKey, event.target.value)} placeholder="Item instructions (for example, no sugar)" className="mt-3 w-full rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm" />
 
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="inline-flex items-center rounded-full border border-border bg-muted/50">
@@ -201,6 +205,7 @@ function CartBody({
   onCustomerPhoneChange,
   onOrderNoteChange,
   onChangeQuantity,
+  onItemNoteChange,
   onRemove,
 }: Pick<
   CustomerCartSheetProps,
@@ -217,6 +222,7 @@ function CartBody({
   | "onCustomerPhoneChange"
   | "onOrderNoteChange"
   | "onChangeQuantity"
+  | "onItemNoteChange"
   | "onRemove"
 > & { isCashier: boolean }) {
   if (cart.length === 0) {
@@ -325,6 +331,7 @@ function CartBody({
         <CartLineItems
           cart={cart}
           onChangeQuantity={onChangeQuantity}
+          onItemNoteChange={onItemNoteChange}
           onRemove={onRemove}
         />
       </div>

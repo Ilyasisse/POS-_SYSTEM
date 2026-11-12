@@ -24,6 +24,7 @@ export type CartLine = {
   pronunciationAudioUrl?: string | null;
   finalPrice?: number;
   lineTotal?: number;
+  note?: string;
   selectedModifiers: SelectedModifierLine[];
   station?: Station;
   assignedUserId?: string | null;
@@ -47,6 +48,7 @@ export type ReceiptSnapshotLine = {
   id: string;
   name: string;
   quantity: number;
+  note?: string | null;
   price: number;
   finalPrice: number;
   station?: Station;
