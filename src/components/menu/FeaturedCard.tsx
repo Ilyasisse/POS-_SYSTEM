@@ -1,5 +1,6 @@
 import { MenuProduct } from "@/lib/menu/menu-data";
 import { Card } from "@/components/ui/card";
+import MenuProductImage from "./MenuProductImage";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -25,12 +26,13 @@ export default function FeaturedCard({
       className="gap-0 overflow-hidden rounded-3xl border border-white/50 bg-white/75 py-0 shadow-[0_18px_46px_rgba(67,39,20,0.08)] backdrop-blur dark:border-border dark:bg-card"
     >
       {/* Featured image section */}
-      <div className="aspect-5/4 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)] dark:bg-none dark:bg-muted">
+      <div className="relative aspect-5/4 overflow-hidden bg-[linear-gradient(135deg,#5a3320_0%,#8f5b32_55%,#d4a169_100%)] dark:bg-none dark:bg-muted">
         {/* Only render image if imageUrl exists */}
         {item.imageUrl ? (
-          <div
-            className="h-full w-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${item.imageUrl})` }}
+          <MenuProductImage
+            src={item.imageUrl}
+            alt={item.name}
+            sizes="(min-width: 1280px) 192px, (min-width: 1024px) calc(50vw - 81px), (min-width: 640px) calc(50vw - 65px), calc(100vw - 82px)"
           />
         ) : null}
       </div>
