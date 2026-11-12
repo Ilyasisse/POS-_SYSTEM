@@ -206,7 +206,7 @@ test("receipt loader authenticates before querying and protects missing/unauthor
   let currentUser: User | null = null;
   let storedOrder: typeof assignedOrder | null = assignedOrder;
   let reads = 0;
-  const receiptModule = loadModule("src/lib/orders/order-receipt.ts", {
+  const receiptModule = loadModule("src/lib/orders/get-order-receipt.ts", {
     "server-only": {},
     "next/navigation": {
       redirect: (url: string) => {
@@ -229,7 +229,7 @@ test("receipt loader authenticates before querying and protects missing/unauthor
       },
     },
     "./receipt-access": { canViewOrderReceipt },
-    "./receipt-data": { buildReceiptData },
+    "./build-receipt-data": { buildReceiptData },
   });
   await assert.rejects(
     receiptModule.getOrderReceipt("order"),
@@ -272,13 +272,13 @@ test("both page routes obtain receipts from the same protected loader", async ()
     let requested = "";
     const page = loadModule(file, {
       "react/jsx-runtime": jsx,
-      "@/lib/orders/order-receipt": {
+      "@/lib/orders/get-order-receipt": {
         getOrderReceipt: async (id: string) => {
           requested = id;
           return buildReceiptData(receiptOrder(), null);
         },
       },
-      "./FullPageReceipt": { default: FullPageReceipt },
+      "./entire-page-receipt/FullPageReceipt": { default: FullPageReceipt },
       "./ReceiptActions": { default: ReceiptActions },
       "../ReceiptActions": { default: ReceiptActions },
       "./ThermalReceipt": { default: ThermalReceipt },
