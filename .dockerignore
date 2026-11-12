@@ -1,0 +1,30 @@
+# Local dependency/build artifacts
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+*.log
+
+# Git, editor, and agent worktrees
+.git
+.github
+.codex
+.worktrees
+.vscode
+.claude
+.agents
+
+# Never add local secrets to a Docker image
+.env
+.env.*
+*.pem
+*.key
+
+# Local caches and transient uploads
+.npm-cache
+public/uploads
+
+# Miscellaneous
+.DS_Store
