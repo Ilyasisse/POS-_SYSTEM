@@ -15,8 +15,6 @@ import {
 
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
-const auditValue = (value: unknown) =>
-  JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
 export async function recordMacrodroidHeartbeat(
   sender: string,
@@ -169,14 +167,8 @@ export async function assignMobileMoneyReceipt(input: {
 
   return prisma.$transaction(
     async (tx) => {
-      await tx.$queryRawUnsafe(
-        'SELECT "id" FROM "PaymentRequest" WHERE "id" = $1 FOR UPDATE',
-        input.paymentRequestId,
-      );
-      await tx.$queryRawUnsafe(
-        'SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = $1 FOR UPDATE',
-        input.receiptId,
-      );
+      await tx.$queryRaw`SELECT "id" FROM "PaymentRequest" WHERE "id" = ${input.paymentRequestId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = ${input.receiptId} FOR UPDATE`;
 
       const [request, receipt] = await Promise.all([
         tx.paymentRequest.findUnique({
@@ -365,10 +357,7 @@ export async function reverseMobileMoneyReceipt(input: {
   }
   return prisma.$transaction(
     async (tx) => {
-      await tx.$queryRawUnsafe(
-        'SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = $1 FOR UPDATE',
-        input.receiptId,
-      );
+      await tx.$queryRaw`SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = ${input.receiptId} FOR UPDATE`;
       const receipt = await tx.mobileMoneyReceipt.findUnique({
         where: { id: input.receiptId },
         include: {
@@ -419,7 +408,9 @@ export async function reverseMobileMoneyReceipt(input: {
       await tx.payment.deleteMany({
         where: { mobileMoneyReceiptId: receipt.id },
       });
+      // Keep the reads and writes ordered on this transaction's single connection.
       for (const orderId of orderIds) {
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const order = await tx.order.findUniqueOrThrow({
           where: { id: orderId },
           include: { payments: { select: { amountPaid: true } } },
@@ -492,17 +483,17 @@ export async function reverseMobileMoneyReceipt(input: {
           entityType: "MobileMoneyReceipt",
           entityId: receipt.id,
           reason,
-          previousValue: auditValue({
+          previousValue: {
             status: receipt.status,
             paymentRequestId: receipt.assignedPaymentRequestId,
             assignedByUserId: receipt.assignedByUserId,
-            assignedAt: receipt.assignedAt,
+            assignedAt: receipt.assignedAt?.toISOString() ?? null,
             paymentIds: receipt.payments.map((payment) => payment.id),
-          }),
-          newValue: auditValue({
+          },
+          newValue: {
             status: available.status,
             assignedPaymentRequestId: null,
-          }),
+          },
           relatedEntityType: "PaymentRequest",
           relatedEntityId: receipt.paymentRequest.id,
         },
@@ -553,10 +544,7 @@ export async function reviewMobileMoneyReceipt(input: {
 
   return prisma.$transaction(
     async (tx) => {
-      await tx.$queryRawUnsafe(
-        'SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = $1 FOR UPDATE',
-        input.receiptId,
-      );
+      await tx.$queryRaw`SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = ${input.receiptId} FOR UPDATE`;
       const receipt = await tx.mobileMoneyReceipt.findUnique({
         where: { id: input.receiptId },
       });
@@ -594,22 +582,22 @@ export async function reviewMobileMoneyReceipt(input: {
           entityType: "MobileMoneyReceipt",
           entityId: receipt.id,
           reason,
-          previousValue: auditValue({
+          previousValue: {
             status: receipt.status,
             direction: receipt.direction,
             parseError: receipt.parseError,
             rawMessage: receipt.rawMessage,
-          }),
-          newValue: auditValue({
+          },
+          newValue: {
             status: updated.status,
             direction: updated.direction,
             providerReference: updated.providerReference,
-            amount: updated.amount,
+            amount: updated.amount?.toJSON() ?? null,
             counterpartyLabel: updated.counterpartyLabel,
             counterpartyIdentifiers: updated.counterpartyIdentifiers,
-            transactionAt: updated.transactionAt,
-            providerBalance: updated.providerBalance,
-          }),
+            transactionAt: updated.transactionAt?.toISOString() ?? null,
+            providerBalance: updated.providerBalance?.toJSON() ?? null,
+          },
         },
       });
       return updated;

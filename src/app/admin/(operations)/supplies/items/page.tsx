@@ -7,7 +7,7 @@ import {
   DataTableCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,15 +81,15 @@ export default async function SupplyItemsPage() {
       </Card>
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Item</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Default price</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Item",
+              "Unit",
+              "Default price",
+              "Status",
+              "Actions",
+            ]}
+          />
           <tbody>
             {items.length ? (
               items.map((item) => {

@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { Table, TableCell, TableHead } from "@/components/ui/table";
+import { Table, TableCell, TableColumnHeaders, TableHead } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export { Button, Card, Table, TableCell, TableHead };
+export { Button, Card, Table, TableCell, TableColumnHeaders, TableHead };
 
 export function AdminPage({
   title,

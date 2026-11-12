@@ -270,37 +270,9 @@ function InvoiceAuditCard({ invoice }: { invoice: SupplierInvoiceDetail }) {
           {invoice.voidReason ? ` Reason: ${invoice.voidReason}` : ""}
         </p>
       ) : null}
-      {invoice.source === "LEGACY_UPLOAD" ? (
-        <>
-          <p>
-            Converted from the former supplier delivery workflow with its
-            original record ID and receipt reference.
-          </p>
-          {invoice.legacyDeliveryDate ? (
-            <p>
-              Original delivery timestamp:{" "}
-              {invoice.legacyDeliveryDate.toLocaleString()}.
-            </p>
-          ) : null}
-          {invoice.legacyInventoryUpdatedAt ? (
-            <p>
-              Historical inventory update:{" "}
-              {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This is audit
-              history only; invoices no longer update inventory.
-            </p>
-          ) : null}
-          {invoice.legacySubtotalAmount !== null ||
-          invoice.legacyTaxAmount !== null ||
-          invoice.legacyDiscountAmount !== null ? (
-            <p>
-              Legacy breakdown: subtotal{" "}
-              {formatMoney(Number(invoice.legacySubtotalAmount || 0))}, tax{" "}
-              {formatMoney(Number(invoice.legacyTaxAmount || 0))}, discount{" "}
-              {formatMoney(Number(invoice.legacyDiscountAmount || 0))}.
-            </p>
-          ) : null}
-        </>
-      ) : null}
+      <LegacyInvoiceAudit
+        invoice={invoice}
+      />
       {invoice.bill ? (
         <Button asChild variant="outline" className="mt-2 w-fit">
           <Link
@@ -379,45 +351,10 @@ export default async function SupplierInvoiceDetailPage({
   const remainingBalance = invoice.bill
     ? Number(invoice.bill.totalAmount) - Number(invoice.bill.paidAmount)
     : null;
-  const billPayments = [
-    ...(invoice.bill?.allocations ?? [])
-      .reduce((grouped, allocation) => {
-        const payment = allocation.supplierPayment;
-        const existing = grouped.get(payment.id);
-        if (existing) {
-          existing.allocatedAmount += Number(allocation.amount);
-          existing.legacyAllocationAfterSchedule ||=
-            !allocation.installmentId && invoice.installments.length > 0;
-          return grouped;
-        }
-        const dailyCashBusinessDate = payment.dailyCashPayment
-          ? formatBusinessDateKey(
-              payment.dailyCashPayment.dailyCashDay.businessDate,
-            )
-          : null;
-        grouped.set(payment.id, {
-          ...payment,
-          allocatedAmount: Number(allocation.amount),
-          legacyAllocationAfterSchedule:
-            !allocation.installmentId && invoice.installments.length > 0,
-          dailyCashBusinessDate,
-          reversalError: getSupplierPaymentReversalError({
-            legacyAllocationAfterSchedule:
-              !allocation.installmentId && invoice.installments.length > 0,
-            dailyCashLinked: Boolean(payment.dailyCashPayment),
-            dailyCashLocked: dailyCashBusinessDate
-              ? isDailyCashLocked(dailyCashBusinessDate)
-              : false,
-            canManageDailyCash: hasPermission(
-              currentUser,
-              PERMISSIONS.DAILY_CASH_MANAGE,
-            ),
-          }),
-        });
-        return grouped;
-      }, new Map<string, InvoicePaymentRow>())
-      .values(),
-  ];
+  const billPayments = getInvoicePaymentRows(
+    invoice,
+    hasPermission(currentUser, PERMISSIONS.DAILY_CASH_MANAGE),
+  );
 
   const [catalogItems, receiptUrl] = await Promise.all([
     prisma.supplierCatalogItem.findMany({
@@ -462,27 +399,7 @@ export default async function SupplierInvoiceDetailPage({
         </>
       }
     >
-      {query?.invoiceStatus === "approved" ? (
-        <ToastOnMount
-          tone="success"
-          title="Invoice approved"
-          description="The invoice is now read-only, its supplier bill was created, and payment is pending."
-        />
-      ) : null}
-      {query?.invoiceStatus === "created" ? (
-        <ToastOnMount
-          tone="success"
-          title="Invoice draft created"
-          description="Review the invoice details, then save or finalize it when ready."
-        />
-      ) : null}
-      {query?.invoiceStatus === "voided" ? (
-        <ToastOnMount
-          tone="success"
-          title="Invoice voided"
-          description="The invoice draft was voided."
-        />
-      ) : null}
+      <InvoiceStatusNotice status={query?.invoiceStatus} />
 
       <InvoiceSummaryCards
         invoice={invoice}
@@ -496,44 +413,8 @@ export default async function SupplierInvoiceDetailPage({
       <ReceiptReferenceCard receiptUrl={receiptUrl} />
       <RecurringDraftSourceCard invoice={invoice} />
 
-      <RecurringInvoiceCard
-        invoiceId={invoice.id}
-        eligible={
-          invoice.source === "MANUAL" &&
-          invoice.status !== "VOID" &&
-          invoice.items.length > 0 &&
-          invoice.items.every((item) => Boolean(item.supplierCatalogItemId))
-        }
-        todayDateKey={getSupplierPurchaseTodayDateKey()}
-        defaultNextRunDate={getSupplierBillDefaultDueDateKey()}
-        recurrence={
-          invoice.templateRecurrence
-            ? {
-                id: invoice.templateRecurrence.id,
-                interval: invoice.templateRecurrence.interval,
-                unit: invoice.templateRecurrence.unit,
-                nextRunDate: invoice.templateRecurrence.nextRunDate
-                  .toISOString()
-                  .slice(0, 10),
-                isActive: invoice.templateRecurrence.isActive,
-                lastGeneratedAtLabel: invoice.templateRecurrence.lastGeneratedAt
-                  ? DATE_TIME_FORMATTER.format(
-                      invoice.templateRecurrence.lastGeneratedAt,
-                    )
-                  : null,
-                lastError: invoice.templateRecurrence.lastError,
-                lastErrorAtLabel: invoice.templateRecurrence.lastErrorAt
-                  ? DATE_TIME_FORMATTER.format(
-                      invoice.templateRecurrence.lastErrorAt,
-                    )
-                  : null,
-                pausedAt:
-                  invoice.templateRecurrence.pausedAt?.toISOString() ?? null,
-                generatedCount:
-                  invoice.templateRecurrence._count.generatedInvoices,
-              }
-            : null
-        }
+      <SupplierInvoiceRecurrence
+        invoice={invoice}
       />
 
       <SupplierInvoiceEditor
@@ -578,5 +459,139 @@ export default async function SupplierInvoiceDetailPage({
         }))}
       />
     </AdminPage>
+  );
+}
+
+function getInvoicePaymentRows(invoice: SupplierInvoiceDetail, canManageDailyCash: boolean) {
+  return [
+    ...(invoice.bill?.allocations ?? [])
+      .reduce((grouped, allocation) => {
+        const payment = allocation.supplierPayment;
+        const existing = grouped.get(payment.id);
+        if (existing) {
+          existing.allocatedAmount += Number(allocation.amount);
+          existing.legacyAllocationAfterSchedule ||=
+            !allocation.installmentId && invoice.installments.length > 0;
+          return grouped;
+        }
+        const dailyCashBusinessDate = payment.dailyCashPayment
+          ? formatBusinessDateKey(payment.dailyCashPayment.dailyCashDay.businessDate)
+          : null;
+        grouped.set(payment.id, {
+          ...payment,
+          allocatedAmount: Number(allocation.amount),
+          legacyAllocationAfterSchedule:
+            !allocation.installmentId && invoice.installments.length > 0,
+          dailyCashBusinessDate,
+          reversalError: getSupplierPaymentReversalError({
+            legacyAllocationAfterSchedule:
+              !allocation.installmentId && invoice.installments.length > 0,
+            dailyCashLinked: Boolean(payment.dailyCashPayment),
+            dailyCashLocked: dailyCashBusinessDate
+              ? isDailyCashLocked(dailyCashBusinessDate)
+              : false,
+            canManageDailyCash,
+          }),
+        });
+        return grouped;
+      }, new Map<string, InvoicePaymentRow>())
+      .values(),
+  ];
+}
+
+function LegacyInvoiceAudit({ invoice }: { invoice: SupplierInvoiceDetail }) {
+  return (
+    <>
+      {invoice.source === "LEGACY_UPLOAD" ? (
+        <>
+          <p>
+            Converted from the former supplier delivery workflow with its original record ID and
+            receipt reference.
+          </p>
+          {invoice.legacyDeliveryDate ? (
+            <p>Original delivery timestamp: {invoice.legacyDeliveryDate.toLocaleString()}.</p>
+          ) : null}
+          {invoice.legacyInventoryUpdatedAt ? (
+            <p>
+              Historical inventory update: {invoice.legacyInventoryUpdatedAt.toLocaleString()}. This
+              is audit history only; invoices no longer update inventory.
+            </p>
+          ) : null}
+          {invoice.legacySubtotalAmount !== null ||
+          invoice.legacyTaxAmount !== null ||
+          invoice.legacyDiscountAmount !== null ? (
+            <p>
+              Legacy breakdown: subtotal {formatMoney(Number(invoice.legacySubtotalAmount || 0))},
+              tax {formatMoney(Number(invoice.legacyTaxAmount || 0))}, discount{" "}
+              {formatMoney(Number(invoice.legacyDiscountAmount || 0))}.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function SupplierInvoiceRecurrence({ invoice }: { invoice: SupplierInvoiceDetail }) {
+  return (
+    <RecurringInvoiceCard
+      invoiceId={invoice.id}
+      eligible={
+        invoice.source === "MANUAL" &&
+        invoice.status !== "VOID" &&
+        invoice.items.length > 0 &&
+        invoice.items.every((item) => Boolean(item.supplierCatalogItemId))
+      }
+      todayDateKey={getSupplierPurchaseTodayDateKey()}
+      defaultNextRunDate={getSupplierBillDefaultDueDateKey()}
+      recurrence={
+        invoice.templateRecurrence
+          ? {
+              id: invoice.templateRecurrence.id,
+              interval: invoice.templateRecurrence.interval,
+              unit: invoice.templateRecurrence.unit,
+              nextRunDate: invoice.templateRecurrence.nextRunDate.toISOString().slice(0, 10),
+              isActive: invoice.templateRecurrence.isActive,
+              lastGeneratedAtLabel: invoice.templateRecurrence.lastGeneratedAt
+                ? DATE_TIME_FORMATTER.format(invoice.templateRecurrence.lastGeneratedAt)
+                : null,
+              lastError: invoice.templateRecurrence.lastError,
+              lastErrorAtLabel: invoice.templateRecurrence.lastErrorAt
+                ? DATE_TIME_FORMATTER.format(invoice.templateRecurrence.lastErrorAt)
+                : null,
+              pausedAt: invoice.templateRecurrence.pausedAt?.toISOString() ?? null,
+              generatedCount: invoice.templateRecurrence._count.generatedInvoices,
+            }
+          : null
+      }
+    />
+  );
+}
+
+function InvoiceStatusNotice({ status }: { status?: string }) {
+  return (
+    <>
+      {status === "approved" ? (
+        <ToastOnMount
+          tone="success"
+          title="Invoice approved"
+          description="The invoice is now read-only, its supplier bill was created, and payment is pending."
+        />
+      ) : null}
+      {status === "created" ? (
+        <ToastOnMount
+          tone="success"
+          title="Invoice draft created"
+          description="Review the invoice details, then save or finalize it when ready."
+        />
+      ) : null}
+      {status === "voided" ? (
+        <ToastOnMount
+          tone="success"
+          title="Invoice voided"
+          description="The invoice draft was voided."
+        />
+      ) : null}
+    </>
   );
 }

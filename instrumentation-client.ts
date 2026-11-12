@@ -16,7 +16,7 @@ if (!projectToken || !host) {
       `${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
     );
   }
-} else {
+} else if (typeof window !== "undefined") {
   posthog.init(projectToken, {
     api_host: host,
     defaults: "2026-01-30",

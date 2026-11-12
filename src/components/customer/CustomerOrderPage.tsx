@@ -260,13 +260,6 @@ export default function CustomerOrderPage({
   accountName = "",
 }: CustomerOrderPageProps) {
   const {
-    productsAll,
-    categories,
-    baristas,
-    loading,
-    error: catalogError,
-  } = useCustomerOrderData();
-  const {
     cart,
     addToCart,
     changeQuantity,
@@ -280,21 +273,23 @@ export default function CustomerOrderPage({
     ...initialCustomerOrderState,
     customerName: accountName,
   });
-  const [signInOpen, setSignInOpen] = useState(false);
-  const [signInError, setSignInError] = useState("");
-  const [draftReady, setDraftReady] = useState(false);
-  const restoredRef = useRef(false);
-  const checkoutKeyRef = useRef<string | null>(null);
-  useEffect(() => {
-    checkoutKeyRef.current = null;
-  }, [
+  const { signInOpen, setSignInOpen, signInError, handlePlaceOrder, handleContinueWithGoogle } =
+    useCustomerOrderCheckout({ authState, cart, orderState, dispatchOrderState });
+  const restoreDraft = useCustomerOrderDraft({
+    replaceCart,
+    accountName,
     cart,
-    orderState.customerName,
-    orderState.customerPhone,
-    orderState.orderNote,
-    orderState.orderType,
-    orderState.tableId,
-  ]);
+    orderState,
+    dispatchOrderState,
+  });
+  const {
+    productsAll,
+    categories,
+    baristas,
+    loading,
+    error: catalogError,
+  } = useCustomerOrderData(restoreDraft);
+
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const showBackToTop = useBackToTopVisibility(520);
@@ -358,60 +353,6 @@ export default function CustomerOrderPage({
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
-
-  useEffect(() => {
-    if (loading || catalogError || restoredRef.current) return;
-    restoredRef.current = true;
-    const restored = restoreCustomerOrderDraft(productsAll, baristas);
-    if (restored) {
-      replaceCart(restored.cart);
-      const issues = [
-        restored.skipped > 0
-          ? `${restored.skipped} unavailable item(s) were removed. Add them again if needed.`
-          : "",
-        restored.repriced > 0
-          ? `${restored.repriced} item(s) have updated prices. Review the total before checkout.`
-          : "",
-      ].filter(Boolean);
-      dispatchOrderState({
-        type: "draftRestored",
-        customerName: accountName || restored.customerName,
-        customerPhone: restored.customerPhone,
-        orderNote: "",
-        message: issues.length
-          ? ""
-          : "Your order is ready to review. Press Checkout when you are ready.",
-        error: issues.join(" "),
-      });
-    }
-    const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment)
-      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
-    setDraftReady(true);
-  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
-
-  useEffect(() => {
-    if (!draftReady) return;
-    if (cart.length === 0) {
-      clearCustomerOrderDraft();
-      return;
-    }
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
-    saveCustomerOrderDraft(
-      cart,
-      orderState.customerName,
-      orderState.customerPhone,
-      orderState.orderNote,
-    );
-  }, [
-    draftReady,
-    cart,
-    orderState.customerName,
-    orderState.customerPhone,
-    orderState.orderNote,
-    orderState.orderType,
-    orderState.tableId,
-  ]);
 
   useAos(
     cart.length,
@@ -500,121 +441,7 @@ export default function CustomerOrderPage({
     dispatchOrderState({ type: "modifierConfirmed" });
   }
 
-  async function handlePlaceOrder() {
-    if (cart.length === 0) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "Add at least one item to your cart.",
-      });
-      return;
-    }
-    if (authState === "guest") {
-      setSignInError("");
-      setSignInOpen(true);
-      return;
-    }
-    if (authState === "blocked") {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "This account cannot place customer orders.",
-      });
-      return;
-    }
-    if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error:
-          "Enter 90 followed by seven digits for the phone sending payment.",
-      });
-      return;
-    }
-    if (!orderState.customerName.trim()) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "Enter your name before checkout.",
-      });
-      return;
-    }
 
-    if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "Select your table before checkout.",
-      });
-      return;
-    }
-
-    try {
-      dispatchOrderState({ type: "checkoutStarted" });
-
-      const response = await fetch("/api/customer/checkouts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customerName: orderState.customerName,
-          paymentPhone: orderState.customerPhone,
-          idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
-          orderType: orderState.orderType,
-          tableId: orderState.tableId || null,
-          items: cart.map((item) => ({
-            productId: item.id,
-            qty: item.quantity,
-            assignedBaristaId: item.assignedUserId ?? null,
-            modifiers: item.selectedModifiers.map((modifier) => ({
-              modifierId: modifier.optionId,
-              qty: modifier.qty,
-              modifierName: modifier.optionName,
-              groupName: modifier.groupName,
-              price: modifier.price,
-              isPlaceholder: modifier.optionId.startsWith("placeholder__"),
-            })),
-          })),
-        }),
-      });
-
-      if (response.status === 401) {
-        setSignInError("");
-        setSignInOpen(true);
-        return;
-      }
-      const data = (await response.json()) as {
-        checkout?: { id: string };
-        error?: string;
-      };
-      if (!response.ok || !data.checkout?.id) {
-        throw new Error(data.error || "Could not start mobile money checkout.");
-      }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
-    } catch (error) {
-      dispatchOrderState({
-        type: "checkoutFailed",
-        error: error instanceof Error ? error.message : "Something went wrong.",
-      });
-    } finally {
-      dispatchOrderState({ type: "checkoutFinished" });
-    }
-  }
-
-  function handleContinueWithGoogle() {
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
-    const saved = saveCustomerOrderDraft(
-      cart,
-      orderState.customerName,
-      orderState.customerPhone,
-      orderState.orderNote,
-    );
-    if (!saved) {
-      setSignInError(
-        "Your browser could not save this order. Please allow session storage and try again.",
-      );
-      return;
-    }
-    window.location.assign("/auth/google/start?next=%2Fcustomer");
-  }
 
   return (
     <main
@@ -701,40 +528,263 @@ export default function CustomerOrderPage({
         }}
         onCheckout={handlePlaceOrder}
       />
-      <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle>Sign in to place your order</DialogTitle>
-            <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
-            </DialogDescription>
-          </DialogHeader>
-          {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
-              {signInError}
-            </p>
-          ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
-            Continue with Google
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setSignInOpen(false)}
-            className="w-full rounded-full"
-          >
-            Keep editing
-          </Button>
-        </DialogContent>
-      </Dialog>
+      <CustomerOrderSignIn
+        signInOpen={signInOpen}
+        setSignInOpen={setSignInOpen}
+        signInError={signInError}
+        handleContinueWithGoogle={handleContinueWithGoogle}
+      />
     </main>
   );
+}
+
+function CustomerOrderSignIn({
+  signInOpen,
+  setSignInOpen,
+  signInError,
+  handleContinueWithGoogle,
+}: {
+  signInOpen: boolean;
+  setSignInOpen: (open: boolean) => void;
+  signInError: string;
+  handleContinueWithGoogle: () => void;
+}) {
+  return (
+    <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">
+        <DialogHeader>
+          <DialogTitle>Sign in to place your order</DialogTitle>
+          <DialogDescription>
+            Continue with Google. We will bring you back to this cart so you can review it before
+            placing your order.
+          </DialogDescription>
+        </DialogHeader>
+        {signInError ? (
+          <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+            {signInError}
+          </p>
+        ) : null}
+        <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
+          Continue with Google
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setSignInOpen(false)}
+          className="w-full rounded-full"
+        >
+          Keep editing
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function useCustomerOrderCheckout({
+  authState,
+  cart,
+  orderState,
+  dispatchOrderState,
+}: {
+  authState: CustomerOrderPageProps["authState"];
+  cart: ReturnType<typeof useWaiterCart>["cart"];
+  orderState: CustomerOrderState;
+  dispatchOrderState: React.Dispatch<CustomerOrderAction>;
+}) {
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [signInError, setSignInError] = useState("");
+  const checkoutKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    checkoutKeyRef.current = null;
+  }, [
+    cart,
+    orderState.customerName,
+    orderState.customerPhone,
+    orderState.orderNote,
+    orderState.orderType,
+    orderState.tableId,
+  ]);
+
+  async function handlePlaceOrder() {
+    if (cart.length === 0) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Add at least one item to your cart.",
+      });
+      return;
+    }
+    if (authState === "guest") {
+      setSignInError("");
+      setSignInOpen(true);
+      return;
+    }
+    if (authState === "blocked") {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "This account cannot place customer orders.",
+      });
+      return;
+    }
+    if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
+      });
+      return;
+    }
+    if (!orderState.customerName.trim()) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Enter your name before checkout.",
+      });
+      return;
+    }
+
+    if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Select your table before checkout.",
+      });
+      return;
+    }
+
+    try {
+      dispatchOrderState({ type: "checkoutStarted" });
+
+      const response = await fetch("/api/customer/checkouts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerName: orderState.customerName,
+          paymentPhone: orderState.customerPhone,
+          idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
+          orderType: orderState.orderType,
+          tableId: orderState.tableId || null,
+          items: cart.map((item) => ({
+            productId: item.id,
+            qty: item.quantity,
+            assignedBaristaId: item.assignedUserId ?? null,
+            modifiers: item.selectedModifiers.map((modifier) => ({
+              modifierId: modifier.optionId,
+              qty: modifier.qty,
+              modifierName: modifier.optionName,
+              groupName: modifier.groupName,
+              price: modifier.price,
+              isPlaceholder: modifier.optionId.startsWith("placeholder__"),
+            })),
+          })),
+        }),
+      });
+
+      if (response.status === 401) {
+        setSignInError("");
+        setSignInOpen(true);
+        return;
+      }
+      const data = (await response.json()) as {
+        checkout?: { id: string };
+        error?: string;
+      };
+      if (!response.ok || !data.checkout?.id) {
+        throw new Error(data.error || "Could not start mobile money checkout.");
+      }
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
+    } catch (error) {
+      dispatchOrderState({
+        type: "checkoutFailed",
+        error: error instanceof Error ? error.message : "Something went wrong.",
+      });
+    } finally {
+      dispatchOrderState({ type: "checkoutFinished" });
+    }
+  }
+
+  function handleContinueWithGoogle() {
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    const saved = saveCustomerOrderDraft(
+      cart,
+      orderState.customerName,
+      orderState.customerPhone,
+      orderState.orderNote,
+    );
+    if (!saved) {
+      setSignInError(
+        "Your browser could not save this order. Please allow session storage and try again.",
+      );
+      return;
+    }
+    window.location.assign("/auth/google/start?next=%2Fcustomer");
+  }
+
+  return { signInOpen, setSignInOpen, signInError, handlePlaceOrder, handleContinueWithGoogle };
+}
+
+function useCustomerOrderDraft({
+  replaceCart,
+  accountName,
+  cart,
+  orderState,
+  dispatchOrderState,
+}: {
+  replaceCart: ReturnType<typeof useWaiterCart>["replaceCart"];
+  accountName: string;
+  cart: ReturnType<typeof useWaiterCart>["cart"];
+  orderState: CustomerOrderState;
+  dispatchOrderState: React.Dispatch<CustomerOrderAction>;
+}) {
+  const [draftReady, setDraftReady] = useState(false);
+  function restoreDraft({ productsAll, baristas }: ReturnType<typeof useCustomerOrderData>) {
+    const restored = restoreCustomerOrderDraft(productsAll, baristas);
+    if (restored) {
+      replaceCart(restored.cart);
+      const issues = [
+        restored.skipped > 0
+          ? `${restored.skipped} unavailable item(s) were removed. Add them again if needed.`
+          : "",
+        restored.repriced > 0
+          ? `${restored.repriced} item(s) have updated prices. Review the total before checkout.`
+          : "",
+      ].filter(Boolean);
+      dispatchOrderState({
+        type: "draftRestored",
+        customerName: accountName || restored.customerName,
+        customerPhone: restored.customerPhone,
+        orderNote: "",
+        message: issues.length
+          ? ""
+          : "Your order is ready to review. Press Checkout when you are ready.",
+        error: issues.join(" "),
+      });
+    }
+    const fulfillment = restoreCustomerFulfillment();
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    setDraftReady(true);
+  }
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (cart.length === 0) {
+      clearCustomerOrderDraft();
+      return;
+    }
+    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    saveCustomerOrderDraft(
+      cart,
+      orderState.customerName,
+      orderState.customerPhone,
+      orderState.orderNote,
+    );
+  }, [
+    draftReady,
+    cart,
+    orderState.customerName,
+    orderState.customerPhone,
+    orderState.orderNote,
+    orderState.orderType,
+    orderState.tableId,
+  ]);
+
+  return restoreDraft;
 }

@@ -8,7 +8,7 @@ import {
   Table,
   DataTableCard,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
@@ -137,16 +137,16 @@ export default async function TablePage({ searchParams }: TablePageProps) {
             clearHref="/admin/tables"
           />
           <Table>
-            <thead>
-              <tr>
-                <TableHead>#</TableHead>
-                <TableHead>Table Name</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Open Orders</TableHead>
-              </tr>
-            </thead>
+            <TableColumnHeaders
+              columns={[
+                "#",
+                "Table Name",
+                "Capacity",
+                "Status",
+                "Location",
+                "Open Orders",
+              ]}
+            />
             <tbody>
               {tables.length === 0 ? (
                 <tr>

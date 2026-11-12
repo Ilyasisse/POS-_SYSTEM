@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { Table, TableCell, TableHead } from "@/components/ui/table";
+import { Table, TableCell, TableColumnHeaders } from "@/components/ui/table";
 import { getCashierBusinessDayRange } from "@/lib/cashier/cashier-business-day";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -71,6 +71,7 @@ export default async function CashierReceiptsPage({
               className="flex-1"
             />
             <select
+              aria-label="Receipt date range"
               name="scope"
               defaultValue={allTime ? "all" : "today"}
               className="h-10 rounded-lg border bg-background px-3 text-sm"
@@ -85,18 +86,18 @@ export default async function CashierReceiptsPage({
         <Card className="overflow-hidden p-0">
           {orders.length ? (
             <Table>
-              <thead>
-                <tr>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Closed</TableHead>
-                  <TableHead>Receipt</TableHead>
-                </tr>
-              </thead>
+              <TableColumnHeaders
+                columns={[
+                  "Order",
+                  "Customer",
+                  "Service",
+                  "Items",
+                  "Payment",
+                  "Total",
+                  "Closed",
+                  "Receipt",
+                ]}
+              />
               <tbody>
                 {orders.map((order) => (
                   <tr key={order.id} className="border-b">

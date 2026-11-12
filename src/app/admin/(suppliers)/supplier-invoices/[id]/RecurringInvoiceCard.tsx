@@ -44,34 +44,9 @@ export default function RecurringInvoiceCard({
   todayDateKey: string;
   defaultNextRunDate: string;
 }) {
-  const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
-  const [pending, startTransition] = useTransition();
-  const { toast } = useToast();
+  const { formRef, pending, runAction } = useRecurrenceActions();
 
   if (!recurrence && !eligible) return null;
-
-  function runAction(action: RecurrenceAction, submittedFormData?: FormData) {
-    const formData =
-      submittedFormData ??
-      (formRef.current ? new FormData(formRef.current) : null);
-    if (!formData) return;
-    startTransition(async () => {
-      try {
-        const result = await action(formData);
-        toast({ tone: "success", description: result.message });
-        router.refresh();
-      } catch (error) {
-        toast({
-          tone: "error",
-          description:
-            error instanceof Error
-              ? error.message
-              : "The recurring schedule could not be updated.",
-        });
-      }
-    });
-  }
 
   return (
     <Card className="gap-5 p-5">
@@ -120,85 +95,149 @@ export default function RecurringInvoiceCard({
         {recurrence ? (
           <input type="hidden" name="recurrenceId" value={recurrence.id} />
         ) : null}
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="detail-recurrence-interval">Repeat every</Label>
-            <Input
-              id="detail-recurrence-interval"
-              name="recurrenceInterval"
-              type="number"
-              min="1"
-              max="365"
-              step="1"
-              defaultValue={recurrence?.interval ?? 1}
-              required
-              disabled={pending}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="detail-recurrence-unit">Interval</Label>
-            <NativeSelect
-              id="detail-recurrence-unit"
-              name="recurrenceUnit"
-              defaultValue={recurrence?.unit ?? "MONTH"}
-              required
-              disabled={pending}
-            >
-              <option value="DAY">Days</option>
-              <option value="WEEK">Weeks</option>
-              <option value="MONTH">Months</option>
-            </NativeSelect>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="detail-recurrence-next-date">
-              Next invoice date
-            </Label>
-            <Input
-              id="detail-recurrence-next-date"
-              name="recurrenceNextRunDate"
-              type="date"
-              min={todayDateKey}
-              defaultValue={recurrence?.nextRunDate ?? defaultNextRunDate}
-              required
-              disabled={pending}
-            />
-          </div>
-        </div>
+        <RecurrenceScheduleFields
+          recurrence={recurrence}
+          pending={pending}
+          todayDateKey={todayDateKey}
+          defaultNextRunDate={defaultNextRunDate}
+        />
 
-        {recurrence ? (
-          <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
-            <p>{recurrence.generatedCount} generated draft(s)</p>
-            <p>
-              Last generated:{" "}
-              {recurrence.lastGeneratedAtLabel
-                ? recurrence.lastGeneratedAtLabel
-                : "Not yet"}
-            </p>
-          </div>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={pending}>
-            {pending
-              ? "Working..."
-              : !recurrence
-                ? "Create recurring schedule"
-                : recurrence.isActive
-                  ? "Save schedule"
-                  : "Resume schedule"}
-          </Button>
-          {recurrence?.isActive ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() => runAction(pauseSupplierInvoiceRecurrenceAction)}
-            >
-              Pause schedule
-            </Button>
-          ) : null}
-        </div>
+        <RecurrenceFormButtons
+          recurrence={recurrence}
+          pending={pending}
+          runAction={runAction}
+        />
       </form>
     </Card>
+  );
+}
+
+function RecurrenceScheduleFields({
+  recurrence,
+  pending,
+  todayDateKey,
+  defaultNextRunDate,
+}: {
+  recurrence: Recurrence | null;
+  pending: boolean;
+  todayDateKey: string;
+  defaultNextRunDate: string;
+}) {
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-2">
+          <Label htmlFor="detail-recurrence-interval">Repeat every</Label>
+          <Input
+            id="detail-recurrence-interval"
+            name="recurrenceInterval"
+            type="number"
+            min="1"
+            max="365"
+            step="1"
+            defaultValue={recurrence?.interval ?? 1}
+            required
+            disabled={pending}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="detail-recurrence-unit">Interval</Label>
+          <NativeSelect
+            id="detail-recurrence-unit"
+            name="recurrenceUnit"
+            defaultValue={recurrence?.unit ?? "MONTH"}
+            required
+            disabled={pending}
+          >
+            <option value="DAY">Days</option>
+            <option value="WEEK">Weeks</option>
+            <option value="MONTH">Months</option>
+          </NativeSelect>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="detail-recurrence-next-date">Next invoice date</Label>
+          <Input
+            id="detail-recurrence-next-date"
+            name="recurrenceNextRunDate"
+            type="date"
+            min={todayDateKey}
+            defaultValue={recurrence?.nextRunDate ?? defaultNextRunDate}
+            required
+            disabled={pending}
+          />
+        </div>
+      </div>
+
+      {recurrence ? (
+        <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
+          <p>{recurrence.generatedCount} generated draft(s)</p>
+          <p>
+            Last generated:{" "}
+            {recurrence.lastGeneratedAtLabel ? recurrence.lastGeneratedAtLabel : "Not yet"}
+          </p>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function useRecurrenceActions() {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
+
+  function runAction(action: RecurrenceAction, submittedFormData?: FormData) {
+    const formData = submittedFormData ?? (formRef.current ? new FormData(formRef.current) : null);
+    if (!formData) return;
+    startTransition(async () => {
+      try {
+        const result = await action(formData);
+        toast({ tone: "success", description: result.message });
+        router.refresh();
+      } catch (error) {
+        toast({
+          tone: "error",
+          description:
+            error instanceof Error ? error.message : "The recurring schedule could not be updated.",
+        });
+      }
+    });
+  }
+
+  return { formRef, pending, runAction };
+}
+
+function RecurrenceFormButtons({
+  recurrence,
+  pending,
+  runAction,
+}: {
+  recurrence: Recurrence | null;
+  pending: boolean;
+  runAction: (action: RecurrenceAction) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Button type="submit" disabled={pending}>
+        {pending
+          ? "Working..."
+          : !recurrence
+            ? "Create recurring schedule"
+            : recurrence.isActive
+              ? "Save schedule"
+              : "Resume schedule"}
+      </Button>
+      {recurrence?.isActive ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={() => runAction(pauseSupplierInvoiceRecurrenceAction)}
+        >
+          Pause schedule
+        </Button>
+      ) : null}
+    </div>
   );
 }

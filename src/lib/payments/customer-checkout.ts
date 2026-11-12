@@ -424,10 +424,11 @@ async function queueCustomerPaymentReview(receipt: {
     take: 100,
     orderBy: { createdAt: "desc" },
   });
+  const candidatePhones = new Set(phones);
   const ids = candidates
     .filter(
       (candidate) =>
-        phones.includes(candidate.payerPhone) ||
+        candidatePhones.has(candidate.payerPhone) ||
         customerPaymentNameMatches(
           candidate.customerName,
           receipt.counterpartyLabel,

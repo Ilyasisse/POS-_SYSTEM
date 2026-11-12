@@ -7,7 +7,7 @@ import {
   Table,
   DataTableCard,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   StatusBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
@@ -77,18 +77,18 @@ export default async function ModifierGroupsPage({
           </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Selection Type</TableHead>
-              <TableHead>Min</TableHead>
-              <TableHead>Max</TableHead>
-              <TableHead>Modifiers</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "#",
+              "Name",
+              "Selection Type",
+              "Min",
+              "Max",
+              "Modifiers",
+              "Status",
+              "Action",
+            ]}
+          />
           <tbody>
             {groups.length === 0 ? (
               <tr>

@@ -3,7 +3,7 @@ import {
   DataTableCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { getSupplierBillDueState } from "@/lib/suppliers/supplier-bills";
@@ -74,17 +74,17 @@ export default function SupplierBillsTable({
   return (
     <DataTableCard>
       <Table>
-        <thead>
-          <tr>
-            <TableHead>Supplier / invoice</TableHead>
-            <TableHead>Due date</TableHead>
-            <TableHead>Total / balance</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Audit</TableHead>
-            <TableHead>Payments</TableHead>
-            <TableHead>Record payment</TableHead>
-          </tr>
-        </thead>
+        <TableColumnHeaders
+          columns={[
+            "Supplier / invoice",
+            "Due date",
+            "Total / balance",
+            "Status",
+            "Audit",
+            "Payments",
+            "Record payment",
+          ]}
+        />
         <tbody>
           {rows.length ? (
             rows.map(({ invoice, bill }) => {

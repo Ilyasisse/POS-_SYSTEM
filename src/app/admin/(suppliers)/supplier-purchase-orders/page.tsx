@@ -8,7 +8,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
@@ -139,16 +139,16 @@ export default async function SupplierPurchaseOrdersPage({
 
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Order</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Expected delivery</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Order",
+              "Supplier",
+              "Expected delivery",
+              "Items",
+              "Total",
+              "Status",
+            ]}
+          />
           <tbody>
             {orders.length ? (
               orders.map((order) => (

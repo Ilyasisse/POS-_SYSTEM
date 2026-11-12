@@ -49,68 +49,7 @@ export default function CustomerCheckoutPageClient({
 }) {
   const { toast } = useToast();
   const router = useRouter();
-  const [checkout, setCheckout] = useState<Checkout | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [android, setAndroid] = useState(false);
-  const [tick, setTick] = useState(0);
-  const requestSequence = useRef(0);
-
-  const refresh = useCallback(async () => {
-    const sequence = ++requestSequence.current;
-    try {
-      const response = await fetch(
-        `/api/customer/checkouts/${encodeURIComponent(checkoutId)}`,
-        {
-          cache: "no-store",
-        },
-      );
-      const data = (await response.json()) as {
-        checkout?: Checkout;
-        error?: string;
-      };
-      if (!response.ok || !data.checkout) {
-        throw new Error(data.error || "Could not check payment status.");
-      }
-      if (sequence !== requestSequence.current) return;
-      setCheckout(data.checkout);
-      setError("");
-    } catch (cause) {
-      if (sequence !== requestSequence.current) return;
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Could not check payment status.",
-      );
-    } finally {
-      if (sequence === requestSequence.current) setLoading(false);
-    }
-  }, [checkoutId]);
-
-  useEffect(() => {
-    const initial = window.setTimeout(() => {
-      setAndroid(isAndroidDevice(navigator.userAgent));
-      void refresh();
-    }, 0);
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        setTick((current) => current + 1);
-        void refresh();
-      }
-    }, 3000);
-    const onReturn = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    window.addEventListener("focus", onReturn);
-    document.addEventListener("visibilitychange", onReturn);
-    return () => {
-      requestSequence.current++;
-      window.clearTimeout(initial);
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onReturn);
-      document.removeEventListener("visibilitychange", onReturn);
-    };
-  }, [refresh]);
+  const { checkout, loading, error, android, tick, refresh } = useCheckoutPolling(checkoutId);
 
   useEffect(() => {
     if (checkout?.status === "PAID") clearCustomerOrderDraft();
@@ -185,27 +124,6 @@ export default function CustomerCheckoutPageClient({
     );
   }
 
-  const waiting =
-    checkout.status === "PENDING" ||
-    checkout.status === "REVIEW" ||
-    checkout.status === "PAYMENT_RECEIVED";
-  const statusText =
-    checkout.status === "PENDING"
-      ? tick % 2
-        ? "Checking for your mobile money payment…"
-        : "Waiting for the payment message…"
-      : checkout.status === "REVIEW"
-        ? "Staff review requested. Do not send the money again while we check."
-        : checkout.status === "PAYMENT_RECEIVED"
-          ? "Payment received. Confirming your order…"
-          : checkout.status === "PAID"
-            ? checkout.stage === "DELIVERED"
-              ? "Thank you! Your order has been delivered. Returning to the menu…"
-              : `Paid. Order #${checkout.orderNumber}: ${CUSTOMER_ORDER_STAGES.find((stage) => stage.key === checkout.stage)?.label ?? "Kitchen received"}.`
-            : checkout.status === "NEEDS_HELP"
-              ? "Payment received. Staff need to finish your order."
-              : "This payment window expired. If you paid, ask staff to review your receipt.";
-
   return (
     <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:py-14">
       <div className="mx-auto max-w-xl space-y-6 rounded-3xl border border-border bg-card p-5 shadow-xl sm:p-8">
@@ -225,164 +143,295 @@ export default function CustomerCheckoutPageClient({
             Use the phone number {checkout.payerPhone} to send the full amount.
           </p>
         </div>
-        {checkout.status === "PENDING" || checkout.status === "REVIEW" ? (
-          <section className="space-y-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 p-5">
-            <p className="text-sm font-semibold text-muted-foreground">
-              Amount due
-            </p>
-            <p className="text-4xl font-bold">${checkout.amount.toFixed(2)}</p>
-            <p className="text-sm text-foreground">
-              Copy this code into your phone app. Enter your PIN there to
-              authorize payment.
-            </p>
-            <div
-              className="select-all break-all rounded-xl border border-amber-300 dark:border-amber-800 bg-card px-4 py-3 font-mono text-lg font-semibold"
-              aria-label="Mobile money payment code"
-            >
-              {code}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button type="button" onClick={copyCode}>
-                <Copy className="mr-2 size-4" />
-                Copy code
-              </Button>
-              {android ? (
-                <Button asChild variant="outline">
-                  <a href={androidDialerHref(code)}>
-                    <PhoneCall className="mr-2 size-4" />
-                    Pay Now
-                  </a>
-                </Button>
-              ) : null}
-            </div>
-            {android ? (
-              <p className="text-xs text-muted-foreground">
-                Check the dialer code before calling. If it does not prefill,
-                use Copy code.
-              </p>
-            ) : null}
-          </section>
-        ) : null}
-        <div
-          className="rounded-2xl border border-border p-5"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex items-start gap-3">
-            {waiting ? (
-              <LoaderCircle className="mt-0.5 size-6 shrink-0 animate-spin text-amber-700 dark:text-amber-300" />
-            ) : checkout.status === "PAID" ? (
-              <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-700 dark:text-emerald-300" />
-            ) : (
-              <CircleAlert className="mt-0.5 size-6 shrink-0 text-amber-700 dark:text-amber-300" />
-            )}
-            <div>
-              <p className="font-semibold">{statusText}</p>
-              {waiting ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Keep this page open or return after making the payment. We
-                  check again when you come back.
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </div>
-        {checkout.status === "PAID" ? (
-          <section aria-label="Order progress" className="space-y-3">
-            <div
-              role="progressbar"
-              aria-label="Order progress"
-              aria-valuemin={0}
-              aria-valuemax={5}
-              aria-valuenow={Math.max(
-                0,
-                CUSTOMER_ORDER_STAGES.findIndex(
-                  (stage) => stage.key === checkout.stage,
-                ),
-              )}
-              aria-valuetext={
-                CUSTOMER_ORDER_STAGES.find(
-                  (stage) => stage.key === checkout.stage,
-                )?.label
-              }
-              className="h-3 overflow-hidden rounded-full bg-stone-200"
-            >
-              <div
-                className="h-full bg-emerald-600 transition-[width]"
-                style={{
-                  width: `${
-                    Math.max(
-                      0,
-                      CUSTOMER_ORDER_STAGES.findIndex(
-                        (stage) => stage.key === checkout.stage,
-                      ),
-                    ) * 20
-                  }%`,
-                }}
-              />
-            </div>
-            <ol className="grid grid-cols-2 gap-2 text-sm">
-              {CUSTOMER_ORDER_STAGES.map((stage, index) => (
-                <li
-                  key={stage.key}
-                  aria-current={
-                    stage.key === checkout.stage ? "step" : undefined
-                  }
-                  className={
-                    index <=
-                    CUSTOMER_ORDER_STAGES.findIndex(
-                      (value) => value.key === checkout.stage,
-                    )
-                      ? "font-semibold text-emerald-800"
-                      : "text-stone-500"
-                  }
-                >
-                  {index + 1}. {stage.label}
-                </li>
-              ))}
-            </ol>
-            {checkout.stage !== "DELIVERED" ? (
-              <p className="text-sm text-stone-600">
-                Keep this page open to follow your order. It updates
-                automatically and checks again when you return.
-              </p>
-            ) : null}
-          </section>
-        ) : null}
-        {error ? (
-          <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
-            {error}{" "}
-            <Button type="button" variant="link" onClick={() => void refresh()}>
-              Try again
-            </Button>
-          </p>
-        ) : null}
-        {checkout.status === "PENDING" ||
-        checkout.status === "REVIEW" ||
-        checkout.status === "EXPIRED" ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => void requestReview()}
-          >
-            I paid — check again
-          </Button>
-        ) : null}
-        {checkout.stage === "DELIVERED" ? (
-          <Button asChild className="w-full">
-            <Link prefetch={false} href="/customer">
-              Back to menu
-            </Link>
-          </Button>
-        ) : null}
-        {checkout.status === "EXPIRED" || checkout.status === "NEEDS_HELP" ? (
-          <p className="text-sm text-muted-foreground">
-            Show this checkout to the cashier:{" "}
-            <span className="font-mono">{checkout.id}</span>
-          </p>
-        ) : null}
+        <MobileMoneyInstructions
+          checkout={checkout}
+          code={code}
+          android={android}
+          copyCode={copyCode}
+        />
+        <CheckoutStatus
+          checkout={checkout}
+          tick={tick}
+        />
+        <CheckoutOrderProgress
+          checkout={checkout}
+        />
+        <CheckoutActions
+          error={error}
+          refresh={refresh}
+          checkout={checkout}
+          requestReview={requestReview}
+        />
       </div>
     </main>
+  );
+}
+
+function CheckoutOrderProgress({ checkout }: { checkout: Checkout }) {
+  return (
+    <>
+      {checkout.status === "PAID" ? (
+        <section aria-label="Order progress" className="space-y-3">
+          <div
+            role="progressbar"
+            aria-label="Order progress"
+            aria-valuemin={0}
+            aria-valuemax={5}
+            aria-valuenow={Math.max(
+              0,
+              CUSTOMER_ORDER_STAGES.findIndex((stage) => stage.key === checkout.stage),
+            )}
+            aria-valuetext={
+              CUSTOMER_ORDER_STAGES.find((stage) => stage.key === checkout.stage)?.label
+            }
+            className="h-3 overflow-hidden rounded-full bg-stone-200"
+          >
+            <div
+              className="h-full bg-emerald-600 transition-[width]"
+              style={{
+                width: `${
+                  Math.max(
+                    0,
+                    CUSTOMER_ORDER_STAGES.findIndex((stage) => stage.key === checkout.stage),
+                  ) * 20
+                }%`,
+              }}
+            />
+          </div>
+          <ol className="grid grid-cols-2 gap-2 text-sm">
+            {CUSTOMER_ORDER_STAGES.map((stage, index) => (
+              <li
+                key={stage.key}
+                aria-current={stage.key === checkout.stage ? "step" : undefined}
+                className={
+                  index <= CUSTOMER_ORDER_STAGES.findIndex((value) => value.key === checkout.stage)
+                    ? "font-semibold text-emerald-800"
+                    : "text-stone-500"
+                }
+              >
+                {index + 1}. {stage.label}
+              </li>
+            ))}
+          </ol>
+          {checkout.stage !== "DELIVERED" ? (
+            <p className="text-sm text-stone-600">
+              Keep this page open to follow your order. It updates automatically and checks again
+              when you return.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function MobileMoneyInstructions({
+  checkout,
+  code,
+  android,
+  copyCode,
+}: {
+  checkout: Checkout;
+  code: string;
+  android: boolean;
+  copyCode: () => Promise<void>;
+}) {
+  return (
+    <>
+      {checkout.status === "PENDING" || checkout.status === "REVIEW" ? (
+        <section className="space-y-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 p-5">
+          <p className="text-sm font-semibold text-muted-foreground">Amount due</p>
+          <p className="text-4xl font-bold">${checkout.amount.toFixed(2)}</p>
+          <p className="text-sm text-foreground">
+            Copy this code into your phone app. Enter your PIN there to authorize payment.
+          </p>
+          <div
+            className="select-all break-all rounded-xl border border-amber-300 dark:border-amber-800 bg-card px-4 py-3 font-mono text-lg font-semibold"
+            aria-label="Mobile money payment code"
+          >
+            {code}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button type="button" onClick={copyCode}>
+              <Copy className="mr-2 size-4" />
+              Copy code
+            </Button>
+            {android ? (
+              <Button asChild variant="outline">
+                <a href={androidDialerHref(code)}>
+                  <PhoneCall className="mr-2 size-4" />
+                  Pay Now
+                </a>
+              </Button>
+            ) : null}
+          </div>
+          {android ? (
+            <p className="text-xs text-muted-foreground">
+              Check the dialer code before calling. If it does not prefill, use Copy code.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function checkoutStatusText(checkout: Checkout, tick: number) {
+  return checkout.status === "PENDING"
+    ? tick % 2
+      ? "Checking for your mobile money payment…"
+      : "Waiting for the payment message…"
+    : checkout.status === "REVIEW"
+      ? "Staff review requested. Do not send the money again while we check."
+      : checkout.status === "PAYMENT_RECEIVED"
+        ? "Payment received. Confirming your order…"
+        : checkout.status === "PAID"
+          ? checkout.stage === "DELIVERED"
+            ? "Thank you! Your order has been delivered. Returning to the menu…"
+            : `Paid. Order #${checkout.orderNumber}: ${CUSTOMER_ORDER_STAGES.find((stage) => stage.key === checkout.stage)?.label ?? "Kitchen received"}.`
+          : checkout.status === "NEEDS_HELP"
+            ? "Payment received. Staff need to finish your order."
+            : "This payment window expired. If you paid, ask staff to review your receipt.";
+}
+
+function useCheckoutPolling(checkoutId: string) {
+  const [checkout, setCheckout] = useState<Checkout | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [android, setAndroid] = useState(false);
+  const [tick, setTick] = useState(0);
+  const requestSequence = useRef(0);
+
+  const refresh = useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    try {
+      const response = await fetch(`/api/customer/checkouts/${encodeURIComponent(checkoutId)}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        checkout?: Checkout;
+        error?: string;
+      };
+      if (!response.ok || !data.checkout) {
+        throw new Error(data.error || "Could not check payment status.");
+      }
+      if (sequence !== requestSequence.current) return;
+      setCheckout(data.checkout);
+      setError("");
+    } catch (cause) {
+      if (sequence !== requestSequence.current) return;
+      setError(cause instanceof Error ? cause.message : "Could not check payment status.");
+    } finally {
+      if (sequence === requestSequence.current) setLoading(false);
+    }
+  }, [checkoutId]);
+
+  const invalidateRefresh = useCallback(() => {
+    requestSequence.current++;
+  }, []);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => {
+      setAndroid(isAndroidDevice(navigator.userAgent));
+      void refresh();
+    }, 0);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        setTick((current) => current + 1);
+        void refresh();
+      }
+    }, 3000);
+    const onReturn = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      invalidateRefresh();
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [invalidateRefresh, refresh]);
+  return { checkout, loading, error, android, tick, refresh };
+}
+
+function CheckoutActions({
+  error,
+  refresh,
+  checkout,
+  requestReview,
+}: {
+  error: string;
+  refresh: () => Promise<void>;
+  checkout: Checkout;
+  requestReview: () => Promise<void>;
+}) {
+  return (
+    <>
+      {error ? (
+        <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+          {error}{" "}
+          <Button type="button" variant="link" onClick={() => void refresh()}>
+            Try again
+          </Button>
+        </p>
+      ) : null}
+      {checkout.status === "PENDING" ||
+      checkout.status === "REVIEW" ||
+      checkout.status === "EXPIRED" ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => void requestReview()}
+        >
+          I paid — check again
+        </Button>
+      ) : null}
+      {checkout.stage === "DELIVERED" ? (
+        <Button asChild className="w-full">
+          <Link prefetch={false} href="/customer">
+            Back to menu
+          </Link>
+        </Button>
+      ) : null}
+      {checkout.status === "EXPIRED" || checkout.status === "NEEDS_HELP" ? (
+        <p className="text-sm text-muted-foreground">
+          Show this checkout to the cashier: <span className="font-mono">{checkout.id}</span>
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+function CheckoutStatus({ checkout, tick }: { checkout: Checkout; tick: number }) {
+  const waiting =
+    checkout.status === "PENDING" ||
+    checkout.status === "REVIEW" ||
+    checkout.status === "PAYMENT_RECEIVED";
+  const statusText = checkoutStatusText(checkout, tick);
+  return (
+    <div className="rounded-2xl border border-border p-5" role="status" aria-live="polite">
+      <div className="flex items-start gap-3">
+        {waiting ? (
+          <LoaderCircle className="mt-0.5 size-6 shrink-0 animate-spin text-amber-700 dark:text-amber-300" />
+        ) : checkout.status === "PAID" ? (
+          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-700 dark:text-emerald-300" />
+        ) : (
+          <CircleAlert className="mt-0.5 size-6 shrink-0 text-amber-700 dark:text-amber-300" />
+        )}
+        <div>
+          <p className="font-semibold">{statusText}</p>
+          {waiting ? (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Keep this page open or return after making the payment. We check again when you come
+              back.
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }

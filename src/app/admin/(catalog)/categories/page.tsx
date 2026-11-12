@@ -8,7 +8,7 @@ import {
   Table,
   DataTableCard,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   StatusBadge,
 } from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
@@ -96,16 +96,16 @@ export default async function AdminCategoriesPage({
           </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "#",
+              "Name",
+              "Description",
+              "Status",
+              "Items",
+              "Action",
+            ]}
+          />
           <tbody>
             {categoriesList.length === 0 ? (
               <tr>

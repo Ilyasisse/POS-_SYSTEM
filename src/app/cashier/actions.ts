@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -99,8 +100,9 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
       paymentStatus = "order_not_open";
     } else {
       refreshCashierTableViews();
-      const posthog = getPostHogClient();
-      if (posthog) {
+      after(async () => {
+        const posthog = getPostHogClient();
+        if (!posthog) return;
         posthog.capture({
           distinctId: currentUser.id,
           event: "table_orders_paid_from_cashier",
@@ -111,7 +113,7 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
           },
         });
         await posthog.flush();
-      }
+      });
     }
   } catch (error) {
     console.error("Failed to pay open table orders:", error);

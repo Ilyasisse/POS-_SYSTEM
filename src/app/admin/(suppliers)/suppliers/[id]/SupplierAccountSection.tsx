@@ -7,7 +7,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,16 +128,16 @@ export default function SupplierAccountSection({
 
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Paid</TableHead>
-              <TableHead>Cash amount</TableHead>
-              <TableHead>Applied</TableHead>
-              <TableHead>Unused credit</TableHead>
-              <TableHead>Details</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Paid",
+              "Cash amount",
+              "Applied",
+              "Unused credit",
+              "Details",
+              "Action",
+            ]}
+          />
           <tbody>
             {payments.length ? (
               payments.map((payment) => {

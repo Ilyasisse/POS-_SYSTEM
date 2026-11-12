@@ -104,4 +104,16 @@ function TableCaption({
   );
 }
 
-export { Table, TableHeader, TableBody, TableHead, TableRow, TableCell };
+function TableColumnHeaders({ columns }: { columns: readonly string[] }) {
+  return (
+    <thead>
+      <tr>
+        {columns.map((label) => (
+          <TableHead key={label}>{label}</TableHead>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+export { Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableColumnHeaders };

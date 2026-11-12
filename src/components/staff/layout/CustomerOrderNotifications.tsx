@@ -1,10 +1,24 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useClientResource } from "@/hooks/useClientResource";
 import Link from "next/link";
 type Notification = {
   id: string;
   newValue: { orderNumber?: number; destination?: string };
 };
+async function loadNotifications(signal: AbortSignal) {
+  const response = await fetch("/api/staff/customer-order-notifications", {
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok)
+    throw new Error("Customer order notifications are unavailable. Check the order board.");
+  return response.json() as Promise<{
+    notifications: Notification[];
+    paymentReview?: { checkouts: number; receipts: number };
+  }>;
+}
+
 export default function CustomerOrderNotifications({
   waiter,
   manager = false,
@@ -18,44 +32,19 @@ export default function CustomerOrderNotifications({
     receipts: 0,
   });
   const [error, setError] = useState("");
-  useEffect(() => {
-    let active = true;
-    async function refresh() {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const response = await fetch(
-          "/api/staff/customer-order-notifications",
-          { cache: "no-store" },
-        );
-        if (!response.ok)
-          throw new Error(
-            "Customer order notifications are unavailable. Check the order board.",
-          );
-        const data = (await response.json()) as {
-          notifications: Notification[];
-          paymentReview?: { checkouts: number; receipts: number };
-        };
-        if (active) {
-          setItems(data.notifications);
-          setPaymentReview(data.paymentReview ?? { checkouts: 0, receipts: 0 });
-          setError("");
-        }
-      } catch (cause) {
-        if (active)
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : "Could not load order notifications.",
-          );
-      }
-    }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 5000);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, []);
+  useClientResource({
+    load: loadNotifications,
+    intervalMs: 5_000,
+    onlyWhenVisible: true,
+    onData(data) {
+      setItems(data.notifications);
+      setPaymentReview(data.paymentReview ?? { checkouts: 0, receipts: 0 });
+      setError("");
+    },
+    onError(cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load order notifications.");
+    },
+  });
   if (
     !items.length &&
     !error &&
