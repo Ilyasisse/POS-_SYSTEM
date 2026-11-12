@@ -4,10 +4,7 @@ import { Prisma } from "@prisma/client";
 import { isDailyCashLocked } from "@/lib/daily-cash/business-date";
 import { prisma } from "@/lib/prisma";
 import { formatBusinessDateKey } from "@/lib/waiter/waiter-balance-calculations";
-import {
-  calculateSupplierPaymentState,
-  getSupplierPaymentReversalError,
-} from "./payment-reversal";
+import { calculateSupplierPaymentState, getSupplierPaymentReversalError } from "./payment-reversal";
 import {
   planSupplierPaymentAllocations,
   type SupplierAllocationTarget,
@@ -147,8 +144,7 @@ export async function recordSupplierPaymentInTransaction(
   const preferredTarget = preferredInstallmentId
     ? targets.find(
         (target) =>
-          target.billId === preferredBillId &&
-          target.installmentId === preferredInstallmentId,
+          target.billId === preferredBillId && target.installmentId === preferredInstallmentId,
       )
     : preferredBillId
       ? targets.find((target) => target.billId === preferredBillId)
@@ -207,19 +203,18 @@ export async function recordSupplierPaymentInTransaction(
 export async function recordSupplierPayment(
   input: Parameters<typeof recordSupplierPaymentInTransaction>[1],
 ) {
-  return prisma.$transaction(
-    (tx) => recordSupplierPaymentInTransaction(tx, input),
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-  );
+  return prisma.$transaction((tx) => recordSupplierPaymentInTransaction(tx, input), {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  });
 }
 
 export async function applyAvailableSupplierCreditToBillInTransaction(
   tx: Tx,
   input: { supplierId: string; billId: string; appliedByUserId: string },
 ) {
-  const targets = (
-    await getSupplierAllocationTargets(tx, input.supplierId)
-  ).filter((target) => target.billId === input.billId);
+  const targets = (await getSupplierAllocationTargets(tx, input.supplierId)).filter(
+    (target) => target.billId === input.billId,
+  );
   if (!targets.length) return new Prisma.Decimal(0);
   const payments = await tx.supplierPayment.findMany({
     where: { supplierId: input.supplierId },
@@ -257,9 +252,7 @@ export async function applyAvailableSupplierCreditToBillInTransaction(
     );
     for (const allocation of plan.allocations) {
       const target = mutableTargets.find(
-        (row) =>
-          row.billId === allocation.billId &&
-          row.installmentId === allocation.installmentId,
+        (row) => row.billId === allocation.billId && row.installmentId === allocation.installmentId,
       );
       if (target) {
         target.remainingAmount = target.remainingAmount.sub(allocation.amount);
@@ -308,13 +301,10 @@ export async function revertSupplierPayment(
       });
       if (!payment) throw new Error("Supplier payment not found.");
 
-      const dailyCashBusinessDate =
-        payment.dailyCashPayment?.dailyCashDay.businessDate;
+      const dailyCashBusinessDate = payment.dailyCashPayment?.dailyCashDay.businessDate;
       const reversalError = getSupplierPaymentReversalError({
         legacyAllocationAfterSchedule: payment.allocations.some(
-          (allocation) =>
-            !allocation.installmentId &&
-            allocation.bill._count.installments > 0,
+          (allocation) => !allocation.installmentId && allocation.bill._count.installments > 0,
         ),
         dailyCashLinked: Boolean(payment.dailyCashPayment),
         dailyCashLocked: dailyCashBusinessDate
@@ -363,9 +353,7 @@ export async function updateSupplierBillDueDate(billId: string, dueDate: Date) {
   ]);
 
   if (result.count !== 1) {
-    throw new Error(
-      "Only unpaid supplier bills can have their due date changed.",
-    );
+    throw new Error("Only unpaid supplier bills can have their due date changed.");
   }
 
   if (!bill) throw new Error("Supplier bill not found.");
@@ -394,14 +382,10 @@ export async function splitSupplierBillIntoInstallments(
         include: { installments: true },
       });
       if (!bill || bill.status === "PAID") {
-        throw new Error(
-          "Only unpaid supplier bills can be split into installments.",
-        );
+        throw new Error("Only unpaid supplier bills can be split into installments.");
       }
       if (bill.installments.length) {
-        throw new Error(
-          "This supplier bill already has an installment schedule.",
-        );
+        throw new Error("This supplier bill already has an installment schedule.");
       }
 
       const remaining = bill.totalAmount.sub(bill.paidAmount);
@@ -416,10 +400,7 @@ export async function splitSupplierBillIntoInstallments(
       }
 
       const dates = input.map((row) => row.dueDate);
-      const earliest = dates.reduce(
-        (first, date) => (date < first ? date : first),
-        dates[0],
-      );
+      const earliest = dates.reduce((first, date) => (date < first ? date : first), dates[0]);
       await tx.supplierInvoiceInstallment.createMany({
         data: input.map((row, index) => ({
           invoiceId: bill.invoiceId,
@@ -443,4 +424,28 @@ export async function splitSupplierBillIntoInstallments(
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+}
+
+/** Read-only estimate using the same installment-aware allocation planner as recording. */
+export async function previewSupplierPayment(supplierId: string, amount: number) {
+  const paymentAmount = positivePaymentAmount(amount);
+  return prisma.$transaction(async (tx) => {
+    const targets = await getSupplierAllocationTargets(tx, supplierId);
+    const plan = planSupplierPaymentAllocations({ amount: paymentAmount, targets });
+    const invoices = await tx.supplierInvoice.findMany({
+      where: { id: { in: plan.allocations.map((a) => a.invoiceId) } },
+      select: { id: true, invoiceNumber: true },
+    });
+    const numbers = new Map(invoices.map((i) => [i.id, i.invoiceNumber]));
+    const total = targets.reduce((s, t) => s.add(t.remainingAmount), new Prisma.Decimal(0));
+    return {
+      allocations: plan.allocations.map((a) => ({
+        invoiceNumber: numbers.get(a.invoiceId) ?? 0,
+        installment: a.installmentId !== null,
+        amount: a.amount.toFixed(2),
+      })),
+      credit: plan.unallocatedAmount.toFixed(2),
+      remaining: total.sub(paymentAmount.sub(plan.unallocatedAmount)).toFixed(2),
+    };
+  });
 }

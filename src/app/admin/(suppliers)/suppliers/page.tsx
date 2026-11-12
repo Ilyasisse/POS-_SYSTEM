@@ -3,6 +3,7 @@ import {
   AdminPage,
   Button,
   Card,
+  MetricCard,
   DataTableCard,
   StatusBadge,
   Table,
@@ -11,223 +12,163 @@ import {
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
-import { createSupplier } from "./actions";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { PERMISSIONS } from "@/lib/auth/permissions";
+import { formatMoney as money } from "@/lib/admin/helper/formatMoney";
+import { getSupplierPurchaseTodayDateKey } from "@/lib/suppliers/purchase-orders";
 import { SupplierEditDialog } from "./SupplierEditDialog";
-
-const fieldClass =
-  "h-10 rounded-lg border border-border px-3 text-sm outline-none focus:border-blue-500 dark:focus:border-blue-800";
-
-function Fields({
-  supplier,
+export default async function SuppliersPage({
+  searchParams,
 }: {
-  supplier?: {
-    id: string;
-    name: string;
-    slug: string;
-    contactName: string | null;
-    phone: string | null;
-    email: string | null;
-    notes: string | null;
-    isActive: boolean;
-  };
+  searchParams?: Promise<{ q?: string; status?: string }>;
 }) {
-  const activeInputId = supplier
-    ? `supplier-${supplier.id}-active`
-    : "new-supplier-active";
-
-  return (
-    <>
-      {supplier ? <Input type="hidden" name="id" value={supplier.id} /> : null}
-      <Input
-        name="name"
-        required
-        defaultValue={supplier?.name}
-        placeholder="Supplier name"
-        className={fieldClass}
-      />
-      <Input
-        name="slug"
-        defaultValue={supplier?.slug}
-        placeholder="supplier-slug"
-        className={fieldClass}
-      />
-      <Input
-        name="contactName"
-        defaultValue={supplier?.contactName ?? ""}
-        placeholder="Contact name"
-        className={fieldClass}
-      />
-      <Input
-        name="phone"
-        defaultValue={supplier?.phone ?? ""}
-        placeholder="Phone"
-        className={fieldClass}
-      />
-      <Input
-        name="email"
-        type="email"
-        defaultValue={supplier?.email ?? ""}
-        placeholder="Business email"
-        className={fieldClass}
-      />
-      <Input
-        name="notes"
-        defaultValue={supplier?.notes ?? ""}
-        placeholder="Notes"
-        className={fieldClass}
-      />
-      <Input type="hidden" name="isActive" value="false" />
-      <label
-        htmlFor={activeInputId}
-        className="flex items-center gap-2 text-md font-semibold text-foreground"
-      >
-        <Input
-          id={activeInputId}
-          type="checkbox"
-          name="isActive"
-          value="true"
-          className="h-4 w-4 shrink-0"
-          defaultChecked={supplier?.isActive ?? true}
-        />
-        Active
-      </label>
-    </>
-  );
-}
-
-export default async function SuppliersPage() {
+  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  const query = (await searchParams) ?? {};
+  const today = getSupplierPurchaseTodayDateKey();
   const suppliers = await prisma.supplier.findMany({
     orderBy: { name: "asc" },
     include: {
-      _count: {
-        select: { catalogItems: true, invoices: true, purchaseOrders: true },
+      _count: { select: { catalogItems: true } },
+      bills: {
+        where: { status: { in: ["UNPAID", "PARTIAL"] } },
+        select: { totalAmount: true, paidAmount: true, dueDate: true },
       },
+      payments: { select: { amount: true, allocations: { select: { amount: true } } } },
+      purchaseOrders: { where: { status: "OPEN" }, select: { id: true } },
     },
   });
-
+  const rows = suppliers.map((s) => ({
+    ...s,
+    outstanding: s.bills.reduce((a, b) => a + Number(b.totalAmount) - Number(b.paidAmount), 0),
+    due: s.bills
+      .filter((b) => b.dueDate.toISOString().slice(0, 10) <= today)
+      .reduce((a, b) => a + Number(b.totalAmount) - Number(b.paidAmount), 0),
+    credit: s.payments.reduce(
+      (a, p) => a + Number(p.amount) - p.allocations.reduce((x, v) => x + Number(v.amount), 0),
+      0,
+    ),
+  }));
+  const needle = (query.q ?? "").trim().toLowerCase();
+  const visible = rows.filter(
+    (s) =>
+      (!needle ||
+        [s.name, s.contactName, s.phone, s.email].some((v) => v?.toLowerCase().includes(needle))) &&
+      (query.status !== "active" || s.isActive) &&
+      (query.status !== "balance" || s.outstanding > 0),
+  );
   return (
     <AdminPage
       title="Suppliers"
-      description="Manage supplier contacts, catalogs, purchase orders, and invoice history."
+      description="Contacts, orders and balances in one place."
       action={
-        <Button asChild variant="outline">
-          <Link prefetch={false} href="/admin/supplier-invoices">
-            View supplier invoices
-          </Link>
-        </Button>
+        <>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-purchase-orders/new">New purchase order</Link>
+          </Button>
+          <SupplierEditDialog />
+        </>
       }
     >
-      <Card className="p-5">
-        <h2 className="font-black">Add supplier</h2>
-        <form
-          action={createSupplier}
-          className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4"
-        >
-          <Fields />
-          <Button className="h-10 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">
-            Create supplier
-          </Button>
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <MetricCard
+          label="Outstanding invoices"
+          value={money(rows.reduce((a, s) => a + s.outstanding, 0))}
+        />
+        <MetricCard label="Due through today" value={money(rows.reduce((a, s) => a + s.due, 0))} />
+        <MetricCard
+          label="Available credit"
+          value={money(rows.reduce((a, s) => a + s.credit, 0))}
+        />
+        <MetricCard
+          label="Open purchase orders"
+          value={rows.reduce((a, s) => a + s.purchaseOrders.length, 0)}
+        />
+      </section>
+      <Card className="p-4">
+        <form className="flex flex-wrap gap-3" method="get">
+          <label className="grid flex-1 gap-1 text-sm">
+            Search suppliers
+            <Input name="q" defaultValue={query.q} placeholder="Name, contact, phone or email" />
+          </label>
+          <label className="grid gap-1 text-sm">
+            Show
+            <select
+              name="status"
+              defaultValue={query.status ?? ""}
+              className="bg-background h-10 rounded-lg border px-3"
+            >
+              <option value="">All suppliers</option>
+              <option value="active">Active</option>
+              <option value="balance">Has balance</option>
+            </select>
+          </label>
+          <Button className="self-end">Search</Button>
         </form>
       </Card>
-
       <DataTableCard>
-        <Table>
+        <Table data-supplier-cards>
           <thead>
             <tr>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Invoices</TableHead>
-              <TableHead>Purchase orders</TableHead>
-              <TableHead>Catalog</TableHead>
-              <TableHead>Edit</TableHead>
+              {["Supplier", "Contact", "Outstanding", "Credit", "Open orders", "Actions"].map(
+                (h) => (
+                  <TableHead key={h}>{h}</TableHead>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
-            {suppliers.length ? (
-              suppliers.map((supplier) => (
-                <tr
-                  key={supplier.id}
-                  className="border-t border-border align-top"
-                >
-                  <TableCell>
-                    <div className="font-black">{supplier.name}</div>
-                    <div className="mt-1">
-                      <StatusBadge active={supplier.isActive} />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>{supplier.contactName || "No contact name"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {supplier.phone || supplier.email || "No contact details"}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-semibold">
-                      {supplier._count.invoices} invoices
-                    </div>
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                    >
-                      <Link
-                        prefetch={false}
-                        href={`/admin/supplier-invoices?supplier=${supplier.id}`}
-                      >
-                        View invoices
-                      </Link>
+            {visible.map((s) => (
+              <tr key={s.id} className="border-t">
+                <TableCell data-label="Supplier">
+                  <Link className="font-semibold hover:underline" href={`/admin/suppliers/${s.id}`}>
+                    {s.name}
+                  </Link>
+                  <p className="text-muted-foreground text-xs">
+                    {s._count.catalogItems} catalog items
+                  </p>
+                  <StatusBadge active={s.isActive} />
+                </TableCell>
+                <TableCell data-label="Contact">
+                  <p>{s.contactName ?? "No contact name"}</p>
+                  {s.phone ? (
+                    <a className="underline" href={`tel:${s.phone}`}>
+                      {s.phone}
+                    </a>
+                  ) : (
+                    (s.email ?? "No contact details")
+                  )}
+                </TableCell>
+                <TableCell data-label="Outstanding">
+                  <strong>{money(s.outstanding)}</strong>
+                  {s.due > 0 ? (
+                    <p className="text-destructive text-xs">Due through today {money(s.due)}</p>
+                  ) : null}
+                </TableCell>
+                <TableCell data-label="Credit">{money(s.credit)}</TableCell>
+                <TableCell data-label="Open orders">{s.purchaseOrders.length}</TableCell>
+                <TableCell data-label="Actions">
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild variant="outline">
+                      <Link href={`/admin/suppliers/${s.id}`}>View supplier →</Link>
                     </Button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-semibold">
-                      {supplier._count.purchaseOrders} orders
-                    </div>
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                    >
-                      <Link
-                        prefetch={false}
-                        href={`/admin/supplier-purchase-orders?supplier=${supplier.id}`}
-                      >
-                        View orders
-                      </Link>
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-semibold">
-                      {supplier._count.catalogItems} items
-                    </div>
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                    >
-                      <Link
-                        prefetch={false}
-                        href={`/admin/suppliers/${supplier.id}`}
-                      >
-                        Manage catalog
-                      </Link>
-                    </Button>
-                  </TableCell>
-                  <TableCell>
-                    <SupplierEditDialog supplier={supplier} />
-                  </TableCell>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <TableCell colSpan={6}>No suppliers have been added.</TableCell>
+                    <SupplierEditDialog supplier={s} />
+                  </div>
+                </TableCell>
               </tr>
-            )}
+            ))}
+            {!visible.length ? (
+              <tr>
+                <TableCell colSpan={6}>
+                  No suppliers match. Try another search or add a supplier.
+                </TableCell>
+              </tr>
+            ) : null}
           </tbody>
         </Table>
       </DataTableCard>
+      <p className="text-muted-foreground text-sm">
+        {visible.length} suppliers · USD. Credit belongs to its supplier.
+      </p>
     </AdminPage>
   );
 }

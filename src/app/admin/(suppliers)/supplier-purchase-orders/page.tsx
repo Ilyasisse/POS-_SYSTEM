@@ -1,3 +1,4 @@
+import { getSupplierPurchaseTodayDateKey } from "@/lib/suppliers/purchase-orders";
 import Link from "next/link";
 import type { SupplierPurchaseOrderStatus } from "@prisma/client";
 import {
@@ -38,9 +39,7 @@ export default async function SupplierPurchaseOrdersPage({
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
-  const status = ORDER_STATUSES.includes(
-    query.status as SupplierPurchaseOrderStatus,
-  )
+  const status = ORDER_STATUSES.includes(query.status as SupplierPurchaseOrderStatus)
     ? (query.status as SupplierPurchaseOrderStatus)
     : undefined;
   const [orders, suppliers] = await Promise.all([
@@ -63,13 +62,8 @@ export default async function SupplierPurchaseOrdersPage({
     }),
   ]);
   const openOrders = orders.filter((order) => order.status === "OPEN");
-  const openTotal = openOrders.reduce(
-    (total, order) => total + Number(order.totalAmount),
-    0,
-  );
-  const completedCount = orders.filter(
-    (order) => order.status === "COMPLETED",
-  ).length;
+  const openTotal = openOrders.reduce((total, order) => total + Number(order.totalAmount), 0);
+  const completedCount = orders.filter((order) => order.status === "COMPLETED").length;
 
   return (
     <AdminPage
@@ -97,7 +91,7 @@ export default async function SupplierPurchaseOrdersPage({
     >
       <form
         method="get"
-        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+        className="bg-card grid gap-3 rounded-xl border p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
       >
         <AutoSubmitSelect
           name="supplier"
@@ -138,7 +132,7 @@ export default async function SupplierPurchaseOrdersPage({
       </section>
 
       <DataTableCard>
-        <Table>
+        <Table data-supplier-cards>
           <thead>
             <tr>
               <TableHead>Order</TableHead>
@@ -153,40 +147,46 @@ export default async function SupplierPurchaseOrdersPage({
             {orders.length ? (
               orders.map((order) => (
                 <tr key={order.id} className="border-t">
-                  <TableCell>
+                  <TableCell data-label="Order">
                     <Link
                       prefetch={false}
                       href={`/admin/supplier-purchase-orders/${order.id}`}
-                      className="font-semibold text-primary hover:underline"
+                      className="text-primary font-semibold hover:underline"
                     >
                       PO #{order.orderNumber}
                     </Link>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {order.createdAt.toLocaleDateString()}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium" data-label="Supplier">
                     {order.supplier.name}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Expected delivery">
                     {DATE_FORMATTER.format(order.expectedDeliveryDate)}
+                    {order.status === "OPEN" &&
+                    order.expectedDeliveryDate.toISOString().slice(0, 10) <=
+                      getSupplierPurchaseTodayDateKey() ? (
+                      <p className="text-destructive text-sm">
+                        {order.expectedDeliveryDate.toISOString().slice(0, 10) <
+                        getSupplierPurchaseTodayDateKey()
+                          ? "Delivery overdue"
+                          : "Expected today"}
+                      </p>
+                    ) : null}
                   </TableCell>
-                  <TableCell>{order._count.items}</TableCell>
-                  <TableCell className="font-semibold tabular-nums">
+                  <TableCell data-label="Items">{order._count.items}</TableCell>
+                  <TableCell className="font-semibold tabular-nums" data-label="Total">
                     {formatMoney(Number(order.totalAmount))}
                   </TableCell>
-                  <TableCell>
-                    <ToneBadge tone={statusTone(order.status)}>
-                      {order.status}
-                    </ToneBadge>
+                  <TableCell data-label="Status">
+                    <ToneBadge tone={statusTone(order.status)}>{order.status}</ToneBadge>
                   </TableCell>
                 </tr>
               ))
             ) : (
               <tr>
-                <TableCell colSpan={7}>
-                  No supplier purchase orders match these filters.
-                </TableCell>
+                <TableCell colSpan={7}>No supplier purchase orders match these filters.</TableCell>
               </tr>
             )}
           </tbody>
