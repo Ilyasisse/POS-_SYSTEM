@@ -40,6 +40,7 @@ const links = [
   ["Monthly", "/admin/reports/monthly"],
   ["Sales", "/admin/reports/sales"],
   ["Products", "/admin/reports/products"],
+  ["Menu engineering", "/admin/reports/menu-engineering"],
 ] as const;
 
 export async function SalesReportPage({
