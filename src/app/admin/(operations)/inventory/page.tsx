@@ -1,4 +1,4 @@
-﻿import { AdminPage } from "@/components/admin/shared";
+import { AdminPage } from "@/components/admin/shared";
 import { ToastOnMount, type ToastTone } from "@/components/ui/toast";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
@@ -13,9 +13,10 @@ import {
   InventoryStatus,
   StatusSummary,
 } from "@/types/admin/Inventory.types";
+import { adjustSupplyInventory, updateSupplyInventory } from "./actions";
 import CreateSupplyForm from "./_compoents/CreateSupplyForm";
 import InventorySummary from "./_compoents/InventorySummary";
-import InventorySuppliesTable from "./_compoents/InventorySuppliesTable";
+import InventorySupplyWorkspace from "./_compoents/InventorySupplyWorkspace";
 import RecentInventoryActivity from "./_compoents/RecentInventoryActitvity";
 import { getEatDayStart } from "@/app/inventory/page";
 
@@ -29,25 +30,15 @@ function addStatus(summary: StatusSummary, status: InventoryStatus) {
   }
 }
 
-function getInventoryEmailMessage(
-  value?: string,
-): { tone: ToastTone; message: string } | null {
-  if (value === "sent")
-    return { tone: "success", message: "Inventory email sent." };
-  if (value === "failed")
-    return { tone: "error", message: "Inventory email failed." };
-  if (value === "skipped")
-    return { tone: "warning", message: "Inventory email skipped." };
-  if (value === "none")
-    return { tone: "info", message: "No inventory email needed." };
+function getInventoryEmailMessage(value?: string): { tone: ToastTone; message: string } | null {
+  if (value === "sent") return { tone: "success", message: "Inventory email sent." };
+  if (value === "failed") return { tone: "error", message: "Inventory email failed." };
+  if (value === "skipped") return { tone: "warning", message: "Inventory email skipped." };
+  if (value === "none") return { tone: "info", message: "No inventory email needed." };
   return null;
 }
 
-function InventoryNotice({
-  notice,
-}: {
-  notice: { tone: ToastTone; message: string } | null;
-}) {
+function InventoryNotice({ notice }: { notice: { tone: ToastTone; message: string } | null }) {
   if (!notice) {
     return null;
   }
@@ -55,11 +46,8 @@ function InventoryNotice({
   return <ToastOnMount tone={notice.tone} description={notice.message} />;
 }
 
-export default async function AdminInventoryPage({
-  searchParams,
-}: AdminInventoryPageProps) {
+export default async function AdminInventoryPage({ searchParams }: AdminInventoryPageProps) {
   const params = await searchParams;
-  const q = params?.q?.trim().toLowerCase() ?? "";
   const statusFilter = normalizeFilterChoice(
     params?.status,
     ["all", "ok", "low", "out"] as const,
@@ -125,12 +113,6 @@ export default async function AdminInventoryPage({
       status: getInventoryAlertStatus(supply.stockQty, supply.lowStockThreshold),
     };
   });
-  const visibleSupplies = enrichedSupplies.filter((supply) => {
-    const matchesSearch = !q || supply.name.toLowerCase().includes(q);
-    const matchesStatus =
-      statusFilter === "all" || supply.status.toLowerCase() === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
   const summary = enrichedSupplies.reduce<StatusSummary>(
     (accumulator, supply) => {
       addStatus(accumulator, supply.status);
@@ -140,21 +122,19 @@ export default async function AdminInventoryPage({
   );
 
   return (
-    <AdminPage
-      title="Inventory"
-      description="Track stock levels and manage inventory"
-    >
+    <AdminPage title="Inventory" description="Track stock levels and manage inventory">
       <InventoryNotice notice={notice} />
-      <InventorySummary
-        summary={summary}
-        takenTodayCount={takenTodayMovements.length}
-      />
+      <InventorySummary summary={summary} takenTodayCount={takenTodayMovements.length} />
       <CreateSupplyForm />
-      <InventorySuppliesTable
-        visibleSupplies={visibleSupplies}
-        totalSupplies={enrichedSupplies.length}
-        searchQuery={params?.q ?? ""}
-        statusFilter={statusFilter}
+      <InventorySupplyWorkspace
+        key={JSON.stringify([params?.q ?? "", statusFilter])}
+        supplies={enrichedSupplies}
+        updateStock={updateSupplyInventory}
+        restock={adjustSupplyInventory}
+        initialSearch={params?.q ?? ""}
+        initialFilter={
+          { all: "ALL", ok: "OK", low: "LOW", out: "OUT" }[statusFilter] as "ALL" | InventoryStatus
+        }
       />
       <RecentInventoryActivity
         movements={movements.map((movement) => {

@@ -10,6 +10,8 @@ export function useSupplyForm(
   action: (data: FormData) => Promise<SupplyFormResult>,
   successMessage: string,
   resetOnSuccess = false,
+  onPendingChange?: (pending: boolean) => void,
+  onSuccess?: () => void,
 ) {
   const { toast } = useToast();
   const errorId = useId();
@@ -25,6 +27,7 @@ export function useSupplyForm(
     const data = new FormData(form);
     setError(undefined);
     inFlight.current = true;
+    onPendingChange?.(true);
     startTransition(async () => {
       try {
         const result = await action(data);
@@ -35,6 +38,7 @@ export function useSupplyForm(
         }
 
         if (resetOnSuccess) form.reset();
+        onSuccess?.();
         toast({
           tone: "success",
           description:
@@ -54,6 +58,7 @@ export function useSupplyForm(
         });
       } finally {
         inFlight.current = false;
+        onPendingChange?.(false);
       }
     });
   }
