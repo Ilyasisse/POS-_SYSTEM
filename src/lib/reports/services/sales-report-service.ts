@@ -250,6 +250,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       total: order.total.toFixed(2),
       waiter: order.waiter?.fullName ?? null,
       cashier: order.cashier?.fullName ?? null,
+      tableId: order.table?.id ?? null,
       table: order.table?.name ?? null,
     })),
   };
