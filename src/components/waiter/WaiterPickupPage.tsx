@@ -1,9 +1,14 @@
 ﻿"use client";
 
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 import type { KitchenTicket } from "@/lib/kitchen/kitchen-socket";
 import { useKitchenTickets } from "@/hooks/kitchen/useKitchenTickets";
+import {
+  filterPickupTickets,
+  type PickupView,
+} from "@/lib/waiter/pickup-filter";
 
 type WaiterPickupPageProps = {
   currentUserId: string;
@@ -42,6 +47,14 @@ export default function WaiterPickupPage({
       currentUserName,
       currentUserRole,
     });
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<PickupView>("all");
+  const visibleTickets = filterPickupTickets(
+    activeTickets,
+    search,
+    view,
+    currentUserId,
+  );
 
   return (
     <div
@@ -73,6 +86,36 @@ export default function WaiterPickupPage({
           </p>
         ) : null}
 
+        <section className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-4">
+          <label className="min-w-48 flex-1 text-sm font-semibold">
+            Find a ready order
+            <input
+              type="search"
+              value={search}
+              maxLength={80}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Table name or exact order number"
+              className="mt-2 w-full rounded-lg border border-border bg-background px-4 py-3 text-base"
+            />
+          </label>
+          <label className="text-sm font-semibold">
+            Show
+            <select
+              value={view}
+              onChange={(event) => setView(event.target.value as PickupView)}
+              className="mt-2 block rounded-lg border border-border bg-background px-4 py-3 text-base"
+            >
+              <option value="all">All ready orders</option>
+              <option value="unclaimed">Unclaimed</option>
+              <option value="mine">Claimed by me</option>
+            </select>
+          </label>
+          <p role="status" className="w-full text-sm text-muted-foreground">
+            Showing {visibleTickets.length} of {activeTickets.length} ready
+            orders
+          </p>
+        </section>
+
         {activeTickets.length === 0 ? (
           <section className="rounded-2xl border border-dashed border-border bg-card/80 p-10 text-center shadow-sm">
             <h2 className="text-xl font-bold text-foreground">
@@ -83,9 +126,14 @@ export default function WaiterPickupPage({
               done.
             </p>
           </section>
+        ) : visibleTickets.length === 0 ? (
+          <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+            No ready orders match this search or view. Try another table, order
+            number, or status.
+          </section>
         ) : (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {activeTickets.map((ticket) => {
+            {visibleTickets.map((ticket) => {
               const canDeliver = isClaimedByCurrentUser(
                 ticket,
                 currentUserId,
