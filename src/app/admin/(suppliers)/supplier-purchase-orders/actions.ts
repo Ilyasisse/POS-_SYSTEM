@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { validateReceivedQuantities } from "@/lib/suppliers/receiving";
 import {
   completePurchaseOrderAndCreateInvoiceDraft,
   createInvoiceDraftForCompletedPurchaseOrder,
@@ -245,4 +246,77 @@ export async function createInvoiceForCompletedPurchaseOrderAction(
   }
   refreshPurchaseOrders(id, invoiceId);
   redirect(`/admin/supplier-invoices/${encodeURIComponent(invoiceId)}`);
+}
+
+export async function recordSupplierDeliveryAction(formData: FormData) {
+  const user = await requirePermission(PERMISSIONS.SUPPLIER_RECEIVE);
+  const id = text(formData, "id");
+  if (!id) redirect("/admin/supplier-purchase-orders");
+  const destination = `/admin/supplier-purchase-orders/${encodeURIComponent(id)}`;
+  const note = text(formData, "completionNote");
+  const ratingValue = text(formData, "qualityRating");
+  const qualityRating = ratingValue ? Number(ratingValue) : null;
+  if (
+    note.length > 2000 ||
+    (qualityRating !== null &&
+      (!Number.isInteger(qualityRating) ||
+        qualityRating < 1 ||
+        qualityRating > 5))
+  ) {
+    redirect(`${destination}?orderStatus=invalid_delivery`);
+  }
+
+  let status = "delivery_recorded";
+  try {
+    await prisma.$transaction(async (tx) => {
+      const order = await tx.supplierPurchaseOrder.findUnique({
+        where: { id },
+        select: {
+          status: true,
+          receiving: { select: { id: true } },
+          items: { select: { id: true, quantity: true } },
+        },
+      });
+      if (!order || order.status !== "COMPLETED" || order.receiving) {
+        throw new Error("delivery_unavailable");
+      }
+      const result = validateReceivedQuantities(
+        order.items,
+        order.items.map((item) => ({
+          id: item.id,
+          quantity: text(formData, `received-${item.id}`),
+        })),
+      );
+      if (!result.ok || (result.hasDifference && !note)) {
+        throw new Error("invalid_delivery");
+      }
+      await tx.supplierReceiving.create({
+        data: {
+          purchaseOrderId: id,
+          receivedByUserId: user.id,
+          qualityRating,
+          completionNote: note || null,
+          items: {
+            create: result.rows.map((row) => ({
+              purchaseOrderItemId: row.id,
+              expectedQuantity: row.expected,
+              receivedQuantity: row.received,
+            })),
+          },
+        },
+      });
+    });
+  } catch (error) {
+    status =
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+        ? "delivery_unavailable"
+        : error instanceof Error &&
+            (error.message === "invalid_delivery" ||
+              error.message === "delivery_unavailable")
+          ? error.message
+          : "delivery_failed";
+  }
+  revalidatePath(destination);
+  redirect(`${destination}?orderStatus=${status}`);
 }
