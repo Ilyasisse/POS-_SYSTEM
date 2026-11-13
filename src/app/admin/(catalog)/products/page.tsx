@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import Image from "next/image";
 import ProductAvailabilityControl from "./ProductAvailabilityControl";
 import { isProductAvailableForSale } from "@/lib/products/availability";
+import { saleAvailabilityWhere } from "@/lib/products/availability-filter";
 
 type AdminProductsPageProps = {
   searchParams: Promise<{
@@ -24,6 +25,7 @@ type AdminProductsPageProps = {
     q?: string;
     category?: string;
     status?: string;
+    availability?: string;
   }>;
 };
 
@@ -40,6 +42,12 @@ export default async function AdminProductsPage({
     ["all", "active", "inactive"] as const,
     "all",
   );
+  const availability = normalizeFilterChoice(
+    params.availability,
+    ["all", "for-sale", "sold-out"] as const,
+    "all",
+  );
+  const now = new Date();
   const where = {
     ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
     ...(category !== "all" ? { categoryId: category } : {}),
@@ -48,6 +56,7 @@ export default async function AdminProductsPage({
       : status === "inactive"
         ? { isActive: false }
         : {}),
+    ...saleAvailabilityWhere(availability, now),
   };
 
   const [productsList, totalProducts, categories] = await Promise.all([
@@ -96,7 +105,10 @@ export default async function AdminProductsPage({
           placeholder="Search products..."
           defaultValue={q}
           hasActiveFilters={Boolean(
-            q || category !== "all" || status !== "all",
+            q ||
+            category !== "all" ||
+            status !== "all" ||
+            availability !== "all",
           )}
           clearHref="/admin/products"
         >
@@ -112,6 +124,11 @@ export default async function AdminProductsPage({
             <option value="all">Status All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
+          </AutoSubmitSelect>
+          <AutoSubmitSelect name="availability" defaultValue={availability}>
+            <option value="all">Availability All</option>
+            <option value="for-sale">For sale</option>
+            <option value="sold-out">Sold out</option>
           </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
@@ -136,7 +153,7 @@ export default async function AdminProductsPage({
               </tr>
             ) : (
               productsList.map((product, index) => {
-                const unavailable = !isProductAvailableForSale(product);
+                const unavailable = !isProductAvailableForSale(product, now);
                 return (
                   <tr key={product.id} className="border-b border-border">
                     <TableCell className="font-bold text-muted-foreground">
