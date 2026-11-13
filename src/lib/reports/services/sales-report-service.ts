@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { summarizeProductDiscounts } from "@/lib/reports/product-discounts";
 import {
   averageOrderValue,
   grossProfit,
@@ -243,6 +244,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       .sort((a, b) => Number(a.hour) - Number(b.hour)),
     categories: mapRows(categoryRows),
     products: mapRows(productRows),
+    productDiscounts: summarizeProductDiscounts(orders),
     orders: orders.map((order) => ({
       id: order.id,
       orderNumber: order.orderNumber,
