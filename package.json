@@ -14,7 +14,9 @@
     "doctor": "npx react-doctor@latest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsx --test tests/unit/*.test.ts tests/integration/*.test.ts tests/integration/*.test.mjs tests/e2e/*.spec.ts",
+    "test": "tsx --test tests/unit/*.test.ts tests/integration/*.test.mjs",
+    "test:integration": "node tests/workflow/run.mjs integration",
+    "test:e2e": "node tests/workflow/run.mjs e2e",
     "test:reports": "tsx --test tests/unit/reporting-foundation.test.ts",
     "test:sales-integrity": "tsx --test tests/unit/sales-integrity.test.ts",
     "test:sales-reports": "tsx --test tests/unit/sales-reporting.test.ts",
@@ -58,6 +60,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.15",
+    "@playwright/test": "1.64.1",
     "@types/node": "^20",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
