@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 import {
   approvePayrollAdjustmentAction,
   createPayrollAdjustmentAction,
@@ -65,6 +66,13 @@ export default async function PayrollPage() {
         />
         <MetricCard label="Finalized total" value={`$${paid.toFixed(2)}`} />
       </section>
+      <Link
+        prefetch={false}
+        className="inline-block text-sm font-semibold text-blue-700 underline"
+        href="/admin/staff/payroll/runs"
+      >
+        Browse all payroll runs
+      </Link>
       <section className="grid gap-5 xl:grid-cols-2">
         <Card className="p-5">
           <h2 className="mb-4 font-bold">Add payroll adjustment</h2>
