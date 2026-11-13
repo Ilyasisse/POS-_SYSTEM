@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useClientResource } from "@/hooks/useClientResource";
 import posthog from "posthog-js";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -19,26 +19,24 @@ type SessionUser = {
   role?: string;
 };
 
+async function loadSession(signal: AbortSignal) {
+  const response = await fetch("/api/auth/session", { cache: "no-store", signal });
+  return response.ok ? (response.json() as Promise<{ user?: SessionUser }>) : null;
+}
+
 export function AppProviders({ children }: { children: ReactNode }) {
-  useEffect(() => {
-    if (!posthogConfigured) return;
-
-    void fetch("/api/auth/session", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json()) as { user?: SessionUser };
-      })
-      .then((session) => {
-        if (!session?.user) return;
-
-        posthog.identify(session.user.id, {
-          email: session.user.email,
-          name: session.user.name,
-          role: session.user.role,
-        });
-      })
-      .catch(() => undefined);
-  }, []);
+  useClientResource({
+    load: loadSession,
+    enabled: posthogConfigured,
+    onData(session) {
+      if (!session?.user) return;
+      posthog.identify(session.user.id, {
+        email: session.user.email,
+        name: session.user.name,
+        role: session.user.role,
+      });
+    },
+  });
 
   return (
     <ThemeProvider

@@ -7,7 +7,7 @@ import {
   StatusBadge,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
@@ -132,16 +132,16 @@ export default async function SuppliersPage() {
 
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Invoices</TableHead>
-              <TableHead>Purchase orders</TableHead>
-              <TableHead>Catalog</TableHead>
-              <TableHead>Edit</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Supplier",
+              "Contact",
+              "Invoices",
+              "Purchase orders",
+              "Catalog",
+              "Edit",
+            ]}
+          />
           <tbody>
             {suppliers.length ? (
               suppliers.map((supplier) => (

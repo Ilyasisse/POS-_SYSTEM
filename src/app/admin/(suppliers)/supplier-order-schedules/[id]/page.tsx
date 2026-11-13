@@ -1,3 +1,4 @@
+import { supplierOrderDateTimeFormatter } from "@/lib/supplier-orders/date-time-formatter";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { SupplierOrderRunStatus } from "@prisma/client";
@@ -7,7 +8,7 @@ import {
   DataTableCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { ToastOnMount } from "@/components/ui/toast";
@@ -75,11 +76,7 @@ export default async function SupplierOrderScheduleDetailPage({
     }),
   ]);
   if (!schedule) notFound();
-  const dateTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: schedule.timeZone,
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const dateTime = supplierOrderDateTimeFormatter(schedule.timeZone);
   const formInviteAt = schedule.nextInviteAt ?? schedule.firstInviteAt;
   const formSendAt =
     schedule.nextSupplierSendAt ?? schedule.firstSupplierSendAt;
@@ -123,16 +120,16 @@ export default async function SupplierOrderScheduleDetailPage({
         <h2 className="mb-3 text-xl font-semibold">Run history</h2>
         <DataTableCard>
           <Table>
-            <thead>
-              <tr>
-                <TableHead>Run</TableHead>
-                <TableHead>Window</TableHead>
-                <TableHead>Responses</TableHead>
-                <TableHead>Purchase order</TableHead>
-                <TableHead>Delivery</TableHead>
-                <TableHead>Status</TableHead>
-              </tr>
-            </thead>
+            <TableColumnHeaders
+              columns={[
+                "Run",
+                "Window",
+                "Responses",
+                "Purchase order",
+                "Delivery",
+                "Status",
+              ]}
+            />
             <tbody>
               {schedule.runs.length ? (
                 schedule.runs.map((run) => {

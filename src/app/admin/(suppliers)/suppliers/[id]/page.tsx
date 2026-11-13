@@ -10,7 +10,7 @@ import {
   StatusBadge,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { ToastOnMount } from "@/components/ui/toast";
@@ -90,15 +90,15 @@ function SupplierCatalogTable({
   return (
     <DataTableCard>
       <Table>
-        <thead>
-          <tr>
-            <TableHead>Item</TableHead>
-            <TableHead>Current price</TableHead>
-            <TableHead>Last ordered</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Update</TableHead>
-          </tr>
-        </thead>
+        <TableColumnHeaders
+          columns={[
+            "Item",
+            "Current price",
+            "Last ordered",
+            "Status",
+            "Update",
+          ]}
+        />
         <tbody>
           {rows.length ? (
             rows.map((item) => {

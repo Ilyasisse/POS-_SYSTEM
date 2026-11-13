@@ -6,7 +6,7 @@ import {
   Table,
   DataTableCard,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   StatusBadge,
 } from "@/components/admin/shared";
 import { prisma } from "@/lib/prisma";
@@ -146,17 +146,17 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
           </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined On</TableHead>
-              <TableHead>Activity</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "#",
+              "Name",
+              "Role",
+              "Phone",
+              "Status",
+              "Joined On",
+              "Activity",
+            ]}
+          />
           <tbody>
             {staff.length === 0 ? (
               <tr>

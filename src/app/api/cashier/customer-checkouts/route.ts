@@ -55,8 +55,9 @@ export async function GET(request: Request) {
         amount: { not: null },
         assignedPaymentRequestId: null,
       },
-      orderBy: { receivedAt: "asc" },
-      take: 100,
+      orderBy: [{ receivedAt: "asc" }, { id: "asc" }],
+      skip: receiptPage * 100,
+      take: 101,
       select: {
         id: true,
         amount: true,

@@ -98,120 +98,17 @@ function OrderPeople({ rounds }: { rounds: readonly OrderCardRound[] }) {
 export default async function AdminOrdersPage({
   searchParams,
 }: AdminOrdersPageProps) {
-  const params = await searchParams;
-  const q = params?.q?.trim() ?? "";
-  const status = normalizeFilterChoice(
-    params?.status,
-    ORDER_STATUS_FILTERS,
-    "all",
-  );
-  const date = normalizeFilterChoice(params?.date, ORDER_DATE_FILTERS, "today");
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const startDate = date === "today" ? startOfToday : undefined;
-  const searchNumber = Number(q);
-  const hasOrderNumber =
-    Boolean(q) && Number.isSafeInteger(searchNumber) && searchNumber > 0;
-  const where = {
-    ...(status !== "all"
-      ? { status: status as "OPEN" | "PAID" | "CANCELLED" }
-      : {}),
-    ...(startDate
-      ? {
-          createdAt: {
-            gte: startDate,
-          },
-        }
-      : {}),
-    ...(hasOrderNumber
-      ? {
-          OR: [
-            { orderNumber: searchNumber },
-            { tableCheck: { checkNumber: searchNumber } },
-          ],
-        }
-      : {}),
-  };
-
-  const [recentOrders, ordersToday] = await Promise.all([
-    prisma.order.findMany({
-      where,
-      take: 20,
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: orderContext,
-    }),
-    prisma.order.findMany({
-      where: {
-        createdAt: {
-          gte: startOfToday,
-        },
-      },
-      select: {
-        status: true,
-        total: true,
-      },
-    }),
-  ]);
-
-  // Filters select matching orders, then load their complete checks so older,
-  // paid, or otherwise filtered-out rounds are not lost from a mobile card.
-  const checkIds = [
-    ...new Set(
-      recentOrders
-        .map((order) => order.tableCheckId)
-        .filter((id): id is string => Boolean(id)),
-    ),
-  ];
-  const standaloneIds = recentOrders
-    .filter((order) => !order.tableCheckId)
-    .map((order) => order.id);
-  const allCardOrders = checkIds.length
-    ? await prisma.order.findMany({
-        where: {
-          OR: [
-            { tableCheckId: { in: checkIds } },
-            { id: { in: standaloneIds } },
-          ],
-        },
-        orderBy: { createdAt: "desc" },
-        include: orderContext,
-      })
-    : recentOrders;
-  const cardRounds: OrderCardRound[] = allCardOrders.map((order) => ({
-    id: order.id,
-    orderNumber: order.orderNumber,
-    tableCheckId: order.tableCheckId,
-    tableCheckRound: order.tableCheckRound,
-    checkNumber: order.tableCheck?.checkNumber ?? null,
-    tableName: order.table?.name ?? null,
-    type: order.type,
-    status: order.status,
-    total: Number(order.total),
-    createdAt: order.createdAt,
-    cashierName: order.cashier?.fullName ?? null,
-    waiterName: order.waiter?.fullName ?? null,
-    customerName: order.customer?.fullName ?? null,
-    itemCount: order._count.orderItems,
-  }));
-  const matchingKeys = recentOrders.map(
-    (order) => order.tableCheckId ?? `order:${order.id}`,
-  );
-  const orderCards = groupOrderCards(cardRounds).sort(
-    (a, b) => matchingKeys.indexOf(a.key) - matchingKeys.indexOf(b.key),
-  );
-
-  const openToday = ordersToday.filter(
-    (order) => order.status === "OPEN",
-  ).length;
-  const paidToday = ordersToday.filter(
-    (order) => order.status === "PAID",
-  ).length;
-  const revenueToday = ordersToday.reduce(
-    (sum, order) => sum + Number(order.total),
-    0,
-  );
+  const {
+    q,
+    status,
+    date,
+    recentOrders,
+    orderCards,
+    ordersToday,
+    openToday,
+    paidToday,
+    revenueToday,
+  } = await loadAdminOrders(searchParams);
 
   return (
     <AdminPage title="Orders" description="Track and manage customer orders">
@@ -401,4 +298,108 @@ export default async function AdminOrdersPage({
       </DataTableCard>
     </AdminPage>
   );
+}
+
+async function loadAdminOrders(searchParams: AdminOrdersPageProps["searchParams"]) {
+  const params = await searchParams;
+  const q = params?.q?.trim() ?? "";
+  const status = normalizeFilterChoice(params?.status, ORDER_STATUS_FILTERS, "all");
+  const date = normalizeFilterChoice(params?.date, ORDER_DATE_FILTERS, "today");
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startDate = date === "today" ? startOfToday : undefined;
+  const searchNumber = Number(q);
+  const hasOrderNumber = Boolean(q) && Number.isSafeInteger(searchNumber) && searchNumber > 0;
+  const where = {
+    ...(status !== "all" ? { status: status as "OPEN" | "PAID" | "CANCELLED" } : {}),
+    ...(startDate
+      ? {
+          createdAt: {
+            gte: startDate,
+          },
+        }
+      : {}),
+    ...(hasOrderNumber
+      ? {
+          OR: [{ orderNumber: searchNumber }, { tableCheck: { checkNumber: searchNumber } }],
+        }
+      : {}),
+  };
+
+  const [recentOrders, ordersToday] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      take: 20,
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: orderContext,
+    }),
+    prisma.order.findMany({
+      where: {
+        createdAt: {
+          gte: startOfToday,
+        },
+      },
+      select: {
+        status: true,
+        total: true,
+      },
+    }),
+  ]);
+
+  // Filters select matching orders, then load their complete checks so older,
+  // paid, or otherwise filtered-out rounds are not lost from a mobile card.
+  const checkIds = [
+    ...new Set(
+      recentOrders.map((order) => order.tableCheckId).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const standaloneIds = recentOrders
+    .filter((order) => !order.tableCheckId)
+    .map((order) => order.id);
+  const allCardOrders = checkIds.length
+    ? await prisma.order.findMany({
+        where: {
+          OR: [{ tableCheckId: { in: checkIds } }, { id: { in: standaloneIds } }],
+        },
+        orderBy: { createdAt: "desc" },
+        include: orderContext,
+      })
+    : recentOrders;
+  const cardRounds: OrderCardRound[] = allCardOrders.map((order) => ({
+    id: order.id,
+    orderNumber: order.orderNumber,
+    tableCheckId: order.tableCheckId,
+    tableCheckRound: order.tableCheckRound,
+    checkNumber: order.tableCheck?.checkNumber ?? null,
+    tableName: order.table?.name ?? null,
+    type: order.type,
+    status: order.status,
+    total: Number(order.total),
+    createdAt: order.createdAt,
+    cashierName: order.cashier?.fullName ?? null,
+    waiterName: order.waiter?.fullName ?? null,
+    customerName: order.customer?.fullName ?? null,
+    itemCount: order._count.orderItems,
+  }));
+  const matchingKeys = recentOrders.map((order) => order.tableCheckId ?? `order:${order.id}`);
+  const orderCards = groupOrderCards(cardRounds).sort(
+    (a, b) => matchingKeys.indexOf(a.key) - matchingKeys.indexOf(b.key),
+  );
+
+  const openToday = ordersToday.filter((order) => order.status === "OPEN").length;
+  const paidToday = ordersToday.filter((order) => order.status === "PAID").length;
+  const revenueToday = ordersToday.reduce((sum, order) => sum + Number(order.total), 0);
+  return {
+    q,
+    status,
+    date,
+    recentOrders,
+    orderCards,
+    ordersToday,
+    openToday,
+    paidToday,
+    revenueToday,
+  };
 }

@@ -7,7 +7,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -120,7 +120,16 @@ export default async function CustomerProfilePage({
         <div className="border-b px-5 py-4"><h2 className="font-semibold">Recent orders</h2><p className="text-sm text-muted-foreground">Up to the latest 50 identified orders.</p></div>
         {orders.length ? (
           <Table>
-            <thead><tr><TableHead>Order</TableHead><TableHead>Date</TableHead><TableHead>Items</TableHead><TableHead>Payment</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead></tr></thead>
+            <TableColumnHeaders
+              columns={[
+                "Order",
+                "Date",
+                "Items",
+                "Payment",
+                "Total",
+                "Status",
+              ]}
+            />
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id} className="border-b">

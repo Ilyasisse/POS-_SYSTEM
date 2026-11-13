@@ -4,22 +4,9 @@ import { getDefaultRouteForUser } from "@/lib/auth/get-default-route-for-user";
 import { findAppUser } from "@/lib/auth/app-user";
 import { createClient } from "@/lib/supabase/server";
 
-function getRedirectOrigin(request: Request, requestUrl: URL) {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-
-  if (!forwardedHost) {
-    return requestUrl.origin;
-  }
-
-  const forwardedProto =
-    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
-
-  return `${forwardedProto}://${forwardedHost}`;
-}
-
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const redirectOrigin = getRedirectOrigin(request, requestUrl);
+  const redirectOrigin = requestUrl.origin;
   const supabase = await createClient();
 
   const {

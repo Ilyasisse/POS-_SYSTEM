@@ -97,15 +97,16 @@ export default function CashierPaymentDialog({
   ]);
   const [payLater, setPayLater] = useState(false);
   const [batchKey, setBatchKey] = useState("");
-  const [requests, setRequests] = useState<RequestLine[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const { requests, setRequests, receipts, canManage, refresh } = useCashierPaymentData(
+    open,
+    batchKey,
+  );
   const [selectedRequestId, setSelectedRequestId] = useState("");
   const [tab, setTab] = useState<ReceiptTab>("AVAILABLE");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [busyReceiptId, setBusyReceiptId] = useState("");
-  const [canManage, setCanManage] = useState(false);
   const [reversalReasons, setReversalReasons] = useState<
     Record<string, string>
   >({});
@@ -120,54 +121,10 @@ export default function CashierPaymentDialog({
   const selectedRequest =
     requests.find((item) => item.id === selectedRequestId) ?? null;
 
-  const refresh = useCallback(async () => {
-    const calls: Promise<Response>[] = [
-      fetch("/api/cashier/payment-receipts", { cache: "no-store" }),
-    ];
-    if (batchKey)
-      calls.push(
-        fetch(
-          `/api/cashier/payment-requests?batchKey=${encodeURIComponent(batchKey)}`,
-          { cache: "no-store" },
-        ),
-      );
-    const [receiptResponse, requestResponse] = await Promise.all(calls);
-    if (receiptResponse.ok) {
-      const data = await receiptResponse.json();
-      setReceipts(data.receipts ?? []);
-      setCanManage(data.canManage === true);
-    }
-    if (requestResponse?.ok) {
-      const data = await requestResponse.json();
-      setRequests(data.requests ?? []);
-    }
-  }, [batchKey]);
-
-  useEffect(() => {
-    if (!open || !batchKey) return;
-    const initial = window.setTimeout(() => void refresh(), 0);
-    const timer = window.setInterval(() => void refresh(), 2500);
-    return () => {
-      window.clearTimeout(initial);
-      window.clearInterval(timer);
-    };
-  }, [batchKey, open, refresh]);
-
-  const visibleReceipts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return receipts.filter(
-      (receipt) =>
-        receipt.status === tab &&
-        (!term ||
-          [
-            receipt.reference,
-            receipt.counterpartyLabel,
-            ...receipt.counterpartyIdentifiers,
-            receipt.assignment?.payerName,
-            receipt.assignment?.table.name,
-          ].some((value) => value?.toLowerCase().includes(term))),
-    );
-  }, [receipts, search, tab]);
+  const visibleReceipts = useMemo(
+    () => filterPaymentReceipts(receipts, tab, search),
+    [receipts, tab, search],
+  );
 
   function updateLine(
     id: string,
@@ -345,356 +302,489 @@ export default function CashierPaymentDialog({
           </DialogDescription>
         </DialogHeader>
         {!batchKey ? (
-          <div className="space-y-5">
-            {showEqualSplit ? (
-              <div className="rounded-2xl border bg-muted/30 p-4">
-                <p className="font-semibold">Split equally</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Divide the full table balance exactly between each payer.
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input
-                    aria-label="Number of people sharing the bill"
-                    type="number"
-                    min={2}
-                    max={MAX_EQUAL_SPLIT_PEOPLE}
-                    step={1}
-                    value={equalSplitCount}
-                    onChange={(event) => setEqualSplitCount(event.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={applyEqualSplit}
-                  >
-                    Create equal shares
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            <div className="space-y-3">
-              {lines.map((line, index) => (
-                <div
-                  key={line.id}
-                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"
-                >
-                  <NativeSelect
-                    aria-label={`Payer ${index + 1} payment method`}
-                    value={line.method}
-                    onChange={(event) =>
-                      updateLine(line.id, "method", event.target.value)
-                    }
-                  >
-                    <option value="">Method</option>
-                    <option value="GOLIS">GOLIS / SAHAL</option>
-                    <option value="MYCASH">MYCASH</option>
-                    <option value="Dahabshiil">Dahabshiil</option>
-                    <option value="OTHER">OTHER</option>
-                  </NativeSelect>
-                  <Input
-                    aria-label={`Payer ${index + 1} name`}
-                    placeholder="Name"
-                    value={line.payerName}
-                    onChange={(event) =>
-                      updateLine(line.id, "payerName", event.target.value)
-                    }
-                  />
-                  <Input
-                    aria-label={`Payer ${index + 1} phone`}
-                    placeholder="Phone number"
-                    value={line.payerPhone}
-                    onChange={(event) =>
-                      updateLine(line.id, "payerPhone", event.target.value)
-                    }
-                  />
-                  <Input
-                    aria-label={`Payer ${index + 1} amount`}
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={line.amount}
-                    onChange={(event) =>
-                      updateLine(line.id, "amount", event.target.value)
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={lines.length === 1}
-                    onClick={() =>
-                      setLines((current) =>
-                        current.filter((item) => item.id !== line.id),
-                      )
-                    }
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                setLines((current) => [
-                  ...current,
-                  {
-                    id: crypto.randomUUID(),
-                    payerName: "",
-                    payerPhone: "",
-                    amount: remaining ? remaining.toFixed(2) : "",
-                    method: current.at(-1)?.method ?? "",
-                  },
-                ])
-              }
-            >
-              + Add another payer
-            </Button>
-            <div
-              className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40" : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40"}`}
-            >
-              <div className="flex justify-between">
-                <span>Table balance</span>
-                <strong>{money(amountDue)}</strong>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span>Entered payments</span>
-                <strong>{money(entered)}</strong>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span>Remaining</span>
-                <strong>{money(remaining)}</strong>
-              </div>
-            </div>
-            {remaining > 0.001 ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
-                <input
-                  type="checkbox"
-                  checked={payLater}
-                  onChange={(event) => setPayLater(event.target.checked)}
-                  className="mt-1 size-4"
-                />
-                <span>
-                  <strong>Pay later</strong>
-                  <span className="block text-sm text-amber-900 dark:text-amber-300">
-                    Create a manager alert for the {money(remaining)} balance.
-                  </span>
-                </span>
-              </label>
-            ) : null}
-            {error ? (
-              <p className="rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-sm font-semibold text-red-700 dark:text-red-300">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              type="button"
-              onClick={startChecks}
-              disabled={
-                submitting ||
-                entered <= 0 ||
-                entered > amountDue ||
-                (remaining > 0.001 && !payLater)
-              }
-              className="w-full rounded-full bg-primary py-4 text-primary-foreground"
-            >
-              {submitting ? "Starting…" : "Start payment check"}
-            </Button>
-          </div>
+          <PaymentRequestSetup
+            showEqualSplit={showEqualSplit}
+            equalSplitCount={equalSplitCount}
+            setEqualSplitCount={setEqualSplitCount}
+            applyEqualSplit={applyEqualSplit}
+            lines={lines}
+            updateLine={updateLine}
+            setLines={setLines}
+            amountDue={amountDue}
+            entered={entered}
+            remaining={remaining}
+            payLater={payLater}
+            setPayLater={setPayLater}
+            error={error}
+            submitting={submitting}
+            startChecks={startChecks}
+          />
         ) : (
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-900 dark:text-blue-300">
-              Incoming SMS messages from 898 appear below automatically. Select
-              the payer first, then assign a receipt.
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {requests.map((request) => (
-                <button
-                  key={request.id}
-                  type="button"
-                  onClick={() => setSelectedRequestId(request.id)}
-                  className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-100 dark:ring-blue-800" : "hover:bg-muted/40"}`}
-                >
-                  <span className="font-semibold">
-                    {request.payerName} · {request.payerPhone}
-                  </span>
-                  <span className="mt-2 block text-sm">
-                    {request.method} · Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
-                    · Remaining {money(request.remainingAmount)}
-                  </span>
-                  <span
-                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"}`}
-                  >
-                    {request.status.replaceAll("_", " ")}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div
-              className="flex flex-wrap gap-2"
-              role="tablist"
-              aria-label="Payment receipts"
-            >
-              {(Object.keys(tabLabels) as ReceiptTab[]).map((item) => (
-                <Button
-                  key={item}
-                  type="button"
-                  variant={tab === item ? "default" : "outline"}
-                  onClick={() => setTab(item)}
-                  role="tab"
-                  aria-selected={tab === item}
-                >
-                  {tabLabels[item]} (
-                  {receipts.filter((receipt) => receipt.status === item).length}
-                  )
-                </Button>
-              ))}
-            </div>
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, number, Tix, table, or payer"
-              aria-label="Search receipts"
-            />
-            <div className="space-y-3">
-              {visibleReceipts.length === 0 ? (
-                <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  No {tabLabels[tab].toLowerCase()} receipts match.
-                </p>
-              ) : (
-                visibleReceipts.map((receipt) => {
-                  const over = Boolean(
-                    selectedRequest &&
-                    receipt.amount != null &&
-                    receipt.amount - selectedRequest.remainingAmount > 0.001,
-                  );
-                  return (
-                    <article
-                      key={receipt.id}
-                      className="rounded-2xl border p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="font-semibold">
-                            {receipt.counterpartyLabel ??
-                              "Unrecognized SAHAL message"}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Tix {receipt.reference ?? "not found"} ·{" "}
-                            {receipt.amount == null
-                              ? "Amount not found"
-                              : money(receipt.amount)}
-                          </p>
-                          <p className="mt-1 text-sm">
-                            Numbers:{" "}
-                            {receipt.counterpartyIdentifiers.join(", ") ||
-                              "none found"}
-                          </p>
-                          <p className="mt-1 text-sm">
-                            {receipt.transactionAt
-                              ? new Date(receipt.transactionAt).toLocaleString(
-                                  "en-GB",
-                                  { timeZone: "Africa/Nairobi" },
-                                )
-                              : "Time not found"}{" "}
-                            · Balance{" "}
-                            {receipt.providerBalance == null
-                              ? "not found"
-                              : money(receipt.providerBalance)}
-                          </p>
-                          {receipt.customerCheckout ? (
-                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
-                              Assigned to customer checkout{" "}
-                              {receipt.customerCheckout.customerName} (
-                              {receipt.customerCheckout.payerPhone}) ·{" "}
-                              {money(receipt.customerCheckout.amount)}.
-                            </p>
-                          ) : null}{" "}
-                          {receipt.assignment ? (
-                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
-                              Assigned to {receipt.assignment.payerName} at{" "}
-                              {receipt.assignment.table.name} by{" "}
-                              {receipt.assignedByName ?? "staff"}.
-                            </p>
-                          ) : null}
-                          {receipt.parseError ? (
-                            <>
-                              <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
-                                {receipt.parseError}
-                              </p>
-                              <p className="mt-2 break-words rounded-lg bg-muted p-2 text-xs">
-                                {receipt.rawMessage}
-                              </p>
-                            </>
-                          ) : null}
-                        </div>
-                        {tab === "AVAILABLE" ? (
-                          <div className="text-right">
-                            <Button
-                              type="button"
-                              disabled={
-                                !selectedRequest ||
-                                selectedRequest.status === "MATCHED" ||
-                                over ||
-                                busyReceiptId === receipt.id
-                              }
-                              onClick={() => void assignReceipt(receipt)}
-                            >
-                              {busyReceiptId === receipt.id
-                                ? "Assigning…"
-                                : selectedRequest
-                                  ? `Assign to ${selectedRequest.payerName}`
-                                  : "Select a payer"}
-                            </Button>
-                            {over ? (
-                              <p className="mt-2 max-w-52 text-xs font-semibold text-red-700 dark:text-red-300">
-                                Receipt is larger than this payer&apos;s
-                                remaining amount.
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                      {tab === "ASSIGNED" && canManage ? (
-                        <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
-                          <Input
-                            value={reversalReasons[receipt.id] ?? ""}
-                            onChange={(event) =>
-                              setReversalReasons((current) => ({
-                                ...current,
-                                [receipt.id]: event.target.value,
-                              }))
-                            }
-                            placeholder="Required reversal reason"
-                            aria-label={`Reversal reason for ${receipt.reference}`}
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={busyReceiptId === receipt.id}
-                            onClick={() => void reverseReceipt(receipt)}
-                          >
-                            Reverse assignment
-                          </Button>
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })
-              )}
-            </div>
-            {complete ? (
-              <Button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="w-full rounded-full bg-emerald-700 hover:bg-emerald-700/90 py-4 text-white"
-              >
-                Payment confirmed · return to cashier
-              </Button>
-            ) : null}
-          </div>
+          <PaymentReceiptReview
+            requests={requests}
+            selectedRequestId={selectedRequestId}
+            setSelectedRequestId={setSelectedRequestId}
+            tab={tab}
+            setTab={setTab}
+            receipts={receipts}
+            search={search}
+            setSearch={setSearch}
+            visibleReceipts={visibleReceipts}
+            selectedRequest={selectedRequest}
+            busyReceiptId={busyReceiptId}
+            assignReceipt={assignReceipt}
+            canManage={canManage}
+            reversalReasons={reversalReasons}
+            setReversalReasons={setReversalReasons}
+            reverseReceipt={reverseReceipt}
+            complete={complete}
+          />
         )}
       </DialogContent>
     </Dialog>
   );
+}
+
+function PaymentReceiptReview({
+  requests,
+  selectedRequestId,
+  setSelectedRequestId,
+  tab,
+  setTab,
+  receipts,
+  search,
+  setSearch,
+  visibleReceipts,
+  selectedRequest,
+  busyReceiptId,
+  assignReceipt,
+  canManage,
+  reversalReasons,
+  setReversalReasons,
+  reverseReceipt,
+  complete,
+}: {
+  requests: RequestLine[];
+  selectedRequestId: string;
+  setSelectedRequestId: (id: string) => void;
+  tab: ReceiptTab;
+  setTab: (tab: ReceiptTab) => void;
+  receipts: Receipt[];
+  search: string;
+  setSearch: (value: string) => void;
+  visibleReceipts: Receipt[];
+  selectedRequest: RequestLine | null;
+  busyReceiptId: string;
+  assignReceipt: (receipt: Receipt) => Promise<void>;
+  canManage: boolean;
+  reversalReasons: Record<string, string>;
+  setReversalReasons: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  reverseReceipt: (receipt: Receipt) => Promise<void>;
+  complete: boolean;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-900 dark:text-blue-300">
+        Incoming SMS messages from 898 appear below automatically. Select the payer first, then
+        assign a receipt.
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {requests.map((request) => (
+          <button
+            key={request.id}
+            type="button"
+            onClick={() => setSelectedRequestId(request.id)}
+            className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-100 dark:ring-blue-800" : "hover:bg-muted/40"}`}
+          >
+            <span className="font-semibold">
+              {request.payerName} · {request.payerPhone}
+            </span>
+            <span className="mt-2 block text-sm">
+              {request.method} · Paid {money(request.paidAmount)} of {money(request.amount)} ·
+              Remaining {money(request.remainingAmount)}
+            </span>
+            <span
+              className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"}`}
+            >
+              {request.status.replaceAll("_", " ")}
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Payment receipts">
+        {(Object.keys(tabLabels) as ReceiptTab[]).map((item) => (
+          <Button
+            key={item}
+            type="button"
+            variant={tab === item ? "default" : "outline"}
+            onClick={() => setTab(item)}
+            role="tab"
+            aria-selected={tab === item}
+          >
+            {tabLabels[item]} ({receipts.filter((receipt) => receipt.status === item).length})
+          </Button>
+        ))}
+      </div>
+      <Input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Search name, number, Tix, table, or payer"
+        aria-label="Search receipts"
+      />
+      <div className="space-y-3">
+        {visibleReceipts.length === 0 ? (
+          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No {tabLabels[tab].toLowerCase()} receipts match.
+          </p>
+        ) : (
+          visibleReceipts.map((receipt) => {
+            const over = Boolean(
+              selectedRequest &&
+              receipt.amount != null &&
+              receipt.amount - selectedRequest.remainingAmount > 0.001,
+            );
+            return (
+              <article key={receipt.id} className="rounded-2xl border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      {receipt.counterpartyLabel ?? "Unrecognized SAHAL message"}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Tix {receipt.reference ?? "not found"} ·{" "}
+                      {receipt.amount == null ? "Amount not found" : money(receipt.amount)}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Numbers: {receipt.counterpartyIdentifiers.join(", ") || "none found"}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {receipt.transactionAt
+                        ? new Date(receipt.transactionAt).toLocaleString("en-GB", {
+                            timeZone: "Africa/Nairobi",
+                          })
+                        : "Time not found"}{" "}
+                      · Balance{" "}
+                      {receipt.providerBalance == null
+                        ? "not found"
+                        : money(receipt.providerBalance)}
+                    </p>
+                    {receipt.customerCheckout ? (
+                      <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
+                        Assigned to customer checkout {receipt.customerCheckout.customerName} (
+                        {receipt.customerCheckout.payerPhone}) ·{" "}
+                        {money(receipt.customerCheckout.amount)}.
+                      </p>
+                    ) : null}{" "}
+                    {receipt.assignment ? (
+                      <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
+                        Assigned to {receipt.assignment.payerName} at{" "}
+                        {receipt.assignment.table.name} by {receipt.assignedByName ?? "staff"}.
+                      </p>
+                    ) : null}
+                    {receipt.parseError ? (
+                      <>
+                        <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
+                          {receipt.parseError}
+                        </p>
+                        <p className="mt-2 break-words rounded-lg bg-muted p-2 text-xs">
+                          {receipt.rawMessage}
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+                  {tab === "AVAILABLE" ? (
+                    <div className="text-right">
+                      <Button
+                        type="button"
+                        disabled={
+                          !selectedRequest ||
+                          selectedRequest.status === "MATCHED" ||
+                          over ||
+                          busyReceiptId === receipt.id
+                        }
+                        onClick={() => void assignReceipt(receipt)}
+                      >
+                        {busyReceiptId === receipt.id
+                          ? "Assigning…"
+                          : selectedRequest
+                            ? `Assign to ${selectedRequest.payerName}`
+                            : "Select a payer"}
+                      </Button>
+                      {over ? (
+                        <p className="mt-2 max-w-52 text-xs font-semibold text-red-700 dark:text-red-300">
+                          Receipt is larger than this payer&apos;s remaining amount.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+                {tab === "ASSIGNED" && canManage ? (
+                  <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row">
+                    <Input
+                      value={reversalReasons[receipt.id] ?? ""}
+                      onChange={(event) =>
+                        setReversalReasons((current) => ({
+                          ...current,
+                          [receipt.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Required reversal reason"
+                      aria-label={`Reversal reason for ${receipt.reference}`}
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={busyReceiptId === receipt.id}
+                      onClick={() => void reverseReceipt(receipt)}
+                    >
+                      Reverse assignment
+                    </Button>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })
+        )}
+      </div>
+      {complete ? (
+        <Button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="w-full rounded-full bg-emerald-700 hover:bg-emerald-700/90 py-4 text-white"
+        >
+          Payment confirmed · return to cashier
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function PaymentRequestSetup({
+  showEqualSplit,
+  equalSplitCount,
+  setEqualSplitCount,
+  applyEqualSplit,
+  lines,
+  updateLine,
+  setLines,
+  amountDue,
+  entered,
+  remaining,
+  payLater,
+  setPayLater,
+  error,
+  submitting,
+  startChecks,
+}: {
+  showEqualSplit: boolean;
+  equalSplitCount: string;
+  setEqualSplitCount: (value: string) => void;
+  applyEqualSplit: () => void;
+  lines: Line[];
+  updateLine: (id: string, field: keyof Omit<Line, "id">, value: string) => void;
+  setLines: React.Dispatch<React.SetStateAction<Line[]>>;
+  amountDue: number;
+  entered: number;
+  remaining: number;
+  payLater: boolean;
+  setPayLater: (value: boolean) => void;
+  error: string;
+  submitting: boolean;
+  startChecks: () => Promise<void>;
+}) {
+  return (
+    <div className="space-y-5">
+      {showEqualSplit ? (
+        <div className="rounded-2xl border bg-muted/30 p-4">
+          <p className="font-semibold">Split equally</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Divide the full table balance exactly between each payer.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+            <Input
+              aria-label="Number of people sharing the bill"
+              type="number"
+              min={2}
+              max={MAX_EQUAL_SPLIT_PEOPLE}
+              step={1}
+              value={equalSplitCount}
+              onChange={(event) => setEqualSplitCount(event.target.value)}
+            />
+            <Button type="button" variant="outline" onClick={applyEqualSplit}>
+              Create equal shares
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        {lines.map((line, index) => (
+          <div
+            key={line.id}
+            className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"
+          >
+            <NativeSelect
+              aria-label={`Payer ${index + 1} payment method`}
+              value={line.method}
+              onChange={(event) => updateLine(line.id, "method", event.target.value)}
+            >
+              <option value="">Method</option>
+              <option value="GOLIS">GOLIS / SAHAL</option>
+              <option value="MYCASH">MYCASH</option>
+              <option value="Dahabshiil">Dahabshiil</option>
+              <option value="OTHER">OTHER</option>
+            </NativeSelect>
+            <Input
+              aria-label={`Payer ${index + 1} name`}
+              placeholder="Name"
+              value={line.payerName}
+              onChange={(event) => updateLine(line.id, "payerName", event.target.value)}
+            />
+            <Input
+              aria-label={`Payer ${index + 1} phone`}
+              placeholder="Phone number"
+              value={line.payerPhone}
+              onChange={(event) => updateLine(line.id, "payerPhone", event.target.value)}
+            />
+            <Input
+              aria-label={`Payer ${index + 1} amount`}
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={line.amount}
+              onChange={(event) => updateLine(line.id, "amount", event.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={lines.length === 1}
+              onClick={() => setLines((current) => current.filter((item) => item.id !== line.id))}
+            >
+              Remove
+            </Button>
+          </div>
+        ))}
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() =>
+          setLines((current) => [
+            ...current,
+            {
+              id: crypto.randomUUID(),
+              payerName: "",
+              payerPhone: "",
+              amount: remaining ? remaining.toFixed(2) : "",
+              method: current.at(-1)?.method ?? "",
+            },
+          ])
+        }
+      >
+        + Add another payer
+      </Button>
+      <div
+        className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40" : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40"}`}
+      >
+        <div className="flex justify-between">
+          <span>Table balance</span>
+          <strong>{money(amountDue)}</strong>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <span>Entered payments</span>
+          <strong>{money(entered)}</strong>
+        </div>
+        <div className="mt-1 flex justify-between">
+          <span>Remaining</span>
+          <strong>{money(remaining)}</strong>
+        </div>
+      </div>
+      {remaining > 0.001 ? (
+        <label className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+          <input
+            type="checkbox"
+            checked={payLater}
+            onChange={(event) => setPayLater(event.target.checked)}
+            className="mt-1 size-4"
+          />
+          <span>
+            <strong>Pay later</strong>
+            <span className="block text-sm text-amber-900 dark:text-amber-300">
+              Create a manager alert for the {money(remaining)} balance.
+            </span>
+          </span>
+        </label>
+      ) : null}
+      {error ? (
+        <p className="rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-sm font-semibold text-red-700 dark:text-red-300">
+          {error}
+        </p>
+      ) : null}
+      <Button
+        type="button"
+        onClick={startChecks}
+        disabled={
+          submitting || entered <= 0 || entered > amountDue || (remaining > 0.001 && !payLater)
+        }
+        className="w-full rounded-full bg-primary py-4 text-primary-foreground"
+      >
+        {submitting ? "Starting…" : "Start payment check"}
+      </Button>
+    </div>
+  );
+}
+
+function filterPaymentReceipts(receipts: Receipt[], tab: ReceiptTab, search: string) {
+  const term = search.trim().toLowerCase();
+  return receipts.filter(
+    (receipt) =>
+      receipt.status === tab &&
+      (!term ||
+        [
+          receipt.reference,
+          receipt.counterpartyLabel,
+          ...receipt.counterpartyIdentifiers,
+          receipt.assignment?.payerName,
+          receipt.assignment?.table.name,
+        ].some((value) => value?.toLowerCase().includes(term))),
+  );
+}
+
+function useCashierPaymentData(open: boolean, batchKey: string) {
+  const [requests, setRequests] = useState<RequestLine[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [canManage, setCanManage] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const calls: Promise<Response>[] = [
+      fetch("/api/cashier/payment-receipts", { cache: "no-store" }),
+    ];
+    if (batchKey)
+      calls.push(
+        fetch(`/api/cashier/payment-requests?batchKey=${encodeURIComponent(batchKey)}`, {
+          cache: "no-store",
+        }),
+      );
+    const [receiptResponse, requestResponse] = await Promise.all(calls);
+    if (receiptResponse.ok) {
+      const data = await receiptResponse.json();
+      setReceipts(data.receipts ?? []);
+      setCanManage(data.canManage === true);
+    }
+    if (requestResponse?.ok) {
+      const data = await requestResponse.json();
+      setRequests(data.requests ?? []);
+    }
+  }, [batchKey]);
+
+  useEffect(() => {
+    if (!open || !batchKey) return;
+    const initial = window.setTimeout(() => void refresh(), 0);
+    const timer = window.setInterval(() => void refresh(), 2500);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [batchKey, open, refresh]);
+
+  return { requests, setRequests, receipts, canManage, refresh };
 }

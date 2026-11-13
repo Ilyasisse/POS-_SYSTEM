@@ -206,7 +206,6 @@ export default function CashierOrderExperience({
   orderType = "DINE_IN",
 }: Props) {
   const isTakeaway = orderType === "TAKEOUT";
-  const router = useRouter();
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
     tableId: tables.some((table) => table.id === initialTableId)
@@ -232,49 +231,8 @@ export default function CashierOrderExperience({
     clearCart,
     calculateCartTotal,
   } = useWaiterCart();
-  const deferredSearch = useDeferredValue(state.searchTerm);
-  const [isFiltering, startFiltering] = useTransition();
-  const products = useMemo(
-    () =>
-      productsAll.map((product) => ({
-        ...product,
-        price: Number(product.price) || 0,
-      })),
-    [productsAll],
-  );
-  const menuCategories = useMemo(
-    () => getCategories(categories, products),
-    [categories, products],
-  );
-  const categoryChips = useMemo(
-    () => [
-      { id: "all", name: "All", count: products.length },
-      ...menuCategories.map((category) => ({
-        id: category.id,
-        name: category.name,
-        count: products.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
-      })),
-    ],
-    [menuCategories, products],
-  );
-  const selectedCategory = categoryChips.some(
-    (category) => category.id === state.categoryId,
-  )
-    ? state.categoryId
-    : "all";
-  const filteredProducts = useMemo(() => {
-    const term = deferredSearch.trim().toLowerCase();
-    return products.filter(
-      (product) =>
-        (selectedCategory === "all" ||
-          product.category?.id === selectedCategory) &&
-        (!term ||
-          product.name.toLowerCase().includes(term) ||
-          (product.description ?? "").toLowerCase().includes(term)),
-    );
-  }, [deferredSearch, products, selectedCategory]);
+  const { isFiltering, startFiltering, categoryChips, selectedCategory, filteredProducts } =
+    useCashierMenu(productsAll, categories, state.searchTerm, state.categoryId);
   const tableName =
     tables.find((table) => table.id === state.tableId)?.name ?? "";
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
@@ -335,61 +293,42 @@ export default function CashierOrderExperience({
     dispatch({ type: "added" });
   }
 
-  async function sendOrder() {
-    if (!isTakeaway && !state.tableId) {
-      dispatch({
-        type: "failed",
-        error: "Select a table before sending the order.",
-      });
-      return;
-    }
-    if (isTakeaway && !state.paymentMethod) {
-      dispatch({ type: "failed", error: "Select a payment method." });
-      return;
-    }
-    if (!cart.length) {
-      dispatch({
-        type: "failed",
-        error: "Add at least one item to the order.",
-      });
-      return;
-    }
-    try {
-      dispatch({ type: "submitting" });
-      const response = await fetch(isTakeaway ? "/api/orders" : "/api/orders/table", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(isTakeaway
-            ? { orderType, paymentMethod: state.paymentMethod }
-            : { tableId: state.tableId }),
-          notes: state.orderNote,
-          items: cart.map((item) => ({
-            productId: item.id,
-            qty: item.quantity,
-            assignedBaristaId: item.assignedUserId ?? null,
-            modifiers: item.selectedModifiers.map((modifier) => ({
-              modifierId: modifier.optionId,
-              qty: modifier.qty,
-            })),
-          })),
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "The order could not be sent.");
+  const sendOrder = useCashierOrderSubmission({
+    isTakeaway,
+    orderType,
+    state,
+    cart,
+    clearCart,
+    dispatch,
+  });
+
+  const cartProps: React.ComponentProps<typeof CustomerCartPanel> = {
+    mode: "cashier",
+    tableName: isTakeaway ? "Takeaway order" : tableName,
+    cart,
+    customerName: "",
+    customerPhone: "",
+    orderNote: state.orderNote,
+    cartSubtotal,
+    cartCount,
+    isSubmitting: state.submitting,
+    submitMessage: state.message,
+    submitError: state.error,
+    onClose: () => dispatch({ type: "cartClose" }),
+    onCustomerNameChange: () => undefined,
+    onCustomerPhoneChange: () => undefined,
+    onOrderNoteChange: (value) => dispatch({ type: "note", value }),
+    paymentMethod: isTakeaway ? state.paymentMethod : undefined,
+    checkoutLabel: isTakeaway ? "Pay and send to kitchen" : undefined,
+    onPaymentMethodChange: isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined,
+    onChangeQuantity: changeQuantity,
+    onRemove: removeFromCart,
+    onClearCart() {
       clearCart();
-      router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
-      router.refresh();
-    } catch (error) {
-      dispatch({
-        type: "failed",
-        error: error instanceof Error ? error.message : "Something went wrong.",
-      });
-    } finally {
-      dispatch({ type: "finished" });
-    }
-  }
+      dispatch({ type: "cleared" });
+    },
+    onCheckout: sendOrder,
+  };
 
   return (
     <main
@@ -446,37 +385,7 @@ export default function CashierOrderExperience({
               onProductClick={addProduct}
             />
           </div>
-          <CustomerCartPanel
-            mode="cashier"
-            tableName={isTakeaway ? "Takeaway order" : tableName}
-            cart={cart}
-            customerName=""
-            customerPhone=""
-            orderNote={state.orderNote}
-            cartSubtotal={cartSubtotal}
-            cartCount={cartCount}
-            isSubmitting={state.submitting}
-            submitMessage={state.message}
-            submitError={state.error}
-            onClose={() => dispatch({ type: "cartClose" })}
-            onCustomerNameChange={() => undefined}
-            onCustomerPhoneChange={() => undefined}
-            onOrderNoteChange={(value) => dispatch({ type: "note", value })}
-            paymentMethod={isTakeaway ? state.paymentMethod : undefined}
-            checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
-            onPaymentMethodChange={
-              isTakeaway
-                ? (value) => dispatch({ type: "paymentMethod", value })
-                : undefined
-            }
-            onChangeQuantity={changeQuantity}
-            onRemove={removeFromCart}
-            onClearCart={() => {
-              clearCart();
-              dispatch({ type: "cleared" });
-            }}
-            onCheckout={sendOrder}
-          />
+          <CustomerCartPanel {...cartProps} />
         </div>
       </div>
       <CustomerModifierModal
@@ -486,38 +395,126 @@ export default function CashierOrderExperience({
         onClose={() => dispatch({ type: "modifierClose" })}
         onConfirm={confirmModifiers}
       />
-      <CustomerCartSheet
-        mode="cashier"
-        tableName={isTakeaway ? "Takeaway order" : tableName}
-        open={state.cartOpen && !isDesktopCartPanel}
-        cart={cart}
-        customerName=""
-        customerPhone=""
-        orderNote={state.orderNote}
-        cartSubtotal={cartSubtotal}
-        cartCount={cartCount}
-        isSubmitting={state.submitting}
-        submitMessage={state.message}
-        submitError={state.error}
-        onClose={() => dispatch({ type: "cartClose" })}
-        onCustomerNameChange={() => undefined}
-        onCustomerPhoneChange={() => undefined}
-        onOrderNoteChange={(value) => dispatch({ type: "note", value })}
-        paymentMethod={isTakeaway ? state.paymentMethod : undefined}
-        checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
-        onPaymentMethodChange={
-          isTakeaway
-            ? (value) => dispatch({ type: "paymentMethod", value })
-            : undefined
-        }
-        onChangeQuantity={changeQuantity}
-        onRemove={removeFromCart}
-        onClearCart={() => {
-          clearCart();
-          dispatch({ type: "cleared" });
-        }}
-        onCheckout={sendOrder}
-      />
+      <CustomerCartSheet {...cartProps} open={state.cartOpen && !isDesktopCartPanel} />
     </main>
   );
+}
+
+function useCashierOrderSubmission({
+  isTakeaway,
+  orderType,
+  state,
+  cart,
+  clearCart,
+  dispatch,
+}: {
+  isTakeaway: boolean;
+  orderType: NonNullable<Props["orderType"]>;
+  state: Pick<State, "tableId" | "paymentMethod" | "orderNote">;
+  cart: ReturnType<typeof useWaiterCart>["cart"];
+  clearCart: () => void;
+  dispatch: React.Dispatch<Action>;
+}) {
+  const router = useRouter();
+
+  async function sendOrder() {
+    if (!isTakeaway && !state.tableId) {
+      dispatch({
+        type: "failed",
+        error: "Select a table before sending the order.",
+      });
+      return;
+    }
+    if (isTakeaway && !state.paymentMethod) {
+      dispatch({ type: "failed", error: "Select a payment method." });
+      return;
+    }
+    if (!cart.length) {
+      dispatch({
+        type: "failed",
+        error: "Add at least one item to the order.",
+      });
+      return;
+    }
+    try {
+      dispatch({ type: "submitting" });
+      const response = await fetch(isTakeaway ? "/api/orders" : "/api/orders/table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(isTakeaway
+            ? { orderType, paymentMethod: state.paymentMethod }
+            : { tableId: state.tableId }),
+          notes: state.orderNote,
+          items: cart.map((item) => ({
+            productId: item.id,
+            qty: item.quantity,
+            assignedBaristaId: item.assignedUserId ?? null,
+            modifiers: item.selectedModifiers.map((modifier) => ({
+              modifierId: modifier.optionId,
+              qty: modifier.qty,
+            })),
+          })),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "The order could not be sent.");
+      clearCart();
+      router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
+      router.refresh();
+    } catch (error) {
+      dispatch({
+        type: "failed",
+        error: error instanceof Error ? error.message : "Something went wrong.",
+      });
+    } finally {
+      dispatch({ type: "finished" });
+    }
+  }
+
+  return sendOrder;
+}
+
+function useCashierMenu(
+  productsAll: Product[],
+  categories: Category[],
+  searchTerm: string,
+  categoryId: string,
+) {
+  const deferredSearch = useDeferredValue(searchTerm);
+  const [isFiltering, startFiltering] = useTransition();
+  const products = useMemo(
+    () =>
+      productsAll.map((product) => ({
+        ...product,
+        price: Number(product.price) || 0,
+      })),
+    [productsAll],
+  );
+  const menuCategories = useMemo(() => getCategories(categories, products), [categories, products]);
+  const categoryChips = useMemo(
+    () => [
+      { id: "all", name: "All", count: products.length },
+      ...menuCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        count: products.filter((product) => product.category?.id === category.id).length,
+      })),
+    ],
+    [menuCategories, products],
+  );
+  const selectedCategory = categoryChips.some((category) => category.id === categoryId)
+    ? categoryId
+    : "all";
+  const filteredProducts = useMemo(() => {
+    const term = deferredSearch.trim().toLowerCase();
+    return products.filter(
+      (product) =>
+        (selectedCategory === "all" || product.category?.id === selectedCategory) &&
+        (!term ||
+          product.name.toLowerCase().includes(term) ||
+          (product.description ?? "").toLowerCase().includes(term)),
+    );
+  }, [deferredSearch, products, selectedCategory]);
+  return { isFiltering, startFiltering, categoryChips, selectedCategory, filteredProducts };
 }

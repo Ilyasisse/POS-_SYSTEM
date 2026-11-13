@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
@@ -205,8 +206,9 @@ export async function createManualSupplierInvoiceDraftAction(
         : null,
     draft: await manualDraftFromFormData(formData, supplierId),
   });
-  const posthog = getPostHogClient();
-  if (posthog) {
+  after(async () => {
+    const posthog = getPostHogClient();
+    if (!posthog) return;
     posthog.capture({
       distinctId: user.id,
       event: "supplier_invoice_draft_created",
@@ -218,7 +220,7 @@ export async function createManualSupplierInvoiceDraftAction(
       },
     });
     await posthog.flush();
-  }
+  });
 
   refreshInvoicePages(invoice.id);
   return {

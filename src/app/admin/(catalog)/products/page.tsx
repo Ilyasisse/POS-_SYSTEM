@@ -8,7 +8,7 @@ import {
   Table,
   DataTableCard,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   StatusBadge,
 } from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
@@ -115,18 +115,18 @@ export default async function AdminProductsPage({
           </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>#</TableHead>
-              <TableHead>Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Availability</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "#",
+              "Image",
+              "Name",
+              "Category",
+              "Price",
+              "Availability",
+              "Stock",
+              "Action",
+            ]}
+          />
           <tbody>
             {productsList.length === 0 ? (
               <tr>

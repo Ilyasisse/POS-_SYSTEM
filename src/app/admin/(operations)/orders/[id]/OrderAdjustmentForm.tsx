@@ -59,7 +59,7 @@ export default function OrderAdjustmentForm({
   const [pending, startTransition] = useTransition();
 
   const isVoid = type === "VOID";
-  const selectedLine = lines.find((line) => line.id === orderItemId);
+  const maximumAmount = lines.find((line) => line.id === orderItemId)?.lineTotal ?? orderTotal;
 
   function chooseLine(nextId: string) {
     setOrderItemId(nextId);
@@ -163,7 +163,7 @@ export default function OrderAdjustmentForm({
           id="adjustment-amount"
           type="number"
           min="0.01"
-          max={selectedLine?.lineTotal ?? orderTotal}
+          max={maximumAmount}
           step="0.01"
           value={isVoid ? orderTotal : amount}
           onChange={(event) => setAmount(event.target.value)}
@@ -171,7 +171,7 @@ export default function OrderAdjustmentForm({
           required
         />
         <p className="text-xs text-muted-foreground">
-          Maximum: ${selectedLine?.lineTotal ?? orderTotal}
+          Maximum: ${maximumAmount}
         </p>
       </div>
 
@@ -188,18 +188,10 @@ export default function OrderAdjustmentForm({
         />
       </div>
 
-      {isVoid || type === "REFUND" ? (
-        <Alert variant="destructive">
-          <AlertTitle>
-            {isVoid ? "This cancels the complete order" : "Financial action"}
-          </AlertTitle>
-          <AlertDescription>
-            {isVoid
-              ? "The order will close as cancelled and cannot receive payment."
-              : "Confirm the amount and reason before recording this refund."}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <AdjustmentWarning
+        isVoid={isVoid}
+        type={type}
+      />
 
       <Button
         type="submit"
@@ -211,5 +203,22 @@ export default function OrderAdjustmentForm({
           : `Record ${type ? labels[type].toLowerCase() : "adjustment"}`}
       </Button>
     </form>
+  );
+}
+
+function AdjustmentWarning({ isVoid, type }: { isVoid: boolean; type: SalesAdjustmentType | "" }) {
+  return (
+    <>
+      {isVoid || type === "REFUND" ? (
+        <Alert variant="destructive">
+          <AlertTitle>{isVoid ? "This cancels the complete order" : "Financial action"}</AlertTitle>
+          <AlertDescription>
+            {isVoid
+              ? "The order will close as cancelled and cannot receive payment."
+              : "Confirm the amount and reason before recording this refund."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
   );
 }

@@ -24,18 +24,18 @@ import {
 
 test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
   assert.equal(
-    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 6, 59, 59)),
+    getDailyCashDefaultDateKey(new Date("2026-08-10T06:59:59+03:00")),
     "2026-08-09",
   );
   assert.equal(
-    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 7, 0, 0)),
+    getDailyCashDefaultDateKey(new Date("2026-08-10T07:00:00+03:00")),
     "2026-08-10",
   );
   assert.equal(getDailyCashWaiterBalanceDateKey("2026-08-10"), "2026-08-09");
 });
 
 test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dates", () => {
-  const now = new Date(2026, 7, 11, 12, 0, 0);
+  const now = new Date("2026-08-11T12:00:00+03:00");
 
   assert.equal(assertDailyCashBusinessDate("2026-08-01", now), "2026-08-01");
   assert.throws(
@@ -49,7 +49,7 @@ test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dat
 });
 
 test("Daily Cash locks a business day when it reaches exactly 14 days old", () => {
-  const now = new Date(2026, 7, 15, 12, 0, 0);
+  const now = new Date("2026-08-15T12:00:00+03:00");
 
   assert.equal(isDailyCashLocked("2026-08-02", now), false);
   assert.equal(isDailyCashLocked("2026-08-01", now), true);

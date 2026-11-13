@@ -594,9 +594,13 @@ export async function processScheduledSupplierOrders(now = new Date()) {
       supplierMessages: { sent: 0, failed: 0 },
     };
   }
+  // Invitations consume new runs. Finalization closes their response window before supplier delivery.
+  // react-doctor-disable-next-line react-doctor/async-parallel
   const runsCreated = await createDueRuns(now);
+  // react-doctor-disable-next-line react-doctor/server-sequential-independent-await
   const employeeMessages = await sendDueEmployeeMessages(now);
   const finalized = await finalizeDueRuns(now);
+  // react-doctor-disable-next-line react-doctor/server-sequential-independent-await
   const supplierMessages = await sendFinalizedOrders(now);
   return {
     enabled: true,

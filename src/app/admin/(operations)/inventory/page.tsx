@@ -13,7 +13,6 @@ import InventorySummary from "./_compoents/InventorySummary";
 import InventorySuppliesTable from "./_compoents/InventorySuppliesTable";
 import RecentInventoryActivity from "./_compoents/RecentInventoryActitvity";
 import { getEatDayStart } from "@/app/inventory/page";
-const EAT_OFFSET_HOURS = 3;
 
 function addStatus(summary: StatusSummary, status: InventoryStatus) {
   if (status === "OUT") {

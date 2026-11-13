@@ -19,33 +19,7 @@ const fieldClass = "h-10 rounded-lg border border-border bg-card px-3 text-sm";
 
 export default async function OperationsPage() {
   const user = await requirePermission(PERMISSIONS.ADMIN_ACCESS);
-  const [targets, incidents, templates, runs, staff] = await Promise.all([
-    prisma.kitchenPreparationTarget.findMany({ orderBy: { station: "asc" } }),
-    prisma.operationalIncident.findMany({
-      where: { status: "OPEN" },
-      include: { reportedBy: true, assignedTo: true },
-      orderBy: { startedAt: "desc" },
-    }),
-    prisma.cleaningChecklistTemplate.findMany({
-      where: { isActive: true },
-      include: { tasks: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.cleaningChecklistRun.findMany({
-      where: { status: { not: "COMPLETED" } },
-      include: {
-        template: true,
-        assignedTo: true,
-        tasks: { include: { task: true } },
-      },
-      orderBy: { scheduledFor: "asc" },
-    }),
-    prisma.staff.findMany({
-      where: { isActive: true },
-      select: { id: true, fullName: true },
-      orderBy: { fullName: "asc" },
-    }),
-  ]);
+  const [targets, incidents, templates, runs, staff] = await loadOperationsDashboard();
   const canManageTargets = hasPermission(
     user,
     PERMISSIONS.KITCHEN_TARGET_MANAGE,
@@ -330,4 +304,34 @@ export default async function OperationsPage() {
       </div>
     </AdminPage>
   );
+}
+
+function loadOperationsDashboard() {
+  return Promise.all([
+    prisma.kitchenPreparationTarget.findMany({ orderBy: { station: "asc" } }),
+    prisma.operationalIncident.findMany({
+      where: { status: "OPEN" },
+      include: { reportedBy: true, assignedTo: true },
+      orderBy: { startedAt: "desc" },
+    }),
+    prisma.cleaningChecklistTemplate.findMany({
+      where: { isActive: true },
+      include: { tasks: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.cleaningChecklistRun.findMany({
+      where: { status: { not: "COMPLETED" } },
+      include: {
+        template: true,
+        assignedTo: true,
+        tasks: { include: { task: true } },
+      },
+      orderBy: { scheduledFor: "asc" },
+    }),
+    prisma.staff.findMany({
+      where: { isActive: true },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+    }),
+  ]);
 }

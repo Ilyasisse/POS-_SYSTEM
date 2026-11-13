@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { CartLine, Product, StaffSummary } from "@/lib/types";
-import { customerReturnPath } from "@/lib/auth/customer-return-path";
+import { parseCustomerReturnPath } from "@/lib/auth/customer-return-path";
 import {
   clearCustomerOrderDraft,
   saveCustomerFulfillment,
@@ -69,8 +69,8 @@ const cart: CartLine[] = [
 ];
 
 test("OAuth return accepts only the customer menu and history routes", () => {
-  assert.equal(customerReturnPath("/customer"), "/customer");
-  assert.equal(customerReturnPath("/customer/orders"), "/customer/orders");
+  assert.equal(parseCustomerReturnPath("/customer"), "/customer");
+  assert.equal(parseCustomerReturnPath("/customer/orders"), "/customer/orders");
   for (const value of [
     "//example.com",
     "/customer/../admin",
@@ -81,7 +81,7 @@ test("OAuth return accepts only the customer menu and history routes", () => {
     "https://example.com",
     null,
   ]) {
-    assert.equal(customerReturnPath(value), null);
+    assert.equal(parseCustomerReturnPath(value), null);
   }
 });
 
