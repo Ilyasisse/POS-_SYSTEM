@@ -120,6 +120,9 @@ export default async function SupplierInvoicesPage({
               Purchase orders
             </Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/supplier-price-history">Price history</Link>
+          </Button>
         </>
       }
     >
