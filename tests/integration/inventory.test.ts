@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import { appendStockEvent, createRecipeVersion } from "../../src/lib/inventory/stock-ledger";
 import { prisma } from "../../src/lib/prisma";
 import { client, db, json, product, table, unique, user } from "../workflow/fixtures";
@@ -39,15 +39,16 @@ test("a recipe sale deducts ingredients once when it enters the kitchen", async 
   );
   await json(await api("/api/orders/pay", { body: { orderId: order.id, paymentMethod: "OTHER" } }));
   const events = await db.stockEvent.findMany({ where: { supplyId: supply.id } });
-  assert.deepEqual(
+  expect(
     events.map(({ quantityDelta, quantityAfter }) => [
       Number(quantityDelta),
       Number(quantityAfter),
     ]),
-    [[-150, 850]],
+  ).toStrictEqual([[-150, 850]]);
+  expect(await db.stockEvent.count({ where: { productId: item.id } })).toBe(0);
+  await expect(db.stockEvent.delete({ where: { id: events[0].id } })).rejects.toThrow(
+    /append-only/,
   );
-  assert.equal(await db.stockEvent.count({ where: { productId: item.id } }), 0);
-  await assert.rejects(db.stockEvent.delete({ where: { id: events[0].id } }), /append-only/);
 });
 
 test("concurrent withdrawals cannot overspend supply stock or leave a partial event", async () => {
@@ -68,14 +69,13 @@ test("concurrent withdrawals cannot overspend supply stock or leave a partial ev
         reason: "Workflow test withdrawal",
       }),
     );
-  await assert.rejects(take(11), /Insufficient inventory/);
-  assert.equal(await db.stockEvent.count({ where: { supplyId: supply.id } }), 0);
+  await expect(take(11)).rejects.toThrow(/Insufficient inventory/);
+  expect(await db.stockEvent.count({ where: { supplyId: supply.id } })).toBe(0);
   const attempts = await Promise.allSettled([take(6), take(6)]);
-  assert.equal(attempts.filter((attempt) => attempt.status === "fulfilled").length, 1);
+  expect(attempts.filter((attempt) => attempt.status === "fulfilled").length).toBe(1);
   const [event] = await db.stockEvent.findMany({ where: { supplyId: supply.id } });
-  assert.equal(Number(event.quantityAfter), 4);
-  assert.equal(
+  expect(Number(event.quantityAfter)).toBe(4);
+  expect(
     Number((await db.inventorySupply.findUniqueOrThrow({ where: { id: supply.id } })).stockQty),
-    4,
-  );
+  ).toBe(4);
 });

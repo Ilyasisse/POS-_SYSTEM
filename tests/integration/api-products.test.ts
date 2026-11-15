@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import { client, db, json, product, unique } from "../workflow/fixtures";
 
 afterAll(() => db.$disconnect());
@@ -25,14 +25,14 @@ test("catalog feeds enforce availability and keep active empty categories for st
   for (const endpoint of ["/api/GET/Product", "/api/GET/Product/all"]) {
     const rows = await json<Array<{ id: string }>>(await api(endpoint));
     const ids = rows.map(({ id }) => id);
-    assert.ok(ids.includes(visible.id) && ids.includes(restored.id));
-    assert.ok(!ids.includes(paused.id) && !ids.includes(archived.id));
+    expect(ids.includes(visible.id) && ids.includes(restored.id)).toBeTruthy();
+    expect(!ids.includes(paused.id) && !ids.includes(archived.id)).toBeTruthy();
   }
   const categories = await json<Array<{ id: string }>>(await api("/api/GET/Category"));
-  assert.ok(categories.some(({ id }) => id === empty.id));
+  expect(categories.some(({ id }) => id === empty.id)).toBeTruthy();
   const menu = await api("/menu");
-  assert.equal(menu.status, 200);
+  expect(menu.status).toBe(200);
   const html = await menu.text();
-  assert.ok(html.includes(visible.name));
-  assert.ok(!html.includes(empty.name) && !html.includes(paused.name));
+  expect(html.includes(visible.name)).toBeTruthy();
+  expect(!html.includes(empty.name) && !html.includes(paused.name)).toBeTruthy();
 });

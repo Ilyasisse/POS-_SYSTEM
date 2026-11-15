@@ -1,115 +1,105 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import { customerOrderStage } from "../../src/lib/customer/customer-order-progress";
 import { getCustomerOrderProgress } from "../../src/lib/customer/order-progress";
 
 test("paid orders remain queued until kitchen work starts", () => {
-  assert.equal(
+  expect(
     getCustomerOrderProgress({
       orderStatus: "PAID",
       pickupStatus: "PREPARING",
       stationStatuses: ["NEW", "NEW"],
     }).label,
-    "Queued",
-  );
+  ).toBe("Queued");
 });
 
 test("partially completed and reopened orders remain preparing", () => {
   for (const orderStatus of ["OPEN", "PAID"] as const) {
-    assert.equal(
+    expect(
       getCustomerOrderProgress({
         orderStatus,
         pickupStatus: "PREPARING",
         stationStatuses: ["DONE", "NEW"],
       }).label,
-      "Preparing",
-    );
+    ).toBe("Preparing");
   }
 });
 
 test("paid history without a kitchen ticket retains its payment status", () => {
-  assert.equal(getCustomerOrderProgress({ orderStatus: "PAID" }).label, "Paid");
+  expect(getCustomerOrderProgress({ orderStatus: "PAID" }).label).toBe("Paid");
 });
 
 test("shows kitchen preparation and ready progress", () => {
-  assert.equal(
+  expect(
     getCustomerOrderProgress({
       orderStatus: "OPEN",
       pickupStatus: "PREPARING",
       stationStatuses: ["NEW", "IN_PROGRESS"],
     }).label,
-    "Preparing",
-  );
-  assert.equal(
+  ).toBe("Preparing");
+  expect(
     getCustomerOrderProgress({
       orderStatus: "OPEN",
       pickupStatus: "READY",
       stationStatuses: ["DONE"],
     }).label,
-    "Ready",
-  );
+  ).toBe("Ready");
 });
 
 test("prioritizes terminal customer-visible states", () => {
-  assert.equal(
+  expect(
     getCustomerOrderProgress({
       orderStatus: "CANCELLED",
       pickupStatus: "PREPARING",
     }).label,
-    "Cancelled",
-  );
-  assert.equal(
+  ).toBe("Cancelled");
+  expect(
     getCustomerOrderProgress({
       orderStatus: "PAID",
       pickupStatus: "DELIVERED",
     }).label,
-    "Delivered",
-  );
+  ).toBe("Delivered");
 });
 
 test("shows queued and finishing states", () => {
-  assert.equal(getCustomerOrderProgress({ orderStatus: "OPEN" }).label, "Queued");
-  assert.equal(
+  expect(getCustomerOrderProgress({ orderStatus: "OPEN" }).label).toBe("Queued");
+  expect(
     getCustomerOrderProgress({
       orderStatus: "OPEN",
       pickupStatus: "PREPARING",
       stationStatuses: ["DONE", "DONE"],
     }).label,
-    "Finishing",
-  );
+  ).toBe("Finishing");
 });
 
 test("customer progress follows persisted kitchen state through handover", () => {
-  assert.equal(customerOrderStage("REVIEW", null), "PAYMENT");
-  assert.equal(customerOrderStage("PAYMENT_RECEIVED", null), "PAYMENT");
-  assert.equal(
+  expect(customerOrderStage("REVIEW", null)).toBe("PAYMENT");
+  expect(customerOrderStage("PAYMENT_RECEIVED", null)).toBe("PAYMENT");
+  expect(
     customerOrderStage("PAID", {
       pickupStatus: "PREPARING",
       stationStates: [{ status: "NEW" }],
     }),
-    "RECEIVED",
-  );
-  assert.equal(
+  ).toBe("RECEIVED");
+  expect(
     customerOrderStage("PAID", {
       pickupStatus: "PREPARING",
       stationStates: [{ status: "DONE" }, { status: "IN_PROGRESS" }],
     }),
-    "PREPARING",
-  );
+  ).toBe("PREPARING");
   for (const [pickupStatus, expected] of [
     ["READY", "READY"],
     ["CLAIMED", "PICKED_UP"],
     ["DELIVERED", "DELIVERED"],
   ]) {
-    assert.equal(customerOrderStage("PAID", { pickupStatus, stationStates: [] }), expected);
+    expect(customerOrderStage("PAID", { pickupStatus, stationStates: [] })).toBe(expected);
   }
 });
 test("reopened kitchen work returns to preparing until every station is ready", () => {
-  assert.equal(
+  expect(
     customerOrderStage("PAID", {
       pickupStatus: "PREPARING",
       stationStates: [{ status: "DONE" }, { status: "NEW" }],
     }),
-    "PREPARING",
-  );
+  ).toBe("PREPARING");
 });

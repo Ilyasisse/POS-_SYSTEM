@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import { client, db, json, user } from "../workflow/fixtures";
 
 afterAll(() => db.$disconnect());
@@ -12,27 +12,27 @@ test("staff login issues a real session and sign-out clears protected access", a
     await api("/api/auth/staff-login", { body: credentials }),
     200,
   );
-  assert.equal(login.redirectTo, "/cashier");
-  assert.equal((await api("/api/cashier/payment-requests?batchKey=unused")).status, 200);
+  expect(login.redirectTo).toBe("/cashier");
+  expect((await api("/api/cashier/payment-requests?batchKey=unused")).status).toBe(200);
   await json(await api("/api/auth/signout", { method: "POST" }), 200);
-  assert.equal((await api("/api/cashier/payment-requests?batchKey=unused")).status, 401);
+  expect((await api("/api/cashier/payment-requests?batchKey=unused")).status).toBe(401);
 });
 
 test("anonymous, inactive, and wrong-role users cannot use protected APIs", async () => {
   const anonymous = await client();
-  assert.equal((await anonymous("/api/kitchen/tickets")).status, 401);
+  expect((await anonymous("/api/kitchen/tickets")).status).toBe(401);
 
   const inactive = await user("CASHIER", { active: false });
   const attempt = await anonymous("/api/auth/staff-login", {
     body: { email: inactive.email, password: inactive.password },
   });
-  assert.equal(attempt.status, 403);
+  expect(attempt.status).toBe(403);
 
   const kitchen = await client(await user("BARISTA", { station: "BARISTA" }));
   const auditCount = await db.reportExportAudit.count();
   const denied = await kitchen("/api/admin/reports/export?report=sales&format=csv", {
     method: "POST",
   });
-  assert.equal(denied.status, 403);
-  assert.equal(await db.reportExportAudit.count(), auditCount);
+  expect(denied.status).toBe(403);
+  expect(await db.reportExportAudit.count()).toBe(auditCount);
 });

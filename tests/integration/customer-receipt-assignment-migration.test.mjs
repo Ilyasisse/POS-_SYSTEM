@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { readFile } from "node:fs/promises";
-import { test } from "@jest/globals";
+
 import { PGlite } from "@electric-sql/pglite";
 
 const migration = await readFile(
@@ -75,7 +75,7 @@ test("customer and cashier receipt assignments satisfy the updated constraint", 
        FROM "MobileMoneyReceipt"
        ORDER BY "id"`,
     );
-    assert.deepEqual(result.rows, [
+    expect(result.rows).toStrictEqual([
       {
         id: "cashier-receipt",
         status: "ASSIGNED",
@@ -90,13 +90,13 @@ test("customer and cashier receipt assignments satisfy the updated constraint", 
       },
     ]);
 
-    await assert.rejects(
+    await expect(
       db.exec(`
         INSERT INTO "MobileMoneyReceipt" ("id", "status")
         VALUES ('missing-assigned-at', 'ASSIGNED');
       `),
-    );
-    await assert.rejects(
+    ).rejects.toThrow();
+    await expect(
       db.exec(`
         INSERT INTO "MobileMoneyReceipt" (
           "id",
@@ -111,13 +111,13 @@ test("customer and cashier receipt assignments satisfy the updated constraint", 
           CURRENT_TIMESTAMP
         );
       `),
-    );
-    await assert.rejects(
+    ).rejects.toThrow();
+    await expect(
       db.exec(`
         INSERT INTO "MobileMoneyReceipt" ("id", "status", "assignedAt")
         VALUES ('available-with-assignment', 'AVAILABLE', CURRENT_TIMESTAMP);
       `),
-    );
+    ).rejects.toThrow();
   } finally {
     await db.close();
   }

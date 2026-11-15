@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import { validateModifierSelections } from "../../src/lib/orders/modifier-selection-validation";
 
 const option = (
@@ -27,41 +27,37 @@ const option = (
 });
 
 test("accepts selections inside the configured group limits", () => {
-  assert.doesNotThrow(() =>
+  expect(() =>
     validateModifierSelections({
       productName: "Coffee",
       availableOptions: [option("small"), option("large")],
       selectedModifierIds: ["large"],
     }),
-  );
+  ).not.toThrow();
 });
 
 test("rejects missing required modifier choices", () => {
-  assert.throws(
-    () =>
-      validateModifierSelections({
-        productName: "Coffee",
-        availableOptions: [option("small"), option("large")],
-        selectedModifierIds: [],
-      }),
-    /requires at least 1 choice from Size/,
-  );
+  expect(() =>
+    validateModifierSelections({
+      productName: "Coffee",
+      availableOptions: [option("small"), option("large")],
+      selectedModifierIds: [],
+    }),
+  ).toThrow(/requires at least 1 choice from Size/);
 });
 
 test("rejects selections above a group's maximum", () => {
-  assert.throws(
-    () =>
-      validateModifierSelections({
-        productName: "Coffee",
-        availableOptions: [option("small"), option("large")],
-        selectedModifierIds: ["small", "large"],
-      }),
-    /allows at most 1 choice from Size/,
-  );
+  expect(() =>
+    validateModifierSelections({
+      productName: "Coffee",
+      availableOptions: [option("small"), option("large")],
+      selectedModifierIds: ["small", "large"],
+    }),
+  ).toThrow(/allows at most 1 choice from Size/);
 });
 
 test("ignores inactive groups and permits optional empty groups", () => {
-  assert.doesNotThrow(() =>
+  expect(() =>
     validateModifierSelections({
       productName: "Coffee",
       availableOptions: [
@@ -76,32 +72,28 @@ test("ignores inactive groups and permits optional empty groups", () => {
       ],
       selectedModifierIds: [],
     }),
-  );
+  ).not.toThrow();
 });
 
 test("blocks required groups that have no active choices", () => {
-  assert.throws(
-    () =>
-      validateModifierSelections({
-        productName: "Coffee",
-        availableOptions: [{ ...option("retired"), isActive: false }],
-        selectedModifierIds: [],
-      }),
-    /requires at least 1 choice from Size/,
-  );
+  expect(() =>
+    validateModifierSelections({
+      productName: "Coffee",
+      availableOptions: [{ ...option("retired"), isActive: false }],
+      selectedModifierIds: [],
+    }),
+  ).toThrow(/requires at least 1 choice from Size/);
 });
 
 test("duplicate option IDs cannot satisfy a group's minimum", () => {
-  assert.throws(
-    () =>
-      validateModifierSelections({
-        productName: "Coffee",
-        availableOptions: [
-          option("small", { minSelect: 2, maxSelect: 2 }),
-          option("large", { minSelect: 2, maxSelect: 2 }),
-        ],
-        selectedModifierIds: ["small", "small"],
-      }),
-    /requires at least 2 choices from Size/,
-  );
+  expect(() =>
+    validateModifierSelections({
+      productName: "Coffee",
+      availableOptions: [
+        option("small", { minSelect: 2, maxSelect: 2 }),
+        option("large", { minSelect: 2, maxSelect: 2 }),
+      ],
+      selectedModifierIds: ["small", "small"],
+    }),
+  ).toThrow(/requires at least 2 choices from Size/);
 });

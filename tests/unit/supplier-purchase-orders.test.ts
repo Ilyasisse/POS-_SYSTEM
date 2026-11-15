@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
@@ -22,26 +22,26 @@ import {
 
 test("uses Nairobi dates and defaults supplier bills to the next day", () => {
   const now = new Date("2026-07-22T22:30:00.000Z");
-  assert.equal(getSupplierPurchaseTodayDateKey(now), "2026-07-23");
-  assert.equal(getSupplierBillDefaultDueDateKey(now), "2026-07-24");
-  assert.equal(getSupplierPurchaseDefaultDeliveryDateKey(now), "2026-07-24");
+  expect(getSupplierPurchaseTodayDateKey(now)).toBe("2026-07-23");
+  expect(getSupplierBillDefaultDueDateKey(now)).toBe("2026-07-24");
+  expect(getSupplierPurchaseDefaultDeliveryDateKey(now)).toBe("2026-07-24");
 });
 
 test("requires purchase-order delivery dates to be today or later in Nairobi", () => {
   const now = new Date("2026-07-22T22:30:00.000Z");
-  assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-22", now), false);
-  assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-23", now), true);
-  assert.equal(isSupplierPurchaseDeliveryDateAllowed("2026-07-24", now), true);
-  assert.equal(isSupplierPurchaseDeliveryDateAllowed("not-a-date", now), false);
+  expect(isSupplierPurchaseDeliveryDateAllowed("2026-07-22", now)).toBe(false);
+  expect(isSupplierPurchaseDeliveryDateAllowed("2026-07-23", now)).toBe(true);
+  expect(isSupplierPurchaseDeliveryDateAllowed("2026-07-24", now)).toBe(true);
+  expect(isSupplierPurchaseDeliveryDateAllowed("not-a-date", now)).toBe(false);
 });
 
 test("classifies supplier bill due dates using Nairobi business dates", () => {
   const now = new Date("2026-07-22T22:30:00.000Z");
-  assert.equal(getSupplierBillDueCutoffDate(now).toISOString(), "2026-07-24T00:00:00.000Z");
-  assert.equal(getSupplierBillDueState(new Date("2026-07-22T00:00:00.000Z"), now), "overdue");
-  assert.equal(getSupplierBillDueState(new Date("2026-07-23T00:00:00.000Z"), now), "today");
-  assert.equal(getSupplierBillDueState(new Date("2026-07-24T00:00:00.000Z"), now), "tomorrow");
-  assert.equal(getSupplierBillDueState(new Date("2026-07-25T00:00:00.000Z"), now), "future");
+  expect(getSupplierBillDueCutoffDate(now).toISOString()).toBe("2026-07-24T00:00:00.000Z");
+  expect(getSupplierBillDueState(new Date("2026-07-22T00:00:00.000Z"), now)).toBe("overdue");
+  expect(getSupplierBillDueState(new Date("2026-07-23T00:00:00.000Z"), now)).toBe("today");
+  expect(getSupplierBillDueState(new Date("2026-07-24T00:00:00.000Z"), now)).toBe("tomorrow");
+  expect(getSupplierBillDueState(new Date("2026-07-25T00:00:00.000Z"), now)).toBe("future");
 });
 
 test("groups unpaid supplier balances due through tomorrow", () => {
@@ -97,25 +97,24 @@ test("groups unpaid supplier balances due through tomorrow", () => {
     now,
   );
 
-  assert.equal(summary.supplierCount, 2);
-  assert.equal(summary.billCount, 3);
-  assert.equal(summary.totalRemaining, 145.05);
-  assert.equal(summary.overdueRemaining, 75);
-  assert.equal(summary.dueTodayRemaining, 20.05);
-  assert.equal(summary.dueTomorrowRemaining, 50);
-  assert.deepEqual(
-    summary.suppliers.map((supplier) => supplier.supplierName),
-    ["Alpha Foods", "Beta Supplies"],
-  );
-  assert.equal(summary.suppliers[0].billCount, 2);
-  assert.equal(summary.suppliers[0].oldestDueDateKey, "2026-07-22");
+  expect(summary.supplierCount).toBe(2);
+  expect(summary.billCount).toBe(3);
+  expect(summary.totalRemaining).toBe(145.05);
+  expect(summary.overdueRemaining).toBe(75);
+  expect(summary.dueTodayRemaining).toBe(20.05);
+  expect(summary.dueTomorrowRemaining).toBe(50);
+  expect(summary.suppliers.map((supplier) => supplier.supplierName)).toStrictEqual([
+    "Alpha Foods",
+    "Beta Supplies",
+  ]);
+  expect(summary.suppliers[0].billCount).toBe(2);
+  expect(summary.suppliers[0].oldestDueDateKey).toBe("2026-07-22");
 });
 
 test("validates real purchase-order calendar dates", () => {
-  assert.equal(isValidSupplierPurchaseDateKey("2026-02-29"), false);
-  assert.equal(isValidSupplierPurchaseDateKey("2028-02-29"), true);
-  assert.equal(
-    supplierPurchaseDateKeyToDatabaseDate("2026-07-22")?.toISOString(),
+  expect(isValidSupplierPurchaseDateKey("2026-02-29")).toBe(false);
+  expect(isValidSupplierPurchaseDateKey("2028-02-29")).toBe(true);
+  expect(supplierPurchaseDateKeyToDatabaseDate("2026-07-22")?.toISOString()).toBe(
     "2026-07-22T00:00:00.000Z",
   );
 });
@@ -128,39 +127,36 @@ test("validates supplier catalog targets, units, prices, and active state", () =
     unitPrice: "12.50",
     isActive: "on",
   });
-  assert.equal(result.ok, true);
+  expect(result.ok).toBe(true);
   if (result.ok) {
-    assert.equal(result.value.unitPrice.toString(), "12.5");
-    assert.equal(result.value.isActive, true);
+    expect(result.value.unitPrice.toString()).toBe("12.5");
+    expect(result.value.isActive).toBe(true);
   }
 
-  assert.deepEqual(
+  expect(
     parseSupplierCatalogItemInput({
       targetKind: "other",
       targetId: "milk-id",
       unit: "crate",
       unitPrice: "12.50",
     }),
-    { ok: false, status: "invalid_target" },
-  );
-  assert.deepEqual(
+  ).toStrictEqual({ ok: false, status: "invalid_target" });
+  expect(
     parseSupplierCatalogItemInput({
       targetKind: "supply",
       targetId: "milk-id",
       unit: "crate",
       unitPrice: "12.501",
     }),
-    { ok: false, status: "invalid_price" },
-  );
-  assert.deepEqual(
+  ).toStrictEqual({ ok: false, status: "invalid_price" });
+  expect(
     parseSupplierCatalogItemInput({
       targetKind: "supply",
       targetId: "milk-id",
       unit: "crate",
       unitPrice: "10000000000.00",
     }),
-    { ok: false, status: "invalid_price" },
-  );
+  ).toStrictEqual({ ok: false, status: "invalid_price" });
 });
 
 test("accepts positive quantities and rejects duplicate catalog items", () => {
@@ -168,47 +164,44 @@ test("accepts positive quantities and rejects duplicate catalog items", () => {
     { catalogItemId: "milk", quantity: "2.5" },
     { catalogItemId: "cups", quantity: "10" },
   ]);
-  assert.equal(valid.ok, true);
-  if (valid.ok) assert.equal(valid.rows[0].quantity.toString(), "2.5");
+  expect(valid.ok).toBe(true);
+  if (valid.ok) expect(valid.rows[0].quantity.toString()).toBe("2.5");
 
-  assert.deepEqual(
+  expect(
     validateSupplierPurchaseOrderRows([
       { catalogItemId: "milk", quantity: "1" },
       { catalogItemId: "milk", quantity: "2" },
     ]),
-    { ok: false, status: "duplicate_item" },
-  );
-  assert.deepEqual(validateSupplierPurchaseOrderRows([]), {
+  ).toStrictEqual({ ok: false, status: "duplicate_item" });
+  expect(validateSupplierPurchaseOrderRows([])).toStrictEqual({
     ok: false,
     status: "empty_order",
   });
-  assert.deepEqual(
+  expect(
     validateSupplierPurchaseOrderRows([{ catalogItemId: "milk", quantity: "1000000000" }]),
-    { ok: false, status: "invalid_row" },
-  );
+  ).toStrictEqual({ ok: false, status: "invalid_row" });
 });
 
 test("rounds each line before summing the purchase-order total", () => {
-  assert.equal(calculateSupplierPurchaseOrderLineTotal("1.005", "1").toString(), "1.01");
-  assert.equal(
+  expect(calculateSupplierPurchaseOrderLineTotal("1.005", "1").toString()).toBe("1.01");
+  expect(
     calculateSupplierPurchaseOrderTotal([
       { quantity: "1.005", unitPrice: "1" },
       { quantity: "1.005", unitPrice: "1" },
     ]).toString(),
-    "2.02",
-  );
+  ).toBe("2.02");
 });
 
 test("compares the current catalog price with the latest ordered price", () => {
-  assert.equal(getSupplierCatalogPriceTrend("10", null), "new");
-  assert.equal(getSupplierCatalogPriceTrend("12", "10"), "increased");
-  assert.equal(getSupplierCatalogPriceTrend("8", "10"), "decreased");
-  assert.equal(getSupplierCatalogPriceTrend("10.00", "10"), "unchanged");
+  expect(getSupplierCatalogPriceTrend("10", null)).toBe("new");
+  expect(getSupplierCatalogPriceTrend("12", "10")).toBe("increased");
+  expect(getSupplierCatalogPriceTrend("8", "10")).toBe("decreased");
+  expect(getSupplierCatalogPriceTrend("10.00", "10")).toBe("unchanged");
 });
 
 test("allows purchase orders to leave OPEN only once", () => {
-  assert.equal(canTransitionSupplierPurchaseOrderStatus("OPEN", "COMPLETED"), true);
-  assert.equal(canTransitionSupplierPurchaseOrderStatus("OPEN", "CANCELLED"), true);
-  assert.equal(canTransitionSupplierPurchaseOrderStatus("COMPLETED", "CANCELLED"), false);
-  assert.equal(canTransitionSupplierPurchaseOrderStatus("CANCELLED", "COMPLETED"), false);
+  expect(canTransitionSupplierPurchaseOrderStatus("OPEN", "COMPLETED")).toBe(true);
+  expect(canTransitionSupplierPurchaseOrderStatus("OPEN", "CANCELLED")).toBe(true);
+  expect(canTransitionSupplierPurchaseOrderStatus("COMPLETED", "CANCELLED")).toBe(false);
+  expect(canTransitionSupplierPurchaseOrderStatus("CANCELLED", "COMPLETED")).toBe(false);
 });

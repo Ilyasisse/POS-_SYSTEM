@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { readFile } from "node:fs/promises";
-import { test } from "@jest/globals";
+
 import { PGlite } from "@electric-sql/pglite";
 
 const migration = await readFile(
@@ -63,54 +63,48 @@ test("migration preserves profiles, personal orders and shared actor history", a
   const db = await legacyDatabase();
   try {
     await db.exec(migration);
-    assert.equal((await db.query(`SELECT to_regclass('"User"') AS name`)).rows[0].name, null);
-    assert.deepEqual(
+    expect((await db.query(`SELECT to_regclass('"User"') AS name`)).rows[0].name).toBe(null);
+    expect(
       (await db.query('SELECT "id" FROM "Staff" ORDER BY "id"')).rows.map((r) => r.id),
-      ["staff", "supplier"],
-    );
-    assert.deepEqual(
+    ).toStrictEqual(["staff", "supplier"]);
+    expect(
       (await db.query('SELECT "id" FROM "Customer" ORDER BY "id"')).rows.map((r) => r.id),
-      ["customer", "inactive", "staff"],
-    );
-    assert.equal(
+    ).toStrictEqual(["customer", "inactive", "staff"]);
+    expect(
       (await db.query('SELECT "isActive" FROM "Customer" WHERE "id" = $1', ["inactive"])).rows[0]
         .isActive,
-      false,
-    );
-    assert.deepEqual((await db.query('SELECT * FROM "Order" ORDER BY "id"')).rows, [
+    ).toBe(false);
+    expect((await db.query('SELECT * FROM "Order" ORDER BY "id"')).rows).toStrictEqual([
       { id: "order", customerId: "customer", cashierId: "staff" },
       { id: "personal", customerId: "staff", cashierId: "staff" },
     ]);
     for (const table of ["AuditLog", "StockEvent", "KitchenTransitionEvent"]) {
-      assert.equal(
+      expect(
         (await db.query(`SELECT "actorCustomerId" FROM "${table}"`)).rows[0].actorCustomerId,
-        "customer",
-      );
+      ).toBe("customer");
     }
-    await assert.rejects(
+    await expect(
       db.exec(`INSERT INTO "Order" VALUES ('invalid', NULL, 'customer')`),
-      /foreign key/,
-    );
-    await assert.rejects(
+    ).rejects.toThrow(/foreign key/);
+    await expect(
       db.exec(`UPDATE "Staff" SET "role" = 'CUSTOMER' WHERE "id" = 'staff'`),
-      /check constraint/,
-    );
+    ).rejects.toThrow(/check constraint/);
     for (const table of ["StockEvent", "KitchenTransitionEvent"]) {
-      await assert.rejects(db.exec(`UPDATE "${table}" SET "actorCustomerId" = NULL`), /immutable/);
+      await expect(db.exec(`UPDATE "${table}" SET "actorCustomerId" = NULL`)).rejects.toThrow(
+        /immutable/,
+      );
     }
     await db.exec("SET ROLE authenticated");
     await db.exec("SET test.auth_id = 'staff'");
-    assert.equal(
+    expect(
       (await db.query("SELECT public.can_receive_kitchen_realtime() AS allowed")).rows[0].allowed,
-      true,
-    );
+    ).toBe(true);
     await db.exec("SET test.auth_id = 'customer'");
-    assert.equal(
+    expect(
       (await db.query("SELECT public.can_receive_kitchen_realtime() AS allowed")).rows[0].allowed,
-      false,
-    );
+    ).toBe(false);
     for (const table of ["Staff", "Customer"]) {
-      await assert.rejects(db.query(`SELECT * FROM "${table}"`), /permission denied/);
+      await expect(db.query(`SELECT * FROM "${table}"`)).rejects.toThrow(/permission denied/);
     }
     await db.exec("RESET ROLE");
   } finally {
@@ -122,19 +116,16 @@ test("unexpected customer staff history rolls back instead of deleting or nullin
   const db = await legacyDatabase();
   try {
     await db.exec(`UPDATE "Order" SET "cashierId" = 'customer' WHERE "id" = 'order'`);
-    await assert.rejects(db.exec(migration), /Customer has staff-only history/);
+    await expect(db.exec(migration)).rejects.toThrow(/Customer has staff-only history/);
     await db.exec("ROLLBACK");
-    assert.equal(
+    expect(
       (await db.query('SELECT "role" FROM "User" WHERE "id" = $1', ["customer"])).rows[0].role,
-      "CUSTOMER",
-    );
-    assert.equal(
+    ).toBe("CUSTOMER");
+    expect(
       (await db.query('SELECT "cashierId" FROM "Order" WHERE "id" = $1', ["order"])).rows[0]
         .cashierId,
-      "customer",
-    );
-    assert.equal(
-      (await db.query(`SELECT to_regclass('"Staff"') AS table_name`)).rows[0].table_name,
+    ).toBe("customer");
+    expect((await db.query(`SELECT to_regclass('"Staff"') AS table_name`)).rows[0].table_name).toBe(
       null,
     );
   } finally {

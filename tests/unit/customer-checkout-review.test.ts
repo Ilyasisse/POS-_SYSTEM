@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { readFileSync } from "node:fs";
-import { test } from "@jest/globals";
+
 import vm from "node:vm";
 import ts from "typescript";
 import {
@@ -165,20 +165,20 @@ test("review retry claims an existing matching receipt only once", async () => {
   const f = fixture();
   await f.retry();
   await f.retry();
-  assert.equal(f.claims(), 1);
-  assert.equal(f.checkout.receiptId, "receipt");
+  expect(f.claims()).toBe(1);
+  expect(f.checkout.receiptId).toBe("receipt");
 });
 test("review retry does not bypass ambiguity or payer matching", async () => {
   for (const f of [fixture(true), fixture(false, "252905109688")]) {
     await f.retry();
-    assert.equal(f.claims(), 0);
+    expect(f.claims()).toBe(0);
   }
 });
 test("expired checkouts stay available for staff review without automatic assignment", async () => {
   const f = fixture();
   f.checkout.expiresAt = new Date(0);
   await f.retry();
-  assert.equal(f.claims(), 0);
+  expect(f.claims()).toBe(0);
 });
 test("review endpoint accepts repeated review and invokes reconciliation", async () => {
   let retries = 0;
@@ -199,8 +199,8 @@ test("review endpoint accepts repeated review and invokes reconciliation", async
           }: {
             where: { customerId: string; status: { in: string[] } };
           }) => {
-            assert.equal(where.customerId, "customer");
-            assert.ok(where.status.in.includes("REVIEW"));
+            expect(where.customerId).toBe("customer");
+            expect(where.status.in.includes("REVIEW")).toBeTruthy();
             return { count: 1 };
           },
         },
@@ -208,40 +208,38 @@ test("review endpoint accepts repeated review and invokes reconciliation", async
     },
     "@/lib/payments/customer-checkout": {
       retryCustomerCheckoutPayment: async (id: string) => {
-        assert.equal(id, "checkout");
+        expect(id).toBe("checkout");
         retries++;
       },
     },
   });
   await route.POST({}, { params: Promise.resolve({ id: "checkout" }) });
-  assert.equal(retries, 1);
+  expect(retries).toBe(1);
 });
 
 test("cashier review cannot bypass phone/time checks; admin exception needs a reason", async () => {
   const wrongPhone = fixture(false, "252901234567");
-  await assert.rejects(
+  await expect(
     wrongPhone.assign({
       staff: { id: "cashier", fullName: "Cashier" },
       reviewReason: "Verified SMS",
     }),
-    /admin or manager/,
-  );
-  assert.equal(wrongPhone.claims(), 0);
-  await assert.rejects(
+  ).rejects.toThrow(/admin or manager/);
+  expect(wrongPhone.claims()).toBe(0);
+  await expect(
     wrongPhone.assign({
       staff: { id: "admin", fullName: "Admin" },
       allowExceptions: true,
       reviewReason: "",
     }),
-    /admin or manager/,
-  );
-  assert.equal(wrongPhone.claims(), 0);
+  ).rejects.toThrow(/admin or manager/);
+  expect(wrongPhone.claims()).toBe(0);
   await wrongPhone.assign({
     staff: { id: "admin", fullName: "Admin" },
     allowExceptions: true,
     reviewReason: "Verified payer with customer",
   });
-  assert.equal(wrongPhone.claims(), 1);
+  expect(wrongPhone.claims()).toBe(1);
 });
 test("manual review never reuses processed, outgoing or wrong-amount receipts", async () => {
   for (const mutation of [
@@ -260,21 +258,21 @@ test("manual review never reuses processed, outgoing or wrong-amount receipts", 
   ]) {
     const f = fixture();
     mutation(f);
-    await assert.rejects(
+    await expect(
       f.assign({
         staff: { id: "admin", fullName: "Admin" },
         allowExceptions: true,
         reviewReason: "Reviewed original receipt",
       }),
-    );
-    assert.equal(f.claims(), 0);
+    ).rejects.toThrow();
+    expect(f.claims()).toBe(0);
   }
 });
 test("completed receipt assignment cannot be performed again", async () => {
   const f = fixture();
   await f.assign();
-  await assert.rejects(f.assign(), /already settled/);
-  assert.equal(f.claims(), 1);
+  await expect(f.assign()).rejects.toThrow(/already settled/);
+  expect(f.claims()).toBe(1);
 });
 
 test("name mismatch queues review without consuming the payment", async () => {
@@ -282,33 +280,32 @@ test("name mismatch queues review without consuming the payment", async () => {
   f.checkout.status = "PENDING";
   f.receipt.counterpartyLabel = "Ali Yusuf Ahmed";
   await f.autoMatch();
-  assert.equal(f.checkout.status, "REVIEW");
-  assert.equal(f.checkout.receiptId, null);
-  assert.equal(f.receipt.status, "AVAILABLE");
-  assert.equal(f.claims(), 0);
+  expect(f.checkout.status).toBe("REVIEW");
+  expect(f.checkout.receiptId).toBe(null);
+  expect(f.receipt.status).toBe("AVAILABLE");
+  expect(f.claims()).toBe(0);
 });
 
 test("name check is enforced again during assignment and manager exceptions are audited", async () => {
   const f = fixture();
   f.receipt.counterpartyLabel = "Ali Yusuf Ahmed";
-  await assert.rejects(f.assign(), /Name, phone, or payment window/);
-  await assert.rejects(
+  await expect(f.assign()).rejects.toThrow(/Name, phone, or payment window/);
+  await expect(
     f.assign({
       staff: { id: "cashier", fullName: "Cashier" },
       reviewReason: "Verified SMS",
     }),
-    /admin or manager/,
-  );
+  ).rejects.toThrow(/admin or manager/);
   await f.assign({
     staff: { id: "manager", fullName: "Manager" },
     allowExceptions: true,
     reviewReason: "Verified original SMS and customer identity",
   });
-  assert.equal(f.claims(), 1);
-  assert.equal(f.audits[0].action, "customer_checkout.receipt_reviewed");
-  assert.equal(f.audits[0].actorUserId, "manager");
-  assert.equal(f.audits[0].newValue.allowExceptions, true);
-  assert.equal(f.audits[0].reason, "Verified original SMS and customer identity");
+  expect(f.claims()).toBe(1);
+  expect(f.audits[0].action).toBe("customer_checkout.receipt_reviewed");
+  expect(f.audits[0].actorUserId).toBe("manager");
+  expect(f.audits[0].newValue.allowExceptions).toBe(true);
+  expect(f.audits[0].reason).toBe("Verified original SMS and customer identity");
 });
 
 test("wrong amount and late payments are queued for review without approval", async () => {
@@ -324,9 +321,9 @@ test("wrong amount and late payments are queued for review without approval", as
     f.checkout.status = "PENDING";
     mutate(f);
     await f.autoMatch();
-    assert.equal(f.checkout.status, "REVIEW");
-    assert.equal(f.claims(), 0);
-    assert.equal(f.receipt.status, "AVAILABLE");
+    expect(f.checkout.status).toBe("REVIEW");
+    expect(f.claims()).toBe(0);
+    expect(f.receipt.status).toBe("AVAILABLE");
   }
 });
 
@@ -348,7 +345,7 @@ test("manager notification API reports unresolved payment counts and clears when
         prisma: {
           customerCheckout: {
             count: async ({ where }: { where: { status: { in: string[] } } }) => {
-              assert.deepEqual(Array.from(where.status.in), ["REVIEW", "NEEDS_HELP"]);
+              expect(Array.from(where.status.in)).toStrictEqual(["REVIEW", "NEEDS_HELP"]);
               return unresolved ? 2 : 0;
             },
           },
@@ -364,10 +361,10 @@ test("manager notification API reports unresolved payment counts and clears when
                 }>;
               };
             }) => {
-              assert.equal(where.OR[0].status, "AVAILABLE");
-              assert.equal(where.OR[0].direction, "INCOMING");
-              assert.equal(where.OR[0].assignedPaymentRequestId, null);
-              assert.equal(where.OR[1].status, "NEEDS_REVIEW");
+              expect(where.OR[0].status).toBe("AVAILABLE");
+              expect(where.OR[0].direction).toBe("INCOMING");
+              expect(where.OR[0].assignedPaymentRequestId).toBe(null);
+              expect(where.OR[1].status).toBe("NEEDS_REVIEW");
               return unresolved ? 3 : 0;
             },
           },
@@ -376,20 +373,25 @@ test("manager notification API reports unresolved payment counts and clears when
     },
   );
   let response = await route.GET();
-  assert.ok(response.body.paymentReview);
-  assert.ok(response.options.headers);
-  assert.equal(response.body.paymentReview.checkouts, 2);
-  assert.equal(response.body.paymentReview.receipts, 3);
-  assert.equal(response.options.headers["Cache-Control"], "private, no-store");
+  expect(response.body.paymentReview).toBeTruthy();
+  if (!response.body.paymentReview)
+    throw new Error("Expected response.body.paymentReview to be present");
+  expect(response.options.headers).toBeTruthy();
+  if (!response.options.headers) throw new Error("Expected response.options.headers to be present");
+  expect(response.body.paymentReview.checkouts).toBe(2);
+  expect(response.body.paymentReview.receipts).toBe(3);
+  expect(response.options.headers["Cache-Control"]).toBe("private, no-store");
   unresolved = false;
   role = "ADMIN";
   response = await route.GET();
-  assert.ok(response.body.paymentReview);
-  assert.equal(response.body.paymentReview.checkouts, 0);
-  assert.equal(response.body.paymentReview.receipts, 0);
+  expect(response.body.paymentReview).toBeTruthy();
+  if (!response.body.paymentReview)
+    throw new Error("Expected response.body.paymentReview to be present");
+  expect(response.body.paymentReview.checkouts).toBe(0);
+  expect(response.body.paymentReview.receipts).toBe(0);
   role = "CUSTOMER";
   response = await route.GET();
-  assert.equal(response.options.status, 403);
+  expect(response.options.status).toBe(403);
 });
 
 test("a valid automatic match creates and dispatches one paid order", async () => {
@@ -464,23 +466,23 @@ test("a valid automatic match creates and dispatches one paid order", async () =
     auditLog: { create: async () => ({}) },
     order: {
       create: async ({ data }: { data: { status: string; total: number } }) => {
-        assert.equal(data.status, "PAID");
-        assert.equal(data.total, 26);
+        expect(data.status).toBe("PAID");
+        expect(data.total).toBe(26);
         events.push("order");
         return order;
       },
     },
     orderItem: {
       createMany: async ({ data }: { data: Array<{ productId: string; qty: number }> }) => {
-        assert.equal(data[0].productId, "coffee");
-        assert.equal(data[0].qty, 2);
+        expect(data[0].productId).toBe("coffee");
+        expect(data[0].qty).toBe(2);
         events.push("items");
       },
     },
     payment: {
       create: async ({ data }: { data: { reference: string; amountPaid: number } }) => {
-        assert.equal(data.reference, "unique-ref");
-        assert.equal(data.amountPaid, 26);
+        expect(data.reference).toBe("unique-ref");
+        expect(data.amountPaid).toBe(26);
         events.push("payment");
       },
     },
@@ -507,7 +509,7 @@ test("a valid automatic match creates and dispatches one paid order", async () =
     },
     "@/lib/staff/customer-order-dispatch": {
       dispatchCustomerOrder: async (_tx: unknown, input: { orderId: string }) => {
-        assert.equal(input.orderId, order.id);
+        expect(input.orderId).toBe(order.id);
         events.push("dispatch");
       },
     },
@@ -516,8 +518,8 @@ test("a valid automatic match creates and dispatches one paid order", async () =
         _tx: unknown,
         input: { orderId: string; lines: Array<{ qty: number }> },
       ) => {
-        assert.equal(input.orderId, order.id);
-        assert.equal(input.lines[0].qty, 2);
+        expect(input.orderId).toBe(order.id);
+        expect(input.lines[0].qty).toBe(2);
         events.push("kitchen");
       },
     },
@@ -532,9 +534,9 @@ test("a valid automatic match creates and dispatches one paid order", async () =
   });
   await service.autoMatchCustomerReceipt(receipt.id);
   await service.autoMatchCustomerReceipt(receipt.id);
-  assert.equal(checkout.status, "PAID");
-  assert.equal(checkout.orderId, order.id);
-  assert.equal(checkout.receiptId, receipt.id);
-  assert.equal(receipt.status, "ASSIGNED");
-  assert.deepEqual(events, ["order", "dispatch", "items", "payment", "kitchen", "inventory"]);
+  expect(checkout.status).toBe("PAID");
+  expect(checkout.orderId).toBe(order.id);
+  expect(checkout.receiptId).toBe(receipt.id);
+  expect(receipt.status).toBe("ASSIGNED");
+  expect(events).toStrictEqual(["order", "dispatch", "items", "payment", "kitchen", "inventory"]);
 });

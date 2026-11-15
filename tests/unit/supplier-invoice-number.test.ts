@@ -1,7 +1,7 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import fs from "node:fs";
 import path from "node:path";
-import { test } from "@jest/globals";
+
 import { formatSupplierInvoiceNumber } from "../../src/lib/suppliers/invoice-number";
 
 const migration = fs.readFileSync(
@@ -10,19 +10,19 @@ const migration = fs.readFileSync(
 );
 
 test("formats supplier invoice numbers with a six-digit minimum", () => {
-  assert.equal(formatSupplierInvoiceNumber(1), "INV-000001");
-  assert.equal(formatSupplierInvoiceNumber(999999), "INV-999999");
-  assert.equal(formatSupplierInvoiceNumber(1000000), "INV-1000000");
+  expect(formatSupplierInvoiceNumber(1)).toBe("INV-000001");
+  expect(formatSupplierInvoiceNumber(999999)).toBe("INV-999999");
+  expect(formatSupplierInvoiceNumber(1000000)).toBe("INV-1000000");
 });
 
 test("invoice number migration preserves references and backfills chronologically", () => {
-  assert.match(migration, /RENAME COLUMN "invoiceNumber" TO "supplierReference"/);
-  assert.match(migration, /ROW_NUMBER\(\) OVER \(ORDER BY "createdAt" ASC, "id" ASC\)/);
+  expect(migration).toMatch(/RENAME COLUMN "invoiceNumber" TO "supplierReference"/);
+  expect(migration).toMatch(/ROW_NUMBER\(\) OVER \(ORDER BY "createdAt" ASC, "id" ASC\)/);
 });
 
 test("invoice number migration installs a required unique database sequence", () => {
-  assert.match(migration, /CREATE SEQUENCE "SupplierInvoice_invoiceNumber_seq"/);
-  assert.match(migration, /ALTER COLUMN "invoiceNumber" SET NOT NULL/);
-  assert.match(migration, /ALTER COLUMN "invoiceNumber" SET DEFAULT nextval/);
-  assert.match(migration, /CREATE UNIQUE INDEX "SupplierInvoice_invoiceNumber_key"/);
+  expect(migration).toMatch(/CREATE SEQUENCE "SupplierInvoice_invoiceNumber_seq"/);
+  expect(migration).toMatch(/ALTER COLUMN "invoiceNumber" SET NOT NULL/);
+  expect(migration).toMatch(/ALTER COLUMN "invoiceNumber" SET DEFAULT nextval/);
+  expect(migration).toMatch(/CREATE UNIQUE INDEX "SupplierInvoice_invoiceNumber_key"/);
 });

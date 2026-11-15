@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import type { Station, UserRole } from "@prisma/client";
 import {
   canAccessOrder,
@@ -16,40 +16,39 @@ function user(role: UserRole, station: Station | null = null, id: string = role)
 test("admin receives every permission", () => {
   const admin = user("ADMIN");
   for (const permission of Object.values(PERMISSIONS)) {
-    assert.equal(hasPermission(admin, permission), true);
+    expect(hasPermission(admin, permission)).toBe(true);
   }
 });
 
 test("operational roles receive only their required capabilities", () => {
-  assert.equal(hasPermission(user("CASHIER"), PERMISSIONS.PAYMENT_TAKE), true);
-  assert.equal(hasPermission(user("CASHIER"), PERMISSIONS.SETTINGS_MANAGE), false);
-  assert.equal(hasPermission(user("WAITER"), PERMISSIONS.ORDER_VIEW_ASSIGNED), true);
-  assert.equal(hasPermission(user("WAITER"), PERMISSIONS.ORDER_VIEW_ALL), false);
-  assert.equal(hasPermission(user("SUPPLIER"), PERMISSIONS.SUPPLIER_MANAGE), false);
-  assert.equal(hasPermission(user("MANAGER"), PERMISSIONS.SUPPLIER_MANAGE), true);
-  assert.equal(hasPermission(user("MANAGER"), PERMISSIONS.WAITER_BALANCE_ADMIN), false);
-  assert.equal(hasPermission(user("MANAGER"), PERMISSIONS.SUPPLY_MANAGE), false);
-  assert.equal(hasPermission(user("CLEANER"), PERMISSIONS.TABLE_RESET_ASSIGNED), true);
-  assert.equal(hasPermission(user("CUSTOMER"), PERMISSIONS.CUSTOMER_ORDER), true);
+  expect(hasPermission(user("CASHIER"), PERMISSIONS.PAYMENT_TAKE)).toBe(true);
+  expect(hasPermission(user("CASHIER"), PERMISSIONS.SETTINGS_MANAGE)).toBe(false);
+  expect(hasPermission(user("WAITER"), PERMISSIONS.ORDER_VIEW_ASSIGNED)).toBe(true);
+  expect(hasPermission(user("WAITER"), PERMISSIONS.ORDER_VIEW_ALL)).toBe(false);
+  expect(hasPermission(user("SUPPLIER"), PERMISSIONS.SUPPLIER_MANAGE)).toBe(false);
+  expect(hasPermission(user("MANAGER"), PERMISSIONS.SUPPLIER_MANAGE)).toBe(true);
+  expect(hasPermission(user("MANAGER"), PERMISSIONS.WAITER_BALANCE_ADMIN)).toBe(false);
+  expect(hasPermission(user("MANAGER"), PERMISSIONS.SUPPLY_MANAGE)).toBe(false);
+  expect(hasPermission(user("CLEANER"), PERMISSIONS.TABLE_RESET_ASSIGNED)).toBe(true);
+  expect(hasPermission(user("CUSTOMER"), PERMISSIONS.CUSTOMER_ORDER)).toBe(true);
 });
 
 test("kitchen users are restricted to their effective station", () => {
-  assert.equal(canAccessStation(user("COOK", "FAST_FOOD"), ["FAST_FOOD"]), true);
-  assert.equal(canAccessStation(user("COOK", "FAST_FOOD"), ["CUNTO_SOOMAALI"]), false);
-  assert.equal(canAccessStation(user("BARISTA"), ["BARISTA"]), true);
-  assert.equal(canAccessStation(user("Cabitaan"), ["CABITAAN"]), true);
-  assert.equal(canAccessStation(user("ADMIN"), ["BARISTA"]), true);
+  expect(canAccessStation(user("COOK", "FAST_FOOD"), ["FAST_FOOD"])).toBe(true);
+  expect(canAccessStation(user("COOK", "FAST_FOOD"), ["CUNTO_SOOMAALI"])).toBe(false);
+  expect(canAccessStation(user("BARISTA"), ["BARISTA"])).toBe(true);
+  expect(canAccessStation(user("Cabitaan"), ["CABITAAN"])).toBe(true);
+  expect(canAccessStation(user("ADMIN"), ["BARISTA"])).toBe(true);
 });
 
 test("waiters can access only orders assigned to them", () => {
   const waiter = user("WAITER", null, "waiter-1");
-  assert.equal(canAccessOrder(waiter, { waiterId: "waiter-1", cashierId: null }), true);
-  assert.equal(canAccessOrder(waiter, { waiterId: "waiter-2", cashierId: null }), false);
-  assert.equal(
+  expect(canAccessOrder(waiter, { waiterId: "waiter-1", cashierId: null })).toBe(true);
+  expect(canAccessOrder(waiter, { waiterId: "waiter-2", cashierId: null })).toBe(false);
+  expect(
     canAccessOrder(user("MANAGER"), {
       waiterId: "waiter-2",
       cashierId: null,
     }),
-    true,
-  );
+  ).toBe(true);
 });

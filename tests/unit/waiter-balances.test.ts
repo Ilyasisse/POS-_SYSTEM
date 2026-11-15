@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import { hasCurrencyPrecision, parseCurrencyAmount } from "../../src/lib/currency/amount-input";
 import {
   buildWaiterBalanceWaiterWhere,
@@ -23,65 +23,61 @@ import {
 import { buildActiveWaiterShiftWhere } from "../../src/lib/waiter/waiter-shift-gate";
 
 test("records a new shortage from sales and the end-day amount", () => {
-  assert.deepEqual(calculateWaiterBalance(0, 100, 90), {
+  expect(calculateWaiterBalance(0, 100, 90)).toStrictEqual({
     dailyDifference: -10,
     endingBalance: -10,
   });
 });
 
 test("keeps prior debt until the waiter hands in enough to repay it", () => {
-  assert.deepEqual(calculateWaiterBalance(-10, 100, 100), {
+  expect(calculateWaiterBalance(-10, 100, 100)).toStrictEqual({
     dailyDifference: 0,
     endingBalance: -10,
   });
-  assert.deepEqual(calculateWaiterBalance(-10, 100, 110), {
+  expect(calculateWaiterBalance(-10, 100, 110)).toStrictEqual({
     dailyDifference: 10,
     endingBalance: 0,
   });
 });
 
 test("does not carry a positive waiter balance", () => {
-  assert.deepEqual(calculateWaiterBalance(-5, 100, 120), {
+  expect(calculateWaiterBalance(-5, 100, 120)).toStrictEqual({
     dailyDifference: 20,
     endingBalance: 0,
   });
 });
 
 test("rounds financial calculations to two decimal places", () => {
-  assert.deepEqual(calculateWaiterBalance(-0.1, 10.015, 10), {
+  expect(calculateWaiterBalance(-0.1, 10.015, 10)).toStrictEqual({
     dailyDifference: -0.02,
     endingBalance: -0.12,
   });
 });
 
 test("accepts only real ISO calendar dates", () => {
-  assert.equal(parseBusinessDateKey("2026-07-01"), "2026-07-01");
-  assert.equal(parseBusinessDateKey("2026-02-30"), null);
-  assert.equal(parseBusinessDateKey("07/01/2026"), null);
+  expect(parseBusinessDateKey("2026-07-01")).toBe("2026-07-01");
+  expect(parseBusinessDateKey("2026-02-30")).toBe(null);
+  expect(parseBusinessDateKey("07/01/2026")).toBe(null);
 });
 
 test("blocks dates before activation and before the POS day has closed", () => {
   const now = new Date("2026-07-03T09:00:00.000Z");
 
-  assert.throws(() => assertLedgerBusinessDate("2026-06-30", now), /July 1/);
-  assert.equal(assertLedgerBusinessDate("2026-07-02", now), "2026-07-02");
-  assert.throws(
-    () => assertLedgerBusinessDate("2026-07-03", now),
+  expect(() => assertLedgerBusinessDate("2026-06-30", now)).toThrow(/July 1/);
+  expect(assertLedgerBusinessDate("2026-07-02", now)).toBe("2026-07-02");
+  expect(() => assertLedgerBusinessDate("2026-07-03", now)).toThrow(
     /after the POS business day closes/,
   );
 });
 
 test("opens a waiter balance at the 5 AM POS close boundary", () => {
-  assert.throws(
-    () => assertLedgerBusinessDate("2026-08-09", new Date("2026-08-10T01:59:59.000Z")),
-    /after the POS business day closes/,
-  );
-  assert.equal(
-    assertLedgerBusinessDate("2026-08-09", new Date("2026-08-10T02:00:00.000Z")),
+  expect(() =>
+    assertLedgerBusinessDate("2026-08-09", new Date("2026-08-10T01:59:59.000Z")),
+  ).toThrow(/after the POS business day closes/);
+  expect(assertLedgerBusinessDate("2026-08-09", new Date("2026-08-10T02:00:00.000Z"))).toBe(
     "2026-08-09",
   );
-  assert.equal(
-    assertLedgerBusinessDate("2026-08-09", new Date("2026-08-10T04:00:00.000Z")),
+  expect(assertLedgerBusinessDate("2026-08-09", new Date("2026-08-10T04:00:00.000Z"))).toBe(
     "2026-08-09",
   );
 });
@@ -89,16 +85,16 @@ test("opens a waiter balance at the 5 AM POS close boundary", () => {
 test("uses the established 7 AM to 5 AM POS business-day window", () => {
   const { start, end } = getBusinessDayRangeForKey("2026-07-01");
 
-  assert.equal(start.toISOString(), "2026-07-01T04:00:00.000Z");
-  assert.equal(end.toISOString(), "2026-07-02T02:00:00.000Z");
-  assert.equal(formatCashierBusinessDayRange(start, end), "Jul 1 7:00 AM to Jul 2 5:00 AM");
+  expect(start.toISOString()).toBe("2026-07-01T04:00:00.000Z");
+  expect(end.toISOString()).toBe("2026-07-02T02:00:00.000Z");
+  expect(formatCashierBusinessDayRange(start, end)).toBe("Jul 1 7:00 AM to Jul 2 5:00 AM");
 });
 
 test("keeps the most recently completed POS window during the 5 AM to 7 AM gap", () => {
   const { start, end } = getCashierBusinessDayRange(new Date("2026-07-23T03:59:59.000Z"));
 
-  assert.equal(start.toISOString(), "2026-07-22T04:00:00.000Z");
-  assert.equal(end.toISOString(), "2026-07-23T02:00:00.000Z");
+  expect(start.toISOString()).toBe("2026-07-22T04:00:00.000Z");
+  expect(end.toISOString()).toBe("2026-07-23T02:00:00.000Z");
 });
 
 test("derives the latest completed waiter-balance date across POS boundaries", () => {
@@ -126,129 +122,122 @@ test("derives the latest completed waiter-balance date across POS boundaries", (
   ];
 
   for (const { now, current, latestCompleted } of cases) {
-    assert.equal(getCurrentBusinessDateKey(now), current);
-    assert.equal(getLatestCompletedBusinessDateKey(now), latestCompleted);
+    expect(getCurrentBusinessDateKey(now)).toBe(current);
+    expect(getLatestCompletedBusinessDateKey(now)).toBe(latestCompleted);
   }
 });
 
 test("unlocks August 10 and activates August 11 at 7:04 AM Nairobi time", () => {
   const now = new Date("2026-08-11T04:04:00.000Z");
 
-  assert.equal(getCurrentBusinessDateKey(now), "2026-08-11");
-  assert.equal(getLatestCompletedBusinessDateKey(now), "2026-08-10");
-  assert.equal(assertLedgerBusinessDate("2026-08-10", now), "2026-08-10");
+  expect(getCurrentBusinessDateKey(now)).toBe("2026-08-11");
+  expect(getLatestCompletedBusinessDateKey(now)).toBe("2026-08-10");
+  expect(assertLedgerBusinessDate("2026-08-10", now)).toBe("2026-08-10");
 });
 
 test("shifts ISO business dates with calendar-safe UTC arithmetic", () => {
-  assert.equal(shiftBusinessDateKey("2026-03-01", -1), "2026-02-28");
-  assert.equal(shiftBusinessDateKey("2027-01-01", -1), "2026-12-31");
-  assert.throws(() => shiftBusinessDateKey("2026-02-30", -1), /Invalid/);
-  assert.throws(() => shiftBusinessDateKey("2026-07-01", 0.5), /whole number/);
+  expect(shiftBusinessDateKey("2026-03-01", -1)).toBe("2026-02-28");
+  expect(shiftBusinessDateKey("2027-01-01", -1)).toBe("2026-12-31");
+  expect(() => shiftBusinessDateKey("2026-02-30", -1)).toThrow(/Invalid/);
+  expect(() => shiftBusinessDateKey("2026-07-01", 0.5)).toThrow(/whole number/);
 });
 
 test("clamps the default waiter-balance date to ledger activation", () => {
-  assert.equal(getDefaultWaiterBalanceDateKey(new Date("2026-07-01T04:00:00.000Z")), "2026-07-01");
+  expect(getDefaultWaiterBalanceDateKey(new Date("2026-07-01T04:00:00.000Z"))).toBe("2026-07-01");
 });
 
 test("activates at the start of the July 1 POS business day", () => {
-  assert.equal(isLedgerActive(new Date("2026-07-01T03:59:59.000Z")), false);
-  assert.equal(isLedgerActive(new Date("2026-07-01T04:00:00.000Z")), true);
+  expect(isLedgerActive(new Date("2026-07-01T03:59:59.000Z"))).toBe(false);
+  expect(isLedgerActive(new Date("2026-07-01T04:00:00.000Z"))).toBe(true);
 });
 
 test("strictly parses currency form input", () => {
-  assert.equal(parseCurrencyAmount("0"), 0);
-  assert.equal(parseCurrencyAmount("12.34"), 12.34);
-  assert.equal(hasCurrencyPrecision(0.29), true);
-  assert.equal(hasCurrencyPrecision(10.015), false);
-  assert.equal(parseCurrencyAmount("10.015"), null);
-  assert.equal(parseCurrencyAmount("1e3"), null);
-  assert.equal(parseCurrencyAmount("-1"), null);
-  assert.equal(
+  expect(parseCurrencyAmount("0")).toBe(0);
+  expect(parseCurrencyAmount("12.34")).toBe(12.34);
+  expect(hasCurrencyPrecision(0.29)).toBe(true);
+  expect(hasCurrencyPrecision(10.015)).toBe(false);
+  expect(parseCurrencyAmount("10.015")).toBe(null);
+  expect(parseCurrencyAmount("1e3")).toBe(null);
+  expect(parseCurrencyAmount("-1")).toBe(null);
+  expect(
     parseCurrencyAmount("-10.50", {
       allowNegative: true,
       requireNonPositive: true,
     }),
-    -10.5,
-  );
-  assert.equal(
+  ).toBe(-10.5);
+  expect(
     parseCurrencyAmount("0.00", {
       allowNegative: true,
       requireNonPositive: true,
     }),
-    0,
-  );
-  assert.equal(
+  ).toBe(0);
+  expect(
     parseCurrencyAmount("1.00", {
       allowNegative: true,
       requireNonPositive: true,
     }),
-    null,
-  );
+  ).toBe(null);
 });
 
 test("uses business date for active waiter ordering gate after ledger activation", () => {
   const where = buildActiveWaiterShiftWhere("waiter-1", new Date("2026-07-01T09:00:00.000Z"));
 
-  assert.equal(where.userId, "waiter-1");
-  assert.equal(where.closedAt, null);
-  assert.equal(where.openedAt, undefined);
-  assert.equal(
+  expect(where.userId).toBe("waiter-1");
+  expect(where.closedAt).toBe(null);
+  expect(where.openedAt).toBe(undefined);
+  expect(
     where.businessDate instanceof Date ? where.businessDate.toISOString().slice(0, 10) : null,
-    "2026-07-01",
-  );
+  ).toBe("2026-07-01");
 });
 
 test("uses openedAt range for active waiter ordering gate before ledger activation", () => {
   const where = buildActiveWaiterShiftWhere("waiter-1", new Date("2026-06-30T09:00:00.000Z"));
 
-  assert.equal(where.userId, "waiter-1");
-  assert.equal(where.closedAt, null);
-  assert.equal(where.businessDate, undefined);
-  assert.ok(where.openedAt);
+  expect(where.userId).toBe("waiter-1");
+  expect(where.closedAt).toBe(null);
+  expect(where.businessDate).toBe(undefined);
+  expect(where.openedAt).toBeTruthy();
 });
 
 test("hides inactive waiters by default on the balance page", () => {
-  assert.deepEqual(buildWaiterBalanceWaiterWhere(), {
+  expect(buildWaiterBalanceWaiterWhere()).toStrictEqual({
     role: "WAITER",
     isActive: true,
   });
-  assert.deepEqual(buildWaiterBalanceWaiterWhere(true), {
+  expect(buildWaiterBalanceWaiterWhere(true)).toStrictEqual({
     role: "WAITER",
   });
 });
 
 test("derives waiter balance capabilities from activity and settlement state", () => {
-  assert.deepEqual(
+  expect(
     getWaiterBalanceCapabilities({
       isActive: true,
       hasInitialization: false,
       hasClosedShift: false,
     }),
-    {
-      canInitialize: true,
-      canEditSettlement: false,
-    },
-  );
-  assert.deepEqual(
+  ).toStrictEqual({
+    canInitialize: true,
+    canEditSettlement: false,
+  });
+  expect(
     getWaiterBalanceCapabilities({
       isActive: false,
       hasInitialization: true,
       hasClosedShift: true,
     }),
-    {
-      canInitialize: false,
-      canEditSettlement: true,
-    },
-  );
-  assert.deepEqual(
+  ).toStrictEqual({
+    canInitialize: false,
+    canEditSettlement: true,
+  });
+  expect(
     getWaiterBalanceCapabilities({
       isActive: false,
       hasInitialization: true,
       hasClosedShift: false,
     }),
-    {
-      canInitialize: false,
-      canEditSettlement: false,
-    },
-  );
+  ).toStrictEqual({
+    canInitialize: false,
+    canEditSettlement: false,
+  });
 });

@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import { client, db, json, product, table, user, type OrderResponse } from "../workflow/fixtures";
 
 afterAll(() => db.$disconnect());
@@ -42,50 +42,46 @@ test("station updates and competing pickup claims persist one valid handoff", as
   const tickets = await json<{ tickets: Array<{ id: string; items: Array<{ name: string }> }> }>(
     await drinks("/api/kitchen/tickets"),
   );
-  assert.deepEqual(
+  expect(
     tickets.tickets.find((ticket) => ticket.id === order.id)?.items.map(({ name }) => name),
-    [coffee.name],
-  );
-  assert.equal((await drinks(`${path}/station`, change("FAST_FOOD", "done"))).status, 403);
+  ).toStrictEqual([coffee.name]);
+  expect((await drinks(`${path}/station`, change("FAST_FOOD", "done"))).status).toBe(403);
 
   await json(await drinks(`${path}/station`, change("BARISTA", "in_progress")));
   await json(await drinks(`${path}/station`, change("BARISTA", "done")));
   await json(await drinks(`${path}/station`, change("BARISTA", "done")));
-  assert.equal(
+  expect(
     await db.kitchenTransitionEvent.count({
       where: { orderId: order.id, type: "STATION_COMPLETED" },
     }),
-    1,
-  );
-  assert.notEqual(
+  ).toBe(1);
+  expect(
     (await db.kitchenTicketState.findUniqueOrThrow({ where: { orderId: order.id } })).pickupStatus,
-    "READY",
-  );
+  ).not.toBe("READY");
 
   await json(await kitchen(`${path}/station`, change("FAST_FOOD", "in_progress")));
   await json(await kitchen(`${path}/station`, change("FAST_FOOD", "done")));
-  assert.equal(
+  expect(
     (await db.kitchenTicketState.findUniqueOrThrow({ where: { orderId: order.id } })).pickupStatus,
-    "READY",
-  );
+  ).toBe("READY");
 
   const pickup = (pickupStatus: string) => ({ method: "PATCH", body: { pickupStatus } });
   const claims = await Promise.all(
     [first, second].map((api) => api(`${path}/pickup`, pickup("claimed"))),
   );
-  assert.deepEqual(claims.map(({ status }) => status).sort(), [200, 409]);
+  expect(claims.map(({ status }) => status).sort()).toStrictEqual([200, 409]);
   const ticket = await db.kitchenTicketState.findUniqueOrThrow({ where: { orderId: order.id } });
-  assert.ok(ticket.claimedByWaiterId === waiterOne.id || ticket.claimedByWaiterId === waiterTwo.id);
-  assert.equal(
+  expect(
+    ticket.claimedByWaiterId === waiterOne.id || ticket.claimedByWaiterId === waiterTwo.id,
+  ).toBeTruthy();
+  expect(
     await db.kitchenTransitionEvent.count({ where: { orderId: order.id, type: "PICKUP_CLAIMED" } }),
-    1,
-  );
+  ).toBe(1);
   const [winner, other] =
     ticket.claimedByWaiterId === waiterOne.id ? [first, second] : [second, first];
-  assert.equal((await other(`${path}/pickup`, pickup("delivered"))).ok, false);
+  expect((await other(`${path}/pickup`, pickup("delivered"))).ok).toBe(false);
   await json(await winner(`${path}/pickup`, pickup("delivered")));
-  assert.equal(
+  expect(
     (await db.kitchenTicketState.findUniqueOrThrow({ where: { orderId: order.id } })).pickupStatus,
-    "DELIVERED",
-  );
+  ).toBe("DELIVERED");
 });

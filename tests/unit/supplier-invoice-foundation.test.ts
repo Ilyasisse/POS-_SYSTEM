@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
   calculateSupplierInvoiceLineTotal,
@@ -40,19 +40,19 @@ function validDraft(overrides: Partial<SupplierInvoiceDraftInput> = {}): Supplie
 test("validates catalog and custom lines and calculates totals on the server", () => {
   const draft = validateSupplierInvoiceDraftInput(validDraft());
 
-  assert.equal(draft.supplierReference, "SUP-1042");
-  assert.equal(draft.invoiceDate.toISOString(), "2026-07-23T00:00:00.000Z");
-  assert.equal(draft.dueDate.toISOString(), "2026-07-24T00:00:00.000Z");
-  assert.equal(draft.notes, "Review complete");
-  assert.equal(draft.lines[0].itemName, "Milk");
-  assert.equal(draft.lines[0].itemUnit, "crate");
-  assert.equal(draft.lines[0].lineTotal.toString(), "31");
-  assert.equal(draft.lines[1].supplierCatalogItemId, null);
-  assert.equal(draft.totalAmount.toString(), "34.25");
+  expect(draft.supplierReference).toBe("SUP-1042");
+  expect(draft.invoiceDate.toISOString()).toBe("2026-07-23T00:00:00.000Z");
+  expect(draft.dueDate.toISOString()).toBe("2026-07-24T00:00:00.000Z");
+  expect(draft.notes).toBe("Review complete");
+  expect(draft.lines[0].itemName).toBe("Milk");
+  expect(draft.lines[0].itemUnit).toBe("crate");
+  expect(draft.lines[0].lineTotal.toString()).toBe("31");
+  expect(draft.lines[1].supplierCatalogItemId).toBe(null);
+  expect(draft.totalAmount.toString()).toBe("34.25");
 });
 
 test("rounds each invoice line to cents before summing", () => {
-  assert.equal(calculateSupplierInvoiceLineTotal("1.005", "1.00").toString(), "1.01");
+  expect(calculateSupplierInvoiceLineTotal("1.005", "1.00").toString()).toBe("1.01");
   const draft = validateSupplierInvoiceDraftInput(
     validDraft({
       lines: [
@@ -73,91 +73,80 @@ test("rounds each invoice line to cents before summing", () => {
       ],
     }),
   );
-  assert.equal(draft.totalAmount.toString(), "2.02");
+  expect(draft.totalAmount.toString()).toBe("2.02");
 });
 
 test("rejects invalid dates and empty invoices", () => {
-  assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft({ invoiceDate: "2026-02-29" })),
-    /valid invoice date/,
-  );
-  assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft({ dueDate: "not-a-date" })),
+  expect(() =>
+    validateSupplierInvoiceDraftInput(validDraft({ invoiceDate: "2026-02-29" })),
+  ).toThrow(/valid invoice date/);
+  expect(() => validateSupplierInvoiceDraftInput(validDraft({ dueDate: "not-a-date" }))).toThrow(
     /valid supplier bill due date/,
   );
-  assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft({ lines: [] })),
+  expect(() => validateSupplierInvoiceDraftInput(validDraft({ lines: [] }))).toThrow(
     /at least one invoice item/,
   );
 });
 
 test("rejects duplicate catalog items and catalog references on custom lines", () => {
   const catalogLine = validDraft().lines[0];
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(validDraft({ lines: [catalogLine, { ...catalogLine }] })),
-    /cannot appear twice/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({
-          lines: [
-            {
-              kind: "custom",
-              catalogItemId: "catalog-milk",
-              itemName: "Custom",
-              itemUnit: "unit",
-              quantity: "1",
-              unitPrice: "1",
-            },
-          ],
-        }),
-      ),
-    /custom lines cannot reference/,
-  );
+  expect(() =>
+    validateSupplierInvoiceDraftInput(validDraft({ lines: [catalogLine, { ...catalogLine }] })),
+  ).toThrow(/cannot appear twice/);
+  expect(() =>
+    validateSupplierInvoiceDraftInput(
+      validDraft({
+        lines: [
+          {
+            kind: "custom",
+            catalogItemId: "catalog-milk",
+            itemName: "Custom",
+            itemUnit: "unit",
+            quantity: "1",
+            unitPrice: "1",
+          },
+        ],
+      }),
+    ),
+  ).toThrow(/custom lines cannot reference/);
 });
 
 test("requires descriptions and units for all invoice lines", () => {
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({
-          lines: [
-            {
-              kind: "custom",
-              itemName: " ",
-              itemUnit: "unit",
-              quantity: "1",
-              unitPrice: "1",
-            },
-          ],
-        }),
-      ),
-    /description is required/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({
-          lines: [
-            {
-              kind: "custom",
-              itemName: "Charge",
-              itemUnit: " ",
-              quantity: "1",
-              unitPrice: "1",
-            },
-          ],
-        }),
-      ),
-    /unit is required/,
-  );
+  expect(() =>
+    validateSupplierInvoiceDraftInput(
+      validDraft({
+        lines: [
+          {
+            kind: "custom",
+            itemName: " ",
+            itemUnit: "unit",
+            quantity: "1",
+            unitPrice: "1",
+          },
+        ],
+      }),
+    ),
+  ).toThrow(/description is required/);
+  expect(() =>
+    validateSupplierInvoiceDraftInput(
+      validDraft({
+        lines: [
+          {
+            kind: "custom",
+            itemName: "Charge",
+            itemUnit: " ",
+            quantity: "1",
+            unitPrice: "1",
+          },
+        ],
+      }),
+    ),
+  ).toThrow(/unit is required/);
 });
 
 test("enforces quantity and price precision and supported ranges", () => {
   for (const quantity of ["0", "-1", "1.0000", "1e2", "1000000000"]) {
-    assert.throws(() =>
+    expect(() =>
       validateSupplierInvoiceDraftInput(
         validDraft({
           lines: [
@@ -171,10 +160,10 @@ test("enforces quantity and price precision and supported ranges", () => {
           ],
         }),
       ),
-    );
+    ).toThrow();
   }
   for (const unitPrice of ["-1", "1.001", "1e2", "10000000000"]) {
-    assert.throws(() =>
+    expect(() =>
       validateSupplierInvoiceDraftInput(
         validDraft({
           lines: [
@@ -188,7 +177,7 @@ test("enforces quantity and price precision and supported ranges", () => {
           ],
         }),
       ),
-    );
+    ).toThrow();
   }
 });
 
@@ -200,118 +189,99 @@ test("limits invoice item count and text lengths", () => {
     quantity: "1",
     unitPrice: "1",
   }));
-  assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft({ lines })),
+  expect(() => validateSupplierInvoiceDraftInput(validDraft({ lines }))).toThrow(
     /at most 100 items/,
   );
-  assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft({ supplierReference: "x".repeat(201) })),
-    /Supplier reference is too long/,
-  );
-  assert.throws(
-    () => validateSupplierInvoiceDraftInput(validDraft({ notes: "x".repeat(2001) })),
+  expect(() =>
+    validateSupplierInvoiceDraftInput(validDraft({ supplierReference: "x".repeat(201) })),
+  ).toThrow(/Supplier reference is too long/);
+  expect(() => validateSupplierInvoiceDraftInput(validDraft({ notes: "x".repeat(2001) }))).toThrow(
     /Invoice notes is too long/,
   );
 });
 
 test("rejects invoice totals outside the database currency range", () => {
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({
-          lines: [
-            {
-              kind: "custom",
-              itemName: "First maximum line",
-              itemUnit: "unit",
-              quantity: "999999999.999",
-              unitPrice: "1000.00",
-            },
-            {
-              kind: "custom",
-              itemName: "Second maximum line",
-              itemUnit: "unit",
-              quantity: "999999999.999",
-              unitPrice: "1000.00",
-            },
-          ],
-        }),
-      ),
-    /invoice total exceeds/,
-  );
+  expect(() =>
+    validateSupplierInvoiceDraftInput(
+      validDraft({
+        lines: [
+          {
+            kind: "custom",
+            itemName: "First maximum line",
+            itemUnit: "unit",
+            quantity: "999999999.999",
+            unitPrice: "1000.00",
+          },
+          {
+            kind: "custom",
+            itemName: "Second maximum line",
+            itemUnit: "unit",
+            quantity: "999999999.999",
+            unitPrice: "1000.00",
+          },
+        ],
+      }),
+    ),
+  ).toThrow(/invoice total exceeds/);
 });
 
 test("validates purchase-order and legacy draft creation metadata", () => {
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        source: "PURCHASE_ORDER",
-        createdByUserId: "user-1",
-      }),
-    /must reference a purchase order/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        purchaseOrderId: "po-1",
-        source: "PURCHASE_ORDER",
-      }),
-    /require a creator/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        purchaseOrderId: "po-1",
-        source: "LEGACY_UPLOAD",
-      }),
-    /cannot reference a purchase order/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        source: "RECURRING",
-      }),
-    /require a creator/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        source: "LEGACY_UPLOAD",
-        receiptObjectPath: "supplier/receipt.png",
-      }),
-    /must be provided together/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        source: "MANUAL",
-      }),
-    /require a creator/,
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftCreationMetadata({
-        supplierId: "supplier-1",
-        purchaseOrderId: "po-1",
-        source: "MANUAL",
-        createdByUserId: "user-1",
-      }),
-    /cannot reference a purchase order/,
-  );
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      source: "PURCHASE_ORDER",
+      createdByUserId: "user-1",
+    }),
+  ).toThrow(/must reference a purchase order/);
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      purchaseOrderId: "po-1",
+      source: "PURCHASE_ORDER",
+    }),
+  ).toThrow(/require a creator/);
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      purchaseOrderId: "po-1",
+      source: "LEGACY_UPLOAD",
+    }),
+  ).toThrow(/cannot reference a purchase order/);
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      source: "RECURRING",
+    }),
+  ).toThrow(/require a creator/);
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      source: "LEGACY_UPLOAD",
+      receiptObjectPath: "supplier/receipt.png",
+    }),
+  ).toThrow(/must be provided together/);
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      source: "MANUAL",
+    }),
+  ).toThrow(/require a creator/);
+  expect(() =>
+    validateSupplierInvoiceDraftCreationMetadata({
+      supplierId: "supplier-1",
+      purchaseOrderId: "po-1",
+      source: "MANUAL",
+      createdByUserId: "user-1",
+    }),
+  ).toThrow(/cannot reference a purchase order/);
 
   const manualMetadata = validateSupplierInvoiceDraftCreationMetadata({
     supplierId: " supplier-1 ",
     source: "MANUAL",
     createdByUserId: " user-1 ",
   });
-  assert.equal(manualMetadata.supplierId, "supplier-1");
-  assert.equal(manualMetadata.createdByUserId, "user-1");
+  expect(manualMetadata.supplierId).toBe("supplier-1");
+  expect(manualMetadata.createdByUserId).toBe("user-1");
 
   const metadata = validateSupplierInvoiceDraftCreationMetadata({
     supplierId: " supplier-1 ",
@@ -320,27 +290,24 @@ test("validates purchase-order and legacy draft creation metadata", () => {
     receiptContentType: " image/png ",
     uploadedByEmail: " supplier@example.com ",
   });
-  assert.equal(metadata.supplierId, "supplier-1");
-  assert.equal(metadata.receiptObjectPath, "supplier/receipt.png");
-  assert.equal(metadata.receiptContentType, "image/png");
-  assert.equal(metadata.uploadedByEmail, "supplier@example.com");
+  expect(metadata.supplierId).toBe("supplier-1");
+  expect(metadata.receiptObjectPath).toBe("supplier/receipt.png");
+  expect(metadata.receiptContentType).toBe("image/png");
+  expect(metadata.uploadedByEmail).toBe("supplier@example.com");
 });
 
 test("manual invoice validation allows catalog lines only", () => {
   const catalogOnlyDraft = validDraft({ lines: [validDraft().lines[0]] });
-  assert.equal(
+  expect(
     validateSupplierInvoiceDraftInput(catalogOnlyDraft, {
       allowCustomLines: false,
     }).totalAmount.toString(),
-    "31",
-  );
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(validDraft(), {
-        allowCustomLines: false,
-      }),
-    /only use supplier catalog items/,
-  );
+  ).toBe("31");
+  expect(() =>
+    validateSupplierInvoiceDraftInput(validDraft(), {
+      allowCustomLines: false,
+    }),
+  ).toThrow(/only use supplier catalog items/);
 });
 
 test("prefills a purchase-order invoice from snapshots using Nairobi dates", () => {
@@ -360,10 +327,10 @@ test("prefills a purchase-order invoice from snapshots using Nairobi dates", () 
     new Date("2026-07-22T22:30:00.000Z"),
   );
 
-  assert.equal(input.supplierReference, null);
-  assert.equal(input.invoiceDate, "2026-07-23");
-  assert.equal(input.dueDate, "2026-07-24");
-  assert.deepEqual(input.lines, [
+  expect(input.supplierReference).toBe(null);
+  expect(input.invoiceDate).toBe("2026-07-23");
+  expect(input.dueDate).toBe("2026-07-24");
+  expect(input.lines).toStrictEqual([
     {
       kind: "catalog",
       catalogItemId: "catalog-milk",
@@ -373,15 +340,15 @@ test("prefills a purchase-order invoice from snapshots using Nairobi dates", () 
       unitPrice: "12.40",
     },
   ]);
-  assert.equal(validateSupplierInvoiceDraftInput(input).totalAmount.toString(), "31");
+  expect(validateSupplierInvoiceDraftInput(input).totalAmount.toString()).toBe("31");
 });
 
 test("voiding reopens only purchase-order invoices", () => {
-  assert.deepEqual(getSupplierInvoiceVoidEffect(" po-1 "), {
+  expect(getSupplierInvoiceVoidEffect(" po-1 ")).toStrictEqual({
     purchaseOrderId: "po-1",
     reopensPurchaseOrder: true,
   });
-  assert.deepEqual(getSupplierInvoiceVoidEffect(null), {
+  expect(getSupplierInvoiceVoidEffect(null)).toStrictEqual({
     purchaseOrderId: null,
     reopensPurchaseOrder: false,
   });

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { afterAll, jest, test } from "@jest/globals";
+import { expect, afterAll, jest, test } from "@jest/globals";
 
 const group = {
   id: "size",
@@ -60,7 +59,10 @@ afterAll(() => {
   delete globalThis.__checkoutRegression;
 });
 const { POST } = await import("../../src/app/api/customer/checkouts/route.ts");
-assert.equal(typeof POST, "function", "Checkout route must export POST");
+expect({ context: "Checkout route must export POST", value: typeof POST }).toStrictEqual({
+  context: "Checkout route must export POST",
+  value: "function",
+});
 const base = {
   customerName: "Customer",
   paymentPhone: "901234567",
@@ -85,23 +87,23 @@ async function checkout(modifiers, extra = {}) {
 
 test("valid catalog modifiers create checkout while preserving main fulfillment", async () => {
   const response = await checkout([{ modifierId: "large", qty: 1 }]);
-  assert.equal(response.status, 201);
+  expect(response.status).toBe(201);
   const [write] = globalThis.__checkoutRegression.writes;
-  assert.equal(write.orderType, "DINE_IN");
-  assert.equal(write.tableId, "table-1");
-  assert.equal(Number(write.amount), 7);
+  expect(write.orderType).toBe("DINE_IN");
+  expect(write.tableId).toBe("table-1");
+  expect(Number(write.amount)).toBe(7);
 });
 test("spoofed placeholder with catalog ID cannot satisfy a required group", async () => {
   const response = await checkout([{ modifierId: "large", isPlaceholder: true, price: 0 }]);
-  assert.equal(response.status, 400);
-  assert.match((await response.json()).error, /requires at least 1 choice from Size/);
-  assert.equal(globalThis.__checkoutRegression.writes.length, 0);
+  expect(response.status).toBe(400);
+  expect((await response.json()).error).toMatch(/requires at least 1 choice from Size/);
+  expect(globalThis.__checkoutRegression.writes.length).toBe(0);
 });
 test("missing required modifier creates no checkout", async () => {
   const response = await checkout([]);
-  assert.equal(response.status, 400);
-  assert.match((await response.json()).error, /requires at least 1 choice from Size/);
-  assert.equal(globalThis.__checkoutRegression.writes.length, 0);
+  expect(response.status).toBe(400);
+  expect((await response.json()).error).toMatch(/requires at least 1 choice from Size/);
+  expect(globalThis.__checkoutRegression.writes.length).toBe(0);
 });
 test("real required choice and custom placeholder remain supported", async () => {
   const response = await checkout([
@@ -114,13 +116,13 @@ test("real required choice and custom placeholder remain supported", async () =>
       groupName: "Custom",
     },
   ]);
-  assert.equal(response.status, 201);
-  assert.equal(Number(globalThis.__checkoutRegression.writes[0].amount), 8);
+  expect(response.status).toBe(201);
+  expect(Number(globalThis.__checkoutRegression.writes[0].amount)).toBe(8);
 });
 test("main local payment phone validation remains in effect", async () => {
   const response = await checkout([{ modifierId: "large" }], {
     paymentPhone: "+252901234567",
   });
-  assert.equal(response.status, 400);
-  assert.equal(globalThis.__checkoutRegression.writes.length, 0);
+  expect(response.status).toBe(400);
+  expect(globalThis.__checkoutRegression.writes.length).toBe(0);
 });

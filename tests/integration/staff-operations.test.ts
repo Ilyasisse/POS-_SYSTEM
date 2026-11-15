@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import {
   approveAttendance,
   approvePayrollAdjustment,
@@ -40,9 +40,11 @@ test("approved attendance and bonus drive one finalized payroll line", async () 
     },
   });
   const clockIn = await recordClockEvent({ workerId: worker.id, type: "IN" });
-  await assert.rejects(recordClockEvent({ workerId: worker.id, type: "IN" }), /already clocked in/);
+  await expect(recordClockEvent({ workerId: worker.id, type: "IN" })).rejects.toThrow(
+    /already clocked in/,
+  );
   const clockOut = await recordClockEvent({ workerId: worker.id, type: "OUT" });
-  assert.ok(clockOut.occurredAt >= clockIn.occurredAt);
+  expect(clockOut.occurredAt >= clockIn.occurredAt).toBeTruthy();
   // Place the two recorded events inside the same test shift regardless of when CI runs.
   await db.clockEvent.update({ where: { id: clockIn.id }, data: { occurredAt: shift.startsAt } });
   await db.clockEvent.update({
@@ -50,10 +52,9 @@ test("approved attendance and bonus drive one finalized payroll line", async () 
     data: { occurredAt: new Date(shift.startsAt.getTime() + 8 * 3_600_000) },
   });
   await approveAttendance({ shiftId: shift.id, status: "PRESENT", actorUserId });
-  assert.equal(
+  expect(
     await db.attendanceRecord.count({ where: { workerId: worker.id, status: "PRESENT" } }),
-    1,
-  );
+  ).toBe(1);
 
   const period = { periodStart: date, periodEnd: date };
   const bonus = await createPayrollAdjustment({
@@ -69,10 +70,10 @@ test("approved attendance and bonus drive one finalized payroll line", async () 
   const line = await db.payrollLine.findFirstOrThrow({
     where: { payrollRunId: run.id, workerId: worker.id },
   });
-  assert.equal(Number(line.netPay), 24);
+  expect(Number(line.netPay)).toBe(24);
   await transitionPayrollRun({ runId: run.id, action: "APPROVE", actorUserId });
   await transitionPayrollRun({ runId: run.id, action: "FINALIZE", actorUserId });
-  await assert.rejects(createPayrollRun({ ...period, actorUserId }), /finalized payroll/i);
+  await expect(createPayrollRun({ ...period, actorUserId })).rejects.toThrow(/finalized payroll/i);
 });
 
 test("cleaning requires all required tasks and resolving an incident audits the actor", async () => {
@@ -84,11 +85,10 @@ test("cleaning requires all required tasks and resolving an incident audits the 
     tasks: [{ label: "Sanitize counter" }],
   });
   const run = await scheduleCleaningRun({ templateId: template.id, scheduledFor: new Date() });
-  await assert.rejects(completeCleaningRun({ runId: run.id, actorUserId }), /required/i);
+  await expect(completeCleaningRun({ runId: run.id, actorUserId })).rejects.toThrow(/required/i);
   await completeCleaningTask({ runTaskId: run.tasks[0].id, actorUserId });
   await completeCleaningRun({ runId: run.id, actorUserId, evidenceNote: "Test completed" });
-  assert.equal(
-    (await db.cleaningChecklistRun.findUniqueOrThrow({ where: { id: run.id } })).status,
+  expect((await db.cleaningChecklistRun.findUniqueOrThrow({ where: { id: run.id } })).status).toBe(
     "COMPLETED",
   );
 
@@ -104,12 +104,11 @@ test("cleaning requires all required tasks and resolving an incident audits the 
     actorUserId,
     resolutionNotes: "Test printer checked",
   });
-  assert.equal(resolved.status, "RESOLVED");
-  assert.ok(resolved.resolvedAt);
-  assert.equal(
+  expect(resolved.status).toBe("RESOLVED");
+  expect(resolved.resolvedAt).toBeTruthy();
+  expect(
     await db.auditLog.count({
       where: { entityId: incident.id, action: "operations.incident.resolved", actorUserId },
     }),
-    1,
-  );
+  ).toBe(1);
 });

@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { expect } from "expect";
 import { randomInt, randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type Station, type UserRole } from "@prisma/client";
@@ -7,18 +7,21 @@ import { createClient } from "@supabase/supabase-js";
 
 function localEnv(name: string, origin: string) {
   const value = process.env[name];
-  assert.ok(value, `Missing ${name}. Use the workflow test runner.`);
-  assert.equal(new URL(value).origin, origin, `${name} must use the disposable test stack`);
+  if (!value) throw new Error(`Missing ${name}. Use the workflow test runner.`);
+  expect({
+    context: `${name} must use the disposable test stack`,
+    value: new URL(value).origin,
+  }).toStrictEqual({ context: `${name} must use the disposable test stack`, value: origin });
   return value;
 }
 
 export const appUrl = localEnv("CAFE_POS_TEST_URL", "http://127.0.0.1:55430");
 const authUrl = localEnv("NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:55421");
 const databaseUrl = process.env.DATABASE_URL;
-assert.ok(databaseUrl);
+if (!databaseUrl) throw new Error("Missing DATABASE_URL. Use the workflow test runner.");
 const database = new URL(databaseUrl);
-assert.equal(database.protocol, "postgresql:");
-assert.equal(database.host, "127.0.0.1:55422");
+expect(database.protocol).toBe("postgresql:");
+expect(database.host).toBe("127.0.0.1:55422");
 
 export const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: databaseUrl }) });
 const auth = createClient(authUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -42,7 +45,7 @@ export async function user(
     email_confirm: true,
     user_metadata: { full_name: fullName },
   });
-  assert.ifError(result.error);
+  if (result.error != null) throw result.error;
   const id = result.data.user.id;
   const profile = { id, email, fullName, isActive: options.active ?? true };
   if (role === "CUSTOMER") {
@@ -67,8 +70,11 @@ export async function sessionCookies(account: TestUser) {
     email: account.email,
     password: account.password,
   });
-  assert.ifError(error);
-  assert.ok(jar.size, "Supabase sign-in returned no session cookies");
+  if (error != null) throw error;
+  expect({
+    context: "Supabase sign-in returned no session cookies",
+    value: Boolean(jar.size),
+  }).toStrictEqual({ context: "Supabase sign-in returned no session cookies", value: true });
   return Array.from(jar, ([name, value]) => ({ name, value }));
 }
 
@@ -80,7 +86,7 @@ export async function client(account?: TestUser) {
     path: string,
     options: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
   ) => {
-    assert.ok(path.startsWith("/") && !path.startsWith("//"));
+    expect(path.startsWith("/") && !path.startsWith("//")).toBeTruthy();
     const response = await fetch(new URL(path, appUrl), {
       method: options.method ?? (options.body === undefined ? "GET" : "POST"),
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -103,9 +109,18 @@ export async function client(account?: TestUser) {
 export async function json<T>(response: Response, status?: number): Promise<T> {
   const body = await response.text();
   if (status === undefined) {
-    assert.ok(response.ok, `${response.status} ${response.url}\n${body.slice(0, 1000)}`);
+    expect({
+      context: `${response.status} ${response.url}\n${body.slice(0, 1000)}`,
+      value: Boolean(response.ok),
+    }).toStrictEqual({
+      context: `${response.status} ${response.url}\n${body.slice(0, 1000)}`,
+      value: true,
+    });
   } else {
-    assert.equal(response.status, status, `${response.url}\n${body.slice(0, 1000)}`);
+    expect({
+      context: `${response.url}\n${body.slice(0, 1000)}`,
+      value: response.status,
+    }).toStrictEqual({ context: `${response.url}\n${body.slice(0, 1000)}`, value: status });
   }
   return JSON.parse(body) as T;
 }

@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import {
   buildKitchenPrintHref,
   filterPrintableKitchenTicket,
@@ -8,16 +8,15 @@ import {
 import type { KitchenTicket } from "../../src/lib/kitchen/kitchen-socket";
 
 test("builds full and station-specific kitchen ticket links", () => {
-  assert.equal(buildKitchenPrintHref("order 1"), "/print/kitchen/order%201");
-  assert.equal(
-    buildKitchenPrintHref("order-1", "FAST_FOOD"),
+  expect(buildKitchenPrintHref("order 1")).toBe("/print/kitchen/order%201");
+  expect(buildKitchenPrintHref("order-1", "FAST_FOOD")).toBe(
     "/print/kitchen/order-1?station=FAST_FOOD",
   );
 });
 
 test("formats kitchen station labels for printed tickets", () => {
-  assert.equal(kitchenStationLabel("CUNTO_SOOMAALI"), "Cunto Soomaali");
-  assert.equal(kitchenStationLabel("CABITAAN"), "Cabitaan");
+  expect(kitchenStationLabel("CUNTO_SOOMAALI")).toBe("Cunto Soomaali");
+  expect(kitchenStationLabel("CABITAAN")).toBe("Cabitaan");
 });
 
 const completedTicket: KitchenTicket = {
@@ -62,9 +61,9 @@ test("admin can print active and completed tickets across stations", () => {
   const historicalTicket = filterPrintableKitchenTicket(completedTicket, {
     role: "ADMIN",
   });
-  assert.equal(historicalTicket?.items.length, 3);
-  assert.equal(historicalTicket?.status, "done");
-  assert.equal(historicalTicket?.pickupStatus, "delivered");
+  expect(historicalTicket?.items.length).toBe(3);
+  expect(historicalTicket?.status).toBe("done");
+  expect(historicalTicket?.pickupStatus).toBe("delivered");
   const activeTicket: KitchenTicket = {
     ...completedTicket,
     stationStatuses: { FAST_FOOD: "new", BARISTA: "new" },
@@ -73,15 +72,14 @@ test("admin can print active and completed tickets across stations", () => {
   const printedActiveTicket = filterPrintableKitchenTicket(activeTicket, {
     role: "ADMIN",
   });
-  assert.equal(printedActiveTicket?.items.length, 3);
-  assert.equal(printedActiveTicket?.status, "new");
-  assert.deepEqual(
+  expect(printedActiveTicket?.items.length).toBe(3);
+  expect(printedActiveTicket?.status).toBe("new");
+  expect(
     filterPrintableKitchenTicket(completedTicket, {
       role: "ADMIN",
       station: "FAST_FOOD",
     })?.items.map((item) => item.id),
-    ["food"],
-  );
+  ).toStrictEqual(["food"]);
 });
 
 test("historical printing retains station and barista ownership restrictions", () => {
@@ -89,33 +87,25 @@ test("historical printing retains station and barista ownership restrictions", (
     role: "COOK",
     station: "FAST_FOOD",
   });
-  assert.deepEqual(
-    cookTicket?.items.map((item) => item.id),
-    ["food"],
-  );
-  assert.equal(cookTicket?.status, "done");
+  expect(cookTicket?.items.map((item) => item.id)).toStrictEqual(["food"]);
+  expect(cookTicket?.status).toBe("done");
   const baristaTicket = filterPrintableKitchenTicket(completedTicket, {
     role: "BARISTA",
     station: "BARISTA",
     userId: "barista-1",
   });
-  assert.deepEqual(
-    baristaTicket?.items.map((item) => item.id),
-    ["coffee"],
-  );
-  assert.equal(filterPrintableKitchenTicket(completedTicket, { role: "COOK" }), null);
-  assert.equal(
+  expect(baristaTicket?.items.map((item) => item.id)).toStrictEqual(["coffee"]);
+  expect(filterPrintableKitchenTicket(completedTicket, { role: "COOK" })).toBe(null);
+  expect(
     filterPrintableKitchenTicket(completedTicket, {
       role: "BARISTA",
       station: "BARISTA",
     }),
-    null,
-  );
-  assert.equal(
+  ).toBe(null);
+  expect(
     filterPrintableKitchenTicket(completedTicket, {
       role: "COOK",
       station: "CABITAAN",
     }),
-    null,
-  );
+  ).toBe(null);
 });

@@ -14,6 +14,8 @@ npm run test:e2e
 
 The Jest configurations keep fast tests and service-backed integration tests separate. Focus a fast test with `npm test -- --runTestsByPath tests/unit/permissions.test.ts`. Existing focused `test:*` npm scripts also use Jest. Three empty unit placeholder files are excluded because they contain no test cases.
 
+Assertions use Jest's `expect` matchers. Shared workflow helpers and the standalone receipt browser check import the standalone `expect` package so they also work outside the Jest runner. Missing configuration and service errors fail through explicit guards.
+
 The other commands start a fresh PostgreSQL database, a standalone Supabase Auth service, and Next.js. They use ports 55421, 55422, 55424 and 55430 on loopback. Run one workflow command at a time. Each command tears down its own containers and network on exit.
 
 Run the workflow suites from a checkout without a development `.env`. The runner supplies local addresses and disposable credentials. Prisma provisions the current application schema and `tests/workflow/constraints.sql` adds the SQL-only invariants these workflows exercise. The existing migration tests cover upgrades separately.

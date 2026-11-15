@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import {
   calculateDailyCashSummary,
   fundingFor,
@@ -23,18 +23,17 @@ import {
 } from "../../src/lib/daily-cash/supplier-obligations";
 
 test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
-  assert.equal(getDailyCashDefaultDateKey(new Date("2026-08-10T06:59:59+03:00")), "2026-08-09");
-  assert.equal(getDailyCashDefaultDateKey(new Date("2026-08-10T07:00:00+03:00")), "2026-08-10");
-  assert.equal(getDailyCashWaiterBalanceDateKey("2026-08-10"), "2026-08-09");
+  expect(getDailyCashDefaultDateKey(new Date("2026-08-10T06:59:59+03:00"))).toBe("2026-08-09");
+  expect(getDailyCashDefaultDateKey(new Date("2026-08-10T07:00:00+03:00"))).toBe("2026-08-10");
+  expect(getDailyCashWaiterBalanceDateKey("2026-08-10")).toBe("2026-08-09");
 });
 
 test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dates", () => {
   const now = new Date(2026, 7, 11, 12, 0, 0);
 
-  assert.equal(assertDailyCashBusinessDate("2026-08-01", now), "2026-08-01");
-  assert.throws(() => assertDailyCashBusinessDate("2026-07-31", now), /begins on August 1, 2026/);
-  assert.throws(
-    () => assertDailyCashBusinessDate("2026-08-12", now),
+  expect(assertDailyCashBusinessDate("2026-08-01", now)).toBe("2026-08-01");
+  expect(() => assertDailyCashBusinessDate("2026-07-31", now)).toThrow(/begins on August 1, 2026/);
+  expect(() => assertDailyCashBusinessDate("2026-08-12", now)).toThrow(
     /Future business days cannot be used/,
   );
 });
@@ -42,8 +41,8 @@ test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dat
 test("Daily Cash locks a business day when it reaches exactly 14 days old", () => {
   const now = new Date(2026, 7, 15, 12, 0, 0);
 
-  assert.equal(isDailyCashLocked("2026-08-02", now), false);
-  assert.equal(isDailyCashLocked("2026-08-01", now), true);
+  expect(isDailyCashLocked("2026-08-02", now)).toBe(false);
+  expect(isDailyCashLocked("2026-08-01", now)).toBe(true);
 });
 
 test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
@@ -66,9 +65,9 @@ test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
     { id: "waiter-2", fullName: "Bilan" },
   ]);
 
-  assert.equal(result.endDayCash, 125.5);
-  assert.deepEqual(result.missingWaiters, [{ id: "waiter-2", fullName: "Bilan" }]);
-  assert.deepEqual(result.fingerprintRows, [["shift-1", "waiter-1", 125.5]]);
+  expect(result.endDayCash).toBe(125.5);
+  expect(result.missingWaiters).toStrictEqual([{ id: "waiter-2", fullName: "Bilan" }]);
+  expect(result.fingerprintRows).toStrictEqual([["shift-1", "waiter-1", 125.5]]);
 });
 
 test("a zero End-Day Amount is complete and contributes zero cash", () => {
@@ -77,9 +76,9 @@ test("a zero End-Day Amount is complete and contributes zero cash", () => {
     [{ id: "waiter-1", fullName: "Amina" }],
   );
 
-  assert.equal(result.endDayCash, 0);
-  assert.deepEqual(result.missingWaiters, []);
-  assert.deepEqual(result.fingerprintRows, [["shift-1", "waiter-1", 0]]);
+  expect(result.endDayCash).toBe(0);
+  expect(result.missingWaiters).toStrictEqual([]);
+  expect(result.fingerprintRows).toStrictEqual([["shift-1", "waiter-1", 0]]);
 });
 
 test("Daily Cash review input changes only when an End-Day Amount changes", () => {
@@ -97,33 +96,32 @@ test("Daily Cash review input changes only when an End-Day Amount changes", () =
     waiters,
   );
 
-  assert.deepEqual(manualSalesChanged.fingerprintRows, original.fingerprintRows);
-  assert.notDeepEqual(endDayAmountChanged.fingerprintRows, original.fingerprintRows);
+  expect(manualSalesChanged.fingerprintRows).toStrictEqual(original.fingerprintRows);
+  expect(endDayAmountChanged.fingerprintRows).not.toStrictEqual(original.fingerprintRows);
 });
 
 test("Daily Cash uses revenue before savings and never projects a negative balance", () => {
-  assert.deepEqual(fundingFor(400, 324.5), {
+  expect(fundingFor(400, 324.5)).toStrictEqual({
     revenueFunded: 324.5,
     savingsFunded: 75.5,
   });
-  assert.deepEqual(
+  expect(
     calculateDailyCashSummary({
       revenue: 450,
       paidRevenueFunded: 125.5,
       paidSavingsFunded: 0,
       unpaidRequired: 400,
     }),
-    {
-      cashAvailableNow: 324.5,
-      projectedRemaining: 0,
-      additionalSavingsRequired: 75.5,
-      savingsUsed: 0,
-    },
-  );
+  ).toStrictEqual({
+    cashAvailableNow: 324.5,
+    projectedRemaining: 0,
+    additionalSavingsRequired: 75.5,
+    savingsUsed: 0,
+  });
 });
 
 test("savings deposits reduce available cash without changing paid expenses or savings used", () => {
-  assert.deepEqual(
+  expect(
     calculateDailyCashSummary({
       revenue: 500,
       paidRevenueFunded: 100,
@@ -131,23 +129,23 @@ test("savings deposits reduce available cash without changing paid expenses or s
       unpaidRequired: 200,
       savingsDeposited: 75,
     }),
-    {
-      cashAvailableNow: 325,
-      projectedRemaining: 125,
-      additionalSavingsRequired: 0,
-      savingsUsed: 25,
-    },
-  );
+  ).toStrictEqual({
+    cashAvailableNow: 325,
+    projectedRemaining: 125,
+    additionalSavingsRequired: 0,
+    savingsUsed: 25,
+  });
 });
 
 test("savings deposits accept the projected remainder and reject unsafe amounts", () => {
-  assert.equal(validateSavingsDepositAmount(125, 125), 125);
-  assert.throws(
-    () => validateSavingsDepositAmount(125.01, 125),
+  expect(validateSavingsDepositAmount(125, 125)).toBe(125);
+  expect(() => validateSavingsDepositAmount(125.01, 125)).toThrow(
     /cannot exceed the projected remaining cash/i,
   );
-  assert.throws(() => validateSavingsDepositAmount(1.001, 125), /no more than two decimal places/i);
-  assert.throws(() => validateSavingsDepositAmount(0, 125), /greater than zero/i);
+  expect(() => validateSavingsDepositAmount(1.001, 125)).toThrow(
+    /no more than two decimal places/i,
+  );
+  expect(() => validateSavingsDepositAmount(0, 125)).toThrow(/greater than zero/i);
 });
 
 test("Daily Cash resolves the newest salary rate effective on the business date", () => {
@@ -161,7 +159,7 @@ test("Daily Cash resolves the newest salary rate effective on the business date"
       amount: 125.5,
     },
   ]);
-  assert.equal(rate?.amount, 125.5);
+  expect(rate?.amount).toBe(125.5);
 });
 
 test("Daily Cash includes overdue and upcoming obligations", () => {
@@ -193,9 +191,9 @@ test("Daily Cash includes overdue and upcoming obligations", () => {
       ],
     },
   ]);
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].installmentId, "past");
-  assert.equal(rows[0].amount, 300);
+  expect(rows.length).toBe(1);
+  expect(rows[0].installmentId).toBe("past");
+  expect(rows[0].amount).toBe(300);
 });
 
 test("Daily Cash includes future-due bills and sorts oldest first", () => {
@@ -234,22 +232,16 @@ test("Daily Cash includes future-due bills and sorts oldest first", () => {
       installments: [],
     },
   ]);
-  assert.deepEqual(
-    rows.map((row) => row.invoiceNumber),
-    ["INV-000043", "INV-000047"],
-  );
-  assert.equal(
-    rows.reduce((sum, row) => sum + row.amount, 0),
-    121.5,
-  );
+  expect(rows.map((row) => row.invoiceNumber)).toStrictEqual(["INV-000043", "INV-000047"]);
+  expect(rows.reduce((sum, row) => sum + row.amount, 0)).toBe(121.5);
 });
 
 test("Daily Cash accepts partial supplier payments up to the remaining balance", () => {
-  assert.equal(validateSupplierObligationPaymentAmount(20, 67.5), 20);
-  assert.equal(validateSupplierObligationPaymentAmount(67.5, 67.5), 67.5);
-  assert.equal(validateSupplierObligationPaymentAmount(100, 67.5, true), 100);
-  assert.throws(() => validateSupplierObligationPaymentAmount(0, 67.5), /greater than zero/);
-  assert.throws(() => validateSupplierObligationPaymentAmount(68, 67.5), /cannot exceed/);
+  expect(validateSupplierObligationPaymentAmount(20, 67.5)).toBe(20);
+  expect(validateSupplierObligationPaymentAmount(67.5, 67.5)).toBe(67.5);
+  expect(validateSupplierObligationPaymentAmount(100, 67.5, true)).toBe(100);
+  expect(() => validateSupplierObligationPaymentAmount(0, 67.5)).toThrow(/greater than zero/);
+  expect(() => validateSupplierObligationPaymentAmount(68, 67.5)).toThrow(/cannot exceed/);
 });
 
 test("paid salary produces one breakdown row while unpaid salary is excluded", () => {
@@ -269,7 +261,7 @@ test("paid salary produces one breakdown row while unpaid salary is excluded", (
     salary: { amount: 125.5, paidAt: null, revenueFunded: 0, savingsFunded: 0 },
   });
 
-  assert.deepEqual(paid, [
+  expect(paid).toStrictEqual([
     {
       id: "salary:day-1",
       type: "SALARY",
@@ -280,7 +272,7 @@ test("paid salary produces one breakdown row while unpaid salary is excluded", (
       savingsFunded: 25.5,
     },
   ]);
-  assert.deepEqual(unpaid, []);
+  expect(unpaid).toStrictEqual([]);
 });
 
 test("manual and supplier breakdown rows include descriptions, funding splits, and chronological order", () => {
@@ -312,14 +304,11 @@ test("manual and supplier breakdown rows include descriptions, funding splits, a
     supplyPayments: [],
   });
 
-  assert.deepEqual(
-    rows.map((row) => row.type),
-    ["SUPPLIER", "MANUAL"],
-  );
-  assert.equal(rows[0].description, "Haysimo · INV-000043");
-  assert.deepEqual([rows[0].revenueFunded, rows[0].savingsFunded], [60, 7.5]);
-  assert.equal(rows[1].description, "Taxi · Market run");
-  assert.deepEqual([rows[1].revenueFunded, rows[1].savingsFunded], [15, 5]);
+  expect(rows.map((row) => row.type)).toStrictEqual(["SUPPLIER", "MANUAL"]);
+  expect(rows[0].description).toBe("Haysimo · INV-000043");
+  expect([rows[0].revenueFunded, rows[0].savingsFunded]).toStrictEqual([60, 7.5]);
+  expect(rows[1].description).toBe("Taxi · Market run");
+  expect([rows[1].revenueFunded, rows[1].savingsFunded]).toStrictEqual([15, 5]);
 });
 
 test("supply payments appear in the paid breakdown with their receipt date", () => {
@@ -340,9 +329,11 @@ test("supply payments appear in the paid breakdown with their receipt date", () 
     ],
   });
 
-  assert.equal(rows[0].type, "SUPPLY");
-  assert.equal(rows[0].description, "Supplies received 2026-08-03");
-  assert.deepEqual([rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded], [40, 30, 10]);
+  expect(rows[0].type).toBe("SUPPLY");
+  expect(rows[0].description).toBe("Supplies received 2026-08-03");
+  expect([rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded]).toStrictEqual([
+    40, 30, 10,
+  ]);
 });
 
 test("paid breakdown totals reconcile revenue and savings to current remaining cash", () => {
@@ -387,16 +378,16 @@ test("paid breakdown totals reconcile revenue and savings to current remaining c
     unpaidRequired: 0,
   });
 
-  assert.deepEqual(totals, {
+  expect(totals).toStrictEqual({
     savingsUsed: 5.5,
     totalPaid: 455.5,
     currentRemaining: 50,
   });
-  assert.equal(totals.currentRemaining, summary.cashAvailableNow);
+  expect(totals.currentRemaining).toBe(summary.cashAvailableNow);
 });
 
 test("paid breakdown remaining cash stops at zero", () => {
-  assert.deepEqual(
+  expect(
     calculatePaidBreakdownTotals(10, [
       {
         id: "manual:1",
@@ -408,10 +399,9 @@ test("paid breakdown remaining cash stops at zero", () => {
         savingsFunded: 0,
       },
     ]),
-    {
-      savingsUsed: 0,
-      totalPaid: 15,
-      currentRemaining: 0,
-    },
-  );
+  ).toStrictEqual({
+    savingsUsed: 0,
+    totalPaid: 15,
+    currentRemaining: 0,
+  });
 });

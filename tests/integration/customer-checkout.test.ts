@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import {
   checkoutInput,
   client,
@@ -33,10 +33,10 @@ test("checkout and webhook replays persist one paid order, payment and kitchen t
   const input = checkoutInput(item.id, phone(), diningTable.id);
   const { checkout } = await json<Checkout>(await api(path, { body: input }), 201);
   const replay = await json<Checkout>(await api(path, { body: input }), 200);
-  assert.equal(replay.checkout.id, checkout.id);
-  assert.equal(checkout.status, "PENDING");
-  assert.equal((await other(`${path}/${checkout.id}`)).status, 404);
-  assert.equal(await db.order.count({ where: { customerId: customer.id } }), 0);
+  expect(replay.checkout.id).toBe(checkout.id);
+  expect(checkout.status).toBe("PENDING");
+  expect((await other(`${path}/${checkout.id}`)).status).toBe(404);
+  expect(await db.order.count({ where: { customerId: customer.id } })).toBe(0);
 
   const message = {
     phone: input.paymentPhone,
@@ -49,28 +49,29 @@ test("checkout and webhook replays persist one paid order, payment and kitchen t
     await sendReceipt(message),
     200,
   );
-  assert.equal(duplicate.receiptId, first.receiptId);
-  assert.equal(duplicate.duplicate, true);
+  expect(duplicate.receiptId).toBe(first.receiptId);
+  expect(duplicate.duplicate).toBe(true);
   const paid = await db.customerCheckout.findUniqueOrThrow({ where: { id: checkout.id } });
-  assert.equal(paid.status, "PAID");
-  assert.equal(paid.receiptId, first.receiptId);
-  assert.ok(paid.orderId);
+  expect(paid.status).toBe("PAID");
+  expect(paid.receiptId).toBe(first.receiptId);
+  expect(paid.orderId).toBeTruthy();
+  if (!paid.orderId) throw new Error("Expected paid.orderId to be present");
   const order = await db.order.findUniqueOrThrow({
     where: { id: paid.orderId },
     include: { payments: true, kitchenTicketState: true },
   });
-  assert.equal(order.tableId, diningTable.id);
-  assert.equal(order.waiterId, null);
-  assert.equal(order.cashierId, null);
-  assert.equal(order.payments.length, 1);
-  assert.equal(Number(order.payments[0].amountPaid), checkout.amount);
-  assert.ok(order.kitchenTicketState);
-  assert.equal(await db.order.count({ where: { customerId: customer.id } }), 1);
-  assert.equal(await db.stockEvent.count({ where: { productId: item.id } }), 1);
+  expect(order.tableId).toBe(diningTable.id);
+  expect(order.waiterId).toBe(null);
+  expect(order.cashierId).toBe(null);
+  expect(order.payments.length).toBe(1);
+  expect(Number(order.payments[0].amountPaid)).toBe(checkout.amount);
+  expect(order.kitchenTicketState).toBeTruthy();
+  expect(await db.order.count({ where: { customerId: customer.id } })).toBe(1);
+  expect(await db.stockEvent.count({ where: { productId: item.id } })).toBe(1);
   const board = await json<{ orders: Array<{ id: string }> }>(
     await staff("/api/staff/customer-fulfillment"),
   );
-  assert.ok(board.orders.some(({ id }) => id === order.id));
+  expect(board.orders.some(({ id }) => id === order.id)).toBeTruthy();
 });
 
 test("ambiguous receipts require review and only one competing assignment can win", async () => {
@@ -94,22 +95,20 @@ test("ambiguous receipts require review and only one competing assignment can wi
     201,
   );
   const candidates = { id: { in: [a.id, b.id] } };
-  assert.equal(
+  expect(
     await db.customerCheckout.count({ where: { ...candidates, status: "REVIEW", orderId: null } }),
-    2,
-  );
+  ).toBe(2);
   const assign = (id: string, reason: string) =>
     staff(`/api/cashier/customer-checkouts/${id}/assign`, { body: { receiptId, reason } });
-  assert.equal((await assign(a.id, "")).status, 409);
+  expect((await assign(a.id, "")).status).toBe(409);
   const results = await Promise.all(
     [a, b].map(({ id }) => assign(id, "Verified synthetic receipt")),
   );
-  assert.deepEqual(results.map(({ status }) => status).sort(), [200, 409]);
-  assert.equal(
+  expect(results.map(({ status }) => status).sort()).toStrictEqual([200, 409]);
+  expect(
     await db.customerCheckout.count({ where: { ...candidates, receiptId, status: "PAID" } }),
-    1,
-  );
-  assert.equal(await db.order.count({ where: { customerId: { in: [one.id, two.id] } } }), 1);
+  ).toBe(1);
+  expect(await db.order.count({ where: { customerId: { in: [one.id, two.id] } } })).toBe(1);
 });
 
 for (const kind of ["wrong amount", "expired", "outgoing"] as const) {
@@ -143,11 +142,11 @@ for (const kind of ["wrong amount", "expired", "outgoing"] as const) {
       const assignment = await staff(`/api/cashier/customer-checkouts/${checkout.id}/assign`, {
         body: { receiptId, reason: "Checked synthetic receipt" },
       });
-      assert.equal(assignment.status, 409);
+      expect(assignment.status).toBe(409);
     }
     const persisted = await db.customerCheckout.findUniqueOrThrow({ where: { id: checkout.id } });
-    assert.equal(persisted.orderId, null);
-    assert.equal(persisted.receiptId, null);
-    assert.notEqual(persisted.status, "PAID");
+    expect(persisted.orderId).toBe(null);
+    expect(persisted.receiptId).toBe(null);
+    expect(persisted.status).not.toBe("PAID");
   });
 }

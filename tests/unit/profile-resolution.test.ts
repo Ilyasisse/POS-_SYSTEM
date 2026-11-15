@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import { resolveAppProfile } from "../../src/lib/auth/profile-resolution";
 import { hasPermission, PERMISSIONS } from "../../src/lib/auth/permissions";
 
@@ -20,12 +20,13 @@ test("customer profile receives only customer permissions and no station", async
       findUnique: async ({ where }) => (where.id === customer.id ? customer : null),
     },
   });
-  assert.ok(profile);
-  assert.equal(profile.role, "CUSTOMER");
-  assert.equal(profile.station, null);
-  assert.equal(hasPermission(profile, PERMISSIONS.CUSTOMER_ORDER), true);
-  assert.equal(hasPermission(profile, PERMISSIONS.PAYMENT_TAKE), false);
-  assert.equal(hasPermission(profile, PERMISSIONS.ADMIN_ACCESS), false);
+  expect(profile).toBeTruthy();
+  if (!profile) throw new Error("Expected profile to be present");
+  expect(profile.role).toBe("CUSTOMER");
+  expect(profile.station).toBe(null);
+  expect(hasPermission(profile, PERMISSIONS.CUSTOMER_ORDER)).toBe(true);
+  expect(hasPermission(profile, PERMISSIONS.PAYMENT_TAKE)).toBe(false);
+  expect(hasPermission(profile, PERMISSIONS.ADMIN_ACCESS)).toBe(false);
 });
 
 test("inactive staff cannot fall back to an active customer profile", async () => {
@@ -41,24 +42,24 @@ test("inactive staff cannot fall back to an active customer profile", async () =
     staff: { findUnique: async () => staff },
     customer: {
       findUnique: async () => {
-        assert.fail("must not fall back");
+        throw new Error("must not fall back");
       },
     },
   });
-  assert.equal(profile, staff);
-  assert.equal(profile.isActive, false);
+  expect(profile).toBe(staff);
+  if (!profile) throw new Error("Expected staff profile");
+  expect(profile.isActive).toBe(false);
 });
 
 test("an unknown Auth ID does not resolve another profile", async () => {
-  assert.equal(
+  expect(
     await resolveAppProfile("unknown", {
       staff: { findUnique: async () => null },
       customer: {
         findUnique: async ({ where }) => (where.id === customer.id ? customer : null),
       },
     }),
-    null,
-  );
+  ).toBe(null);
 });
 
 test("customer deactivation is retained during profile resolution", async () => {
@@ -66,5 +67,5 @@ test("customer deactivation is retained during profile resolution", async () => 
     staff: { findUnique: async () => null },
     customer: { findUnique: async () => ({ ...customer, isActive: false }) },
   });
-  assert.equal(profile?.isActive, false);
+  expect(profile?.isActive).toBe(false);
 });

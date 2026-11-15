@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import {
   addSupplierInvoiceCalendarDays,
   advanceSupplierInvoiceRecurrenceDate,
@@ -9,55 +9,49 @@ import {
 
 test("validates flexible day, week, and month recurrence intervals", () => {
   const now = new Date("2026-08-09T08:00:00.000Z");
-  assert.deepEqual(
+  expect(
     validateSupplierInvoiceRecurrenceInput(
       { interval: "3", unit: "day", nextRunDate: "2026-08-12" },
       now,
     ),
-    {
-      interval: 3,
-      unit: "DAY",
-      nextRunDate: new Date("2026-08-12T00:00:00.000Z"),
-      anchorDay: null,
-    },
-  );
-  assert.equal(
+  ).toStrictEqual({
+    interval: 3,
+    unit: "DAY",
+    nextRunDate: new Date("2026-08-12T00:00:00.000Z"),
+    anchorDay: null,
+  });
+  expect(
     validateSupplierInvoiceRecurrenceInput(
       { interval: 2, unit: "MONTH", nextRunDate: "2026-08-31" },
       now,
     ).anchorDay,
-    31,
-  );
+  ).toBe(31);
 });
 
 test("rejects invalid intervals and past next dates in Nairobi", () => {
   const now = new Date("2026-08-08T22:30:00.000Z");
   for (const interval of [0, 366, 1.5, "abc"]) {
-    assert.throws(() =>
+    expect(() =>
       validateSupplierInvoiceRecurrenceInput(
         { interval, unit: "DAY", nextRunDate: "2026-08-10" },
         now,
       ),
-    );
+    ).toThrow();
   }
-  assert.throws(
-    () =>
-      validateSupplierInvoiceRecurrenceInput(
-        { interval: 1, unit: "WEEK", nextRunDate: "2026-08-08" },
-        now,
-      ),
-    /cannot be in the past/,
-  );
+  expect(() =>
+    validateSupplierInvoiceRecurrenceInput(
+      { interval: 1, unit: "WEEK", nextRunDate: "2026-08-08" },
+      now,
+    ),
+  ).toThrow(/cannot be in the past/);
 });
 
 test("advances day and week schedules by calendar dates", () => {
   const start = new Date("2026-08-09T00:00:00.000Z");
-  assert.equal(
-    advanceSupplierInvoiceRecurrenceDate(start, "DAY", 3, null).toISOString(),
+  expect(advanceSupplierInvoiceRecurrenceDate(start, "DAY", 3, null).toISOString()).toBe(
     "2026-08-12T00:00:00.000Z",
   );
-  assert.equal(
-    advanceSupplierInvoiceRecurrenceDate(start, "WEEK", 2, null).toISOString(),
+  expect(advanceSupplierInvoiceRecurrenceDate(start, "WEEK", 2, null).toISOString()).toBe(
     "2026-08-23T00:00:00.000Z",
   );
 });
@@ -65,30 +59,27 @@ test("advances day and week schedules by calendar dates", () => {
 test("monthly schedules clamp at month end while preserving the anchor day", () => {
   const january = new Date("2027-01-31T00:00:00.000Z");
   const february = advanceSupplierInvoiceRecurrenceDate(january, "MONTH", 1, 31);
-  assert.equal(february.toISOString(), "2027-02-28T00:00:00.000Z");
-  assert.equal(
-    advanceSupplierInvoiceRecurrenceDate(february, "MONTH", 1, 31).toISOString(),
+  expect(february.toISOString()).toBe("2027-02-28T00:00:00.000Z");
+  expect(advanceSupplierInvoiceRecurrenceDate(february, "MONTH", 1, 31).toISOString()).toBe(
     "2027-03-31T00:00:00.000Z",
   );
-  assert.equal(
+  expect(
     advanceSupplierInvoiceRecurrenceDate(
       new Date("2028-01-31T00:00:00.000Z"),
       "MONTH",
       1,
       31,
     ).toISOString(),
-    "2028-02-29T00:00:00.000Z",
-  );
+  ).toBe("2028-02-29T00:00:00.000Z");
 });
 
 test("preserves the invoice-to-due-date offset", () => {
   const invoiceDate = new Date("2026-08-09T00:00:00.000Z");
   const dueDate = new Date("2026-08-14T00:00:00.000Z");
   const offset = supplierInvoiceDueOffsetDays(invoiceDate, dueDate);
-  assert.equal(offset, 5);
-  assert.equal(
+  expect(offset).toBe(5);
+  expect(
     addSupplierInvoiceCalendarDays(new Date("2026-09-01T00:00:00.000Z"), offset).toISOString(),
-    "2026-09-06T00:00:00.000Z",
-  );
-  assert.throws(() => supplierInvoiceDueOffsetDays(dueDate, invoiceDate), /cannot be before/);
+  ).toBe("2026-09-06T00:00:00.000Z");
+  expect(() => supplierInvoiceDueOffsetDays(dueDate, invoiceDate)).toThrow(/cannot be before/);
 });

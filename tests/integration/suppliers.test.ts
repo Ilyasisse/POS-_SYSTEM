@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import {
   completePurchaseOrderAndCreateInvoiceDraft,
   finalizeSupplierInvoice,
@@ -36,12 +36,11 @@ test("purchase order completion, invoice stock receipt and payment reversal reco
     },
   });
   const { invoiceId } = await completePurchaseOrderAndCreateInvoiceDraft(purchase.id, admin.id);
-  assert.equal(
-    (await completePurchaseOrderAndCreateInvoiceDraft(purchase.id, admin.id)).invoiceId,
+  expect((await completePurchaseOrderAndCreateInvoiceDraft(purchase.id, admin.id)).invoiceId).toBe(
     invoiceId,
   );
-  assert.equal(await db.supplierInvoice.count({ where: { purchaseOrderId: purchase.id } }), 1);
-  assert.equal(await db.stockEvent.count({ where: { productId: item.id } }), 0);
+  expect(await db.supplierInvoice.count({ where: { purchaseOrderId: purchase.id } })).toBe(1);
+  expect(await db.stockEvent.count({ where: { productId: item.id } })).toBe(0);
 
   const draft = {
     invoiceDate: today,
@@ -58,11 +57,10 @@ test("purchase order completion, invoice stock receipt and payment reversal reco
     ],
   };
   await finalizeSupplierInvoice(invoiceId, admin.id, draft);
-  await assert.rejects(finalizeSupplierInvoice(invoiceId, admin.id, draft));
+  await expect(finalizeSupplierInvoice(invoiceId, admin.id, draft)).rejects.toThrow();
   const bill = await db.supplierBill.findUniqueOrThrow({ where: { invoiceId } });
-  assert.equal(await db.stockEvent.count({ where: { productId: item.id, type: "RECEIPT" } }), 1);
-  assert.equal(
-    Number((await db.product.findUniqueOrThrow({ where: { id: item.id } })).stockQty),
+  expect(await db.stockEvent.count({ where: { productId: item.id, type: "RECEIPT" } })).toBe(1);
+  expect(Number((await db.product.findUniqueOrThrow({ where: { id: item.id } })).stockQty)).toBe(
     23,
   );
 
@@ -72,16 +70,14 @@ test("purchase order completion, invoice stock receipt and payment reversal reco
     amount: 5,
     preferredBillId: bill.id,
   });
-  assert.equal(
+  expect(
     Number((await db.supplierBill.findUniqueOrThrow({ where: { id: bill.id } })).paidAmount),
-    5,
-  );
+  ).toBe(5);
   const payment = await db.supplierPayment.findFirstOrThrow({ where: { supplierId: supplier.id } });
   await revertSupplierPayment(payment.id, { canManageDailyCash: true });
-  assert.equal(
+  expect(
     Number((await db.supplierBill.findUniqueOrThrow({ where: { id: bill.id } })).paidAmount),
-    0,
-  );
+  ).toBe(0);
 });
 
 test("closing a scheduled request freezes employee quantities and creates one purchase order", async () => {
@@ -92,9 +88,8 @@ test("closing a scheduled request freezes employee quantities and creates one pu
   await json(await api(path, { body: response }), 200);
   const deadline = new Date(Date.now() - 5000);
   await db.supplierOrderRun.update({ where: { id: run.id }, data: { supplierSendAt: deadline } });
-  assert.equal((await api(path, { body: { noOrder: true } })).status, 400);
-  assert.equal(
-    await db.supplierOrderResponseItem.count({ where: { recipientId: recipient.id } }),
+  expect((await api(path, { body: { noOrder: true } })).status).toBe(400);
+  expect(await db.supplierOrderResponseItem.count({ where: { recipientId: recipient.id } })).toBe(
     1,
   );
 
@@ -115,8 +110,8 @@ test("closing a scheduled request freezes employee quantities and creates one pu
   try {
     const first = await processScheduledSupplierOrders();
     const replay = await processScheduledSupplierOrders();
-    assert.equal(first.finalized.created, 1);
-    assert.equal(replay.finalized.created, 0);
+    expect(first.finalized.created).toBe(1);
+    expect(replay.finalized.created).toBe(0);
   } finally {
     if (previous === undefined) delete process.env.TWILIO_WHATSAPP_ENABLED;
     else process.env.TWILIO_WHATSAPP_ENABLED = previous;
@@ -125,6 +120,6 @@ test("closing a scheduled request freezes employee quantities and creates one pu
     where: { supplierId: supplier.id },
     include: { items: true },
   });
-  assert.equal(orders.length, 1);
-  assert.equal(Number(orders[0].items[0].quantity), 2.5);
+  expect(orders.length).toBe(1);
+  expect(Number(orders[0].items[0].quantity)).toBe(2.5);
 });

@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { afterAll, test } from "@jest/globals";
+import { expect, afterAll, test } from "@jest/globals";
+
 import { getDailyCash } from "../../src/lib/daily-cash/service";
 import {
   initializeWaiterBalance,
@@ -36,15 +36,15 @@ test("a corrected waiter settlement rolls forward and Daily Cash uses the prior 
     db.shift.findUniqueOrThrow({
       where: { userId_businessDate: { userId: waiter.id, businessDate: new Date("2026-10-04") } },
     });
-  assert.equal(Number((await secondDay()).openingAmount), -6);
+  expect(Number((await secondDay()).openingAmount)).toBe(-6);
   await save("2026-10-03", 26);
-  assert.equal(Number((await secondDay()).openingAmount), -4);
+  expect(Number((await secondDay()).openingAmount)).toBe(-4);
   await db.dailySalaryRate.create({
     data: { effectiveBusinessDate: new Date("2026-10-05"), amount: 5, createdByUserId: admin.id },
   });
   const daily = await getDailyCash("2026-10-05", now);
-  assert.equal(daily?.waiterBalanceDateKey, "2026-10-04");
-  assert.equal(daily?.endDayCash, 28);
+  expect(daily?.waiterBalanceDateKey).toBe("2026-10-04");
+  expect(daily?.endDayCash).toBe(28);
 });
 
 test("daily sales, CSV and audit agree across the Nairobi business-day boundary", async () => {
@@ -115,15 +115,15 @@ test("daily sales, CSV and audit agree across the Nairobi business-day boundary"
   const report = await json<{ summary: { grossSales: string; netSales: string } }>(
     await api(`/api/admin/reports/sales?${filters}`),
   );
-  assert.equal(report.summary.grossSales, "40.00");
-  assert.equal(report.summary.netSales, "35.00");
+  expect(report.summary.grossSales).toBe("40.00");
+  expect(report.summary.netSales).toBe("35.00");
   const exportPath = `/api/admin/reports/export?report=sales&format=csv&${filters}`;
   const csv = await api(exportPath, { method: "POST" });
-  assert.equal(csv.status, 200);
-  assert.match(await csv.text(), /35\.00/);
+  expect(csv.status).toBe(200);
+  expect(await csv.text()).toMatch(/35\.00/);
   const auditFilter = { actorUserId: admin.id, report: "sales", format: "csv" };
-  assert.equal(await db.reportExportAudit.count({ where: auditFilter }), 1);
+  expect(await db.reportExportAudit.count({ where: auditFilter })).toBe(1);
   const viewer = await client(await user("WAITER"));
-  assert.equal((await viewer(exportPath, { method: "POST" })).status, 403);
-  assert.equal(await db.reportExportAudit.count({ where: auditFilter }), 1);
+  expect((await viewer(exportPath, { method: "POST" })).status).toBe(403);
+  expect(await db.reportExportAudit.count({ where: auditFilter })).toBe(1);
 });

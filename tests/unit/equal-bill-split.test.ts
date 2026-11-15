@@ -1,29 +1,26 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { readFile } from "node:fs/promises";
-import { test } from "@jest/globals";
+
 import { MAX_EQUAL_SPLIT_PEOPLE, splitBillEqually } from "../../src/lib/payments/equal-bill-split";
 
 test("splits a bill evenly without losing a cent", () => {
   const shares = splitBillEqually(10, 3);
 
-  assert.deepEqual(shares, [3.34, 3.33, 3.33]);
-  assert.equal(
-    shares.reduce((sum, share) => sum + Math.round(share * 100), 0),
-    1_000,
-  );
+  expect(shares).toStrictEqual([3.34, 3.33, 3.33]);
+  expect(shares.reduce((sum, share) => sum + Math.round(share * 100), 0)).toBe(1_000);
 });
 
 test("supports exact divisions and the maximum payer count", () => {
-  assert.deepEqual(splitBillEqually(12, 4), [3, 3, 3, 3]);
-  assert.equal(splitBillEqually(20, MAX_EQUAL_SPLIT_PEOPLE).length, 20);
+  expect(splitBillEqually(12, 4)).toStrictEqual([3, 3, 3, 3]);
+  expect(splitBillEqually(20, MAX_EQUAL_SPLIT_PEOPLE).length).toBe(20);
 });
 
 test("rejects invalid bill amounts and payer counts", () => {
-  assert.throws(() => splitBillEqually(0, 2), /greater than zero/);
-  assert.throws(() => splitBillEqually(Number.NaN, 2), /greater than zero/);
-  assert.throws(() => splitBillEqually(10, 1), /between 2 and 20/);
-  assert.throws(() => splitBillEqually(10, 2.5), /between 2 and 20/);
-  assert.throws(() => splitBillEqually(0.02, 3), /at least \$0.01/);
+  expect(() => splitBillEqually(0, 2)).toThrow(/greater than zero/);
+  expect(() => splitBillEqually(Number.NaN, 2)).toThrow(/greater than zero/);
+  expect(() => splitBillEqually(10, 1)).toThrow(/between 2 and 20/);
+  expect(() => splitBillEqually(10, 2.5)).toThrow(/between 2 and 20/);
+  expect(() => splitBillEqually(0.02, 3)).toThrow(/at least \$0.01/);
 });
 
 test("cashier payment UI exposes equal bill splitting", async () => {
@@ -32,7 +29,7 @@ test("cashier payment UI exposes equal bill splitting", async () => {
     "utf8",
   );
 
-  assert.match(component, /splitBillEqually\(amountDue/);
-  assert.match(component, /Create equal shares/);
-  assert.match(component, /Number of people sharing the bill/);
+  expect(component).toMatch(/splitBillEqually\(amountDue/);
+  expect(component).toMatch(/Create equal shares/);
+  expect(component).toMatch(/Number of people sharing the bill/);
 });

@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import { preparePaymentRequestLines } from "../../src/lib/payments/payment-request-lines";
 
 test("keeps an independent payment method for every payer", () => {
@@ -13,13 +13,10 @@ test("keeps an independent payment method for every payer", () => {
     },
   ]);
 
-  assert.deepEqual(
-    lines.map((line) => [line.method, line.amountCents]),
-    [
-      ["GOLIS", 500],
-      ["MYCASH", 750],
-    ],
-  );
+  expect(lines.map((line) => [line.method, line.amountCents])).toStrictEqual([
+    ["GOLIS", 500],
+    ["MYCASH", 750],
+  ]);
 });
 
 test("supports the previous batch-level method as a fallback", () => {
@@ -31,46 +28,38 @@ test("supports the previous batch-level method as a fallback", () => {
     ],
     "Dahabshiil",
   );
-  assert.deepEqual(
-    lines.map((line) => line.method),
-    ["Dahabshiil", "Dahabshiil", "GOLIS"],
-  );
+  expect(lines.map((line) => line.method)).toStrictEqual(["Dahabshiil", "Dahabshiil", "GOLIS"]);
 });
 
 test("rejects an invalid explicit method even with a batch fallback", () => {
-  assert.throws(
-    () =>
-      preparePaymentRequestLines(
-        [
-          {
-            payerName: "Amina",
-            payerPhone: "090000001",
-            amount: 5,
-            method: "BOGUS",
-          },
-        ],
-        "GOLIS",
-      ),
-    /method, name, phone number, and amount/,
-  );
-});
-
-test("requires complete payer and payment details", () => {
-  assert.throws(
-    () => preparePaymentRequestLines([{ payerName: "Amina", payerPhone: "090000001", amount: 5 }]),
-    /method, name, phone number, and amount/,
-  );
-  assert.throws(() => preparePaymentRequestLines([]), /at least one payer/);
-  assert.throws(
-    () =>
-      preparePaymentRequestLines([
+  expect(() =>
+    preparePaymentRequestLines(
+      [
         {
           payerName: "Amina",
           payerPhone: "090000001",
-          amount: Number.NaN,
-          method: "GOLIS",
+          amount: 5,
+          method: "BOGUS",
         },
-      ]),
-    /method, name, phone number, and amount/,
-  );
+      ],
+      "GOLIS",
+    ),
+  ).toThrow(/method, name, phone number, and amount/);
+});
+
+test("requires complete payer and payment details", () => {
+  expect(() =>
+    preparePaymentRequestLines([{ payerName: "Amina", payerPhone: "090000001", amount: 5 }]),
+  ).toThrow(/method, name, phone number, and amount/);
+  expect(() => preparePaymentRequestLines([])).toThrow(/at least one payer/);
+  expect(() =>
+    preparePaymentRequestLines([
+      {
+        payerName: "Amina",
+        payerPhone: "090000001",
+        amount: Number.NaN,
+        method: "GOLIS",
+      },
+    ]),
+  ).toThrow(/method, name, phone number, and amount/);
 });

@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import { test } from "@jest/globals";
+import { expect, test } from "@jest/globals";
+
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
@@ -17,33 +17,28 @@ const valid = {
 };
 
 test("allows moving open service to an available table", () => {
-  assert.doesNotThrow(() => assertTableTransferAllowed(valid));
+  expect(() => assertTableTransferAllowed(valid)).not.toThrow();
 });
 
 test("rejects occupied destinations and stale source tables", () => {
-  assert.throws(
-    () => assertTableTransferAllowed({ ...valid, targetOpenOrderCount: 1 }),
+  expect(() => assertTableTransferAllowed({ ...valid, targetOpenOrderCount: 1 })).toThrow(
     /already occupied/,
   );
-  assert.throws(
-    () => assertTableTransferAllowed({ ...valid, sourceOpenOrderCount: 0 }),
+  expect(() => assertTableTransferAllowed({ ...valid, sourceOpenOrderCount: 0 })).toThrow(
     /no longer has an open order/,
   );
 });
 
 test("rejects inactive, missing, or identical tables", () => {
-  assert.throws(
-    () => assertTableTransferAllowed({ ...valid, targetExists: false }),
+  expect(() => assertTableTransferAllowed({ ...valid, targetExists: false })).toThrow(
     /must be active/,
   );
-  assert.throws(
-    () =>
-      assertTableTransferAllowed({
-        ...valid,
-        targetTableId: valid.sourceTableId,
-      }),
-    /different destination/,
-  );
+  expect(() =>
+    assertTableTransferAllowed({
+      ...valid,
+      targetTableId: valid.sourceTableId,
+    }),
+  ).toThrow(/different destination/);
 });
 
 function loadService(path: string, prisma: unknown) {
@@ -79,9 +74,8 @@ test("moving service locks active payer rows before orders and moves partial req
         table: { findMany: async () => [{ id: valid.sourceTableId }, { id: valid.targetTableId }] },
         order: {
           count: async ({ where }: { where: { tableId: string } }) => {
-            assert.match(locked[0], /FROM "Table".*ORDER BY "id" FOR UPDATE/);
-            assert.match(
-              locked[1],
+            expect(locked[0]).toMatch(/FROM "Table".*ORDER BY "id" FOR UPDATE/);
+            expect(locked[1]).toMatch(
               /FROM "PaymentRequest".*PARTIALLY_MATCHED.*ORDER BY "id" FOR UPDATE/,
             );
             return where.tableId === valid.sourceTableId ? 2 : 0;
@@ -109,7 +103,7 @@ test("moving service locks active payer rows before orders and moves partial req
     sourceTableId: valid.sourceTableId,
     targetTableId: valid.targetTableId,
   } as never);
-  assert.equal(payer.tableId, valid.targetTableId);
+  expect(payer.tableId).toBe(valid.targetTableId);
 });
 
 const batchInput = {
@@ -144,11 +138,10 @@ test("payer creation rechecks the balance after waiting for a table transfer", a
         },
       }),
   });
-  await assert.rejects(
-    service.createPaymentRequestBatch(batchInput as never),
+  await expect(service.createPaymentRequestBatch(batchInput as never)).rejects.toThrow(
     /no longer has an unpaid balance/,
   );
-  assert.equal(created, false);
+  expect(created).toBe(false);
 });
 
 test("payer retry returns a batch created while waiting for the table lock", async () => {
@@ -166,7 +159,7 @@ test("payer retry returns a batch created while waiting for the table lock", asy
         },
       }),
   });
-  assert.equal(await service.createPaymentRequestBatch(batchInput as never), existing);
+  expect(await service.createPaymentRequestBatch(batchInput as never)).toBe(existing);
 });
 
 test("locked batch creation persists each payer's selected provider", async () => {
@@ -198,11 +191,8 @@ test("locked batch creation persists each payer's selected provider", async () =
       { payerName: "Guest two", payerPhone: "456", amount: 6, method: "MYCASH" },
     ],
   } as never);
-  assert.deepEqual(
-    saved.map((row) => [row.method, row.expectedAmount.toFixed(2)]),
-    [
-      ["GOLIS", "4.00"],
-      ["MYCASH", "6.00"],
-    ],
-  );
+  expect(saved.map((row) => [row.method, row.expectedAmount.toFixed(2)])).toStrictEqual([
+    ["GOLIS", "4.00"],
+    ["MYCASH", "6.00"],
+  ]);
 });
