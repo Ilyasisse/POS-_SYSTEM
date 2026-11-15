@@ -10,12 +10,14 @@ import { isWhatsAppEnabled } from "./whatsapp";
 
 const prismaSchedulerLease: SchedulerLeaseOperations = {
   async tryAcquire({ key, ownerToken, leaseDurationMs }) {
-    key = (await getCafeteria()).id + ":" + key;
+    const cafeteriaId = (await getCafeteria()).id;
+    key = cafeteriaId + ":" + key;
     const leaseDurationSeconds = Math.ceil(leaseDurationMs / 1000);
     const rows = await prisma.$queryRaw<Array<{ ownerToken: string }>>(
       Prisma.sql`
         INSERT INTO "SchedulerLease" (
           "key",
+          "cafeteriaId",
           "ownerToken",
           "expiresAt",
           "createdAt",
@@ -23,6 +25,7 @@ const prismaSchedulerLease: SchedulerLeaseOperations = {
         )
         VALUES (
           ${key},
+          ${cafeteriaId},
           ${ownerToken},
           CURRENT_TIMESTAMP + (${leaseDurationSeconds} * INTERVAL '1 second'),
           CURRENT_TIMESTAMP,
