@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   clearProjectAuthCookies,
   getSupabaseAuthCookiePrefix,
@@ -24,10 +24,7 @@ function cookieStore(cookieNames: string[]) {
 
 test("derives the project-specific Supabase auth cookie prefix", () => {
   assert.equal(getSupabaseAuthCookiePrefix(SUPABASE_URL), AUTH_COOKIE_PREFIX);
-  assert.throws(
-    () => getSupabaseAuthCookiePrefix("not a url"),
-    /Supabase URL is invalid/,
-  );
+  assert.throws(() => getSupabaseAuthCookiePrefix("not a url"), /Supabase URL is invalid/);
 });
 
 test("recognizes only the current project's auth cookies and chunks", () => {
@@ -107,10 +104,7 @@ test("uses local scope and clears cookies after successful revocation", async ()
 });
 
 test("still clears the local session when remote revocation fails", async () => {
-  const { expired, store } = cookieStore([
-    `${AUTH_COOKIE_PREFIX}.0`,
-    "sidebar_state",
-  ]);
+  const { expired, store } = cookieStore([`${AUTH_COOKIE_PREFIX}.0`, "sidebar_state"]);
   const remoteError = new Error("Supabase is unavailable");
   const reportedErrors: unknown[] = [];
 

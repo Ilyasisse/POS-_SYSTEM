@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { validateModifierSelections } from "../../src/lib/orders/modifier-selection-validation";
 
 const option = (
@@ -92,9 +92,16 @@ test("blocks required groups that have no active choices", () => {
 });
 
 test("duplicate option IDs cannot satisfy a group's minimum", () => {
-  assert.throws(() => validateModifierSelections({
-    productName: "Coffee",
-    availableOptions: [option("small", { minSelect: 2, maxSelect: 2 }), option("large", { minSelect: 2, maxSelect: 2 })],
-    selectedModifierIds: ["small", "small"],
-  }), /requires at least 2 choices from Size/);
+  assert.throws(
+    () =>
+      validateModifierSelections({
+        productName: "Coffee",
+        availableOptions: [
+          option("small", { minSelect: 2, maxSelect: 2 }),
+          option("large", { minSelect: 2, maxSelect: 2 }),
+        ],
+        selectedModifierIds: ["small", "small"],
+      }),
+    /requires at least 2 choices from Size/,
+  );
 });

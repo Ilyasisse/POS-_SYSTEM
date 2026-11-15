@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import { client, db, json, product, unique } from "../workflow/fixtures";
 
-after(() => db.$disconnect());
+afterAll(() => db.$disconnect());
 
 test("catalog feeds enforce availability and keep active empty categories for staff", async () => {
   const [visible, paused, restored, archived, empty] = await Promise.all([

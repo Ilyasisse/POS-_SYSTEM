@@ -13,7 +13,7 @@ Both routes use the existing receipt access checks and stored sale amounts. Caf√
 
 ## Local verification
 
-Run the focused tests with `node --import tsx --test tests/unit/order-receipt.test.ts tests/unit/receipt-access.test.ts`.
+Run the focused tests with `npm test -- --runTestsByPath tests/unit/order-receipt.test.ts tests/unit/receipt-access.test.ts`.
 
 After `npm run build`, generate synthetic receipts with `node --import tsx scripts/generate-order-receipt-fixtures.ts`. This renders the actual components with the built CSS into ignored `.next/receipt-print-check/` files without connecting to the database.
 

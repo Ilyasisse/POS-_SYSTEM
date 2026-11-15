@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { validateSupplierInvoiceDraftInput } from "../../src/lib/suppliers/invoice-foundation";
 import { summarizeSupplierBillsDue } from "../../src/lib/suppliers/supplier-bills";
 import { supplierPurchaseDateKeyToDatabaseDate } from "../../src/lib/suppliers/purchase-orders";
@@ -41,10 +41,7 @@ test("accepts an installment schedule that exactly matches the invoice total", (
 
 test("rejects a schedule that does not equal the invoice total", () => {
   assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        draft([{ dueDate: "2026-07-28", amount: "59.99" }]),
-      ),
+    () => validateSupplierInvoiceDraftInput(draft([{ dueDate: "2026-07-28", amount: "59.99" }])),
     /Installments total/,
   );
 });

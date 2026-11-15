@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import {
-  isValidSupplierSlug,
-  normalizeSupplierSlug,
-} from "../../src/lib/suppliers/validation";
+import { test } from "@jest/globals";
+import { isValidSupplierSlug, normalizeSupplierSlug } from "../../src/lib/suppliers/validation";
 
 test("normalizes supplier identity fields", () => {
   assert.equal(normalizeSupplierSlug(" Fresh Beans Ltd. "), "fresh-beans-ltd");

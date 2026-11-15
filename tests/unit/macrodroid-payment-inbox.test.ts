@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { getPaymentReceiptBusinessDayRange } from "../../src/lib/cashier/cashier-business-day";
 import {
   expectedMacrodroidSender,
@@ -7,10 +7,7 @@ import {
   isExpectedMacrodroidSender,
   resolveMacrodroidSecret,
 } from "../../src/lib/payments/macrodroid-auth";
-import {
-  fingerprintSms,
-  parseSahalMessage,
-} from "../../src/lib/payments/macrodroid-sahal";
+import { fingerprintSms, parseSahalMessage } from "../../src/lib/payments/macrodroid-sahal";
 
 const outgoingOne =
   "[SAHAL] Tix:7325501161, $ 230.55 ayaad u dirtay AL XAMDULILAAH ROOTI IYO MACMACAANKA 7527830(252907527830) Tar 31/08/26 05:24:37, Haraagaagu waa $0.";
@@ -39,8 +36,7 @@ test("parses outgoing SAHAL with a long label and every attached number", () => 
       direction: "OUTGOING",
       status: "OUTGOING",
       amount: "230.55",
-      counterparty:
-        "AL XAMDULILAAH ROOTI IYO MACMACAANKA 7527830(252907527830)",
+      counterparty: "AL XAMDULILAAH ROOTI IYO MACMACAANKA 7527830(252907527830)",
       identifiers: ["7527830", "252907527830"],
       time: "2026-08-31T02:24:37.000Z",
       balance: "0.00",
@@ -72,11 +68,7 @@ test("parses incoming SAHAL as available and preserves all numbers", () => {
     parsed.counterpartyLabel,
     "KAWAANKA HILIBKA EE AANFAC 6488347 7791832(252905109687)",
   );
-  assert.deepEqual(parsed.counterpartyIdentifiers, [
-    "6488347",
-    "7791832",
-    "252905109687",
-  ]);
+  assert.deepEqual(parsed.counterpartyIdentifiers, ["6488347", "7791832", "252905109687"]);
   assert.equal(parsed.transactionAt.toISOString(), "2026-08-31T02:21:59.000Z");
   assert.equal(parsed.providerBalance, "235.55");
 });
@@ -95,10 +87,7 @@ test("fingerprints normalize whitespace but retain sender", () => {
     fingerprintSms("898", incoming),
     fingerprintSms("898", `  ${incoming.replaceAll(" ", "   ")}  `),
   );
-  assert.notEqual(
-    fingerprintSms("898", incoming),
-    fingerprintSms("899", incoming),
-  );
+  assert.notEqual(fingerprintSms("898", incoming), fingerprintSms("899", incoming));
 });
 
 test("MacroDroid secret prefers the dedicated value and falls back to the shared value", () => {
@@ -139,10 +128,7 @@ test("bearer authentication rejects absent and incorrect values", () => {
     ),
     false,
   );
-  assert.equal(
-    isMacrodroidAuthorized(new Request("https://example.test"), env),
-    false,
-  );
+  assert.equal(isMacrodroidAuthorized(new Request("https://example.test"), env), false);
   assert.equal(
     isMacrodroidAuthorized(
       new Request("https://example.test", {
@@ -158,22 +144,15 @@ test("sender defaults to 898 and can be configured", () => {
   assert.equal(expectedMacrodroidSender({}), "898");
   assert.equal(isExpectedMacrodroidSender(" 898 ", {}), true);
   assert.equal(isExpectedMacrodroidSender("A98", {}), false);
-  assert.equal(
-    isExpectedMacrodroidSender("A98", { MACRODROID_PAYMENT_SMS_SENDER: "a98" }),
-    true,
-  );
+  assert.equal(isExpectedMacrodroidSender("A98", { MACRODROID_PAYMENT_SMS_SENDER: "a98" }), true);
 });
 
 test("5:00 through 7:00 Nairobi belongs to the preceding receipt business day", () => {
-  const beforeSeven = getPaymentReceiptBusinessDayRange(
-    new Date("2026-08-31T03:30:00.000Z"),
-  );
+  const beforeSeven = getPaymentReceiptBusinessDayRange(new Date("2026-08-31T03:30:00.000Z"));
   assert.equal(beforeSeven.start.toISOString(), "2026-08-30T04:00:00.000Z");
   assert.equal(beforeSeven.end.toISOString(), "2026-08-31T04:00:00.000Z");
 
-  const atSeven = getPaymentReceiptBusinessDayRange(
-    new Date("2026-08-31T04:00:00.000Z"),
-  );
+  const atSeven = getPaymentReceiptBusinessDayRange(new Date("2026-08-31T04:00:00.000Z"));
   assert.equal(atSeven.start.toISOString(), "2026-08-31T04:00:00.000Z");
   assert.equal(atSeven.end.toISOString(), "2026-09-01T04:00:00.000Z");
 });

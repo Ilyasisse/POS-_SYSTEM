@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   calculateSupplyDayTotal,
   calculateSupplyLineTotal,
@@ -18,10 +18,7 @@ function purchaseFormData(values: Record<string, string>) {
 }
 
 test("uses the Nairobi calendar date for new Supply entries", () => {
-  assert.equal(
-    getTodaySupplyDateKey(new Date("2026-07-12T22:30:00.000Z")),
-    "2026-07-13",
-  );
+  assert.equal(getTodaySupplyDateKey(new Date("2026-07-12T22:30:00.000Z")), "2026-07-13");
 });
 
 test("accepts only real calendar dates and stores them at UTC midnight", () => {
@@ -73,10 +70,7 @@ test("validates decimal quantities and unit prices", () => {
 
 test("accepts up to four decimal places for Supply unit prices", () => {
   for (const value of ["0", "0.07", "0.074", "0.0742"]) {
-    assert.equal(
-      parseSupplyUnitPrice(value)?.toString(),
-      String(Number(value)),
-    );
+    assert.equal(parseSupplyUnitPrice(value)?.toString(), String(Number(value)));
   }
 
   for (const value of ["-0.0742", "0.07421", ".0742", "1.", "not-a-price"]) {

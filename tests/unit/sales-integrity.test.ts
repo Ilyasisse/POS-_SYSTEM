@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { Prisma } from "@prisma/client";
 import { PERMISSIONS } from "../../src/lib/auth/permissions";
 import {
@@ -10,20 +10,9 @@ import {
 } from "../../src/lib/sales/adjustment-rules";
 
 test("requires financial approval for refunds", () => {
-  assert.equal(
-    requiredAdjustmentPermission("REFUND"),
-    PERMISSIONS.ADJUSTMENT_FINANCIAL_APPROVE,
-  );
-  for (const type of [
-    "DISCOUNT",
-    "VOID",
-    "COMPLIMENTARY",
-    "STAFF_MEAL",
-  ] as const) {
-    assert.equal(
-      requiredAdjustmentPermission(type),
-      PERMISSIONS.ADJUSTMENT_OPERATIONAL_APPROVE,
-    );
+  assert.equal(requiredAdjustmentPermission("REFUND"), PERMISSIONS.ADJUSTMENT_FINANCIAL_APPROVE);
+  for (const type of ["DISCOUNT", "VOID", "COMPLIMENTARY", "STAFF_MEAL"] as const) {
+    assert.equal(requiredAdjustmentPermission(type), PERMISSIONS.ADJUSTMENT_OPERATIONAL_APPROVE);
   }
 });
 

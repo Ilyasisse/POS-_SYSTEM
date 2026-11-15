@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import {
   completePurchaseOrderAndCreateInvoiceDraft,
   finalizeSupplierInvoice,
@@ -10,7 +10,7 @@ import { processScheduledSupplierOrders } from "../../src/lib/supplier-orders/se
 import { client, db, json } from "../workflow/fixtures";
 import { supplierCatalog, supplierRequest } from "../workflow/supplier-fixture";
 
-after(async () => {
+afterAll(async () => {
   await Promise.all([db.$disconnect(), prisma.$disconnect()]);
 });
 

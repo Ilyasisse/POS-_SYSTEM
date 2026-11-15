@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   buildKitchenPrintHref,
   filterPrintableKitchenTicket,
@@ -103,10 +103,7 @@ test("historical printing retains station and barista ownership restrictions", (
     baristaTicket?.items.map((item) => item.id),
     ["coffee"],
   );
-  assert.equal(
-    filterPrintableKitchenTicket(completedTicket, { role: "COOK" }),
-    null,
-  );
+  assert.equal(filterPrintableKitchenTicket(completedTicket, { role: "COOK" }), null);
   assert.equal(
     filterPrintableKitchenTicket(completedTicket, {
       role: "BARISTA",

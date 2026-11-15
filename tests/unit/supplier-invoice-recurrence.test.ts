@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   addSupplierInvoiceCalendarDays,
   advanceSupplierInvoiceRecurrenceDate,
@@ -64,20 +64,10 @@ test("advances day and week schedules by calendar dates", () => {
 
 test("monthly schedules clamp at month end while preserving the anchor day", () => {
   const january = new Date("2027-01-31T00:00:00.000Z");
-  const february = advanceSupplierInvoiceRecurrenceDate(
-    january,
-    "MONTH",
-    1,
-    31,
-  );
+  const february = advanceSupplierInvoiceRecurrenceDate(january, "MONTH", 1, 31);
   assert.equal(february.toISOString(), "2027-02-28T00:00:00.000Z");
   assert.equal(
-    advanceSupplierInvoiceRecurrenceDate(
-      february,
-      "MONTH",
-      1,
-      31,
-    ).toISOString(),
+    advanceSupplierInvoiceRecurrenceDate(february, "MONTH", 1, 31).toISOString(),
     "2027-03-31T00:00:00.000Z",
   );
   assert.equal(
@@ -97,14 +87,8 @@ test("preserves the invoice-to-due-date offset", () => {
   const offset = supplierInvoiceDueOffsetDays(invoiceDate, dueDate);
   assert.equal(offset, 5);
   assert.equal(
-    addSupplierInvoiceCalendarDays(
-      new Date("2026-09-01T00:00:00.000Z"),
-      offset,
-    ).toISOString(),
+    addSupplierInvoiceCalendarDays(new Date("2026-09-01T00:00:00.000Z"), offset).toISOString(),
     "2026-09-06T00:00:00.000Z",
   );
-  assert.throws(
-    () => supplierInvoiceDueOffsetDays(dueDate, invoiceDate),
-    /cannot be before/,
-  );
+  assert.throws(() => supplierInvoiceDueOffsetDays(dueDate, invoiceDate), /cannot be before/);
 });

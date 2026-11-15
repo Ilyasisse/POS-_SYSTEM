@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { PGlite } from "@electric-sql/pglite";
 
 const migration = await readFile(
@@ -63,41 +63,27 @@ test("migration preserves profiles, personal orders and shared actor history", a
   const db = await legacyDatabase();
   try {
     await db.exec(migration);
-    assert.equal(
-      (await db.query(`SELECT to_regclass('"User"') AS name`)).rows[0].name,
-      null,
-    );
+    assert.equal((await db.query(`SELECT to_regclass('"User"') AS name`)).rows[0].name, null);
     assert.deepEqual(
-      (await db.query('SELECT "id" FROM "Staff" ORDER BY "id"')).rows.map(
-        (r) => r.id,
-      ),
+      (await db.query('SELECT "id" FROM "Staff" ORDER BY "id"')).rows.map((r) => r.id),
       ["staff", "supplier"],
     );
     assert.deepEqual(
-      (await db.query('SELECT "id" FROM "Customer" ORDER BY "id"')).rows.map(
-        (r) => r.id,
-      ),
+      (await db.query('SELECT "id" FROM "Customer" ORDER BY "id"')).rows.map((r) => r.id),
       ["customer", "inactive", "staff"],
     );
     assert.equal(
-      (
-        await db.query('SELECT "isActive" FROM "Customer" WHERE "id" = $1', [
-          "inactive",
-        ])
-      ).rows[0].isActive,
+      (await db.query('SELECT "isActive" FROM "Customer" WHERE "id" = $1', ["inactive"])).rows[0]
+        .isActive,
       false,
     );
-    assert.deepEqual(
-      (await db.query('SELECT * FROM "Order" ORDER BY "id"')).rows,
-      [
-        { id: "order", customerId: "customer", cashierId: "staff" },
-        { id: "personal", customerId: "staff", cashierId: "staff" },
-      ],
-    );
+    assert.deepEqual((await db.query('SELECT * FROM "Order" ORDER BY "id"')).rows, [
+      { id: "order", customerId: "customer", cashierId: "staff" },
+      { id: "personal", customerId: "staff", cashierId: "staff" },
+    ]);
     for (const table of ["AuditLog", "StockEvent", "KitchenTransitionEvent"]) {
       assert.equal(
-        (await db.query(`SELECT "actorCustomerId" FROM "${table}"`)).rows[0]
-          .actorCustomerId,
+        (await db.query(`SELECT "actorCustomerId" FROM "${table}"`)).rows[0].actorCustomerId,
         "customer",
       );
     }
@@ -110,35 +96,21 @@ test("migration preserves profiles, personal orders and shared actor history", a
       /check constraint/,
     );
     for (const table of ["StockEvent", "KitchenTransitionEvent"]) {
-      await assert.rejects(
-        db.exec(`UPDATE "${table}" SET "actorCustomerId" = NULL`),
-        /immutable/,
-      );
+      await assert.rejects(db.exec(`UPDATE "${table}" SET "actorCustomerId" = NULL`), /immutable/);
     }
     await db.exec("SET ROLE authenticated");
     await db.exec("SET test.auth_id = 'staff'");
     assert.equal(
-      (
-        await db.query(
-          "SELECT public.can_receive_kitchen_realtime() AS allowed",
-        )
-      ).rows[0].allowed,
+      (await db.query("SELECT public.can_receive_kitchen_realtime() AS allowed")).rows[0].allowed,
       true,
     );
     await db.exec("SET test.auth_id = 'customer'");
     assert.equal(
-      (
-        await db.query(
-          "SELECT public.can_receive_kitchen_realtime() AS allowed",
-        )
-      ).rows[0].allowed,
+      (await db.query("SELECT public.can_receive_kitchen_realtime() AS allowed")).rows[0].allowed,
       false,
     );
     for (const table of ["Staff", "Customer"]) {
-      await assert.rejects(
-        db.query(`SELECT * FROM "${table}"`),
-        /permission denied/,
-      );
+      await assert.rejects(db.query(`SELECT * FROM "${table}"`), /permission denied/);
     }
     await db.exec("RESET ROLE");
   } finally {
@@ -149,30 +121,20 @@ test("migration preserves profiles, personal orders and shared actor history", a
 test("unexpected customer staff history rolls back instead of deleting or nulling it", async () => {
   const db = await legacyDatabase();
   try {
-    await db.exec(
-      `UPDATE "Order" SET "cashierId" = 'customer' WHERE "id" = 'order'`,
-    );
+    await db.exec(`UPDATE "Order" SET "cashierId" = 'customer' WHERE "id" = 'order'`);
     await assert.rejects(db.exec(migration), /Customer has staff-only history/);
     await db.exec("ROLLBACK");
     assert.equal(
-      (
-        await db.query('SELECT "role" FROM "User" WHERE "id" = $1', [
-          "customer",
-        ])
-      ).rows[0].role,
+      (await db.query('SELECT "role" FROM "User" WHERE "id" = $1', ["customer"])).rows[0].role,
       "CUSTOMER",
     );
     assert.equal(
-      (
-        await db.query('SELECT "cashierId" FROM "Order" WHERE "id" = $1', [
-          "order",
-        ])
-      ).rows[0].cashierId,
+      (await db.query('SELECT "cashierId" FROM "Order" WHERE "id" = $1', ["order"])).rows[0]
+        .cashierId,
       "customer",
     );
     assert.equal(
-      (await db.query(`SELECT to_regclass('"Staff"') AS table_name`)).rows[0]
-        .table_name,
+      (await db.query(`SELECT to_regclass('"Staff"') AS table_name`)).rows[0].table_name,
       null,
     );
   } finally {

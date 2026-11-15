@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { preparePaymentRequestLines } from "../../src/lib/payments/payment-request-lines";
 
 test("keeps an independent payment method for every payer", () => {
@@ -57,10 +57,7 @@ test("rejects an invalid explicit method even with a batch fallback", () => {
 
 test("requires complete payer and payment details", () => {
   assert.throws(
-    () =>
-      preparePaymentRequestLines([
-        { payerName: "Amina", payerPhone: "090000001", amount: 5 },
-      ]),
+    () => preparePaymentRequestLines([{ payerName: "Amina", payerPhone: "090000001", amount: 5 }]),
     /method, name, phone number, and amount/,
   );
   assert.throws(() => preparePaymentRequestLines([]), /at least one payer/);

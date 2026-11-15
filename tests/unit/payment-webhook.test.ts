@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   normalizeMycashGolisWebhookPayload,
   processMycashGolisWebhook,
@@ -38,9 +38,7 @@ function payload(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function store(
-  overrides: Partial<PaymentWebhookStore> = {},
-): PaymentWebhookStore & {
+function store(overrides: Partial<PaymentWebhookStore> = {}): PaymentWebhookStore & {
   markedPaid: Array<{
     method: string;
     reference: string;
@@ -90,14 +88,8 @@ test("reads required webhook config and validates webhook signatures", () => {
   const signature = signBody(rawBody, "secret");
 
   assert.equal(verifyPaymentWebhookSignature(rawBody, null, "secret"), false);
-  assert.equal(
-    verifyPaymentWebhookSignature(rawBody, "sha256=wrong", "secret"),
-    false,
-  );
-  assert.equal(
-    verifyPaymentWebhookSignature(rawBody, `sha256=${signature}`, "secret"),
-    true,
-  );
+  assert.equal(verifyPaymentWebhookSignature(rawBody, "sha256=wrong", "secret"), false);
+  assert.equal(verifyPaymentWebhookSignature(rawBody, `sha256=${signature}`, "secret"), true);
   assert.equal(
     verifyPaymentWebhookSignature(
       JSON.stringify(payload({ amount: 1 })),
@@ -106,10 +98,7 @@ test("reads required webhook config and validates webhook signatures", () => {
     ),
     false,
   );
-  assert.equal(
-    readPaymentWebhookConfig({ PAYMENT_WEBHOOK_CASHIER_ID: "cashier-1" }).ok,
-    false,
-  );
+  assert.equal(readPaymentWebhookConfig({ PAYMENT_WEBHOOK_CASHIER_ID: "cashier-1" }).ok, false);
 });
 
 test("normalizes generic MYCASH/GOLIS payloads", () => {
@@ -135,28 +124,14 @@ test("normalizes generic MYCASH/GOLIS payloads", () => {
 
 test("rejects invalid webhook payloads", () => {
   assert.equal(normalizeMycashGolisWebhookPayload(null).ok, false);
+  assert.equal(normalizeMycashGolisWebhookPayload(payload({ provider: "CARD" })).ok, false);
+  assert.equal(normalizeMycashGolisWebhookPayload(payload({ reference: "" })).ok, false);
   assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ provider: "CARD" })).ok,
+    normalizeMycashGolisWebhookPayload(payload({ orderId: "", orderNumber: "" })).ok,
     false,
   );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ reference: "" })).ok,
-    false,
-  );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(
-      payload({ orderId: "", orderNumber: "" }),
-    ).ok,
-    false,
-  );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ amount: 0 })).ok,
-    false,
-  );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ paidAt: "not-a-date" })).ok,
-    false,
-  );
+  assert.equal(normalizeMycashGolisWebhookPayload(payload({ amount: 0 })).ok, false);
+  assert.equal(normalizeMycashGolisWebhookPayload(payload({ paidAt: "not-a-date" })).ok, false);
 });
 
 test("successful webhook marks an open order paid", async () => {
@@ -236,13 +211,10 @@ test("already-paid order with a new reference returns a conflict", async () => {
     }),
   });
 
-  const result = await processMycashGolisWebhook(
-    payload({ reference: "new-reference" }),
-    {
-      cashierId: "cashier-1",
-      store: fakeStore,
-    },
-  );
+  const result = await processMycashGolisWebhook(payload({ reference: "new-reference" }), {
+    cashierId: "cashier-1",
+    store: fakeStore,
+  });
 
   assert.equal(result.status, 409);
   assert.equal(result.body.error, "Order is not open for payment.");
@@ -251,13 +223,10 @@ test("already-paid order with a new reference returns a conflict", async () => {
 
 test("failed provider status is ignored", async () => {
   const fakeStore = store();
-  const result = await processMycashGolisWebhook(
-    payload({ status: "FAILED" }),
-    {
-      cashierId: "cashier-1",
-      store: fakeStore,
-    },
-  );
+  const result = await processMycashGolisWebhook(payload({ status: "FAILED" }), {
+    cashierId: "cashier-1",
+    store: fakeStore,
+  });
 
   assert.equal(result.status, 200);
   assert.equal(result.body.ignored, true);

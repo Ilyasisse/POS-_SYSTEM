@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import type { CartLine, Product, StaffSummary } from "@/lib/types";
 import { customerReturnPath } from "@/lib/auth/customer-return-path";
 import {
@@ -104,10 +104,7 @@ test("draft restores configured items and customer fields", () => {
 test("draft flags changed prices and drops unavailable choices", () => {
   storage.clear();
   saveCustomerOrderDraft(cart, "Alex", "", "");
-  const repriced = restoreCustomerOrderDraft(
-    [{ ...product, price: 7 }],
-    baristas,
-  );
+  const repriced = restoreCustomerOrderDraft([{ ...product, price: 7 }], baristas);
   assert.ok(repriced);
   assert.equal(repriced.cart[0].finalPrice, 8);
   assert.equal(repriced.repriced, 1);
@@ -117,10 +114,7 @@ test("draft flags changed prices and drops unavailable choices", () => {
   assert.equal(missingBarista.cart.length, 0);
   assert.equal(missingBarista.skipped, 1);
 
-  const missingModifier = restoreCustomerOrderDraft(
-    [{ ...product, modifierGroups: [] }],
-    baristas,
-  );
+  const missingModifier = restoreCustomerOrderDraft([{ ...product, modifierGroups: [] }], baristas);
   assert.ok(missingModifier);
   assert.equal(missingModifier.skipped, 1);
   clearCustomerOrderDraft();
@@ -136,9 +130,6 @@ test("dine-in selection survives OAuth navigation and is cleared with the cart",
   });
   clearCustomerOrderDraft();
   assert.equal(restoreCustomerFulfillment(), null);
-  storage.set(
-    "customer-fulfillment-v1",
-    '{"orderType":"DELIVERY","tableId":"table-one"}',
-  );
+  storage.set("customer-fulfillment-v1", '{"orderType":"DELIVERY","tableId":"table-one"}');
   assert.equal(restoreCustomerFulfillment(), null);
 });

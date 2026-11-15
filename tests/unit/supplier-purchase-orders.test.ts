@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   calculateSupplierPurchaseOrderLineTotal,
   calculateSupplierPurchaseOrderTotal,
@@ -37,26 +37,11 @@ test("requires purchase-order delivery dates to be today or later in Nairobi", (
 
 test("classifies supplier bill due dates using Nairobi business dates", () => {
   const now = new Date("2026-07-22T22:30:00.000Z");
-  assert.equal(
-    getSupplierBillDueCutoffDate(now).toISOString(),
-    "2026-07-24T00:00:00.000Z",
-  );
-  assert.equal(
-    getSupplierBillDueState(new Date("2026-07-22T00:00:00.000Z"), now),
-    "overdue",
-  );
-  assert.equal(
-    getSupplierBillDueState(new Date("2026-07-23T00:00:00.000Z"), now),
-    "today",
-  );
-  assert.equal(
-    getSupplierBillDueState(new Date("2026-07-24T00:00:00.000Z"), now),
-    "tomorrow",
-  );
-  assert.equal(
-    getSupplierBillDueState(new Date("2026-07-25T00:00:00.000Z"), now),
-    "future",
-  );
+  assert.equal(getSupplierBillDueCutoffDate(now).toISOString(), "2026-07-24T00:00:00.000Z");
+  assert.equal(getSupplierBillDueState(new Date("2026-07-22T00:00:00.000Z"), now), "overdue");
+  assert.equal(getSupplierBillDueState(new Date("2026-07-23T00:00:00.000Z"), now), "today");
+  assert.equal(getSupplierBillDueState(new Date("2026-07-24T00:00:00.000Z"), now), "tomorrow");
+  assert.equal(getSupplierBillDueState(new Date("2026-07-25T00:00:00.000Z"), now), "future");
 });
 
 test("groups unpaid supplier balances due through tomorrow", () => {
@@ -198,18 +183,13 @@ test("accepts positive quantities and rejects duplicate catalog items", () => {
     status: "empty_order",
   });
   assert.deepEqual(
-    validateSupplierPurchaseOrderRows([
-      { catalogItemId: "milk", quantity: "1000000000" },
-    ]),
+    validateSupplierPurchaseOrderRows([{ catalogItemId: "milk", quantity: "1000000000" }]),
     { ok: false, status: "invalid_row" },
   );
 });
 
 test("rounds each line before summing the purchase-order total", () => {
-  assert.equal(
-    calculateSupplierPurchaseOrderLineTotal("1.005", "1").toString(),
-    "1.01",
-  );
+  assert.equal(calculateSupplierPurchaseOrderLineTotal("1.005", "1").toString(), "1.01");
   assert.equal(
     calculateSupplierPurchaseOrderTotal([
       { quantity: "1.005", unitPrice: "1" },
@@ -227,20 +207,8 @@ test("compares the current catalog price with the latest ordered price", () => {
 });
 
 test("allows purchase orders to leave OPEN only once", () => {
-  assert.equal(
-    canTransitionSupplierPurchaseOrderStatus("OPEN", "COMPLETED"),
-    true,
-  );
-  assert.equal(
-    canTransitionSupplierPurchaseOrderStatus("OPEN", "CANCELLED"),
-    true,
-  );
-  assert.equal(
-    canTransitionSupplierPurchaseOrderStatus("COMPLETED", "CANCELLED"),
-    false,
-  );
-  assert.equal(
-    canTransitionSupplierPurchaseOrderStatus("CANCELLED", "COMPLETED"),
-    false,
-  );
+  assert.equal(canTransitionSupplierPurchaseOrderStatus("OPEN", "COMPLETED"), true);
+  assert.equal(canTransitionSupplierPurchaseOrderStatus("OPEN", "CANCELLED"), true);
+  assert.equal(canTransitionSupplierPurchaseOrderStatus("COMPLETED", "CANCELLED"), false);
+  assert.equal(canTransitionSupplierPurchaseOrderStatus("CANCELLED", "COMPLETED"), false);
 });

@@ -56,8 +56,8 @@ Supabase Auth credentials and sessions are not migrated or deleted.
 ## Verification
 
 ```sh
-node --test tests/integration/staff-customer-migration.test.mjs
-node --import tsx --test tests/unit/profile-resolution.test.ts tests/unit/permissions.test.ts
+npm test -- --runTestsByPath tests/integration/staff-customer-migration.test.mjs
+npm test -- --runTestsByPath tests/unit/profile-resolution.test.ts tests/unit/permissions.test.ts
 npx prisma validate
 npx prisma generate
 npx tsc --noEmit

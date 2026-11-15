@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { customerOrderStage } from "../../src/lib/customer/customer-order-progress";
 import { getCustomerOrderProgress } from "../../src/lib/customer/order-progress";
 
@@ -68,10 +68,7 @@ test("prioritizes terminal customer-visible states", () => {
 });
 
 test("shows queued and finishing states", () => {
-  assert.equal(
-    getCustomerOrderProgress({ orderStatus: "OPEN" }).label,
-    "Queued",
-  );
+  assert.equal(getCustomerOrderProgress({ orderStatus: "OPEN" }).label, "Queued");
   assert.equal(
     getCustomerOrderProgress({
       orderStatus: "OPEN",
@@ -104,10 +101,7 @@ test("customer progress follows persisted kitchen state through handover", () =>
     ["CLAIMED", "PICKED_UP"],
     ["DELIVERED", "DELIVERED"],
   ]) {
-    assert.equal(
-      customerOrderStage("PAID", { pickupStatus, stationStates: [] }),
-      expected,
-    );
+    assert.equal(customerOrderStage("PAID", { pickupStatus, stationStates: [] }), expected);
   }
 });
 test("reopened kitchen work returns to preparing until every station is ready", () => {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import {
   checkoutInput,
   client,
@@ -12,7 +12,7 @@ import {
   user,
 } from "../workflow/fixtures";
 
-after(() => db.$disconnect());
+afterAll(() => db.$disconnect());
 
 type Checkout = { checkout: { id: string; amount: number; status: string } };
 const path = "/api/customer/checkouts";

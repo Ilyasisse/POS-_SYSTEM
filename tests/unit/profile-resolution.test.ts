@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { resolveAppProfile } from "../../src/lib/auth/profile-resolution";
 import { hasPermission, PERMISSIONS } from "../../src/lib/auth/permissions";
 
@@ -17,8 +17,7 @@ test("customer profile receives only customer permissions and no station", async
   const profile = await resolveAppProfile(customer.id, {
     staff: { findUnique: async () => null },
     customer: {
-      findUnique: async ({ where }) =>
-        where.id === customer.id ? customer : null,
+      findUnique: async ({ where }) => (where.id === customer.id ? customer : null),
     },
   });
   assert.ok(profile);
@@ -55,8 +54,7 @@ test("an unknown Auth ID does not resolve another profile", async () => {
     await resolveAppProfile("unknown", {
       staff: { findUnique: async () => null },
       customer: {
-        findUnique: async ({ where }) =>
-          where.id === customer.id ? customer : null,
+        findUnique: async ({ where }) => (where.id === customer.id ? customer : null),
       },
     }),
     null,

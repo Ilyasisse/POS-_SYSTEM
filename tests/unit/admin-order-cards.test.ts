@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import {
-  groupOrderCards,
-  type OrderCardRound,
-} from "../../src/lib/admin/order-cards";
+import { test } from "@jest/globals";
+import { groupOrderCards, type OrderCardRound } from "../../src/lib/admin/order-cards";
 
 function round(overrides: Partial<OrderCardRound> = {}): OrderCardRound {
   return {
@@ -28,14 +25,20 @@ function round(overrides: Partial<OrderCardRound> = {}): OrderCardRound {
 test("combines every round of a check in round order with its shared number", () => {
   const older = round();
   const newer = round({
-    id: "round-2", orderNumber: 102, tableCheckRound: 2,
-    status: "OPEN", total: 42.5,
+    id: "round-2",
+    orderNumber: 102,
+    tableCheckRound: 2,
+    status: "OPEN",
+    total: 42.5,
     createdAt: new Date("2026-09-30T10:00:00Z"),
   });
   const [card] = groupOrderCards([newer, older]);
   assert.ok(card);
   assert.equal(card.orderNumber, 101);
-  assert.deepEqual(card.rounds.map((r) => r.id), ["round-1", "round-2"]);
+  assert.deepEqual(
+    card.rounds.map((r) => r.id),
+    ["round-1", "round-2"],
+  );
   assert.equal(card.latest.id, "round-2");
   assert.equal(card.total, 60.5);
   assert.equal(card.status, "OPEN");
@@ -52,11 +55,17 @@ test("keeps separate visits to the same table in separate cards", () => {
 
 test("standalone customer and legacy orders never merge by table or missing check", () => {
   const cards = groupOrderCards([
-    round({ id: "takeout", tableCheckId: null, tableCheckRound: null,
-      checkNumber: null, tableName: null, type: "TAKEOUT",
-      customerName: "Layla", waiterName: null }),
-    round({ id: "legacy", tableCheckId: null, tableCheckRound: null,
-      checkNumber: null }),
+    round({
+      id: "takeout",
+      tableCheckId: null,
+      tableCheckRound: null,
+      checkNumber: null,
+      tableName: null,
+      type: "TAKEOUT",
+      customerName: "Layla",
+      waiterName: null,
+    }),
+    round({ id: "legacy", tableCheckId: null, tableCheckRound: null, checkNumber: null }),
   ]);
   assert.equal(cards.length, 2);
   assert.equal(cards[0]?.latest.customerName, "Layla");

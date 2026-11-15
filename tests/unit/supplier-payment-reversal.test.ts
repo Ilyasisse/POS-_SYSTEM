@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   calculateSupplierPaymentState,
   getSupplierPaymentReversalError,
@@ -65,11 +65,7 @@ test("recalculates installments and restores the earliest outstanding due date",
   assert.equal(state.bill.status, "PARTIAL");
   assert.equal(state.bill.dueDate, firstDueDate);
   assert.deepEqual(
-    state.installments.map((row) => [
-      row.id,
-      row.paidAmount.toFixed(2),
-      row.status,
-    ]),
+    state.installments.map((row) => [row.id, row.paidAmount.toFixed(2), row.status]),
     [
       ["installment-1", "0.00", "UNPAID"],
       ["installment-2", "70.00", "PAID"],

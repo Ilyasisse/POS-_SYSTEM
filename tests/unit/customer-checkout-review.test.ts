@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import { test } from "@jest/globals";
 import vm from "node:vm";
 import ts from "typescript";
 import {
@@ -11,9 +11,7 @@ import {
 
 type CheckoutService = Pick<
   typeof import("../../src/lib/payments/customer-checkout"),
-  | "assignCustomerCheckoutReceipt"
-  | "retryCustomerCheckoutPayment"
-  | "autoMatchCustomerReceipt"
+  "assignCustomerCheckoutReceipt" | "retryCustomerCheckoutPayment" | "autoMatchCustomerReceipt"
 >;
 
 interface ReviewAudit {
@@ -28,10 +26,7 @@ interface UpdateData<T> {
 }
 
 interface ReviewRoute {
-  POST(
-    request: unknown,
-    context: { params: Promise<{ id: string }> },
-  ): Promise<unknown>;
+  POST(request: unknown, context: { params: Promise<{ id: string }> }): Promise<unknown>;
 }
 
 interface NotificationResponse {
@@ -68,14 +63,7 @@ function loadModule<ModuleExports extends object>(
   return exports as ModuleExports;
 }
 const statuses = Object.fromEntries(
-  [
-    "PENDING",
-    "REVIEW",
-    "EXPIRED",
-    "PAYMENT_RECEIVED",
-    "NEEDS_HELP",
-    "PAID",
-  ].map((s) => [s, s]),
+  ["PENDING", "REVIEW", "EXPIRED", "PAYMENT_RECEIVED", "NEEDS_HELP", "PAID"].map((s) => [s, s]),
 );
 
 function fixture(ambiguous = false, phone = "252905109687") {
@@ -106,8 +94,7 @@ function fixture(ambiguous = false, phone = "252905109687") {
   const prisma = {
     customerCheckout: {
       findUnique: async () => checkout,
-      findMany: async () =>
-        ambiguous ? [checkout, { ...checkout, id: "other" }] : [checkout],
+      findMany: async () => (ambiguous ? [checkout, { ...checkout, id: "other" }] : [checkout]),
       updateMany: async ({ data }: UpdateData<typeof checkout>) => {
         if (data.status === "REVIEW") {
           checkout.status = "REVIEW";
@@ -141,31 +128,26 @@ function fixture(ambiguous = false, phone = "252905109687") {
       return run(prisma);
     },
   };
-  const checkoutService = loadModule<CheckoutService>(
-    "src/lib/payments/customer-checkout.ts",
-    {
-      "@prisma/client": {
-        CustomerCheckoutStatus: statuses,
-        MobileMoneyReceiptStatus: {
-          AVAILABLE: "AVAILABLE",
-          ASSIGNED: "ASSIGNED",
-        },
-      },
-      "@/lib/prisma": { prisma },
-      "@/lib/payments/customer-ussd": {
-        chooseUniqueCustomerCheckout,
-        customerPaymentNameMatches,
-        normalizeSomaliPhone,
+  const checkoutService = loadModule<CheckoutService>("src/lib/payments/customer-checkout.ts", {
+    "@prisma/client": {
+      CustomerCheckoutStatus: statuses,
+      MobileMoneyReceiptStatus: {
+        AVAILABLE: "AVAILABLE",
+        ASSIGNED: "ASSIGNED",
       },
     },
-  );
+    "@/lib/prisma": { prisma },
+    "@/lib/payments/customer-ussd": {
+      chooseUniqueCustomerCheckout,
+      customerPaymentNameMatches,
+      normalizeSomaliPhone,
+    },
+  });
   return {
     checkout,
     receipt,
     assign: (
-      input: Partial<
-        Parameters<CheckoutService["assignCustomerCheckoutReceipt"]>[0]
-      > = {},
+      input: Partial<Parameters<CheckoutService["assignCustomerCheckoutReceipt"]>[0]> = {},
     ) =>
       checkoutService.assignCustomerCheckoutReceipt({
         checkoutId: checkout.id,
@@ -200,40 +182,37 @@ test("expired checkouts stay available for staff review without automatic assign
 });
 test("review endpoint accepts repeated review and invokes reconciliation", async () => {
   let retries = 0;
-  const route = loadModule<ReviewRoute>(
-    "src/app/api/customer/checkouts/[id]/review/route.ts",
-    {
-      "next/server": { NextResponse: { json: (body: unknown) => body } },
-      "@/lib/auth/api-authorization": {
-        authorizeApi: async () => ({
-          ok: true,
-          user: { id: "customer", role: "CUSTOMER" },
-        }),
-      },
-      "@/lib/auth/permissions": { PERMISSIONS: {} },
-      "@/lib/prisma": {
-        prisma: {
-          customerCheckout: {
-            updateMany: async ({
-              where,
-            }: {
-              where: { customerId: string; status: { in: string[] } };
-            }) => {
-              assert.equal(where.customerId, "customer");
-              assert.ok(where.status.in.includes("REVIEW"));
-              return { count: 1 };
-            },
+  const route = loadModule<ReviewRoute>("src/app/api/customer/checkouts/[id]/review/route.ts", {
+    "next/server": { NextResponse: { json: (body: unknown) => body } },
+    "@/lib/auth/api-authorization": {
+      authorizeApi: async () => ({
+        ok: true,
+        user: { id: "customer", role: "CUSTOMER" },
+      }),
+    },
+    "@/lib/auth/permissions": { PERMISSIONS: {} },
+    "@/lib/prisma": {
+      prisma: {
+        customerCheckout: {
+          updateMany: async ({
+            where,
+          }: {
+            where: { customerId: string; status: { in: string[] } };
+          }) => {
+            assert.equal(where.customerId, "customer");
+            assert.ok(where.status.in.includes("REVIEW"));
+            return { count: 1 };
           },
         },
       },
-      "@/lib/payments/customer-checkout": {
-        retryCustomerCheckoutPayment: async (id: string) => {
-          assert.equal(id, "checkout");
-          retries++;
-        },
+    },
+    "@/lib/payments/customer-checkout": {
+      retryCustomerCheckoutPayment: async (id: string) => {
+        assert.equal(id, "checkout");
+        retries++;
       },
     },
-  );
+  });
   await route.POST({}, { params: Promise.resolve({ id: "checkout" }) });
   assert.equal(retries, 1);
 });
@@ -329,10 +308,7 @@ test("name check is enforced again during assignment and manager exceptions are 
   assert.equal(f.audits[0].action, "customer_checkout.receipt_reviewed");
   assert.equal(f.audits[0].actorUserId, "manager");
   assert.equal(f.audits[0].newValue.allowExceptions, true);
-  assert.equal(
-    f.audits[0].reason,
-    "Verified original SMS and customer identity",
-  );
+  assert.equal(f.audits[0].reason, "Verified original SMS and customer identity");
 });
 
 test("wrong amount and late payments are queued for review without approval", async () => {
@@ -371,15 +347,8 @@ test("manager notification API reports unresolved payment counts and clears when
       "@/lib/prisma": {
         prisma: {
           customerCheckout: {
-            count: async ({
-              where,
-            }: {
-              where: { status: { in: string[] } };
-            }) => {
-              assert.deepEqual(Array.from(where.status.in), [
-                "REVIEW",
-                "NEEDS_HELP",
-              ]);
+            count: async ({ where }: { where: { status: { in: string[] } } }) => {
+              assert.deepEqual(Array.from(where.status.in), ["REVIEW", "NEEDS_HELP"]);
               return unresolved ? 2 : 0;
             },
           },
@@ -502,93 +471,70 @@ test("a valid automatic match creates and dispatches one paid order", async () =
       },
     },
     orderItem: {
-      createMany: async ({
-        data,
-      }: {
-        data: Array<{ productId: string; qty: number }>;
-      }) => {
+      createMany: async ({ data }: { data: Array<{ productId: string; qty: number }> }) => {
         assert.equal(data[0].productId, "coffee");
         assert.equal(data[0].qty, 2);
         events.push("items");
       },
     },
     payment: {
-      create: async ({
-        data,
-      }: {
-        data: { reference: string; amountPaid: number };
-      }) => {
+      create: async ({ data }: { data: { reference: string; amountPaid: number } }) => {
         assert.equal(data.reference, "unique-ref");
         assert.equal(data.amountPaid, 26);
         events.push("payment");
       },
     },
-    $transaction: async (
-      run: (tx: unknown) => Promise<unknown>,
-    ): Promise<unknown> => run(db),
+    $transaction: async (run: (tx: unknown) => Promise<unknown>): Promise<unknown> => run(db),
   };
-  const service = loadModule<CheckoutService>(
-    "src/lib/payments/customer-checkout.ts",
-    {
-      "@prisma/client": {
-        CustomerCheckoutStatus: statuses,
-        MobileMoneyReceiptStatus: {
-          AVAILABLE: "AVAILABLE",
-          ASSIGNED: "ASSIGNED",
-        },
-        Prisma: {
-          Decimal: class {
-            constructor(public value: number) {}
-          },
+  const service = loadModule<CheckoutService>("src/lib/payments/customer-checkout.ts", {
+    "@prisma/client": {
+      CustomerCheckoutStatus: statuses,
+      MobileMoneyReceiptStatus: {
+        AVAILABLE: "AVAILABLE",
+        ASSIGNED: "ASSIGNED",
+      },
+      Prisma: {
+        Decimal: class {
+          constructor(public value: number) {}
         },
       },
-      "@/lib/prisma": { prisma: db },
-      "@/lib/payments/customer-ussd": {
-        chooseUniqueCustomerCheckout,
-        customerPaymentNameMatches,
-        normalizeSomaliPhone,
-      },
-      "@/lib/staff/customer-order-dispatch": {
-        dispatchCustomerOrder: async (
-          _tx: unknown,
-          input: { orderId: string },
-        ) => {
-          assert.equal(input.orderId, order.id);
-          events.push("dispatch");
-        },
-      },
-      "@/lib/kitchen/kitchen-tickets": {
-        createKitchenTicketState: async (
-          _tx: unknown,
-          input: { orderId: string; lines: Array<{ qty: number }> },
-        ) => {
-          assert.equal(input.orderId, order.id);
-          assert.equal(input.lines[0].qty, 2);
-          events.push("kitchen");
-        },
-      },
-      "@/lib/inventory/inventory": {
-        deductProductInventoryForSale: async () => {
-          events.push("inventory");
-          return [];
-        },
-        sendInventoryAlerts: async () => {},
-      },
-      "@/lib/posthog-server": { getPostHogClient: () => null },
     },
-  );
+    "@/lib/prisma": { prisma: db },
+    "@/lib/payments/customer-ussd": {
+      chooseUniqueCustomerCheckout,
+      customerPaymentNameMatches,
+      normalizeSomaliPhone,
+    },
+    "@/lib/staff/customer-order-dispatch": {
+      dispatchCustomerOrder: async (_tx: unknown, input: { orderId: string }) => {
+        assert.equal(input.orderId, order.id);
+        events.push("dispatch");
+      },
+    },
+    "@/lib/kitchen/kitchen-tickets": {
+      createKitchenTicketState: async (
+        _tx: unknown,
+        input: { orderId: string; lines: Array<{ qty: number }> },
+      ) => {
+        assert.equal(input.orderId, order.id);
+        assert.equal(input.lines[0].qty, 2);
+        events.push("kitchen");
+      },
+    },
+    "@/lib/inventory/inventory": {
+      deductProductInventoryForSale: async () => {
+        events.push("inventory");
+        return [];
+      },
+      sendInventoryAlerts: async () => {},
+    },
+    "@/lib/posthog-server": { getPostHogClient: () => null },
+  });
   await service.autoMatchCustomerReceipt(receipt.id);
   await service.autoMatchCustomerReceipt(receipt.id);
   assert.equal(checkout.status, "PAID");
   assert.equal(checkout.orderId, order.id);
   assert.equal(checkout.receiptId, receipt.id);
   assert.equal(receipt.status, "ASSIGNED");
-  assert.deepEqual(events, [
-    "order",
-    "dispatch",
-    "items",
-    "payment",
-    "kitchen",
-    "inventory",
-  ]);
+  assert.deepEqual(events, ["order", "dispatch", "items", "payment", "kitchen", "inventory"]);
 });

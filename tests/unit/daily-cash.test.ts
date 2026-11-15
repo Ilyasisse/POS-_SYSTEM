@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   calculateDailyCashSummary,
   fundingFor,
@@ -23,14 +23,8 @@ import {
 } from "../../src/lib/daily-cash/supplier-obligations";
 
 test("Daily Cash uses the current POS day and prior-day waiter revenue", () => {
-  assert.equal(
-    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 6, 59, 59)),
-    "2026-08-09",
-  );
-  assert.equal(
-    getDailyCashDefaultDateKey(new Date(2026, 7, 10, 7, 0, 0)),
-    "2026-08-10",
-  );
+  assert.equal(getDailyCashDefaultDateKey(new Date("2026-08-10T06:59:59+03:00")), "2026-08-09");
+  assert.equal(getDailyCashDefaultDateKey(new Date("2026-08-10T07:00:00+03:00")), "2026-08-10");
   assert.equal(getDailyCashWaiterBalanceDateKey("2026-08-10"), "2026-08-09");
 });
 
@@ -38,10 +32,7 @@ test("Daily Cash accepts August 1, 2026 onward and rejects earlier or future dat
   const now = new Date(2026, 7, 11, 12, 0, 0);
 
   assert.equal(assertDailyCashBusinessDate("2026-08-01", now), "2026-08-01");
-  assert.throws(
-    () => assertDailyCashBusinessDate("2026-07-31", now),
-    /begins on August 1, 2026/,
-  );
+  assert.throws(() => assertDailyCashBusinessDate("2026-07-31", now), /begins on August 1, 2026/);
   assert.throws(
     () => assertDailyCashBusinessDate("2026-08-12", now),
     /Future business days cannot be used/,
@@ -76,9 +67,7 @@ test("Daily Cash sums End-Day Amounts and ignores Manual sales", () => {
   ]);
 
   assert.equal(result.endDayCash, 125.5);
-  assert.deepEqual(result.missingWaiters, [
-    { id: "waiter-2", fullName: "Bilan" },
-  ]);
+  assert.deepEqual(result.missingWaiters, [{ id: "waiter-2", fullName: "Bilan" }]);
   assert.deepEqual(result.fingerprintRows, [["shift-1", "waiter-1", 125.5]]);
 });
 
@@ -108,14 +97,8 @@ test("Daily Cash review input changes only when an End-Day Amount changes", () =
     waiters,
   );
 
-  assert.deepEqual(
-    manualSalesChanged.fingerprintRows,
-    original.fingerprintRows,
-  );
-  assert.notDeepEqual(
-    endDayAmountChanged.fingerprintRows,
-    original.fingerprintRows,
-  );
+  assert.deepEqual(manualSalesChanged.fingerprintRows, original.fingerprintRows);
+  assert.notDeepEqual(endDayAmountChanged.fingerprintRows, original.fingerprintRows);
 });
 
 test("Daily Cash uses revenue before savings and never projects a negative balance", () => {
@@ -163,14 +146,8 @@ test("savings deposits accept the projected remainder and reject unsafe amounts"
     () => validateSavingsDepositAmount(125.01, 125),
     /cannot exceed the projected remaining cash/i,
   );
-  assert.throws(
-    () => validateSavingsDepositAmount(1.001, 125),
-    /no more than two decimal places/i,
-  );
-  assert.throws(
-    () => validateSavingsDepositAmount(0, 125),
-    /greater than zero/i,
-  );
+  assert.throws(() => validateSavingsDepositAmount(1.001, 125), /no more than two decimal places/i);
+  assert.throws(() => validateSavingsDepositAmount(0, 125), /greater than zero/i);
 });
 
 test("Daily Cash resolves the newest salary rate effective on the business date", () => {
@@ -271,14 +248,8 @@ test("Daily Cash accepts partial supplier payments up to the remaining balance",
   assert.equal(validateSupplierObligationPaymentAmount(20, 67.5), 20);
   assert.equal(validateSupplierObligationPaymentAmount(67.5, 67.5), 67.5);
   assert.equal(validateSupplierObligationPaymentAmount(100, 67.5, true), 100);
-  assert.throws(
-    () => validateSupplierObligationPaymentAmount(0, 67.5),
-    /greater than zero/,
-  );
-  assert.throws(
-    () => validateSupplierObligationPaymentAmount(68, 67.5),
-    /cannot exceed/,
-  );
+  assert.throws(() => validateSupplierObligationPaymentAmount(0, 67.5), /greater than zero/);
+  assert.throws(() => validateSupplierObligationPaymentAmount(68, 67.5), /cannot exceed/);
 });
 
 test("paid salary produces one breakdown row while unpaid salary is excluded", () => {
@@ -371,10 +342,7 @@ test("supply payments appear in the paid breakdown with their receipt date", () 
 
   assert.equal(rows[0].type, "SUPPLY");
   assert.equal(rows[0].description, "Supplies received 2026-08-03");
-  assert.deepEqual(
-    [rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded],
-    [40, 30, 10],
-  );
+  assert.deepEqual([rows[0].amount, rows[0].revenueFunded, rows[0].savingsFunded], [40, 30, 10]);
 });
 
 test("paid breakdown totals reconcile revenue and savings to current remaining cash", () => {

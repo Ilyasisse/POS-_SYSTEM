@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import { client, db, json, user } from "../workflow/fixtures";
 
-after(() => db.$disconnect());
+afterAll(() => db.$disconnect());
 
 test("staff login issues a real session and sign-out clears protected access", async () => {
   const account = await user("CASHIER");
@@ -29,9 +29,10 @@ test("anonymous, inactive, and wrong-role users cannot use protected APIs", asyn
   assert.equal(attempt.status, 403);
 
   const kitchen = await client(await user("BARISTA", { station: "BARISTA" }));
+  const auditCount = await db.reportExportAudit.count();
   const denied = await kitchen("/api/admin/reports/export?report=sales&format=csv", {
     method: "POST",
   });
   assert.equal(denied.status, 403);
-  assert.equal(await db.reportExportAudit.count(), 0);
+  assert.equal(await db.reportExportAudit.count(), auditCount);
 });

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import { appendStockEvent, createRecipeVersion } from "../../src/lib/inventory/stock-ledger";
 import { prisma } from "../../src/lib/prisma";
 import { client, db, json, product, table, unique, user } from "../workflow/fixtures";
 
-after(async () => {
+afterAll(async () => {
   await Promise.all([db.$disconnect(), prisma.$disconnect()]);
 });
 

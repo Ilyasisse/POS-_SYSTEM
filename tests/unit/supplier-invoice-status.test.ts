@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 
 import {
   getSupplierInvoiceDisplayStatus,
@@ -18,14 +18,8 @@ function dueDate(dateKey: string) {
 }
 
 test("derives every supplier invoice display status", () => {
-  assert.equal(
-    getSupplierInvoiceDisplayStatus({ status: "DRAFT", bill: null }, now),
-    "DRAFT",
-  );
-  assert.equal(
-    getSupplierInvoiceDisplayStatus({ status: "VOID", bill: null }, now),
-    "VOID",
-  );
+  assert.equal(getSupplierInvoiceDisplayStatus({ status: "DRAFT", bill: null }, now), "DRAFT");
+  assert.equal(getSupplierInvoiceDisplayStatus({ status: "VOID", bill: null }, now), "VOID");
   assert.equal(
     getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill: null }, now),
     "PENDING",
@@ -111,17 +105,11 @@ test("uses Nairobi day boundaries for invoice payment status", () => {
   };
 
   assert.equal(
-    getSupplierInvoiceDisplayStatus(
-      { status: "FINALIZED", bill },
-      beforeNairobiMidnight,
-    ),
+    getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill }, beforeNairobiMidnight),
     "PENDING",
   );
   assert.equal(
-    getSupplierInvoiceDisplayStatus(
-      { status: "FINALIZED", bill },
-      afterNairobiMidnight,
-    ),
+    getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill }, afterNairobiMidnight),
     "OVERDUE",
   );
 });
@@ -135,10 +123,7 @@ test("defines labels for every selectable invoice display status", () => {
     "PAID",
     "VOID",
   ]);
-  assert.equal(
-    SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS.PARTIALLY_PAID,
-    "PARTIALLY PAID",
-  );
+  assert.equal(SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS.PARTIALLY_PAID, "PARTIALLY PAID");
 });
 
 test("builds database filters for every display status", () => {
@@ -161,18 +146,15 @@ test("builds database filters for every display status", () => {
       },
     },
   });
-  assert.deepEqual(
-    getSupplierInvoiceDisplayStatusWhere("PARTIALLY_PAID", now),
-    {
-      status: "FINALIZED",
-      bill: {
-        is: {
-          status: "PARTIAL",
-          dueDate: { gte: dueDate("2026-07-24") },
-        },
+  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("PARTIALLY_PAID", now), {
+    status: "FINALIZED",
+    bill: {
+      is: {
+        status: "PARTIAL",
+        dueDate: { gte: dueDate("2026-07-24") },
       },
     },
-  );
+  });
   assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("PENDING", now), {
     status: "FINALIZED",
     OR: [

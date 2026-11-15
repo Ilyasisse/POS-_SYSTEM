@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   getBusinessDayRange,
   getBusinessDateRange,
@@ -48,14 +48,8 @@ test("uses calendar-month business-date boundaries", () => {
 
 test("provides yesterday and same-weekday comparisons", () => {
   const ranges = getComparisonRanges(new Date("2026-07-18T12:00:00.000Z"));
-  assert.equal(
-    ranges.yesterday.start.toISOString(),
-    "2026-07-17T04:00:00.000Z",
-  );
-  assert.equal(
-    ranges.sameWeekdayLastWeek.start.toISOString(),
-    "2026-07-11T04:00:00.000Z",
-  );
+  assert.equal(ranges.yesterday.start.toISOString(), "2026-07-17T04:00:00.000Z");
+  assert.equal(ranges.sameWeekdayLastWeek.start.toISOString(), "2026-07-11T04:00:00.000Z");
 });
 
 test("calculates financial values with Decimal precision", () => {

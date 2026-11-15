@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { PGlite } from "@electric-sql/pglite";
 const migration = await readFile(
   new URL(
@@ -23,26 +23,18 @@ test("fulfillment and presence migration preserves legacy takeout and protects t
     `);
     await db.exec(migration);
     assert.deepEqual(
-      (await db.query('SELECT "orderType", "tableId" FROM "CustomerCheckout"'))
-        .rows,
+      (await db.query('SELECT "orderType", "tableId" FROM "CustomerCheckout"')).rows,
       [{ orderType: "TAKEOUT", tableId: null }],
     );
-    assert.deepEqual(
-      (await db.query('SELECT "availability", "lastSeenAt" FROM "Staff"')).rows,
-      [{ availability: "OFFLINE", lastSeenAt: null }],
-    );
+    assert.deepEqual((await db.query('SELECT "availability", "lastSeenAt" FROM "Staff"')).rows, [
+      { availability: "OFFLINE", lastSeenAt: null },
+    ]);
     await db.exec(
       `UPDATE "CustomerCheckout" SET "orderType" = 'DINE_IN', "tableId" = 'table-one';`,
     );
-    await assert.rejects(
-      db.exec(`DELETE FROM "Table" WHERE "id" = 'table-one';`),
-    );
-    await assert.rejects(
-      db.exec(`UPDATE "Staff" SET "availability" = 'INVALID';`),
-    );
-    await assert.rejects(
-      db.exec(`UPDATE "CustomerCheckout" SET "tableId" = 'missing';`),
-    );
+    await assert.rejects(db.exec(`DELETE FROM "Table" WHERE "id" = 'table-one';`));
+    await assert.rejects(db.exec(`UPDATE "Staff" SET "availability" = 'INVALID';`));
+    await assert.rejects(db.exec(`UPDATE "CustomerCheckout" SET "tableId" = 'missing';`));
   } finally {
     await db.close();
   }

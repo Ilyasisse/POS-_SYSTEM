@@ -110,16 +110,16 @@ try {
         ? ["api-orders", "auth", "customer-checkout", "kitchen-waiter"].map(
             (name) => `tests/integration/${name}.test.ts`,
           )
-        : ["tests/integration/*.test.ts"];
+        : [];
     await runTests(
       [
-        "--import",
-        "tsx",
-        "--import",
-        "./tests/workflow/server-only.mjs",
-        "--test",
-        "--test-concurrency=1",
+        "--experimental-vm-modules",
+        resolve("node_modules/jest/bin/jest.js"),
+        "--config",
+        "jest.integration.config.mjs",
+        "--runInBand",
         ...specs,
+        ...process.argv.slice(3),
       ],
       env,
     );

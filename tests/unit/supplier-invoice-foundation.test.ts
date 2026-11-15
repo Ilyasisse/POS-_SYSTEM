@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   buildSupplierInvoiceDraftFromPurchaseOrder,
   calculateSupplierInvoiceLineTotal,
@@ -9,9 +9,7 @@ import {
   validateSupplierInvoiceDraftInput,
 } from "../../src/lib/suppliers/invoice-foundation";
 
-function validDraft(
-  overrides: Partial<SupplierInvoiceDraftInput> = {},
-): SupplierInvoiceDraftInput {
+function validDraft(overrides: Partial<SupplierInvoiceDraftInput> = {}): SupplierInvoiceDraftInput {
   return {
     supplierReference: " SUP-1042 ",
     invoiceDate: "2026-07-23",
@@ -54,10 +52,7 @@ test("validates catalog and custom lines and calculates totals on the server", (
 });
 
 test("rounds each invoice line to cents before summing", () => {
-  assert.equal(
-    calculateSupplierInvoiceLineTotal("1.005", "1.00").toString(),
-    "1.01",
-  );
+  assert.equal(calculateSupplierInvoiceLineTotal("1.005", "1.00").toString(), "1.01");
   const draft = validateSupplierInvoiceDraftInput(
     validDraft({
       lines: [
@@ -83,15 +78,11 @@ test("rounds each invoice line to cents before summing", () => {
 
 test("rejects invalid dates and empty invoices", () => {
   assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({ invoiceDate: "2026-02-29" }),
-      ),
+    () => validateSupplierInvoiceDraftInput(validDraft({ invoiceDate: "2026-02-29" })),
     /valid invoice date/,
   );
   assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(validDraft({ dueDate: "not-a-date" })),
+    () => validateSupplierInvoiceDraftInput(validDraft({ dueDate: "not-a-date" })),
     /valid supplier bill due date/,
   );
   assert.throws(
@@ -104,9 +95,7 @@ test("rejects duplicate catalog items and catalog references on custom lines", (
   const catalogLine = validDraft().lines[0];
   assert.throws(
     () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({ lines: [catalogLine, { ...catalogLine }] }),
-      ),
+      validateSupplierInvoiceDraftInput(validDraft({ lines: [catalogLine, { ...catalogLine }] })),
     /cannot appear twice/,
   );
   assert.throws(
@@ -216,17 +205,11 @@ test("limits invoice item count and text lengths", () => {
     /at most 100 items/,
   );
   assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({ supplierReference: "x".repeat(201) }),
-      ),
+    () => validateSupplierInvoiceDraftInput(validDraft({ supplierReference: "x".repeat(201) })),
     /Supplier reference is too long/,
   );
   assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        validDraft({ notes: "x".repeat(2001) }),
-      ),
+    () => validateSupplierInvoiceDraftInput(validDraft({ notes: "x".repeat(2001) })),
     /Invoice notes is too long/,
   );
 });
@@ -390,10 +373,7 @@ test("prefills a purchase-order invoice from snapshots using Nairobi dates", () 
       unitPrice: "12.40",
     },
   ]);
-  assert.equal(
-    validateSupplierInvoiceDraftInput(input).totalAmount.toString(),
-    "31",
-  );
+  assert.equal(validateSupplierInvoiceDraftInput(input).totalAmount.toString(), "31");
 });
 
 test("voiding reopens only purchase-order invoices", () => {

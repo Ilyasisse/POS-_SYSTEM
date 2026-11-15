@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import {
   androidDialerHref,
   chooseUniqueCustomerCheckout,
@@ -43,30 +43,16 @@ test("automatically selects only a unique exact receipt match in the payment win
     identifiers: ["430935", "252905109687"],
     transactionAt: new Date("2026-09-18T06:00:00Z"),
   };
+  assert.equal(chooseUniqueCustomerCheckout(receipt, [candidate], now), "checkout-1");
   assert.equal(
-    chooseUniqueCustomerCheckout(receipt, [candidate], now),
-    "checkout-1",
-  );
-  assert.equal(
-    chooseUniqueCustomerCheckout(
-      receipt,
-      [candidate, { ...candidate, id: "checkout-2" }],
-      now,
-    ),
+    chooseUniqueCustomerCheckout(receipt, [candidate, { ...candidate, id: "checkout-2" }], now),
     null,
   );
   assert.equal(
-    chooseUniqueCustomerCheckout(
-      { ...receipt, identifiers: ["430935"] },
-      [candidate],
-      now,
-    ),
+    chooseUniqueCustomerCheckout({ ...receipt, identifiers: ["430935"] }, [candidate], now),
     null,
   );
-  assert.equal(
-    chooseUniqueCustomerCheckout({ ...receipt, amount: 25 }, [candidate], now),
-    null,
-  );
+  assert.equal(chooseUniqueCustomerCheckout({ ...receipt, amount: 25 }, [candidate], now), null);
   assert.equal(
     chooseUniqueCustomerCheckout(
       { ...receipt, transactionAt: new Date("2026-09-18T05:59:58Z") },
@@ -76,11 +62,7 @@ test("automatically selects only a unique exact receipt match in the payment win
     null,
   );
   assert.equal(
-    chooseUniqueCustomerCheckout(
-      receipt,
-      [candidate],
-      new Date("2026-09-18T06:15:01Z"),
-    ),
+    chooseUniqueCustomerCheckout(receipt, [candidate], new Date("2026-09-18T06:15:01Z")),
     null,
   );
 });
@@ -119,10 +101,7 @@ test("late, wrong-phone and wrong-amount receipts require review", () => {
     identifiers: ["252901234567"],
     transactionAt: expiresAt,
   };
-  assert.equal(
-    chooseUniqueCustomerCheckout(receipt, candidates, expiresAt),
-    "one",
-  );
+  assert.equal(chooseUniqueCustomerCheckout(receipt, candidates, expiresAt), "one");
   assert.equal(
     chooseUniqueCustomerCheckout(
       { ...receipt, transactionAt: new Date("2026-09-30T10:15:01Z") },
@@ -140,46 +119,23 @@ test("late, wrong-phone and wrong-amount receipts require review", () => {
     null,
   );
   assert.equal(
-    chooseUniqueCustomerCheckout(
-      { ...receipt, amount: 10.49 },
-      candidates,
-      expiresAt,
-    ),
+    chooseUniqueCustomerCheckout({ ...receipt, amount: 10.49 }, candidates, expiresAt),
     null,
   );
 });
 
 test("payment names require two distinct complete matching words", () => {
-  for (const customer of [
-    "Ali Hassan",
-    "Ali Mohamed",
-    "Hassan Mohamed",
-    "Ali Hassan Mohamed",
-  ]) {
+  for (const customer of ["Ali Hassan", "Ali Mohamed", "Hassan Mohamed", "Ali Hassan Mohamed"]) {
     assert.equal(
       customerPaymentNameMatches(customer, "252905109687 (ALI HASSAN MOHAMED)"),
       true,
       customer,
     );
   }
-  for (const customer of [
-    "Ali",
-    "Ali Yusuf",
-    "Al Hassan",
-    "Ali Ali",
-    "",
-    "HassanAli Yusuf",
-  ]) {
-    assert.equal(
-      customerPaymentNameMatches(customer, "Ali Hassan Mohamed"),
-      false,
-      customer,
-    );
+  for (const customer of ["Ali", "Ali Yusuf", "Al Hassan", "Ali Ali", "", "HassanAli Yusuf"]) {
+    assert.equal(customerPaymentNameMatches(customer, "Ali Hassan Mohamed"), false, customer);
   }
-  assert.equal(
-    customerPaymentNameMatches("  Hassan, ALI  ", "Ali Hassan Mohamed"),
-    true,
-  );
+  assert.equal(customerPaymentNameMatches("  Hassan, ALI  ", "Ali Hassan Mohamed"), true);
   assert.equal(customerPaymentNameMatches("Ali Hassan", null), false);
   assert.equal(customerPaymentNameMatches("Ali Hassan", ""), false);
 });
@@ -213,11 +169,7 @@ test("automatic approval fails closed for missing names and invalid amounts", ()
   }
   for (const amount of [NaN, Infinity, -26, 0, 26.001]) {
     assert.equal(
-      chooseUniqueCustomerCheckout(
-        { ...receipt, amount },
-        [candidate],
-        receipt.transactionAt,
-      ),
+      chooseUniqueCustomerCheckout({ ...receipt, amount }, [candidate], receipt.transactionAt),
       null,
     );
   }

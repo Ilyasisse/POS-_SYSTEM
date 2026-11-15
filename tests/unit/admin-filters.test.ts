@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { queryStringWithoutPage } from "../../src/components/admin/shared/ui/queryStringWithoutPage";
 import {
   isValidDateKey,
@@ -33,14 +33,8 @@ test("normalizes dates against the page's allowed bounds", () => {
     }),
     "2026-08-08",
   );
-  assert.equal(
-    normalizeDateFilter("2026-06-30", fallback, { min: "2026-07-01" }),
-    fallback,
-  );
-  assert.equal(
-    normalizeDateFilter("2026-08-10", fallback, { max: "2026-08-09" }),
-    fallback,
-  );
+  assert.equal(normalizeDateFilter("2026-06-30", fallback, { min: "2026-07-01" }), fallback);
+  assert.equal(normalizeDateFilter("2026-08-10", fallback, { max: "2026-08-09" }), fallback);
   assert.equal(normalizeDateFilter("2026-02-29", fallback), fallback);
 });
 

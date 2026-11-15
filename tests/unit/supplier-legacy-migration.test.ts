@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import { test } from "@jest/globals";
 
 const migration = readFileSync(
   "prisma/migrations/20260724_legacy_supplier_invoice_conversion/migration.sql",

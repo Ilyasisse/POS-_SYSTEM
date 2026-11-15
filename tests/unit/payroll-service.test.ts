@@ -1,9 +1,6 @@
-import test from "node:test";
+import { test } from "@jest/globals";
 import assert from "node:assert/strict";
-import {
-  attendanceOutcome,
-  calculatePayrollLine,
-} from "../../src/lib/payroll/payroll-formulas";
+import { attendanceOutcome, calculatePayrollLine } from "../../src/lib/payroll/payroll-formulas";
 
 test("attendance applies the grace period and approved overtime threshold", () => {
   const outcome = attendanceOutcome({

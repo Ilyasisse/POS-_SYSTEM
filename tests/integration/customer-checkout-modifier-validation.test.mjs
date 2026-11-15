@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
-import test, { after } from "node:test";
-import "tsx";
+import { afterAll, jest, test } from "@jest/globals";
 
 const group = {
   id: "size",
@@ -32,40 +30,36 @@ globalThis.__checkoutRegression = {
   },
   modifier,
 };
-const sources = {
-  "mock:checkout-auth":
-    'exports.authorizeApi = async () => ({ok:true,user:{id:"customer-1",role:"CUSTOMER",fullName:"Customer"}});',
-  "mock:checkout-prisma": `const state = globalThis.__checkoutRegression;
-exports.prisma = {
- product: { findMany: async () => [state.product] },
- modifier: { findMany: async () => [state.modifier] },
- staff: { findMany: async () => [] },
- table: { findFirst: async () => ({id:"table-1"}) },
- customerCheckout: { findUnique: async () => null, create: async ({data}) => { state.writes.push(data); return {id:"checkout-1",amount:data.amount,status:"PENDING"}; } },
-};`,
-};
-const hooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier === "@/lib/auth/api-authorization")
-      return { url: "mock:checkout-auth", shortCircuit: true };
-    if (specifier === "@/lib/prisma")
-      return { url: "mock:checkout-prisma", shortCircuit: true };
-    return nextResolve(specifier, context);
-  },
-  load(url, context, nextLoad) {
-    if (Object.hasOwn(sources, url))
-      return { format: "commonjs", source: sources[url], shortCircuit: true };
-    return nextLoad(url, context);
-  },
+jest.unstable_mockModule("@/lib/auth/api-authorization", () => ({
+  authorizeApi: async () => ({
+    ok: true,
+    user: { id: "customer-1", role: "CUSTOMER", fullName: "Customer" },
+  }),
+}));
+jest.unstable_mockModule("@/lib/prisma", () => {
+  const state = globalThis.__checkoutRegression;
+  return {
+    prisma: {
+      product: { findMany: async () => [state.product] },
+      modifier: { findMany: async () => [state.modifier] },
+      staff: { findMany: async () => [] },
+      table: { findFirst: async () => ({ id: "table-1" }) },
+      customerCheckout: {
+        findUnique: async () => null,
+        create: async ({ data }) => {
+          state.writes.push(data);
+          return { id: "checkout-1", amount: data.amount, status: "PENDING" };
+        },
+      },
+    },
+  };
 });
-after(() => {
-  hooks.deregister();
+afterAll(() => {
+  jest.unstable_unmockModule("@/lib/auth/api-authorization");
+  jest.unstable_unmockModule("@/lib/prisma");
   delete globalThis.__checkoutRegression;
 });
-const routeModule = await import(
-  new URL("../../src/app/api/customer/checkouts/route.ts", import.meta.url).href
-);
-const POST = routeModule.POST ?? routeModule.default?.POST;
+const { POST } = await import("../../src/app/api/customer/checkouts/route.ts");
 assert.equal(typeof POST, "function", "Checkout route must export POST");
 const base = {
   customerName: "Customer",
@@ -98,23 +92,15 @@ test("valid catalog modifiers create checkout while preserving main fulfillment"
   assert.equal(Number(write.amount), 7);
 });
 test("spoofed placeholder with catalog ID cannot satisfy a required group", async () => {
-  const response = await checkout([
-    { modifierId: "large", isPlaceholder: true, price: 0 },
-  ]);
+  const response = await checkout([{ modifierId: "large", isPlaceholder: true, price: 0 }]);
   assert.equal(response.status, 400);
-  assert.match(
-    (await response.json()).error,
-    /requires at least 1 choice from Size/,
-  );
+  assert.match((await response.json()).error, /requires at least 1 choice from Size/);
   assert.equal(globalThis.__checkoutRegression.writes.length, 0);
 });
 test("missing required modifier creates no checkout", async () => {
   const response = await checkout([]);
   assert.equal(response.status, 400);
-  assert.match(
-    (await response.json()).error,
-    /requires at least 1 choice from Size/,
-  );
+  assert.match((await response.json()).error, /requires at least 1 choice from Size/);
   assert.equal(globalThis.__checkoutRegression.writes.length, 0);
 });
 test("real required choice and custom placeholder remain supported", async () => {

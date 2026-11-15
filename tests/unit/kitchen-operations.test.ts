@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import {
-  getPermissionsForRole,
-  PERMISSIONS,
-} from "../../src/lib/auth/permissions";
+import { test } from "@jest/globals";
+import { getPermissionsForRole, PERMISSIONS } from "../../src/lib/auth/permissions";
 import {
   calculateKitchenPreparationMetric,
   formatPreparationDuration,
@@ -121,10 +118,7 @@ test("manager and operational roles receive scoped permissions", () => {
 });
 
 test("cleaning completion requires every required task", () => {
-  assert.equal(
-    canCompleteCleaningRun([{ isRequired: true, completed: false }]),
-    false,
-  );
+  assert.equal(canCompleteCleaningRun([{ isRequired: true, completed: false }]), false);
   assert.equal(
     canCompleteCleaningRun([
       { isRequired: true, completed: true },
@@ -136,27 +130,10 @@ test("cleaning completion requires every required task", () => {
 
 test("incident duration and overdue cleaning use explicit timestamps", () => {
   const startedAt = new Date("2026-08-09T07:00:00Z");
+  assert.equal(calculateIncidentDurationSeconds(startedAt, new Date("2026-08-09T07:05:00Z")), 300);
+  assert.equal(isCleaningRunOverdue("PENDING", startedAt, new Date("2026-08-09T07:01:00Z")), true);
   assert.equal(
-    calculateIncidentDurationSeconds(
-      startedAt,
-      new Date("2026-08-09T07:05:00Z"),
-    ),
-    300,
-  );
-  assert.equal(
-    isCleaningRunOverdue(
-      "PENDING",
-      startedAt,
-      new Date("2026-08-09T07:01:00Z"),
-    ),
-    true,
-  );
-  assert.equal(
-    isCleaningRunOverdue(
-      "COMPLETED",
-      startedAt,
-      new Date("2026-08-09T07:01:00Z"),
-    ),
+    isCleaningRunOverdue("COMPLETED", startedAt, new Date("2026-08-09T07:01:00Z")),
     false,
   );
 });

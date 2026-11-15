@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import type { UserRole } from "@prisma/client";
 import { canViewOrderReceipt } from "../../src/lib/orders/receipt-access";
 
@@ -11,14 +11,8 @@ const order = {
 };
 
 test("customers can view only their own receipts", () => {
-  assert.equal(
-    canViewOrderReceipt(user("customer-1", "CUSTOMER"), order),
-    true,
-  );
-  assert.equal(
-    canViewOrderReceipt(user("customer-2", "CUSTOMER"), order),
-    false,
-  );
+  assert.equal(canViewOrderReceipt(user("customer-1", "CUSTOMER"), order), true);
+  assert.equal(canViewOrderReceipt(user("customer-2", "CUSTOMER"), order), false);
 });
 
 test("assigned waiters and cashiers can view their order receipts", () => {

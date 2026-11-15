@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { Prisma } from "@prisma/client";
-import {
-  getPermissionsForRole,
-  PERMISSIONS,
-} from "../../src/lib/auth/permissions";
+import { getPermissionsForRole, PERMISSIONS } from "../../src/lib/auth/permissions";
 import {
   calculateCountVariance,
   calculateRecipeStandardCost,
@@ -37,10 +34,7 @@ test("kilograms convert confidently to grams", () => {
 });
 
 test("grams remain grams", () => {
-  assert.equal(
-    convertLegacyQuantity("12.5", "grams").quantity.toString(),
-    "12.5",
-  );
+  assert.equal(convertLegacyQuantity("12.5", "grams").quantity.toString(), "12.5");
 });
 
 test("litres convert confidently to millilitres", () => {
@@ -76,9 +70,7 @@ test("recipe standard cost is divided by recipe yield", () => {
 });
 
 test("recipe cost remains unavailable when an ingredient has no standard cost", () => {
-  const result = calculateRecipeStandardCost("1", [
-    { quantity: "10", standardUnitCost: null },
-  ]);
+  const result = calculateRecipeStandardCost("1", [{ quantity: "10", standardUnitCost: null }]);
   assert.equal(result.unitCost, null);
   assert.equal(result.coverage, "MISSING_COST");
 });

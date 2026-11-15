@@ -1,17 +1,13 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { resolveReportRange } from "../../src/lib/reports/resolve-range";
 import { reportQuerySchema } from "../../src/lib/reports/validation";
 
 const now = new Date("2026-07-18T12:00:00.000Z");
-const query = (value: Record<string, unknown>) =>
-  reportQuerySchema.parse(value);
+const query = (value: Record<string, unknown>) => reportQuerySchema.parse(value);
 
 test("resolves current, yesterday, and last-seven-day business ranges", () => {
-  assert.equal(
-    resolveReportRange(query({}), now).start.toISOString(),
-    "2026-07-18T04:00:00.000Z",
-  );
+  assert.equal(resolveReportRange(query({}), now).start.toISOString(), "2026-07-18T04:00:00.000Z");
   assert.equal(
     resolveReportRange(query({ preset: "yesterday" }), now).start.toISOString(),
     "2026-07-17T04:00:00.000Z",

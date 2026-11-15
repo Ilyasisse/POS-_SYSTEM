@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import {
   client,
   db,
@@ -16,7 +16,7 @@ import {
 import { transferOpenTableService } from "../../src/lib/cashier/table-transfer";
 import type { TableCheck } from "@prisma/client";
 
-after(() => db.$disconnect());
+afterAll(() => db.$disconnect());
 
 test("table rounds use server prices and split receipts settle the check once", async () => {
   const [cashier, diningTable, item] = await Promise.all([user("CASHIER"), table(), product()]);

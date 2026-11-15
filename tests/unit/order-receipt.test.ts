@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import { test } from "@jest/globals";
 import vm from "node:vm";
 import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -10,21 +10,11 @@ import ReceiptActions from "../../src/app/print/orders/[id]/ReceiptActions";
 import ThermalReceipt from "../../src/app/print/orders/[id]/thermal-receipt/ThermalReceipt";
 import { thermalReceiptCss } from "../../src/app/print/orders/[id]/thermal-receipt/thermal-receipt-styles";
 import { canViewOrderReceipt } from "../../src/lib/orders/receipt-access";
-import {
-  buildReceiptData,
-  type ReceiptData,
-} from "../../src/lib/orders/build-receipt-data";
+import { buildReceiptData, type ReceiptData } from "../../src/lib/orders/build-receipt-data";
 import { receiptHref } from "../../src/lib/orders/receipt-format";
-import {
-  receiptOrder,
-  receiptSettings,
-  largeReceiptOrder,
-} from "../fixtures/order-receipt";
+import { receiptOrder, receiptSettings, largeReceiptOrder } from "../fixtures/order-receipt";
 
-function render(
-  component: ComponentType<{ receipt: ReceiptData }>,
-  order = receiptOrder(),
-) {
+function render(component: ComponentType<{ receipt: ReceiptData }>, order = receiptOrder()) {
   return renderToStaticMarkup(
     createElement(component, {
       receipt: buildReceiptData(order, receiptSettings),
@@ -125,14 +115,8 @@ test("full-page customer details are preserved and thermal omits customer inform
 
 test("open and cancelled receipts keep their payment-status warning", () => {
   for (const component of [FullPageReceipt, ThermalReceipt]) {
-    assert.ok(
-      render(component, receiptOrder({ status: "OPEN" })).includes("UNPAID"),
-    );
-    assert.ok(
-      render(component, receiptOrder({ status: "CANCELLED" })).includes(
-        "CANCELLED",
-      ),
-    );
+    assert.ok(render(component, receiptOrder({ status: "OPEN" })).includes("UNPAID"));
+    assert.ok(render(component, receiptOrder({ status: "CANCELLED" })).includes("CANCELLED"));
     assert.ok(!render(component).includes("UNPAID"));
   }
 });
@@ -155,11 +139,7 @@ test("format selector navigates documents and PDF action describes the browser d
     const html = renderToStaticMarkup(
       createElement(ReceiptActions, { orderId: "order-123", format }),
     );
-    assert.ok(
-      html.includes(
-        `href="${receiptHref("order-123", format)}" aria-current="page"`,
-      ),
-    );
+    assert.ok(html.includes(`href="${receiptHref("order-123", format)}" aria-current="page"`));
     assert.ok(html.includes("Full Page Receipt"));
     assert.ok(html.includes("80 mm Thermal Receipt"));
     assert.ok(html.includes("Print Receipt"));
@@ -167,10 +147,7 @@ test("format selector navigates documents and PDF action describes the browser d
     assert.ok(html.includes("no-print"));
     assert.ok(html.includes("print:hidden"));
   }
-  assert.equal(
-    receiptHref("a/b", "thermal"),
-    "/print/orders/a%2Fb/thermal-receipt",
-  );
+  assert.equal(receiptHref("a/b", "thermal"), "/print/orders/a%2Fb/thermal-receipt");
   assert.match(thermalReceiptCss, /size: 80mm 200mm/);
   assert.match(thermalReceiptCss, /width: 72mm/);
 });
@@ -231,10 +208,7 @@ test("receipt loader authenticates before querying and protects missing/unauthor
     "./receipt-access": { canViewOrderReceipt },
     "./build-receipt-data": { buildReceiptData },
   });
-  await assert.rejects(
-    receiptModule.getOrderReceipt("order"),
-    /\/staff-login$/,
-  );
+  await assert.rejects(receiptModule.getOrderReceipt("order"), /\/staff-login$/);
   assert.equal(reads, 0);
   for (const [id, role, allowed] of [
     ["customer-1", "CUSTOMER", true],
@@ -249,15 +223,10 @@ test("receipt loader authenticates before querying and protects missing/unauthor
     currentUser = { id, role, station: null };
     if (allowed)
       assert.equal(
-        ((await receiptModule.getOrderReceipt("order")) as ReceiptData)
-          .orderNumber,
+        ((await receiptModule.getOrderReceipt("order")) as ReceiptData).orderNumber,
         123,
       );
-    else
-      await assert.rejects(
-        receiptModule.getOrderReceipt("order"),
-        /unauthorized/,
-      );
+    else await assert.rejects(receiptModule.getOrderReceipt("order"), /unauthorized/);
   }
   storedOrder = null;
   await assert.rejects(receiptModule.getOrderReceipt("missing"), /NOT_FOUND/);

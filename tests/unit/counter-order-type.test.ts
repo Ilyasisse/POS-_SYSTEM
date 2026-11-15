@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "@jest/globals";
 import { parseCounterOrderType } from "../../src/lib/orders/counter-order-type";
 
 test("counter sales accept takeaway orders", () => {

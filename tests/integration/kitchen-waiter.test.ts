@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { after, test } from "node:test";
+import { afterAll, test } from "@jest/globals";
 import { client, db, json, product, table, user, type OrderResponse } from "../workflow/fixtures";
 
-after(() => db.$disconnect());
+afterAll(() => db.$disconnect());
 
 test("station updates and competing pickup claims persist one valid handoff", async () => {
   const [coffee, food, diningTable, cashier, barista, cook, waiterOne, waiterTwo] =

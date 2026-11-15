@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import test from "node:test";
-import {
-  MAX_EQUAL_SPLIT_PEOPLE,
-  splitBillEqually,
-} from "../../src/lib/payments/equal-bill-split";
+import { test } from "@jest/globals";
+import { MAX_EQUAL_SPLIT_PEOPLE, splitBillEqually } from "../../src/lib/payments/equal-bill-split";
 
 test("splits a bill evenly without losing a cent", () => {
   const shares = splitBillEqually(10, 3);
@@ -31,10 +28,7 @@ test("rejects invalid bill amounts and payer counts", () => {
 
 test("cashier payment UI exposes equal bill splitting", async () => {
   const component = await readFile(
-    new URL(
-      "../../src/components/cashier/CashierPaymentDialog.tsx",
-      import.meta.url,
-    ),
+    new URL("../../src/components/cashier/CashierPaymentDialog.tsx", import.meta.url),
     "utf8",
   );
 
