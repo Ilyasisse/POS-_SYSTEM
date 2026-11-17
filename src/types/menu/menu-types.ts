@@ -29,7 +29,7 @@ export type MenuCategory = {
 export type MenuData = {
   cafeName: string;
   heroImage: string;
-  categories?: MenuCategory[];
+  categories: MenuCategory[];
   products: MenuProduct[];
   featuredItems: MenuProduct[];
   hasLiveData: boolean;

@@ -19,18 +19,3 @@ export type Product = {
     station?: Station;
   } | null;
 };
-
-/**
- * Represents product data formatted for the public menu experience.
- */
-export type MenuProduct = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  categoryName: string;
-  categorySlug: string;
-  imageUrl: string | null;
-  isPopular: boolean;
-  bestSellerScore: number;
-};
