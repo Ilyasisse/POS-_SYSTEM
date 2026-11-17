@@ -10,7 +10,7 @@ The menu should show its header, hero, and navigation while database-backed prod
 - `src/lib/menu/menu-data.ts` loads categories/products and paid-order quantities, prepares category groups, and selects featured products.
 - `src/lib/menu/menu-config.ts` holds the existing cafe name and local hero path.
 - `src/types/menu/menu-types.ts` is the canonical menu contract. `MenuData.categories` always exists, including for an empty menu. The old product-types export remains compatible.
-- `src/lib/products/product-images.ts` reads legacy signed URLs, public URLs, or bucket-relative paths and uses Supabase `getPublicUrl()`. It does not write to the database or make a Storage request.
+- `src/lib/products/product-images.ts` accepts public R2 URLs and uses Supabase `getPublicUrl()` for legacy signed URLs, public Supabase URLs, and bucket-relative paths.
 - `src/lib/products/product-image-config.ts` holds the bucket, fallback path, and optimizer allowlist. It stays SDK-free because the shared image component imports its public fallback configuration.
 - `src/components/products/ProductImage.tsx` is shared by menu and customer routes. It uses responsive Next.js images and attempts the fallback once before showing a stable unavailable-image state.
 - Both product APIs return browser-ready public URLs in the existing `imageUrl` field. Admin thumbnails use the same conversion.
@@ -27,13 +27,13 @@ Featured items use up to four products from the strongest available signal: posi
 
 ## Product image contract
 
-Only this project's `IMG_Products` bucket is converted and allowed through Next.js remote image optimization. Other buckets and unexpected hosts are not proxied. Stored legacy URLs remain untouched.
+The image resolver and Next.js optimizer support this project's public `IMG_Products` bucket and an optional [public Cloudflare R2 custom domain](https://developers.cloudflare.com/r2/buckets/public-buckets/). Set `NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL` before starting or building the app, for example `https://photos.example.com/products/`. Use the exact HTTPS host plus the folder prefix, or the host alone for a dedicated photo bucket. Leave it blank for Supabase-only operation.
 
 The neutral fallback is `IMG_Products/placeholder/product-fallback.webp`. The hero remains the local `public/menu-hero-bg.webp` asset. Product/fallback configuration is independent of cafe branding.
 
-Image management remains in the authorized Supabase dashboard workflow. Upload a new object and use its bucket-relative path in the existing product image field for future updates; existing signed/public URLs also remain readable. Use a new filename when replacing an image because browser, CDN, and Next.js optimized-image caches can retain old contents. This feature adds no upload/delete endpoints or write grants.
+Use a full public R2 URL with no query string or fragment in the existing product image field, for example `https://photos.example.com/products/drinks/tea.webp`. Copy photos to R2 and update their URLs one at a time. Products that still point to Supabase continue using Supabase. Existing signed/public Supabase URLs and Supabase bucket-relative paths remain readable. Use a new filename when replacing an image because browser, CDN, and Next.js optimized-image caches can retain old contents.
 
-Only public Supabase configuration is used for URL generation. No service-role credentials enter browser bundles. No database/schema migration, object move, permission change, or cafeteria-domain integration is part of this branch.
+R2 delivery uses the public URL directly and requires no R2 credentials. Supabase URL generation uses the public project URL and anonymous key. The app continues to store a single value per product in `imageUrl`.
 
 ## Rendering and performance
 

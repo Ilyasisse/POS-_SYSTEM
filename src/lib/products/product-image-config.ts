@@ -2,43 +2,74 @@ export const PRODUCT_IMAGE_BUCKET = "IMG_Products";
 export const PRODUCT_FALLBACK_IMAGE_PATH = "placeholder/product-fallback.webp";
 
 /**
- * Builds the remotePatterns rules used by Next.js to allow product images.
- * Reads the project hostname from the Supabase URL rather than hardcoding it.
- * The resulting rule allows only HTTPS public IMG_Products URLs on that host,
- * including nested folders, with no query string or custom port.
- *
- * Also lets product-image helpers reuse the same validated hostname. Signed
- * storage URLs do not match this public-path rule. This only describes allowed
- * image URLs: it does not fetch files, check existence, or make a bucket public.
- *
- * @param supabaseUrl - Project URL, defaulting to NEXT_PUBLIC_SUPABASE_URL.
- * @returns One host/bucket rule, or [] for a missing/malformed URL, non-HTTPS
- * protocol, embedded credentials, or a non-default port.
+ * Allows public IMG_Products URLs on the configured Supabase host.
+ * Legacy signed URLs are converted before they reach the optimizer.
  */
-export function getProductImageRemotePatterns(supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  if (!supabaseUrl) return [];
+export function getSupabaseProductImagePattern(supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (!supabaseUrl) return undefined;
   try {
     const url = new URL(supabaseUrl);
-    
-    if (url.protocol !== "https:" || url.port || url.username || url.password) return [];
-    return [
-      {
-        protocol: "https" as const,
-        hostname: url.hostname,
-        port: "",
-        // ** includes any file path beneath this bucket, including subfolders.
-        pathname: "/storage/v1/object/public/" + PRODUCT_IMAGE_BUCKET + "/**",
-        search: "", // Require no query string; do not allow token/query variants.
-      },
-    ];
+    if (url.protocol !== "https:" || url.port || url.username || url.password) return undefined;
+    return {
+      protocol: "https" as const,
+      hostname: url.hostname,
+      port: "",
+      pathname: "/storage/v1/object/public/" + PRODUCT_IMAGE_BUCKET + "/**",
+      search: "",
+    };
   } catch {
-    return [];
+    return undefined;
   }
+}
+
+/** Parses the public R2 URL and normalizes the pathname to a directory prefix. */
+export function getR2ProductImageBase(
+  r2BaseUrl = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL,
+) {
+  const value = r2BaseUrl?.trim();
+  if (!value || !/^https:\/\//i.test(value) || /[?#\\]/.test(value)) return undefined;
+
+  try {
+    const url = new URL(value);
+    if (
+      url.port ||
+      url.username ||
+      url.password ||
+      // Only literal hosts and paths may be used to build a Next.js glob.
+      !/^[a-z0-9.-]+$/.test(url.hostname) ||
+      !/^[a-z0-9._~%/-]+$/i.test(url.pathname)
+    ) {
+      return undefined;
+    }
+    if (!url.pathname.endsWith("/")) url.pathname += "/";
+    return url;
+  } catch {
+    return undefined;
+  }
+}
+
+export function getProductImageRemotePatterns(
+  supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+  r2BaseUrl = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL,
+) {
+  const supabase = getSupabaseProductImagePattern(supabaseUrl);
+  const patterns = supabase ? [supabase] : [];
+  const r2 = getR2ProductImageBase(r2BaseUrl);
+  if (r2) {
+    patterns.push({
+      protocol: "https",
+      hostname: r2.hostname,
+      port: "",
+      pathname: r2.pathname + "**",
+      search: "",
+    });
+  }
+  return patterns;
 }
 
 // Derive the fallback's host from the same rules used by Next.js. Evaluated
 // when this module loads; no matching rule means there is no usable image host.
-const imageHost = getProductImageRemotePatterns()[0]?.hostname;
+const imageHost = getSupabaseProductImagePattern()?.hostname;
 
 /**
  * Public URL for the shared product placeholder, built without a storage client.
@@ -55,5 +86,3 @@ export const PRODUCT_FALLBACK_IMAGE_URL = imageHost
     "/" +
     PRODUCT_FALLBACK_IMAGE_PATH
   : "";
-
- 

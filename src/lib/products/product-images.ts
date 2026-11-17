@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import { PRODUCT_IMAGE_BUCKET, getProductImageRemotePatterns } from "./product-image-config";
+import {
+  getR2ProductImageBase,
+  getSupabaseProductImagePattern,
+  PRODUCT_IMAGE_BUCKET,
+} from "./product-image-config";
 export { PRODUCT_FALLBACK_IMAGE_URL } from "./product-image-config";
 
 /**
@@ -28,8 +32,8 @@ export function getProductImagePath(
   if (!source) return null;
   let objectPath = source;
   if (/^https?:\/\//i.test(source)) {
-    const host = getProductImageRemotePatterns(supabaseUrl)[0]?.hostname;
-    
+    const host = getSupabaseProductImagePattern(supabaseUrl)?.hostname;
+
     try {
       const url = new URL(source);
       if (
@@ -61,16 +65,39 @@ export function getProductImagePath(
     return null;
   return objectPath;
 }
+
+function getPublicR2ProductImageUrl(value: string | null | undefined): string | null {
+  const source = value?.trim();
+  if (!source || !/^https:\/\//i.test(source) || /[?#\\]/.test(source)) return null;
+
+  const base = getR2ProductImageBase();
+  if (!base) return null;
+
+  try {
+    const url = new URL(source);
+    if (
+      url.origin !== base.origin ||
+      url.username ||
+      url.password ||
+      !url.pathname.startsWith(base.pathname) ||
+      url.pathname.length === base.pathname.length
+    ) {
+      return null;
+    }
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 // Reuse the client within this module instance; remember its configuration so
 // getPublicProductImageUrl can recreate it if the project URL or key changes.
 let storageClient: ReturnType<typeof createClient> | undefined;
 let configuredUrl: string | undefined;
 let configuredKey: string | undefined;
 /**
- * Builds a public IMG_Products URL from a product's stored image path or URL.
- * First calls getProductImagePath to extract and validate the file path, then
- * requires NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and a valid
- * image-host configuration. Returns null if any of these checks fail.
+ * Uses an allowed R2 URL directly, or resolves a Supabase path or legacy URL
+ * to its public IMG_Products URL. Only Supabase images require Supabase keys.
  *
  * Creates a Supabase client only when needed, reusing it until its URL or key
  * changes. Auth session persistence, token refresh, and URL session detection
@@ -81,14 +108,17 @@ let configuredKey: string | undefined;
  * nor checks file existence. An old signed URL becomes a public URL for the
  * same path; its token is not renewed. Callers choose a fallback for null.
  *
- * @param value - Stored bucket-relative path, public URL, or legacy signed URL.
+ * @param value - Stored public R2 URL, Supabase bucket path, or legacy storage URL.
  * @returns A public image URL, or null for invalid input/missing configuration.
  */
 export function getPublicProductImageUrl(value: string | null | undefined): string | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
-    key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const r2Url = getPublicR2ProductImageUrl(value);
+  if (r2Url) return r2Url;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const objectPath = getProductImagePath(value, url);
-  if (!objectPath || !url || !key || !getProductImageRemotePatterns(url).length) return null;
+  if (!objectPath || !url || !key || !getSupabaseProductImagePattern(url)) return null;
   if (!storageClient || configuredUrl !== url || configuredKey !== key) {
     storageClient = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

@@ -86,18 +86,82 @@ test("generates permanent public URLs without sending requests or retaining sign
   }
 });
 
-test("the optimizer allowlist covers only this project's public product images", () => {
-  assert.deepEqual(getProductImageRemotePatterns(host), [
+test("the optimizer allowlist covers the configured Supabase bucket and R2 prefix", () => {
+  const supabasePattern = {
+    protocol: "https",
+    hostname: "images.example.supabase.co",
+    port: "",
+    pathname: "/storage/v1/object/public/IMG_Products/**",
+    search: "",
+  };
+  assert.deepEqual(getProductImageRemotePatterns(host, ""), [supabasePattern]);
+  assert.deepEqual(getProductImageRemotePatterns(host, "https://photos.example.com/products"), [
+    supabasePattern,
     {
       protocol: "https",
-      hostname: "images.example.supabase.co",
+      hostname: "photos.example.com",
       port: "",
-      pathname: "/storage/v1/object/public/IMG_Products/**",
+      pathname: "/products/**",
       search: "",
     },
   ]);
-  assert.deepEqual(getProductImageRemotePatterns("http://example.com"), []);
-  assert.deepEqual(getProductImageRemotePatterns("https://name:password@example.com"), []);
-  assert.deepEqual(getProductImageRemotePatterns("https://example.com:444"), []);
+  for (const invalid of [
+    "http://photos.example.com/products/",
+    "https://*.example.com/products/",
+    "https://photos.example.com/products/*",
+    "https://photos.example.com/products/?q=1",
+    "https://photos.example.com/products/#private",
+    "https://name:password@photos.example.com/products/",
+    "https://photos.example.com:444/products/",
+  ]) {
+    assert.deepEqual(getProductImageRemotePatterns(host, invalid), [supabasePattern], invalid);
+  }
+  assert.deepEqual(getProductImageRemotePatterns("http://example.com", ""), []);
+  assert.deepEqual(getProductImageRemotePatterns("https://name:password@example.com", ""), []);
+  assert.deepEqual(getProductImageRemotePatterns("https://example.com:444", ""), []);
   assert.equal(PRODUCT_FALLBACK_IMAGE_PATH, "placeholder/product-fallback.webp");
+});
+
+test("resolves a mixed catalog and accepts R2 without Supabase credentials", (t) => {
+  const env = {
+    NEXT_PUBLIC_SUPABASE_URL: host,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "public-test-key",
+    NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL: "https://photos.example.com/products/",
+  };
+  for (const [name, value] of Object.entries(env)) {
+    const previous = process.env[name];
+    t.after(() => {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    });
+    process.env[name] = value;
+  }
+
+  const r2Photo = env.NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL + "drinks/iced%20tea.webp";
+  const supabasePhoto = host + "/storage/v1/object/public/IMG_Products/coffee.webp";
+  assert.equal(getPublicProductImageUrl("coffee.webp"), supabasePhoto);
+  assert.equal(getPublicProductImageUrl(" " + r2Photo + " "), r2Photo);
+
+  for (const url of [
+    r2Photo + "?v=1",
+    r2Photo + "#photo",
+    "https://other.example.com/products/drinks/tea.webp",
+    "https://photos.example.com.evil.test/products/drinks/tea.webp",
+    "https://photos.example.com/products-private/tea.webp",
+    "https://photos.example.com/products/",
+    "https://photos.example.com:444/products/tea.webp",
+    "https://name@photos.example.com/products/tea.webp",
+    "http://photos.example.com/products/drinks/tea.webp",
+  ]) {
+    assert.equal(getPublicProductImageUrl(url), null, url);
+  }
+
+  delete process.env.NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL;
+  assert.equal(getPublicProductImageUrl(r2Photo), null);
+  assert.equal(getPublicProductImageUrl("coffee.webp"), supabasePhoto);
+
+  process.env.NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL = env.NEXT_PUBLIC_PRODUCT_IMAGE_R2_BASE_URL;
+  delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  assert.equal(getPublicProductImageUrl(r2Photo), r2Photo);
 });

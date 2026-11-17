@@ -5,9 +5,8 @@ const isVercelBuild = process.env.VERCEL === "1";
 
 const nextConfig: NextConfig = {
   images: {
-    // Allow Next.js to optimize public IMG_Products images from our configured
-    // Supabase host. Reject other hosts, buckets, signed URLs, and query strings.
-    // This only allows fetching images; it does not make the bucket public.
+    // Optimize product images from the public Supabase bucket and optional
+    // Cloudflare R2 host and path. Both sources must be publicly readable.
     remotePatterns: getProductImageRemotePatterns(),
     // Keep Next.js's default small-image widths and add 400px for desktop menu cards.
     // These are available download widths, not CSS display sizes. The browser
