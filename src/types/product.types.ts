@@ -1,6 +1,8 @@
 import type { ModifierGroup } from "./modifier-group.types";
 import type { Station } from "./socket.types";
 
+export type { MenuProduct } from "./menu/menu-types";
+
 /**
  * Represents a POS product with inventory and menu metadata.
  */
