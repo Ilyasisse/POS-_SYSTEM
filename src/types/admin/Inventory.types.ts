@@ -9,11 +9,12 @@ export type InventoryStatus = "OK" | "LOW" | "OUT";
 export type InventorySupplyRow = {
   id: string;
   name: string;
-  stockQty: number;
+  stockQty: string;
   unit: string;
-  canonicalUnit: "GRAM" | "MILLILITRE" | "PIECE" | null;
-  quantityCoverage: "COMPLETE" | "LEGACY_INCOMPLETE" | "MISSING_COST";
-  lowStockThreshold: number;
+  stockUnit: string;
+  step: string;
+  hasUnitMapping: boolean;
+  lowStockThreshold: string;
   status: InventoryStatus;
 };
 
@@ -21,12 +22,15 @@ export type InventoryMovementRow = {
   id: string;
   itemName: string;
   reason: string;
-  delta: number;
+  delta: string;
+  unit: string;
   createdAt: Date;
+  occurredAt: Date;
 };
 
 export type AdminInventoryPageProps = {
   searchParams?: Promise<{
+    date?: string;
     inventoryEmail?: string;
     q?: string;
     status?: string;
