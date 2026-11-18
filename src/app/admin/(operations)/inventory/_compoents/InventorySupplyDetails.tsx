@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { stockLabels } from "@/components/inventory/stock-labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +149,11 @@ export default function InventorySupplyDetails({
           Clear
         </Button>
       </div>
+      <Button asChild variant="outline" className="rounded-full">
+        <Link href={`/admin/inventory/${supply.id}`}>
+          {supply.hasUnitMapping ? "Edit supply details" : "Configure stock unit"}
+        </Link>
+      </Button>
       {supply.hasUnitMapping ? (
         <>
           <RestockForm {...formProps} action={restock} />

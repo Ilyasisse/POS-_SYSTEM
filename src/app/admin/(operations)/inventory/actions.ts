@@ -8,6 +8,7 @@ import { decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
   classifySupplyUnit,
   supplyInputQuantity,
+  supplyEditMapping,
   supplyStockUnit,
 } from "@/lib/inventory/supply-units";
 import { Prisma } from "@prisma/client";
@@ -281,4 +282,118 @@ export async function updateSupplyInventory(formData: FormData) {
 
 export async function adjustSupplyInventory(formData: FormData) {
   return saveSupplyInventory(formData, "RESTOCK");
+}
+
+// Metadata and stock are saved together so a unit edit cannot partially apply.
+export async function editSupply(formData: FormData): Promise<SupplyFormResult> {
+  const user = await requireInventoryAccess();
+  const supplyId = getString(formData, "supplyId");
+  const name = getString(formData, "name");
+  const unit = getString(formData, "unit");
+  if (!name) return { ok: false, field: "name", error: "Enter a supply name." };
+  const mapping = classifySupplyUnit(unit, formData.get("countAsEntered") === "yes");
+  if (!unit || !mapping.canonicalUnit)
+    return {
+      ok: false,
+      field: "unit",
+      error: "Choose a known unit or confirm that each custom unit counts as one.",
+    };
+  const stock = readSupplyQuantity(formData, "stockQty", mapping.factor);
+  if (!stock.ok) return stock;
+  const threshold = readSupplyQuantity(formData, "lowStockThreshold", mapping.factor);
+  if (!threshold.ok) return threshold;
+  let result;
+  try {
+    result = await prisma.$transaction(
+      async (tx) => {
+        const current = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
+        if (!current?.isActive)
+          return { ok: false, error: "This supply is no longer available." } as const;
+        if (getString(formData, "version") !== current.updatedAt.toISOString())
+          return { ok: false, error: "This supply changed. Refresh before saving again." } as const;
+        let editMapping;
+        try {
+          editMapping = supplyEditMapping(current, unit, formData.get("countAsEntered") === "yes");
+        } catch (error) {
+          return {
+            ok: false,
+            field: "unit",
+            error: error instanceof Error ? error.message : "Choose a valid stock unit.",
+          } as const;
+        }
+        // Normalize legacy balances once; historical movements keep their original units.
+        const factor = editMapping.legacyFactor;
+        await tx.inventorySupply.update({
+          where: { id: supplyId },
+          data: {
+            name,
+            unit,
+            canonicalUnit: mapping.canonicalUnit,
+            quantityCoverage: "COMPLETE",
+            stockQty: current.stockQty.mul(factor),
+            lowStockThreshold: current.lowStockThreshold.mul(factor),
+            ...(!current.canonicalUnit && current.standardUnitCost != null
+              ? { standardUnitCost: current.standardUnitCost.div(factor) }
+              : {}),
+          },
+        });
+        const alerts = await setSupplyInventoryLevel(
+          tx,
+          supplyId,
+          stock.quantity,
+          threshold.quantity,
+          "SET",
+          "Supply details update",
+          user.id,
+        );
+        await tx.auditLog.create({
+          data: {
+            actorUserId: user.id,
+            action: "inventory.supply.edited",
+            entityType: "InventorySupply",
+            entityId: supplyId,
+            reason: "Supply details update",
+            previousValue: {
+              name: current.name,
+              unit: current.unit,
+              canonicalUnit: current.canonicalUnit,
+              stockQty: current.stockQty.toString(),
+              lowStockThreshold: current.lowStockThreshold.toString(),
+            },
+            newValue: {
+              name,
+              unit,
+              canonicalUnit: mapping.canonicalUnit,
+              legacyFactor: factor.toString(),
+              stockQty: stock.quantity.toString(),
+              lowStockThreshold: threshold.quantity.toString(),
+            },
+          },
+        });
+        return { ok: true, alerts } as const;
+      },
+      { isolationLevel: "Serializable" },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+      return {
+        ok: false,
+        field: "name",
+        error: "A supply with this name and unit already exists.",
+      };
+    console.error("Failed to edit supply:", error);
+    return { ok: false, error: "Could not save this supply. Refresh and try again." };
+  }
+  if (!result.ok) return result;
+  revalidatePath("/admin/inventory");
+  revalidatePath(`/admin/inventory/${supplyId}`);
+  revalidatePath("/inventory");
+  try {
+    const email = await sendInventoryAlerts(result.alerts);
+    if (email.attempted === 0) return { ok: true };
+    if (email.sent > 0) return { ok: true, email: "sent" };
+    return { ok: true, email: email.skipped ? "skipped" : "failed" };
+  } catch {
+    return { ok: true, email: "failed" };
+  }
 }

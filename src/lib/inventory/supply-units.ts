@@ -102,3 +102,28 @@ export function supplyMovementDisplay({
     unit: stockUnit.label,
   };
 }
+
+// Existing ledger quantities keep their dimension when the recorded unit is edited.
+export function supplyEditMapping(
+  current: { unit: string; canonicalUnit: CanonicalUnit | null },
+  nextUnit: string,
+  countAsEntered: boolean,
+) {
+  const mapping = classifySupplyUnit(nextUnit, countAsEntered);
+  if (!nextUnit.trim() || !mapping.canonicalUnit)
+    throw new Error("Choose a known unit or confirm that each custom unit counts as one.");
+  if (current.canonicalUnit && current.canonicalUnit !== mapping.canonicalUnit)
+    throw new Error(
+      "Use a unit of the same type (weight, volume, or count). Create a separate supply for a different type.",
+    );
+  const legacy = classifySupplyUnit(current.unit, countAsEntered);
+  if (!current.canonicalUnit && legacy.canonicalUnit !== mapping.canonicalUnit)
+    throw new Error(
+      "First configure the existing unit. For a custom counted unit, confirm that each unit counts as one.",
+    );
+  return {
+    canonicalUnit: mapping.canonicalUnit,
+    factor: mapping.factor,
+    legacyFactor: current.canonicalUnit ? new Prisma.Decimal(1) : legacy.factor,
+  };
+}
