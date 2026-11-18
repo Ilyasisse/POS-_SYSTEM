@@ -19,6 +19,9 @@ import {
   setSupplyInventoryLevel,
 } from "@/lib/inventory/inventory";
 
+import { inventoryMovementDate } from "@/lib/inventory/movement-date";
+import { configureInventoryCafeteria, InventoryAccessError } from "@/lib/inventory/cafeteria-context";
+
 // Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -33,7 +36,7 @@ function getQuantity(formData: FormData, key: string) {
 async function requireInventoryAccess() {
   return requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
-type SupplyFormField = "name" | "unit" | "stockQty" | "lowStockThreshold" | "quantity";
+type SupplyFormField = "name" | "unit" | "stockQty" | "lowStockThreshold" | "quantity" | "movementDate";
 export type SupplyFormResult =
   | { ok: true; email?: "sent" | "failed" | "skipped" }
   | { ok: false; error: string; field?: SupplyFormField };
@@ -208,10 +211,17 @@ async function saveSupplyInventory(
   const supplyId = getString(formData, "supplyId");
   if (!supplyId) return { ok: false, error: "Supply is required." };
 
+  let occurredAt;
+  try {
+    occurredAt = reason === "RESTOCK" ? inventoryMovementDate(formData.get("movementDate")) : new Date();
+  } catch (error) {
+    return { ok: false, field: "movementDate", error: (error as Error).message };
+  }
   let result;
   try {
     result = await prisma.$transaction(
       async (tx) => {
+        await configureInventoryCafeteria(tx, user.id, supplyId);
         const supply = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
         if (!supply?.isActive)
           return { ok: false, error: "This supply is no longer available." } as const;
@@ -252,12 +262,14 @@ async function saveSupplyInventory(
             reason,
             note,
             user.id,
+            occurredAt,
           ),
         } as const;
       },
       { isolationLevel: "RepeatableRead" },
     );
   } catch (error) {
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
     console.error("Failed to save supply inventory:", error);
     return { ok: false, error: "Could not save the stock change. Try again." };
   }
@@ -306,6 +318,7 @@ export async function editSupply(formData: FormData): Promise<SupplyFormResult> 
   try {
     result = await prisma.$transaction(
       async (tx) => {
+        await configureInventoryCafeteria(tx, user.id, supplyId);
         const current = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
         if (!current?.isActive)
           return { ok: false, error: "This supply is no longer available." } as const;
@@ -381,6 +394,7 @@ export async function editSupply(formData: FormData): Promise<SupplyFormResult> 
         field: "name",
         error: "A supply with this name and unit already exists.",
       };
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
     console.error("Failed to edit supply:", error);
     return { ok: false, error: "Could not save this supply. Refresh and try again." };
   }

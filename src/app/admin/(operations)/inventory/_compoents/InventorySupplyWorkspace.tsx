@@ -29,12 +29,14 @@ function subscribeToDesktop(callback: () => void) {
 
 export default function InventorySupplyWorkspace({
   supplies,
+  movementDate,
   initialSearch,
   initialFilter,
   updateStock,
   restock,
 }: {
   supplies: InventorySupplyRow[];
+  movementDate: string;
   initialSearch: string;
   initialFilter: "ALL" | InventoryStatus;
   updateStock: typeof updateSupplyInventory;
@@ -59,6 +61,7 @@ export default function InventorySupplyWorkspace({
   const details = selected ? (
     <InventorySupplyDetails
       key={selected.id + selected.stockUnit}
+      movementDate={movementDate}
       supply={selected}
       pending={pending}
       onPendingChange={setPending}

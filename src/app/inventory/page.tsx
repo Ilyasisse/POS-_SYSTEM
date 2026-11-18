@@ -1,4 +1,7 @@
 import Link from "next/link";
+import InventoryDateSelector from "@/components/inventory/InventoryDateSelector";
+import { inventoryDateRange } from "@/lib/inventory/movement-date";
+import { getTodaySupplyDateKey, resolveSupplyDateKey } from "@/lib/supplies/supply-purchases";
 import { bodyFont, displayFont } from "@/components/customer/customer-order-styles";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -18,15 +21,6 @@ type StatusSummary = {
   out: number;
 };
 
-const EAT_OFFSET_HOURS = 3;
-
-export function getEatDayStart(date = new Date()) {
-  const eatNow = new Date(date.getTime() + EAT_OFFSET_HOURS * 60 * 60 * 1000);
-  const eatStart = Date.UTC(eatNow.getUTCFullYear(), eatNow.getUTCMonth(), eatNow.getUTCDate());
-
-  return new Date(eatStart - EAT_OFFSET_HOURS * 60 * 60 * 1000);
-}
-
 function addStatus(summary: StatusSummary, status: "OK" | "LOW" | "OUT") {
   if (status === "OUT") {
     summary.out += 1;
@@ -37,10 +31,14 @@ function addStatus(summary: StatusSummary, status: "OK" | "LOW" | "OUT") {
   }
 }
 
-export default async function InventoryPage() {
-  const todayStart = getEatDayStart();
+export default async function InventoryPage({ searchParams }: {
+  searchParams?: Promise<{ date?: string }>;
+}) {
+  const selectedDate = resolveSupplyDateKey((await searchParams)?.date);
+  const today = getTodaySupplyDateKey();
+  const dateRange = inventoryDateRange(selectedDate);
 
-  const [user, [supplies, takenTodayMovements]] = await Promise.all([
+  const [user, [supplies, takenMovements, takenCount]] = await Promise.all([
     requirePermission(PERMISSIONS.INVENTORY_VIEW, {
       stations: ["CABITAAN"],
     }),
@@ -60,16 +58,17 @@ export default async function InventoryPage() {
           delta: {
             lt: 0,
           },
-          createdAt: {
-            gte: todayStart,
-          },
+          occurredAt: dateRange,
+          reason: "TAKEN",
         },
         include: { supply: { select: { unit: true } } },
         take: 12,
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
       }),
+      prisma.inventoryMovement.count({ where: {
+        itemType: "Supply", supplyId: { not: null }, delta: { lt: 0 },
+        reason: "TAKEN", occurredAt: dateRange,
+      } }),
     ]),
   ]);
 
@@ -112,6 +111,8 @@ export default async function InventoryPage() {
           </Link>
         </header>
 
+        <InventoryDateSelector key={selectedDate} date={selectedDate} today={today} />
+
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="border-border bg-card rounded-2xl border p-4 shadow-lg">
             <p className="text-muted-foreground text-sm font-semibold tracking-[0.14em] uppercase">
@@ -137,13 +138,15 @@ export default async function InventoryPage() {
           </div>
           <div className="border-border bg-card rounded-2xl border p-4 shadow-lg">
             <p className="text-muted-foreground text-sm font-semibold tracking-[0.14em] uppercase">
-              Taken Today
+              {selectedDate === today ? "Taken Today" : "Taken on selected date"}
             </p>
-            <p className="text-foreground mt-2 text-3xl font-bold">{takenTodayMovements.length}</p>
+            <p className="text-foreground mt-2 text-3xl font-bold">{takenCount}</p>
           </div>
         </section>
 
         <InventorySupplyPicker
+          key={selectedDate}
+          movementDate={selectedDate}
           takeSupply={takeSupplyInventory}
           canTake={hasPermission(user, PERMISSIONS.INVENTORY_MANAGE)}
           supplies={supplies.map((supply) => {
@@ -167,16 +170,16 @@ export default async function InventoryPage() {
         <section className="border-border bg-card/88 rounded-3xl border p-4 shadow-[0_22px_65px_rgba(44,28,17,0.12)] sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-foreground text-lg font-bold">Recent Taken</h2>
-            <span className="text-muted-foreground text-sm">Today</span>
+            <span className="text-muted-foreground text-sm">{selectedDate}</span>
           </div>
 
           <div className="mt-3 space-y-2">
-            {takenTodayMovements.length === 0 ? (
+            {takenMovements.length === 0 ? (
               <div className="border-border text-muted-foreground rounded-xl border border-dashed p-5 text-center text-sm">
-                No supplies taken today.
+                No supplies taken on this date.
               </div>
             ) : (
-              takenTodayMovements.map((movement) => {
+              takenMovements.map((movement) => {
                 const display = supplyMovementDisplay(movement);
                 return (
                   <div
@@ -189,11 +192,10 @@ export default async function InventoryPage() {
                           {display.name}
                         </p>
                         <p className="text-muted-foreground mt-1 text-xs">
-                          {movement.createdAt.toLocaleString("en-US", {
+                          {movement.occurredAt.toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
+                            year: "numeric",
                             timeZone: "Africa/Nairobi",
                           })}
                         </p>

@@ -555,6 +555,7 @@ export async function setSupplyInventoryLevel(
   reason: string,
   note?: string,
   actorUserId?: string | null,
+  occurredAt = new Date(),
 ) {
   const supply = await tx.inventorySupply.findUnique({
     where: { id: supplyId },
@@ -618,10 +619,12 @@ export async function setSupplyInventoryLevel(
       actorUserId,
       sourceType: "InventoryAdmin",
       sourceId: supply.id,
+      occurredAt,
     });
     await tx.inventoryMovement.create({
       data: {
         supplyId: supply.id,
+        occurredAt,
         itemName: `${supply.name} (${supply.unit})`,
         itemType: "Supply",
         delta: deltaDecimal,

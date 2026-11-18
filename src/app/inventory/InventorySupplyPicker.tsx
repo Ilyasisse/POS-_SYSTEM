@@ -44,7 +44,9 @@ export default function InventorySupplyPicker({
   supplies,
   canTake,
   takeSupply,
+  movementDate,
 }: {
+  movementDate: string;
   supplies: Supply[];
   canTake: boolean;
   takeSupply: typeof takeSupplyInventory;
@@ -61,6 +63,7 @@ export default function InventorySupplyPicker({
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [quantityError, setQuantityError] = useState("");
+  const [dateError, setDateError] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -76,6 +79,7 @@ export default function InventorySupplyPicker({
     setQuantity(supply && Number(supply.stockQty) >= 1 ? "1" : "");
     setNote("");
     setQuantityError("");
+    setDateError("");
   }
 
   function editQuantity(value: string) {
@@ -110,6 +114,8 @@ export default function InventorySupplyPicker({
         if (!result.ok) {
           if (result.field === "quantity") {
             setQuantityError(result.error);
+          } else if (result.field === "movementDate") {
+            setDateError(result.error);
           } else {
             toast({ tone: "error", description: result.error });
           }
@@ -148,6 +154,8 @@ export default function InventorySupplyPicker({
 
   const review = selected ? (
     <SupplyReviewForm
+      movementDate={movementDate}
+      dateError={dateError}
       selected={selected}
       quantity={quantity}
       note={note}
@@ -230,6 +238,8 @@ export default function InventorySupplyPicker({
 }
 
 function SupplyReviewForm({
+  movementDate,
+  dateError,
   selected,
   quantity,
   note,
@@ -240,6 +250,8 @@ function SupplyReviewForm({
   onRemove,
   onSubmit: submit,
 }: {
+  movementDate: string;
+  dateError: string;
   selected: Supply;
   quantity: string;
   note: string;
@@ -266,6 +278,9 @@ function SupplyReviewForm({
 
   return (
     <form onSubmit={submit} noValidate className="space-y-4 p-4 sm:p-5">
+      <input type="hidden" name="movementDate" value={movementDate} />
+      <p className="text-muted-foreground text-sm">Withdrawal date: {movementDate}</p>
+      {dateError ? <p role="alert" className="text-destructive text-sm">{dateError}</p> : null}
       <input type="hidden" name="supplyId" value={selected.id} />
       <input type="hidden" name="stockUnit" value={selected.stockUnit} />
       <div className="border-border bg-muted/30 rounded-2xl border p-4">

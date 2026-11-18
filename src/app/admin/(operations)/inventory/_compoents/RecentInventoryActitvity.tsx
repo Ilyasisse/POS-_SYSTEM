@@ -3,11 +3,10 @@ import { Card } from "@/components/ui/card";
 import { InventoryMovementRow } from "@/types/admin/Inventory.types";
 
 function formatDateTime(date: Date) {
-  return date.toLocaleString("en-US", {
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+    year: "numeric",
     timeZone: "Africa/Nairobi",
   });
 }
@@ -38,7 +37,7 @@ export default function RecentInventoryActivity({
                   {movement.itemName}
                 </p>
                 <p className="text-xs font-medium text-muted-foreground">
-                  {movement.reason} ~ {formatDateTime(movement.createdAt)}
+                  {movement.reason} ~ {formatDateTime(movement.occurredAt)}
                 </p>
               </div>
               <ToneBadge tone={movement.delta.startsWith("-") ? "red" : "green"}>

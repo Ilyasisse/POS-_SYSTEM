@@ -75,17 +75,23 @@ function StockEditForm({
 }
 
 function RestockForm({
+  movementDate,
   supply,
   pending,
   onPendingChange,
   onSuccess,
   action,
-}: StockFormProps & { action: typeof adjustSupplyInventory }) {
+}: StockFormProps & { action: typeof adjustSupplyInventory; movementDate: string }) {
   const form = useSupplyForm(action, "Supply restocked.", false, onPendingChange, onSuccess);
   return (
     <form onSubmit={form.submit} className="rounded-2xl border p-4">
       <h4 className="mb-3 text-sm font-semibold">Restock</h4>
       <fieldset disabled={pending} className="grid gap-3">
+        <input type="hidden" name="movementDate" value={movementDate} />
+        <p className="text-muted-foreground text-sm">Restock date: {movementDate}</p>
+        {form.error?.field === "movementDate" ? (
+          <p id={form.errorId} role="alert" className="text-destructive text-xs">{form.error.error}</p>
+        ) : null}
         <input type="hidden" name="supplyId" value={supply.id} />
         <input type="hidden" name="stockUnit" value={supply.stockUnit} />
         <label className="grid gap-1.5 text-sm">
@@ -99,7 +105,7 @@ function RestockForm({
             step={supply.step}
             required
           />
-          {form.error ? (
+          {form.error && form.error.field !== "movementDate" ? (
             <span id={form.errorId} role="alert" className="text-destructive text-xs">
               {form.error.error}
             </span>
@@ -118,6 +124,7 @@ function RestockForm({
 }
 
 export default function InventorySupplyDetails({
+  movementDate,
   supply,
   pending,
   onPendingChange,
@@ -125,6 +132,7 @@ export default function InventorySupplyDetails({
   updateStock,
   restock,
 }: Omit<StockFormProps, "onSuccess"> & {
+  movementDate: string;
   onClear: () => void;
   updateStock: typeof updateSupplyInventory;
   restock: typeof adjustSupplyInventory;
@@ -156,7 +164,7 @@ export default function InventorySupplyDetails({
       </Button>
       {supply.hasUnitMapping ? (
         <>
-          <RestockForm {...formProps} action={restock} />
+          <RestockForm {...formProps} action={restock} movementDate={movementDate} />
           <StockEditForm {...formProps} action={updateStock} />
         </>
       ) : (

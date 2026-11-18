@@ -18,7 +18,9 @@ import CreateSupplyForm from "./_compoents/CreateSupplyForm";
 import InventorySummary from "./_compoents/InventorySummary";
 import InventorySupplyWorkspace from "./_compoents/InventorySupplyWorkspace";
 import RecentInventoryActivity from "./_compoents/RecentInventoryActitvity";
-import { getEatDayStart } from "@/app/inventory/page";
+import InventoryDateSelector from "@/components/inventory/InventoryDateSelector";
+import { inventoryDateRange } from "@/lib/inventory/movement-date";
+import { getTodaySupplyDateKey, resolveSupplyDateKey } from "@/lib/supplies/supply-purchases";
 
 function addStatus(summary: StatusSummary, status: InventoryStatus) {
   if (status === "OUT") {
@@ -53,7 +55,9 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
     ["all", "ok", "low", "out"] as const,
     "all",
   );
-  const todayStart = getEatDayStart();
+  const today = getTodaySupplyDateKey();
+  const selectedDate = resolveSupplyDateKey(params?.date);
+  const dateRange = inventoryDateRange(selectedDate);
   const notice = getInventoryEmailMessage(params?.inventoryEmail);
 
   const [supplies, movements, takenTodayMovements] = await Promise.all([
@@ -67,6 +71,7 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
     }),
     prisma.inventoryMovement.findMany({
       where: {
+        occurredAt: dateRange,
         itemType: "Supply",
         supplyId: {
           not: null,
@@ -74,9 +79,7 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
       },
       include: { supply: { select: { unit: true } } },
       take: 8,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
     }),
     prisma.inventoryMovement.findMany({
       where: {
@@ -87,9 +90,8 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
         delta: {
           lt: 0,
         },
-        createdAt: {
-          gte: todayStart,
-        },
+        occurredAt: inventoryDateRange(today),
+        reason: "TAKEN",
       },
       select: {
         id: true,
@@ -125,10 +127,13 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
     <AdminPage title="Inventory" description="Track stock levels and manage inventory">
       <InventoryNotice notice={notice} />
       <InventorySummary summary={summary} takenTodayCount={takenTodayMovements.length} />
+      <InventoryDateSelector key={selectedDate} date={selectedDate} today={today}
+        filters={{ q: params?.q ?? "", status: statusFilter }} />
       <CreateSupplyForm />
       <InventorySupplyWorkspace
-        key={JSON.stringify([params?.q ?? "", statusFilter])}
+        key={JSON.stringify([params?.q ?? "", statusFilter, selectedDate])}
         supplies={enrichedSupplies}
+        movementDate={selectedDate}
         updateStock={updateSupplyInventory}
         restock={adjustSupplyInventory}
         initialSearch={params?.q ?? ""}

@@ -25,10 +25,12 @@ export type InventoryMovementRow = {
   delta: string;
   unit: string;
   createdAt: Date;
+  occurredAt: Date;
 };
 
 export type AdminInventoryPageProps = {
   searchParams?: Promise<{
+    date?: string;
     inventoryEmail?: string;
     q?: string;
     status?: string;

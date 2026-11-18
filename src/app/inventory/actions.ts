@@ -12,9 +12,12 @@ import {
 } from "@/lib/inventory/supply-units";
 import { getPostHogClient } from "@/lib/posthog-server";
 
+import { inventoryMovementDate } from "@/lib/inventory/movement-date";
+import { configureInventoryCafeteria, InventoryAccessError } from "@/lib/inventory/cafeteria-context";
+
 type TakeSupplyResult =
   | { ok: true; email: "sent" | "failed" | "skipped" | "none" }
-  | { ok: false; error: string; field?: "quantity" };
+  | { ok: false; error: string; field?: "quantity" | "movementDate" };
 
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) || "").trim();
@@ -31,10 +34,17 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
     return { ok: false, error: "Select a supply first." };
   }
 
+  let occurredAt;
+  try {
+    occurredAt = inventoryMovementDate(formData.get("movementDate"));
+  } catch (error) {
+    return { ok: false, field: "movementDate", error: (error as Error).message };
+  }
   let result;
   try {
     result = await prisma.$transaction(
       async (tx) => {
+        await configureInventoryCafeteria(tx, user.id, supplyId);
         const supply = await tx.inventorySupply.findUnique({
           where: { id: supplyId },
           select: {
@@ -102,12 +112,14 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
             "TAKEN",
             note || "Taken from inventory page",
             user.id,
+            occurredAt,
           ),
         };
       },
       { isolationLevel: "RepeatableRead" },
     );
   } catch (error) {
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
     console.error("Failed to record supply withdrawal:", error);
     return { ok: false, error: "Could not record the withdrawal. Try again." };
   }
