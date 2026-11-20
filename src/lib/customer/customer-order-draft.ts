@@ -10,6 +10,7 @@ type DraftItem = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  note?: string;
   modifiers: { optionId: string; qty: number }[];
   assignedBaristaId: string | null;
 };
@@ -41,6 +42,7 @@ export function saveCustomerOrderDraft(
     items: cart.map((item) => ({
       productId: item.id,
       quantity: item.quantity,
+      note: item.note,
       unitPrice: Number(item.finalPrice ?? item.price),
       modifiers: item.selectedModifiers.map((modifier) => ({
         optionId: modifier.optionId,
@@ -70,6 +72,7 @@ function validItem(value: unknown): value is DraftItem {
     Number(item.quantity) <= 99 &&
     typeof item.unitPrice === "number" &&
     Number.isFinite(item.unitPrice) &&
+    (item.note === undefined || (typeof item.note === "string" && item.note.length <= 500)) &&
     Array.isArray(item.modifiers) &&
     item.modifiers.every(
       (modifier) =>
@@ -158,6 +161,7 @@ function restoreLine(
       finalPrice,
       lineTotal: finalPrice * item.quantity,
       quantity: item.quantity,
+      note: item.note,
       station,
       selectedModifiers,
       assignedUserId,

@@ -1,3 +1,4 @@
+import { normalizeOrderItemNote, OrderItemNoteValidationError } from "@/lib/orders/order-item-notes";
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,7 @@ type CustomerOrderItemModifierInput = {
 type CustomerOrderItemInput = {
   productId: string;
   qty: number;
+  note?: unknown;
   modifiers?: CustomerOrderItemModifierInput[];
   assignedBaristaId?: string | null;
 };
@@ -41,6 +43,7 @@ type PreparedLine = {
   productId: string;
   productName: string;
   qty: number;
+  notes: string | null;
   station: Station | null;
   assignedBaristaId: string | null;
   assignedBaristaName: string | null;
@@ -363,6 +366,7 @@ export async function POST(request: Request) {
         productId: product.id,
         productName: product.name,
         qty,
+        notes: normalizeOrderItemNote(item.note),
         station,
         assignedBaristaId,
         assignedBaristaName,
@@ -465,7 +469,7 @@ export async function POST(request: Request) {
         error:
           error instanceof Error ? error.message : "Could not start checkout.",
       },
-      { status: 500 },
+      { status: error instanceof OrderItemNoteValidationError ? 400 : 500 },
     );
   }
 }
