@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
 
 import {
   getSupplierInvoiceDisplayStatus,
@@ -18,19 +17,10 @@ function dueDate(dateKey: string) {
 }
 
 test("derives every supplier invoice display status", () => {
-  assert.equal(
-    getSupplierInvoiceDisplayStatus({ status: "DRAFT", bill: null }, now),
-    "DRAFT",
-  );
-  assert.equal(
-    getSupplierInvoiceDisplayStatus({ status: "VOID", bill: null }, now),
-    "VOID",
-  );
-  assert.equal(
-    getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill: null }, now),
-    "PENDING",
-  );
-  assert.equal(
+  expect(getSupplierInvoiceDisplayStatus({ status: "DRAFT", bill: null }, now)).toBe("DRAFT");
+  expect(getSupplierInvoiceDisplayStatus({ status: "VOID", bill: null }, now)).toBe("VOID");
+  expect(getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill: null }, now)).toBe("PENDING");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -38,9 +28,8 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "PENDING",
-  );
-  assert.equal(
+  ).toBe("PENDING");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -48,9 +37,8 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "PENDING",
-  );
-  assert.equal(
+  ).toBe("PENDING");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -58,9 +46,8 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "PARTIALLY_PAID",
-  );
-  assert.equal(
+  ).toBe("PARTIALLY_PAID");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -68,9 +55,8 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "PARTIALLY_PAID",
-  );
-  assert.equal(
+  ).toBe("PARTIALLY_PAID");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -78,9 +64,8 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "OVERDUE",
-  );
-  assert.equal(
+  ).toBe("OVERDUE");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -88,9 +73,8 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "OVERDUE",
-  );
-  assert.equal(
+  ).toBe("OVERDUE");
+  expect(
     getSupplierInvoiceDisplayStatus(
       {
         status: "FINALIZED",
@@ -98,8 +82,7 @@ test("derives every supplier invoice display status", () => {
       },
       now,
     ),
-    "PAID",
-  );
+  ).toBe("PAID");
 });
 
 test("uses Nairobi day boundaries for invoice payment status", () => {
@@ -110,24 +93,16 @@ test("uses Nairobi day boundaries for invoice payment status", () => {
     dueDate: dueDate("2026-07-24"),
   };
 
-  assert.equal(
-    getSupplierInvoiceDisplayStatus(
-      { status: "FINALIZED", bill },
-      beforeNairobiMidnight,
-    ),
-    "PENDING",
-  );
-  assert.equal(
-    getSupplierInvoiceDisplayStatus(
-      { status: "FINALIZED", bill },
-      afterNairobiMidnight,
-    ),
+  expect(
+    getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill }, beforeNairobiMidnight),
+  ).toBe("PENDING");
+  expect(getSupplierInvoiceDisplayStatus({ status: "FINALIZED", bill }, afterNairobiMidnight)).toBe(
     "OVERDUE",
   );
 });
 
 test("defines labels for every selectable invoice display status", () => {
-  assert.deepEqual(SUPPLIER_INVOICE_DISPLAY_STATUSES, [
+  expect(SUPPLIER_INVOICE_DISPLAY_STATUSES).toStrictEqual([
     "DRAFT",
     "PENDING",
     "PARTIALLY_PAID",
@@ -135,24 +110,21 @@ test("defines labels for every selectable invoice display status", () => {
     "PAID",
     "VOID",
   ]);
-  assert.equal(
-    SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS.PARTIALLY_PAID,
-    "PARTIALLY PAID",
-  );
+  expect(SUPPLIER_INVOICE_DISPLAY_STATUS_LABELS.PARTIALLY_PAID).toBe("PARTIALLY PAID");
 });
 
 test("builds database filters for every display status", () => {
-  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("DRAFT", now), {
+  expect(getSupplierInvoiceDisplayStatusWhere("DRAFT", now)).toStrictEqual({
     status: "DRAFT",
   });
-  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("VOID", now), {
+  expect(getSupplierInvoiceDisplayStatusWhere("VOID", now)).toStrictEqual({
     status: "VOID",
   });
-  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("PAID", now), {
+  expect(getSupplierInvoiceDisplayStatusWhere("PAID", now)).toStrictEqual({
     status: "FINALIZED",
     bill: { is: { status: "PAID" } },
   });
-  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("OVERDUE", now), {
+  expect(getSupplierInvoiceDisplayStatusWhere("OVERDUE", now)).toStrictEqual({
     status: "FINALIZED",
     bill: {
       is: {
@@ -161,19 +133,16 @@ test("builds database filters for every display status", () => {
       },
     },
   });
-  assert.deepEqual(
-    getSupplierInvoiceDisplayStatusWhere("PARTIALLY_PAID", now),
-    {
-      status: "FINALIZED",
-      bill: {
-        is: {
-          status: "PARTIAL",
-          dueDate: { gte: dueDate("2026-07-24") },
-        },
+  expect(getSupplierInvoiceDisplayStatusWhere("PARTIALLY_PAID", now)).toStrictEqual({
+    status: "FINALIZED",
+    bill: {
+      is: {
+        status: "PARTIAL",
+        dueDate: { gte: dueDate("2026-07-24") },
       },
     },
-  );
-  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("PENDING", now), {
+  });
+  expect(getSupplierInvoiceDisplayStatusWhere("PENDING", now)).toStrictEqual({
     status: "FINALIZED",
     OR: [
       {

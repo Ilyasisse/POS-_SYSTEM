@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import type { CartLine, Product, StaffSummary } from "@/lib/types";
 import { customerReturnPath } from "@/lib/auth/customer-return-path";
 import {
@@ -69,8 +69,8 @@ const cart: CartLine[] = [
 ];
 
 test("OAuth return accepts only the customer menu and history routes", () => {
-  assert.equal(customerReturnPath("/customer"), "/customer");
-  assert.equal(customerReturnPath("/customer/orders"), "/customer/orders");
+  expect(customerReturnPath("/customer")).toBe("/customer");
+  expect(customerReturnPath("/customer/orders")).toBe("/customer/orders");
   for (const value of [
     "//example.com",
     "/customer/../admin",
@@ -81,64 +81,59 @@ test("OAuth return accepts only the customer menu and history routes", () => {
     "https://example.com",
     null,
   ]) {
-    assert.equal(customerReturnPath(value), null);
+    expect(customerReturnPath(value)).toBe(null);
   }
 });
 
 test("draft restores configured items and customer fields", () => {
   storage.clear();
-  assert.equal(saveCustomerOrderDraft(cart, "Alex", "123", "Less sugar"), true);
+  expect(saveCustomerOrderDraft(cart, "Alex", "123", "Less sugar")).toBe(true);
   const restored = restoreCustomerOrderDraft([product], baristas);
-  assert.ok(restored);
-  assert.equal(restored.cart.length, 1);
-  assert.equal(restored.cart[0].quantity, 2);
-  assert.equal(restored.cart[0].assignedUserId, "b1");
-  assert.equal(restored.cart[0].selectedModifiers[0].optionId, "oat");
-  assert.equal(restored.customerName, "Alex");
-  assert.equal(restored.customerPhone, "123");
-  assert.equal(restored.orderNote, "Less sugar");
-  assert.equal(restored.skipped, 0);
-  assert.equal(restored.repriced, 0);
+  expect(restored).toBeTruthy();
+  if (!restored) throw new Error("Expected restored to be present");
+  expect(restored.cart.length).toBe(1);
+  expect(restored.cart[0].quantity).toBe(2);
+  expect(restored.cart[0].assignedUserId).toBe("b1");
+  expect(restored.cart[0].selectedModifiers[0].optionId).toBe("oat");
+  expect(restored.customerName).toBe("Alex");
+  expect(restored.customerPhone).toBe("123");
+  expect(restored.orderNote).toBe("Less sugar");
+  expect(restored.skipped).toBe(0);
+  expect(restored.repriced).toBe(0);
 });
 
 test("draft flags changed prices and drops unavailable choices", () => {
   storage.clear();
   saveCustomerOrderDraft(cart, "Alex", "", "");
-  const repriced = restoreCustomerOrderDraft(
-    [{ ...product, price: 7 }],
-    baristas,
-  );
-  assert.ok(repriced);
-  assert.equal(repriced.cart[0].finalPrice, 8);
-  assert.equal(repriced.repriced, 1);
+  const repriced = restoreCustomerOrderDraft([{ ...product, price: 7 }], baristas);
+  expect(repriced).toBeTruthy();
+  if (!repriced) throw new Error("Expected repriced to be present");
+  expect(repriced.cart[0].finalPrice).toBe(8);
+  expect(repriced.repriced).toBe(1);
 
   const missingBarista = restoreCustomerOrderDraft([product], []);
-  assert.ok(missingBarista);
-  assert.equal(missingBarista.cart.length, 0);
-  assert.equal(missingBarista.skipped, 1);
+  expect(missingBarista).toBeTruthy();
+  if (!missingBarista) throw new Error("Expected missingBarista to be present");
+  expect(missingBarista.cart.length).toBe(0);
+  expect(missingBarista.skipped).toBe(1);
 
-  const missingModifier = restoreCustomerOrderDraft(
-    [{ ...product, modifierGroups: [] }],
-    baristas,
-  );
-  assert.ok(missingModifier);
-  assert.equal(missingModifier.skipped, 1);
+  const missingModifier = restoreCustomerOrderDraft([{ ...product, modifierGroups: [] }], baristas);
+  expect(missingModifier).toBeTruthy();
+  if (!missingModifier) throw new Error("Expected missingModifier to be present");
+  expect(missingModifier.skipped).toBe(1);
   clearCustomerOrderDraft();
-  assert.equal(restoreCustomerOrderDraft([product], baristas), null);
+  expect(restoreCustomerOrderDraft([product], baristas)).toBe(null);
 });
 
 test("dine-in selection survives OAuth navigation and is cleared with the cart", () => {
   storage.clear();
   saveCustomerFulfillment("DINE_IN", "table-one");
-  assert.deepEqual(restoreCustomerFulfillment(), {
+  expect(restoreCustomerFulfillment()).toStrictEqual({
     orderType: "DINE_IN",
     tableId: "table-one",
   });
   clearCustomerOrderDraft();
-  assert.equal(restoreCustomerFulfillment(), null);
-  storage.set(
-    "customer-fulfillment-v1",
-    '{"orderType":"DELIVERY","tableId":"table-one"}',
-  );
-  assert.equal(restoreCustomerFulfillment(), null);
+  expect(restoreCustomerFulfillment()).toBe(null);
+  storage.set("customer-fulfillment-v1", '{"orderType":"DELIVERY","tableId":"table-one"}');
+  expect(restoreCustomerFulfillment()).toBe(null);
 });

@@ -1,13 +1,13 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import { parseCounterOrderType } from "../../src/lib/orders/counter-order-type";
 
 test("counter sales accept takeaway orders", () => {
-  assert.equal(parseCounterOrderType("TAKEOUT"), "TAKEOUT");
-  assert.equal(parseCounterOrderType(undefined), "TAKEOUT");
+  expect(parseCounterOrderType("TAKEOUT")).toBe("TAKEOUT");
+  expect(parseCounterOrderType(undefined)).toBe("TAKEOUT");
 });
 
 test("counter sales reject table and unsupported order types", () => {
-  assert.equal(parseCounterOrderType("DINE_IN"), null);
-  assert.equal(parseCounterOrderType("DELIVERY"), null);
+  expect(parseCounterOrderType("DINE_IN")).toBe(null);
+  expect(parseCounterOrderType("DELIVERY")).toBe(null);
 });

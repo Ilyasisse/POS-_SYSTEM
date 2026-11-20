@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import { queryStringWithoutPage } from "../../src/components/admin/shared/ui/queryStringWithoutPage";
 import {
   isValidDateKey,
@@ -10,49 +10,41 @@ import {
 test("normalizes allowed filter choices and rejects unknown values", () => {
   const allowed = ["all", "active", "inactive"] as const;
 
-  assert.equal(normalizeFilterChoice("active", allowed, "all"), "active");
-  assert.equal(normalizeFilterChoice("archived", allowed, "all"), "all");
-  assert.equal(normalizeFilterChoice(undefined, allowed, "all"), "all");
+  expect(normalizeFilterChoice("active", allowed, "all")).toBe("active");
+  expect(normalizeFilterChoice("archived", allowed, "all")).toBe("all");
+  expect(normalizeFilterChoice(undefined, allowed, "all")).toBe("all");
 });
 
 test("validates calendar date keys rather than only their shape", () => {
-  assert.equal(isValidDateKey("2026-02-28"), true);
-  assert.equal(isValidDateKey("2024-02-29"), true);
-  assert.equal(isValidDateKey("2026-02-29"), false);
-  assert.equal(isValidDateKey("2026-13-01"), false);
-  assert.equal(isValidDateKey("08/09/2026"), false);
+  expect(isValidDateKey("2026-02-28")).toBe(true);
+  expect(isValidDateKey("2024-02-29")).toBe(true);
+  expect(isValidDateKey("2026-02-29")).toBe(false);
+  expect(isValidDateKey("2026-13-01")).toBe(false);
+  expect(isValidDateKey("08/09/2026")).toBe(false);
 });
 
 test("normalizes dates against the page's allowed bounds", () => {
   const fallback = "2026-08-09";
 
-  assert.equal(
+  expect(
     normalizeDateFilter("2026-08-08", fallback, {
       min: "2026-07-01",
       max: "2026-08-09",
     }),
-    "2026-08-08",
-  );
-  assert.equal(
-    normalizeDateFilter("2026-06-30", fallback, { min: "2026-07-01" }),
-    fallback,
-  );
-  assert.equal(
-    normalizeDateFilter("2026-08-10", fallback, { max: "2026-08-09" }),
-    fallback,
-  );
-  assert.equal(normalizeDateFilter("2026-02-29", fallback), fallback);
+  ).toBe("2026-08-08");
+  expect(normalizeDateFilter("2026-06-30", fallback, { min: "2026-07-01" })).toBe(fallback);
+  expect(normalizeDateFilter("2026-08-10", fallback, { max: "2026-08-09" })).toBe(fallback);
+  expect(normalizeDateFilter("2026-02-29", fallback)).toBe(fallback);
 });
 
 test("pagination links preserve filters while omitting the current page", () => {
-  assert.equal(
+  expect(
     queryStringWithoutPage({
       page: "4",
       q: "iced coffee",
       status: "active",
       category: "",
     }),
-    "?q=iced+coffee&status=active",
-  );
-  assert.equal(queryStringWithoutPage({ page: "2" }), "");
+  ).toBe("?q=iced+coffee&status=active");
+  expect(queryStringWithoutPage({ page: "2" })).toBe("");
 });

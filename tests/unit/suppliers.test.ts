@@ -1,12 +1,9 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import {
-  isValidSupplierSlug,
-  normalizeSupplierSlug,
-} from "../../src/lib/suppliers/validation";
+import { expect, test } from "@jest/globals";
+
+import { isValidSupplierSlug, normalizeSupplierSlug } from "../../src/lib/suppliers/validation";
 
 test("normalizes supplier identity fields", () => {
-  assert.equal(normalizeSupplierSlug(" Fresh Beans Ltd. "), "fresh-beans-ltd");
-  assert.equal(isValidSupplierSlug("fresh-beans-ltd"), true);
-  assert.equal(isValidSupplierSlug("../fresh"), false);
+  expect(normalizeSupplierSlug(" Fresh Beans Ltd. ")).toBe("fresh-beans-ltd");
+  expect(isValidSupplierSlug("fresh-beans-ltd")).toBe(true);
+  expect(isValidSupplierSlug("../fresh")).toBe(false);
 });
