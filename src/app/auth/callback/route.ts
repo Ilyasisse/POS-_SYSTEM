@@ -1,30 +1,17 @@
 import { NextResponse } from "next/server";
-import { customerReturnPath } from "@/lib/auth/customer-return-path";
+import { parseCustomerReturnPath } from "@/lib/auth/customer-return-path";
 import { findAppUser } from "@/lib/auth/app-user";
 import { syncGoogleCustomer } from "@/lib/auth/sync-google-customer";
 import { createClient } from "@/lib/supabase/server";
 
-function getRedirectOrigin(request: Request, requestUrl: URL) {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-
-  if (!forwardedHost) {
-    return requestUrl.origin;
-  }
-
-  const forwardedProto =
-    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
-
-  return `${forwardedProto}://${forwardedHost}`;
-}
-
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const redirectOrigin = getRedirectOrigin(request, requestUrl);
+  const redirectOrigin = requestUrl.origin;
   const code = requestUrl.searchParams.get("code");
-  const next = customerReturnPath(requestUrl.searchParams.get("next"));
+  const customerDestination = parseCustomerReturnPath(requestUrl.searchParams.get("next"));
   const loginUrl = new URL("/login", redirectOrigin);
   loginUrl.searchParams.set("error", "google-signin-failed");
-  if (next) loginUrl.searchParams.set("next", next);
+  if (customerDestination) loginUrl.searchParams.set("next", customerDestination);
 
   if (code) {
     const supabase = await createClient();
@@ -53,10 +40,10 @@ export async function GET(request: Request) {
         return NextResponse.redirect(loginUrl);
       }
 
-      if (next) {
+      if (customerDestination) {
         const profile = await findAppUser(user.id);
         if (profile?.role === "CUSTOMER" && profile.isActive) {
-          return NextResponse.redirect(new URL(next, redirectOrigin));
+          return NextResponse.redirect(new URL(customerDestination, redirectOrigin));
         }
         return NextResponse.redirect(new URL("/auth/redirect", redirectOrigin));
       }

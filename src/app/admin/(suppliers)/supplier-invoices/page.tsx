@@ -7,7 +7,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
@@ -176,17 +176,17 @@ export default async function SupplierInvoicesPage({
 
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Purchase order</TableHead>
-              <TableHead>Invoice / due date</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Status</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Invoice",
+              "Supplier",
+              "Purchase order",
+              "Invoice / due date",
+              "Items",
+              "Total",
+              "Status",
+            ]}
+          />
           <tbody>
             {invoiceRows.length ? (
               invoiceRows.map((invoice) => (

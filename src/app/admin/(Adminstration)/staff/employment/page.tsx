@@ -5,7 +5,7 @@ import {
   DataTableCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
@@ -94,14 +94,7 @@ export default async function EmploymentPage() {
       </Card>
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Worker</TableHead>
-              <TableHead>Terms</TableHead>
-              <TableHead>Effective</TableHead>
-              <TableHead>Status</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders columns={["Worker", "Terms", "Effective", "Status"]} />
           <tbody>
             {profiles.length ? (
               profiles.map((profile) => (

@@ -41,6 +41,17 @@ function money(value: string) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed.toFixed(2) : null;
 }
 
+const nairobiDateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Africa/Nairobi",
+  year: "2-digit",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
 function nairobiDate(dateValue: string, timeValue: string) {
   const [day, month, year] = dateValue.split("/").map(Number);
   const [hour, minute, second] = timeValue.split(":").map(Number);
@@ -48,18 +59,8 @@ function nairobiDate(dateValue: string, timeValue: string) {
     `20${String(year).padStart(2, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:${String(second).padStart(2, "0")}+03:00`,
   );
   if (Number.isNaN(date.getTime())) return null;
-  const formatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Africa/Nairobi",
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  });
   const parts = Object.fromEntries(
-    formatter
+    nairobiDateFormatter
       .formatToParts(date)
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),

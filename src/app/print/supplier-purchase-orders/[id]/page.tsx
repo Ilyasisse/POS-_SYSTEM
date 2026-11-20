@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Table, TableCell, TableHead } from "@/components/ui/table";
+import { Table, TableCell, TableColumnHeaders } from "@/components/ui/table";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -94,15 +94,15 @@ export default async function PrintableSupplierPurchaseOrderPage({
         </section>
 
         <Table className="my-6">
-          <thead>
-            <tr>
-              <TableHead>Item</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit price</TableHead>
-              <TableHead>Line total</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Item",
+              "Unit",
+              "Quantity",
+              "Unit price",
+              "Line total",
+            ]}
+          />
           <tbody>
             {order.items.map((item) => (
               <tr key={item.id} className="border-t">

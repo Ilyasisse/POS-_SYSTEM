@@ -6,7 +6,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
@@ -141,16 +141,16 @@ export default async function PayrollPage() {
       </section>
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Worker</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Worker",
+              "Type",
+              "Period",
+              "Amount",
+              "Status",
+              "Action",
+            ]}
+          />
           <tbody>
             {adjustments.length ? (
               adjustments.map((row) => (

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Table, TableCell, TableHead } from "@/components/ui/table";
+import { Table, TableCell, TableColumnHeaders } from "@/components/ui/table";
 import { formatMoney } from "@/lib/admin/helper/formatMoney";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -27,25 +27,7 @@ export default async function PrintableSupplierInvoicePage({
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const { id } = await params;
-  const invoice = await prisma.supplierInvoice.findUnique({
-    where: { id },
-    include: {
-      supplier: true,
-      purchaseOrder: { select: { orderNumber: true } },
-      createdBy: { select: { fullName: true } },
-      finalizedBy: { select: { fullName: true } },
-      bill: {
-        select: {
-          status: true,
-          dueDate: true,
-          totalAmount: true,
-          paidAmount: true,
-        },
-      },
-      items: { orderBy: { createdAt: "asc" } },
-      installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
-    },
-  });
+  const invoice = await findPrintableInvoice(id);
   if (!invoice) notFound();
   const formattedInvoiceNumber = formatSupplierInvoiceNumber(
     invoice.invoiceNumber,
@@ -101,67 +83,21 @@ export default async function PrintableSupplierInvoicePage({
           </div>
         </header>
 
-        <section className="relative grid gap-6 border-b py-6 sm:grid-cols-2">
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Supplier
-            </h2>
-            <p className="mt-1 text-xl font-semibold">
-              {invoice.supplier.name}
-            </p>
-            <p className="text-sm">{invoice.supplier.contactName || ""}</p>
-            <p className="text-sm">
-              {invoice.supplier.phone || invoice.supplier.email || ""}
-            </p>
-          </div>
-          <dl className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Invoice date</dt>
-              <dd className="font-medium">
-                {DATE_FORMATTER.format(invoice.invoiceDate)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Due date</dt>
-              <dd className="font-medium">
-                {DATE_FORMATTER.format(effectiveDueDate)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Source</dt>
-              <dd className="font-medium">
-                {invoice.purchaseOrder
-                  ? `PO #${invoice.purchaseOrder.orderNumber}`
-                  : SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Supplier reference</dt>
-              <dd className="font-medium">
-                {invoice.supplierReference || "--"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Prepared by</dt>
-              <dd className="font-medium">
-                {invoice.finalizedBy?.fullName ||
-                  invoice.createdBy?.fullName ||
-                  "Legacy import"}
-              </dd>
-            </div>
-          </dl>
-        </section>
+        <PrintableInvoiceDetails
+          invoice={invoice}
+          effectiveDueDate={effectiveDueDate}
+        />
 
         <Table className="relative my-6">
-          <thead>
-            <tr>
-              <TableHead>Item</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit price</TableHead>
-              <TableHead>Line total</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Item",
+              "Unit",
+              "Quantity",
+              "Unit price",
+              "Line total",
+            ]}
+          />
           <tbody>
             {invoice.items.map((item) => (
               <tr key={item.id} className="border-t">
@@ -188,14 +124,14 @@ export default async function PrintableSupplierInvoicePage({
           <section className="relative mb-6">
             <h2 className="mb-2 font-semibold">Payment installments</h2>
             <Table>
-              <thead>
-                <tr>
-                  <TableHead>Due date</TableHead>
-                  <TableHead>Scheduled</TableHead>
-                  <TableHead>Paid</TableHead>
-                  <TableHead>Remaining</TableHead>
-                </tr>
-              </thead>
+              <TableColumnHeaders
+                columns={[
+                  "Due date",
+                  "Scheduled",
+                  "Paid",
+                  "Remaining",
+                ]}
+              />
               <tbody>
                 {invoice.installments.map((installment) => (
                   <tr key={installment.id} className="border-t">
@@ -246,4 +182,75 @@ export default async function PrintableSupplierInvoicePage({
       </article>
     </main>
   );
+}
+
+function PrintableInvoiceDetails({
+  invoice,
+  effectiveDueDate,
+}: {
+  invoice: NonNullable<Awaited<ReturnType<typeof findPrintableInvoice>>>;
+  effectiveDueDate: Date;
+}) {
+  return (
+    <section className="relative grid gap-6 border-b py-6 sm:grid-cols-2">
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Supplier
+        </h2>
+        <p className="mt-1 text-xl font-semibold">{invoice.supplier.name}</p>
+        <p className="text-sm">{invoice.supplier.contactName || ""}</p>
+        <p className="text-sm">{invoice.supplier.phone || invoice.supplier.email || ""}</p>
+      </div>
+      <dl className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Invoice date</dt>
+          <dd className="font-medium">{DATE_FORMATTER.format(invoice.invoiceDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Due date</dt>
+          <dd className="font-medium">{DATE_FORMATTER.format(effectiveDueDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Source</dt>
+          <dd className="font-medium">
+            {invoice.purchaseOrder
+              ? `PO #${invoice.purchaseOrder.orderNumber}`
+              : SUPPLIER_INVOICE_SOURCE_LABELS[invoice.source]}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Supplier reference</dt>
+          <dd className="font-medium">{invoice.supplierReference || "--"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Prepared by</dt>
+          <dd className="font-medium">
+            {invoice.finalizedBy?.fullName || invoice.createdBy?.fullName || "Legacy import"}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function findPrintableInvoice(id: string) {
+  return prisma.supplierInvoice.findUnique({
+    where: { id },
+    include: {
+      supplier: true,
+      purchaseOrder: { select: { orderNumber: true } },
+      createdBy: { select: { fullName: true } },
+      finalizedBy: { select: { fullName: true } },
+      bill: {
+        select: {
+          status: true,
+          dueDate: true,
+          totalAmount: true,
+          paidAmount: true,
+        },
+      },
+      items: { orderBy: { createdAt: "asc" } },
+      installments: { orderBy: [{ dueDate: "asc" }, { sequence: "asc" }] },
+    },
+  });
 }

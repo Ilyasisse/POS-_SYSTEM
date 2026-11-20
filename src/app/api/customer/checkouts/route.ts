@@ -407,9 +407,13 @@ export async function POST(request: Request) {
     }
 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const snapshot = JSON.parse(
-      JSON.stringify(preparedLines),
-    ) as Prisma.InputJsonValue;
+    const snapshot: Prisma.InputJsonValue = preparedLines.map((line) => ({
+      ...line,
+      costSnapshot: {
+        ...line.costSnapshot,
+        unitCostSnapshot: line.costSnapshot.unitCostSnapshot?.toJSON() ?? null,
+      },
+    }));
     try {
       const checkout = await prisma.customerCheckout.create({
         data: {

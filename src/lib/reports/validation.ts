@@ -48,5 +48,3 @@ export const reportQuerySchema = z
       });
   });
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
-const parseReportSearchParams = (params: URLSearchParams) =>
-  reportQuerySchema.parse(Object.fromEntries(params.entries()));

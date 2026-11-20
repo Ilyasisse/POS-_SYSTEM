@@ -5,7 +5,7 @@ import {
   DataTableCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
@@ -81,16 +81,16 @@ export default async function StaffSchedulesPage() {
       </Card>
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Worker</TableHead>
-              <TableHead>Start</TableHead>
-              <TableHead>End</TableHead>
-              <TableHead>Station</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Worker",
+              "Start",
+              "End",
+              "Station",
+              "Status",
+              "Action",
+            ]}
+          />
           <tbody>
             {shifts.length ? (
               shifts.map((shift) => (

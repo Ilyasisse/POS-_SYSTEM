@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useClientResource } from "@/hooks/useClientResource";
 import type { Category, Product, StaffSummary } from "@/lib/types";
 
 type CustomerOrderData = {
@@ -28,38 +29,30 @@ async function loadJson<T>(url: string, signal: AbortSignal): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function useCustomerOrderData() {
-  const [data, setData] = useState<CustomerOrderData>(initialData);
+async function loadCustomerOrderData(signal: AbortSignal): Promise<CustomerOrderData> {
+  const [productsAll, categories, baristas] = await Promise.all([
+    loadJson<Product[]>("/api/GET/Product/all", signal),
+    loadJson<Category[]>("/api/GET/Category", signal),
+    loadJson<StaffSummary[]>("/api/public/baristas", signal),
+  ]);
+  return { productsAll, categories, baristas, loading: false, error: null };
+}
 
-  useEffect(() => {
-    const controller = new AbortController();
-    Promise.all([
-      loadJson<Product[]>("/api/GET/Product/all", controller.signal),
-      loadJson<Category[]>("/api/GET/Category", controller.signal),
-      loadJson<StaffSummary[]>("/api/public/baristas", controller.signal),
-    ])
-      .then(([productsAll, categories, baristas]) => {
-        setData({
-          productsAll,
-          categories,
-          baristas,
-          loading: false,
-          error: null,
-        });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setData({
-          ...initialData,
-          loading: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "The ordering menu is unavailable.",
-        });
+export function useCustomerOrderData(onReady: (data: CustomerOrderData) => void) {
+  const [data, setData] = useState(initialData);
+  useClientResource({
+    load: loadCustomerOrderData,
+    onData(data) {
+      setData(data);
+      onReady(data);
+    },
+    onError(error) {
+      setData({
+        ...initialData,
+        loading: false,
+        error: error instanceof Error ? error.message : "The ordering menu is unavailable.",
       });
-    return () => controller.abort();
-  }, []);
-
+    },
+  });
   return data;
 }

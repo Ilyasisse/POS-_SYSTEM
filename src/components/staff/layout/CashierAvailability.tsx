@@ -1,7 +1,14 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
+import { useClientResource } from "@/hooks/useClientResource";
 type Availability = "AVAILABLE" | "BUSY" | "AWAY" | "OFFLINE";
+async function loadAvailability(signal: AbortSignal) {
+  const response = await fetch("/api/staff/presence", { cache: "no-store", signal });
+  if (!response.ok) throw new Error("Could not load cashier status.");
+  return response.json() as Promise<{ availability: Availability }>;
+}
+
 export default function CashierAvailability() {
   const [status, setStatus] = useState<Availability>("OFFLINE");
   const [busy, setBusy] = useState(false);
@@ -14,30 +21,28 @@ export default function CashierAvailability() {
       body: "{}",
     }).catch(() => undefined);
   }, []);
+  const [edited, setEdited] = useState(false);
+  useClientResource({
+    load: loadAvailability,
+    enabled: !edited,
+    onData(data) {
+      setStatus(data.availability);
+    },
+    onError(error) {
+      toast({ tone: "error", description: error instanceof Error ? error.message : "Could not load cashier status." });
+    },
+  });
   useEffect(() => {
-    let active = true;
-    void fetch("/api/staff/presence", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Could not load cashier status.");
-        return response.json() as Promise<{ availability: Availability }>;
-      })
-      .then((data) => {
-        if (active) setStatus(data.availability);
-      })
-      .catch((error) => {
-        if (active) toast({ tone: "error", description: error.message });
-      });
     void heartbeat();
     const interval = window.setInterval(() => void heartbeat(), 30_000);
     window.addEventListener("focus", heartbeat);
     document.addEventListener("visibilitychange", heartbeat);
     return () => {
-      active = false;
       window.clearInterval(interval);
       window.removeEventListener("focus", heartbeat);
       document.removeEventListener("visibilitychange", heartbeat);
     };
-  }, [heartbeat, toast]);
+  }, [heartbeat]);
   async function change(value: Availability) {
     setBusy(true);
     try {
@@ -47,6 +52,7 @@ export default function CashierAvailability() {
         body: JSON.stringify({ availability: value }),
       });
       if (!response.ok) throw new Error("Could not save status. Try again.");
+      setEdited(true);
       setStatus(value);
       toast({ tone: "success", description: "Cashier status updated." });
     } catch (error) {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -87,8 +88,9 @@ export async function takeSupplyInventory(formData: FormData) {
 
   const emailResult = await sendInventoryAlerts(alerts);
 
-  const posthog = getPostHogClient();
-  if (posthog) {
+  after(async () => {
+    const posthog = getPostHogClient();
+    if (!posthog) return;
     posthog.capture({
       distinctId: user.id,
       event: "inventory_taken",
@@ -99,7 +101,7 @@ export async function takeSupplyInventory(formData: FormData) {
       },
     });
     await posthog.flush();
-  }
+  });
 
   redirectWithInventoryEmailStatus(emailResult);
 }

@@ -33,46 +33,10 @@ export default function KitchenTicketCard({
 
   return (
     <article className="rounded-2xl border border-border bg-card/70 p-4 shadow-lg shadow-black/25">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-md font-semibold text-muted-foreground">
-            Order #{ticket.orderNumber} · Round {ticket.roundNumber}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {new Date(ticket.createdAt).toLocaleTimeString("en-US")}
-          </p>
-          {ticket.tableName ? (
-            <p className="mt-1 text-lg font-bold text-emerald-700 dark:text-emerald-300">
-              Table: {ticket.tableName}
-            </p>
-          ) : null}
-          {ticket.cashierName ? (
-            <p className="mt-1 text-sm font-semibold text-muted-foreground">
-              Cashier: {ticket.cashierName}
-            </p>
-          ) : null}
-          {ticket.waiterName ? (
-            <p className="mt-1 text-md font-semibold text-amber-700 dark:text-amber-300">
-              Waiter: {ticket.waiterName}
-            </p>
-          ) : null}
-          {metric ? (
-            <p
-              className={`mt-1 text-sm font-semibold ${metric.isLate ? "text-red-700 dark:text-red-300" : "text-cyan-700 dark:text-cyan-300"}`}
-            >
-              Prep: {formatPreparationDuration(metric.preparationSeconds)}
-              {metric.targetMinutes ? ` / ${metric.targetMinutes}m target` : ""}
-              {metric.isLate ? " · LATE" : ""}
-            </p>
-          ) : null}
-        </div>
-
-        <span
-          className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${kitchenStatusColor(ticket.status)}`}
-        >
-          {translateKitchenTicketStatus(ticket.status)}
-        </span>
-      </div>
+      <KitchenTicketHeader
+        ticket={ticket}
+        metric={metric}
+      />
 
       <div className="space-y-2">
         {items.length === 0 ? (
@@ -191,5 +155,56 @@ export default function KitchenTicketCard({
         </Link>
       </Button>
     </article>
+  );
+}
+
+function KitchenTicketHeader({
+  ticket,
+  metric,
+}: {
+  ticket: KitchenTicket;
+  metric: KitchenTicket["stationMetrics"][keyof KitchenTicket["stationMetrics"]] | null;
+}) {
+  return (
+    <div className="mb-3 flex items-start justify-between gap-2">
+      <div>
+        <p className="text-md font-semibold text-muted-foreground">
+          Order #{ticket.orderNumber} · Round {ticket.roundNumber}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {new Date(ticket.createdAt).toLocaleTimeString("en-US")}
+        </p>
+        {ticket.tableName ? (
+          <p className="mt-1 text-lg font-bold text-emerald-700 dark:text-emerald-300">
+            Table: {ticket.tableName}
+          </p>
+        ) : null}
+        {ticket.cashierName ? (
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">
+            Cashier: {ticket.cashierName}
+          </p>
+        ) : null}
+        {ticket.waiterName ? (
+          <p className="mt-1 text-md font-semibold text-amber-700 dark:text-amber-300">
+            Waiter: {ticket.waiterName}
+          </p>
+        ) : null}
+        {metric ? (
+          <p
+            className={`mt-1 text-sm font-semibold ${metric.isLate ? "text-red-700 dark:text-red-300" : "text-cyan-700 dark:text-cyan-300"}`}
+          >
+            Prep: {formatPreparationDuration(metric.preparationSeconds)}
+            {metric.targetMinutes ? ` / ${metric.targetMinutes}m target` : ""}
+            {metric.isLate ? " · LATE" : ""}
+          </p>
+        ) : null}
+      </div>
+
+      <span
+        className={`rounded-full px-2 py-1 text-xs font-semibold uppercase ${kitchenStatusColor(ticket.status)}`}
+      >
+        {translateKitchenTicketStatus(ticket.status)}
+      </span>
+    </div>
   );
 }

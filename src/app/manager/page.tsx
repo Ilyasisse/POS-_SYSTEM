@@ -488,28 +488,16 @@ function OpenTableOrdersSection({
       ) : (
         <div className="overflow-x-auto">
           <Table className="min-w-full text-left text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 font-semibold text-foreground">
-                  Order
-                </th>
-                <th className="px-4 py-3 font-semibold text-foreground">
-                  Table
-                </th>
-                <th className="px-4 py-3 font-semibold text-foreground">
-                  Cashier
-                </th>
-                <th className="px-4 py-3 font-semibold text-foreground">
-                  Items
-                </th>
-                <th className="px-4 py-3 font-semibold text-foreground">
-                  Total
-                </th>
-                <th className="px-4 py-3 font-semibold text-foreground">
-                  Created
-                </th>
-              </tr>
-            </thead>
+            <ManagerTableColumnHeaders
+              columns={[
+                "Order",
+                "Table",
+                "Cashier",
+                "Items",
+                "Total",
+                "Created",
+              ]}
+            />
             <tbody>
               {openTableOrders.map((order) => (
                 <tr key={order.id} className="border-t border-border">
@@ -555,24 +543,16 @@ function WaiterBalanceSummaryTable({
       </div>
       <div className="overflow-x-auto">
         <Table className="min-w-full text-left text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="px-4 py-3 font-semibold text-foreground">Name</th>
-              <th className="px-4 py-3 font-semibold text-foreground">
-                Orders
-              </th>
-              <th className="px-4 py-3 font-semibold text-foreground">Sales</th>
-              <th className="px-4 py-3 font-semibold text-foreground">
-                Opening
-              </th>
-              <th className="px-4 py-3 font-semibold text-foreground">
-                Status
-              </th>
-              <th className="px-4 py-3 font-semibold text-foreground">
-                Difference
-              </th>
-            </tr>
-          </thead>
+          <ManagerTableColumnHeaders
+            columns={[
+              "Name",
+              "Orders",
+              "Sales",
+              "Opening",
+              "Status",
+              "Difference",
+            ]}
+          />
           <tbody>
             {summaries.map((staff) => (
               <tr key={staff.id} className="border-t border-border">
@@ -862,5 +842,19 @@ export default async function ManagerPage({ searchParams }: ManagerPageProps) {
 
       <WaiterBalanceSummaryTable summaries={summaries} />
     </div>
+  );
+}
+
+function ManagerTableColumnHeaders({ columns }: { columns: readonly string[] }) {
+  return (
+    <thead className="bg-muted/50">
+      <tr>
+        {columns.map((label) => (
+          <th key={label} className="px-4 py-3 font-semibold text-foreground">
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
   );
 }

@@ -62,6 +62,7 @@ function loadModule<ModuleExports extends object>(
     exports,
     require: (name: string) => dependencies[name] ?? {},
     Date,
+    URL,
     crypto: globalThis.crypto,
     console,
   });
@@ -591,4 +592,53 @@ test("a valid automatic match creates and dispatches one paid order", async () =
     "kitchen",
     "inventory",
   ]);
+});
+
+test("cashier checkout review pages receipts independently of checkouts", async () => {
+  const receipts = Array.from({ length: 201 }, (_, index) => ({
+    id: `receipt-${index}`,
+    amount: "26.00",
+  }));
+  const checkoutOffsets: number[] = [];
+  const { GET } = loadModule<{
+    GET(request: Request): Promise<{
+      hasMoreReceipts: boolean;
+      receipts: { id: string; amount: number }[];
+    }>;
+  }>("src/app/api/cashier/customer-checkouts/route.ts", {
+    "next/server": { NextResponse: { json: (body: unknown) => body } },
+    "@/lib/prisma": {
+      prisma: {
+        customerCheckout: {
+          findMany: async ({ skip }: { skip: number }) => {
+            checkoutOffsets.push(skip);
+            return [];
+          },
+        },
+        mobileMoneyReceipt: {
+          findMany: async ({ skip, take }: { skip: number; take: number }) =>
+            receipts.slice(skip, skip + take),
+        },
+      },
+    },
+    "@/lib/payments/payment-receipt-route-auth": {
+      currentPaymentReceiptUser: async () => ({ id: "cashier" }),
+      canTakePayment: () => true,
+      canManagePaymentReceipts: () => false,
+    },
+  });
+
+  const url = "https://cafe.example.test/api/cashier/customer-checkouts?checkoutPage=3&receiptPage=";
+  const secondPage = await GET(new Request(url + "1"));
+  assert.equal(secondPage.hasMoreReceipts, true);
+  assert.equal(secondPage.receipts.length, 100);
+  assert.equal(secondPage.receipts[0].id, "receipt-100");
+  assert.equal(secondPage.receipts[0].amount, 26);
+  assert.equal(secondPage.receipts[99].id, "receipt-199");
+
+  const lastPage = await GET(new Request(url + "2"));
+  assert.equal(lastPage.hasMoreReceipts, false);
+  assert.equal(lastPage.receipts.length, 1);
+  assert.equal(lastPage.receipts[0].id, "receipt-200");
+  assert.deepEqual(checkoutOffsets, [300, 300]);
 });

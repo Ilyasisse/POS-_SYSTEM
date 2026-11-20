@@ -6,7 +6,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { Input } from "@/components/ui/input";
@@ -147,16 +147,16 @@ export default async function AttendanceAdminPage() {
       </Card>
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Business date</TableHead>
-              <TableHead>Worker</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Worked</TableHead>
-              <TableHead>Late</TableHead>
-              <TableHead>Overtime</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Business date",
+              "Worker",
+              "Status",
+              "Worked",
+              "Late",
+              "Overtime",
+            ]}
+          />
           <tbody>
             {records.length ? (
               records.map((record) => (

@@ -7,7 +7,7 @@ import {
   Card,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
@@ -51,65 +51,7 @@ export default async function AdminOrderDetailsPage({
     params,
     requirePermission(PERMISSIONS.ADMIN_ACCESS),
   ]);
-  const order = await prisma.order.findUnique({
-    where: { id },
-    include: {
-      ...roundContext,
-      orderItems: {
-        orderBy: { createdAt: "asc" },
-        include: { modifiers: true },
-      },
-      payments: { select: { amountPaid: true } },
-      salesAdjustments: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          approvedBy: { select: { fullName: true } },
-          orderItem: { select: { productName: true } },
-        },
-      },
-    },
-  });
-  if (!order) notFound();
-
-  const checkOrders = order.tableCheckId
-    ? await prisma.order.findMany({
-        where: { tableCheckId: order.tableCheckId },
-        include: roundContext,
-      })
-    : [order];
-  // Always include the selected ticket, even if it changes during the second read.
-  const rounds = [order, ...checkOrders.filter((round) => round.id !== order.id)];
-  const [check] = groupOrderCards(rounds.map((round) => ({
-    id: round.id,
-    orderNumber: round.orderNumber,
-    tableCheckId: round.tableCheckId,
-    tableCheckRound: round.tableCheckRound,
-    checkNumber: round.tableCheck?.checkNumber ?? null,
-    tableName: round.table?.name ?? null,
-    type: round.type,
-    status: round.status,
-    total: Number(round.total),
-    createdAt: round.createdAt,
-    cashierName: round.cashier?.fullName ?? null,
-    waiterName: round.waiter?.fullName ?? null,
-    customerName: round.customer?.fullName ?? null,
-    itemCount: round._count.orderItems,
-  })));
-  if (!check) notFound();
-  const people = [
-    { label: "Cashier", name: order.cashier?.fullName },
-    { label: "Waiter", name: order.waiter?.fullName },
-    { label: "Customer", name: order.customer?.fullName },
-  ].filter((person) => person.name);
-
-  const subtotal = order.orderItems.reduce(
-    (sum, item) => sum + Number(item.lineTotal),
-    0,
-  );
-  const paid = order.payments.reduce(
-    (sum, payment) => sum + Number(payment.amountPaid),
-    0,
-  );
+  const { order, check, people, subtotal, paid } = await loadOrderDetails(id);
 
   return (
     <AdminPage
@@ -119,97 +61,12 @@ export default async function AdminOrderDetailsPage({
         : "Review the order, payments, and approved adjustments."}
       action={<Button asChild variant="outline"><Link href="/admin/orders">Back to orders</Link></Button>}
     >
-      <Card className={`${orderFont.className} gap-6 rounded-2xl p-5 md:hidden [&_[data-slot=badge]]:px-3 [&_[data-slot=badge]]:py-1.5 [&_[data-slot=badge]]:text-base`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-base text-muted-foreground">Order</p>
-            <h2 className="mt-1 break-words text-3xl font-bold tracking-tight">#{check.orderNumber}</h2>
-          </div>
-          <ToneBadge tone={statusTone(check.status)}>{statusLabel(check.status)}</ToneBadge>
-        </div>
-        <div className="min-w-0">
-          {order.table?.name ? <p className="break-words text-2xl font-semibold">{order.table.name}</p> : null}
-          <p className="mt-1 text-lg text-muted-foreground">
-            {typeLabel(order.type)}
-            {order.tableCheckId ? ` · ${check.rounds.length} ${check.rounds.length === 1 ? "round" : "rounds"}` : ""}
-          </p>
-        </div>
-        {people.length ? (
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-base">
-            {people.map((person) => (
-              <div key={person.label} className="min-w-0">
-                <dt className="text-base text-muted-foreground">{person.label}</dt>
-                <dd className="mt-1 break-words text-lg font-medium">{person.name}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
-        {order.tableCheckId ? (
-          <div>
-            <p className="text-base text-muted-foreground">Check total</p>
-            <p className="mt-1 text-3xl font-bold tracking-tight">{money(check.total)}</p>
-          </div>
-        ) : null}
-        <div className="rounded-xl bg-muted/40 p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-base font-semibold">
-              {order.tableCheckId ? `Reviewing round ${order.tableCheckRound ?? 1}` : "This order"}
-            </p>
-            <ToneBadge tone={statusTone(order.status)}>{statusLabel(order.status)}</ToneBadge>
-          </div>
-          <dl className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
-              <dt className="text-base text-muted-foreground">{order.tableCheckId ? "Round total" : "Total"}</dt>
-              <dd className="mt-1 break-words text-2xl font-semibold">{money(order.total)}</dd>
-            </div>
-            <div className="min-w-0">
-              <dt className="text-base text-muted-foreground">{order.tableCheckId ? "Paid this round" : "Paid"}</dt>
-              <dd className="mt-1 break-words text-2xl font-semibold">{money(paid)}</dd>
-            </div>
-          </dl>
-        </div>
-        {order.tableCheckId ? (
-          <details className="group border-t pt-2">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-              <span>View all {check.rounds.length} {check.rounds.length === 1 ? "round" : "rounds"}</span>
-              <ChevronDown aria-hidden="true" className="size-5 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
-            </summary>
-            <ol aria-label={`Rounds for order #${check.orderNumber}`} className="mt-2 space-y-3">
-              {check.rounds.map((round) => (
-                <li key={round.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="font-semibold">Round {round.tableCheckRound ?? 1}</h3>
-                    <ToneBadge tone={statusTone(round.status)}>{statusLabel(round.status)}</ToneBadge>
-                  </div>
-                  <p className="text-base text-muted-foreground">
-                    Ticket #{round.orderNumber} · {round.createdAt.toLocaleString()} · {round.itemCount} {round.itemCount === 1 ? "item" : "items"}
-                  </p>
-                  <dl className="grid grid-cols-2 gap-3 text-base">
-                    {[
-                      { label: "Cashier", name: round.cashierName },
-                      { label: "Waiter", name: round.waiterName },
-                      { label: "Customer", name: round.customerName },
-                    ].filter((person) => person.name).map((person) => (
-                      <div key={person.label} className="min-w-0">
-                        <dt className="text-base text-muted-foreground">{person.label}</dt>
-                        <dd className="mt-1 break-words text-lg font-medium">{person.name}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="font-semibold">{money(round.total)}</p>
-                  {round.id === order.id ? (
-                    <p className="text-base font-medium text-muted-foreground">Currently viewing</p>
-                  ) : (
-                    <Button asChild variant="outline" className="min-h-14 w-full rounded-xl text-lg font-semibold">
-                      <Link href={`/admin/orders/${round.id}`}>Review round {round.tableCheckRound ?? 1}</Link>
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </details>
-        ) : null}
-      </Card>
+      <MobileOrderSummary
+        order={order}
+        check={check}
+        people={people}
+        paid={paid}
+      />
 
       <section className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
         <Card className="gap-1 p-5"><p className="text-sm text-muted-foreground">Status</p><ToneBadge tone={order.status === "PAID" ? "green" : order.status === "OPEN" ? "amber" : "red"}>{order.status}</ToneBadge></Card>
@@ -245,7 +102,14 @@ export default async function AdminOrderDetailsPage({
         </ul>
         <div className="hidden md:block">
           <Table>
-            <thead><tr><TableHead>Item</TableHead><TableHead>Quantity</TableHead><TableHead>Unit price</TableHead><TableHead>Total</TableHead></tr></thead>
+            <TableColumnHeaders
+              columns={[
+                "Item",
+                "Quantity",
+                "Unit price",
+                "Total",
+              ]}
+            />
             <tbody>
               {order.orderItems.map((item) => (
                 <tr key={item.id} className="border-b">
@@ -289,4 +153,197 @@ export default async function AdminOrderDetailsPage({
       </section>
     </AdminPage>
   );
+}
+
+function MobileOrderSummary({
+  order,
+  check,
+  people,
+  paid,
+}: {
+  order: OrderDetails["order"];
+  check: OrderDetails["check"];
+  people: OrderDetails["people"];
+  paid: OrderDetails["paid"];
+}) {
+  return (
+    <Card
+      className={`${orderFont.className} gap-6 rounded-2xl p-5 md:hidden [&_[data-slot=badge]]:px-3 [&_[data-slot=badge]]:py-1.5 [&_[data-slot=badge]]:text-base`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-base text-muted-foreground">Order</p>
+          <h2 className="mt-1 break-words text-3xl font-bold tracking-tight">
+            #{check.orderNumber}
+          </h2>
+        </div>
+        <ToneBadge tone={statusTone(check.status)}>{statusLabel(check.status)}</ToneBadge>
+      </div>
+      <div className="min-w-0">
+        {order.table?.name ? (
+          <p className="break-words text-2xl font-semibold">{order.table.name}</p>
+        ) : null}
+        <p className="mt-1 text-lg text-muted-foreground">
+          {typeLabel(order.type)}
+          {order.tableCheckId
+            ? ` · ${check.rounds.length} ${check.rounds.length === 1 ? "round" : "rounds"}`
+            : ""}
+        </p>
+      </div>
+      {people.length ? (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-base">
+          {people.map((person) => (
+            <div key={person.label} className="min-w-0">
+              <dt className="text-base text-muted-foreground">{person.label}</dt>
+              <dd className="mt-1 break-words text-lg font-medium">{person.name}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {order.tableCheckId ? (
+        <div>
+          <p className="text-base text-muted-foreground">Check total</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">{money(check.total)}</p>
+        </div>
+      ) : null}
+      <div className="rounded-xl bg-muted/40 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-base font-semibold">
+            {order.tableCheckId ? `Reviewing round ${order.tableCheckRound ?? 1}` : "This order"}
+          </p>
+          <ToneBadge tone={statusTone(order.status)}>{statusLabel(order.status)}</ToneBadge>
+        </div>
+        <dl className="grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <dt className="text-base text-muted-foreground">
+              {order.tableCheckId ? "Round total" : "Total"}
+            </dt>
+            <dd className="mt-1 break-words text-2xl font-semibold">{money(order.total)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-base text-muted-foreground">
+              {order.tableCheckId ? "Paid this round" : "Paid"}
+            </dt>
+            <dd className="mt-1 break-words text-2xl font-semibold">{money(paid)}</dd>
+          </div>
+        </dl>
+      </div>
+      {order.tableCheckId ? (
+        <details className="group border-t pt-2">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <span>
+              View all {check.rounds.length} {check.rounds.length === 1 ? "round" : "rounds"}
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className="size-5 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+            />
+          </summary>
+          <ol aria-label={`Rounds for order #${check.orderNumber}`} className="mt-2 space-y-3">
+            {check.rounds.map((round) => (
+              <li key={round.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">Round {round.tableCheckRound ?? 1}</h3>
+                  <ToneBadge tone={statusTone(round.status)}>{statusLabel(round.status)}</ToneBadge>
+                </div>
+                <p className="text-base text-muted-foreground">
+                  Ticket #{round.orderNumber} · {round.createdAt.toLocaleString()} ·{" "}
+                  {round.itemCount} {round.itemCount === 1 ? "item" : "items"}
+                </p>
+                <dl className="grid grid-cols-2 gap-3 text-base">
+                  {[
+                    { label: "Cashier", name: round.cashierName },
+                    { label: "Waiter", name: round.waiterName },
+                    { label: "Customer", name: round.customerName },
+                  ]
+                    .filter((person) => person.name)
+                    .map((person) => (
+                      <div key={person.label} className="min-w-0">
+                        <dt className="text-base text-muted-foreground">{person.label}</dt>
+                        <dd className="mt-1 break-words text-lg font-medium">{person.name}</dd>
+                      </div>
+                    ))}
+                </dl>
+                <p className="font-semibold">{money(round.total)}</p>
+                {round.id === order.id ? (
+                  <p className="text-base font-medium text-muted-foreground">Currently viewing</p>
+                ) : (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="min-h-14 w-full rounded-xl text-lg font-semibold"
+                  >
+                    <Link href={`/admin/orders/${round.id}`}>
+                      Review round {round.tableCheckRound ?? 1}
+                    </Link>
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
+    </Card>
+  );
+}
+
+type OrderDetails = Awaited<ReturnType<typeof loadOrderDetails>>;
+
+async function loadOrderDetails(id: string) {
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: {
+      ...roundContext,
+      orderItems: {
+        orderBy: { createdAt: "asc" },
+        include: { modifiers: true },
+      },
+      payments: { select: { amountPaid: true } },
+      salesAdjustments: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          approvedBy: { select: { fullName: true } },
+          orderItem: { select: { productName: true } },
+        },
+      },
+    },
+  });
+  if (!order) notFound();
+
+  const checkOrders = order.tableCheckId
+    ? await prisma.order.findMany({
+        where: { tableCheckId: order.tableCheckId },
+        include: roundContext,
+      })
+    : [order];
+  // Always include the selected ticket, even if it changes during the second read.
+  const rounds = [order, ...checkOrders.filter((round) => round.id !== order.id)];
+  const [check] = groupOrderCards(
+    rounds.map((round) => ({
+      id: round.id,
+      orderNumber: round.orderNumber,
+      tableCheckId: round.tableCheckId,
+      tableCheckRound: round.tableCheckRound,
+      checkNumber: round.tableCheck?.checkNumber ?? null,
+      tableName: round.table?.name ?? null,
+      type: round.type,
+      status: round.status,
+      total: Number(round.total),
+      createdAt: round.createdAt,
+      cashierName: round.cashier?.fullName ?? null,
+      waiterName: round.waiter?.fullName ?? null,
+      customerName: round.customer?.fullName ?? null,
+      itemCount: round._count.orderItems,
+    })),
+  );
+  if (!check) notFound();
+  const people = [
+    { label: "Cashier", name: order.cashier?.fullName },
+    { label: "Waiter", name: order.waiter?.fullName },
+    { label: "Customer", name: order.customer?.fullName },
+  ].filter((person) => person.name);
+
+  const subtotal = order.orderItems.reduce((sum, item) => sum + Number(item.lineTotal), 0);
+  const paid = order.payments.reduce((sum, payment) => sum + Number(payment.amountPaid), 0);
+  return { order, check, people, subtotal, paid };
 }

@@ -10,8 +10,8 @@
     "dev:next": "next dev -H 0.0.0.0",
     "build": "npm run prisma:generate && next build",
     "start": "next start",
-    "lint": "eslint",
-    "doctor": "npx react-doctor@latest",
+    "lint": "eslint --max-warnings 0",
+    "doctor": "react-doctor",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "tsx --test tests/unit/*.test.ts tests/integration/*.test.ts tests/integration/*.test.mjs tests/e2e/*.spec.ts",
@@ -23,7 +23,8 @@
     "waiter-balances:shift-date": "tsx scripts/shift-waiter-settlements.ts",
     "test:suppliers": "tsx --test tests/unit/suppliers.test.ts",
     "test:supplier-ordering": "tsx --test tests/unit/supplier-order-scheduling.test.ts",
-    "test:profiles": "node --test tests/integration/staff-customer-migration.test.mjs && node --import tsx --test tests/unit/profile-resolution.test.ts tests/unit/permissions.test.ts"
+    "test:profiles": "node --test tests/integration/staff-customer-migration.test.mjs && node --import tsx --test tests/unit/profile-resolution.test.ts tests/unit/permissions.test.ts",
+    "doctor:check": "node scripts/check-react-doctor.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -67,6 +68,7 @@
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "prisma": "7.10.1",
+    "react-doctor": "0.9.22",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

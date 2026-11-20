@@ -8,7 +8,7 @@ import {
   Table,
   DataTableCard,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   StatusBadge,
 } from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
@@ -93,17 +93,17 @@ export default async function AdminModifiersPage({
           </AutoSubmitSelect>
         </SearchToolbar>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "#",
+              "Name",
+              "Type",
+              "Product",
+              "Price",
+              "Status",
+              "Action",
+            ]}
+          />
           <tbody>
             {modifiersList.length === 0 ? (
               <tr>

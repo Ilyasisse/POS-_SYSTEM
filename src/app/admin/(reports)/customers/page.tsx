@@ -9,7 +9,7 @@ import {
   SearchToolbar,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
@@ -115,17 +115,17 @@ export default async function CustomersPage({
         />
         {customers.length ? (
           <Table>
-            <thead>
-              <tr>
-                <TableHead>Customer</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Visits</TableHead>
-                <TableHead>Spend</TableHead>
-                <TableHead>Last visit</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Action</TableHead>
-              </tr>
-            </thead>
+            <TableColumnHeaders
+              columns={[
+                "Customer",
+                "Contact",
+                "Visits",
+                "Spend",
+                "Last visit",
+                "Status",
+                "Action",
+              ]}
+            />
             <tbody>
               {customers.map((customer) => {
                 const stats = statsByCustomer.get(customer.id);

@@ -3,7 +3,7 @@ import {
   SearchToolbar,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
 } from "@/components/admin/shared";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { InventorySupplyRow } from "@/types/admin/Inventory.types";
@@ -43,16 +43,16 @@ export default function InventorySuppliesTable({
         </AutoSubmitSelect>
       </SearchToolbar>
       <Table>
-        <thead>
-          <tr>
-            <TableHead>Item</TableHead>
-            <TableHead>Stock</TableHead>
-            <TableHead>Unit</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Set Stock</TableHead>
-            <TableHead>Restock</TableHead>
-          </tr>
-        </thead>
+        <TableColumnHeaders
+          columns={[
+            "Item",
+            "Stock",
+            "Unit",
+            "Status",
+            "Set Stock",
+            "Restock",
+          ]}
+        />
         <tbody>
           {visibleSupplies.length === 0 ? (
             <tr>

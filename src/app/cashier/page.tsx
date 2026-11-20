@@ -116,83 +116,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   const orderNotice = getOrderStatusMessage(params?.orderStatus);
   const notice = paymentNotice ?? transferNotice ?? orderNotice;
 
-  const [tables, availableTables] = await Promise.all([
-    prisma.table.findMany({
-      where: {
-        isActive: true,
-        orders: {
-          some: {
-            status: "OPEN",
-            type: "DINE_IN",
-          },
-        },
-      },
-      orderBy: { name: "asc" },
-      include: {
-        orders: {
-          where: {
-            status: "OPEN",
-            type: "DINE_IN",
-          },
-          orderBy: { createdAt: "desc" },
-          include: {
-            cashier: { select: { fullName: true } },
-            tableCheck: { select: { checkNumber: true } },
-            orderItems: {
-              select: {
-                id: true,
-                productName: true,
-                qty: true,
-              },
-              orderBy: { createdAt: "asc" },
-            },
-            payments: {
-              select: { amountPaid: true },
-            },
-          },
-        },
-      },
-    }),
-    prisma.table.findMany({
-      where: {
-        isActive: true,
-        orders: {
-          none: {
-            status: "OPEN",
-            type: "DINE_IN",
-          },
-        },
-      },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
-
-  const openChecksByTable = new Map(
-    tables.map((table) => [
-      table.id,
-      groupCashierOpenOrders(
-        table.orders.map((order) => ({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          tableCheckId: order.tableCheckId,
-          tableCheckRound: order.tableCheckRound,
-          tableCheck: order.tableCheck,
-          total: Math.max(
-            0,
-            Number(order.total) -
-              order.payments.reduce(
-                (paid, payment) => paid + Number(payment.amountPaid),
-                0,
-              ),
-          ),
-          createdAt: order.createdAt,
-          cashierName: order.cashier?.fullName ?? null,
-          items: order.orderItems,
-        })),
-      ),
-    ]),
-  );
+  const { tables, availableTables, openChecksByTable } = await loadCashierTables();
 
   return (
     <main className="min-h-screen bg-muted/35 p-4 text-foreground sm:p-6">
@@ -406,4 +330,82 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
       </section>
     </main>
   );
+}
+
+async function loadCashierTables() {
+  const [tables, availableTables] = await Promise.all([
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          some: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+      include: {
+        orders: {
+          where: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+          orderBy: { createdAt: "desc" },
+          include: {
+            cashier: { select: { fullName: true } },
+            tableCheck: { select: { checkNumber: true } },
+            orderItems: {
+              select: {
+                id: true,
+                productName: true,
+                qty: true,
+              },
+              orderBy: { createdAt: "asc" },
+            },
+            payments: {
+              select: { amountPaid: true },
+            },
+          },
+        },
+      },
+    }),
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          none: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+        },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  const openChecksByTable = new Map(
+    tables.map((table) => [
+      table.id,
+      groupCashierOpenOrders(
+        table.orders.map((order) => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          tableCheckId: order.tableCheckId,
+          tableCheckRound: order.tableCheckRound,
+          tableCheck: order.tableCheck,
+          total: Math.max(
+            0,
+            Number(order.total) -
+              order.payments.reduce((paid, payment) => paid + Number(payment.amountPaid), 0),
+          ),
+          createdAt: order.createdAt,
+          cashierName: order.cashier?.fullName ?? null,
+          items: order.orderItems,
+        })),
+      ),
+    ]),
+  );
+  return { tables, availableTables, openChecksByTable };
 }

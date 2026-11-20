@@ -1,3 +1,4 @@
+import { supplierOrderDateTimeFormatter } from "@/lib/supplier-orders/date-time-formatter";
 import type { Metadata } from "next";
 import { Clock3, ShoppingBasket } from "lucide-react";
 import { getSupplierOrderRequest } from "@/lib/supplier-orders/requests";
@@ -31,11 +32,7 @@ export default async function SupplierOrderRequestPage({
       </main>
     );
   }
-  const deadline = new Intl.DateTimeFormat("en-US", {
-    timeZone: request.timeZone,
-    dateStyle: "full",
-    timeStyle: "short",
-  }).format(request.deadline);
+  const deadline = supplierOrderDateTimeFormatter(request.timeZone, "full").format(request.deadline);
 
   return (
     <main className="min-h-dvh bg-card px-4 py-8 text-foreground">

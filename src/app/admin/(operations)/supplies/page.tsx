@@ -1,3 +1,4 @@
+import type { Prisma, SupplyPurchase } from "@prisma/client";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -14,7 +15,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
 } from "@/components/admin/shared";
 import AutoSubmitInput from "@/components/AutoSubmitInput";
 import { Label } from "@/components/ui/label";
@@ -238,21 +239,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
     (total, entry) => total + Number(entry.quantity),
     0,
   );
-  const history = new Map<
-    string,
-    { count: number; total: ReturnType<typeof calculateSupplyLineTotal> }
-  >();
-  for (const entry of historyEntries) {
-    const dateKey = entry.purchaseDate.toISOString().slice(0, 10);
-    const existing = history.get(dateKey);
-    const lineTotal = calculateSupplyLineTotal(entry.quantity, entry.unitPrice);
-    if (existing) {
-      existing.count += 1;
-      existing.total = existing.total.add(lineTotal);
-    } else {
-      history.set(dateKey, { count: 1, total: lineTotal });
-    }
-  }
+  const history = summarizeSupplyHistory(historyEntries);
   const notice = statusNotice(params.supplyStatus);
 
   return (
@@ -345,84 +332,14 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
         </Card>
       ) : null}
 
-      <DataTableCard
-        footer={
-          <p className="text-sm font-medium text-muted-foreground">
-            {entries.length} item{entries.length === 1 ? "" : "s"} · Total{" "}
-            {formatMoney(Number(dailyTotal))}
-          </p>
-        }
-      >
-        <Table>
-          <thead>
-            <tr>
-              <TableHead>Item</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Unit price</TableHead>
-              <TableHead>Line price</TableHead>
-              <TableHead>Recorded by</TableHead>
-              <TableHead>Actions</TableHead>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.length === 0 ? (
-              <tr>
-                <TableCell
-                  colSpan={7}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  No Supply purchases have been recorded for{" "}
-                  {displayDate(selectedDate)}.
-                </TableCell>
-              </tr>
-            ) : (
-              entries.map((entry) => {
-                const lineTotal = calculateSupplyLineTotal(
-                  entry.quantity,
-                  entry.unitPrice,
-                );
-                return (
-                  <tr key={entry.id} className="border-t align-top">
-                    <TableCell className="font-semibold">
-                      {entry.itemName}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {formatQuantity(Number(entry.quantity))}
-                    </TableCell>
-                    <TableCell>{entry.unit}</TableCell>
-                    <TableCell className="tabular-nums">
-                      {formatUnitPrice(Number(entry.unitPrice))}
-                    </TableCell>
-                    <TableCell className="font-semibold tabular-nums">
-                      {formatMoney(Number(lineTotal))}
-                    </TableCell>
-                    <TableCell>{entry.createdBy.fullName}</TableCell>
-                    <TableCell>
-                      {!closed ? (
-                        <SupplyRowActions
-                          id={entry.id}
-                          itemName={entry.itemName}
-                          quantity={entry.quantity.toString()}
-                          unitPrice={entry.unitPrice.toString()}
-                          purchaseDate={selectedDate}
-                          maxDate={today}
-                          catalogItemId={entry.catalogItemId}
-                          catalogItems={catalogItems}
-                        />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          Locked
-                        </span>
-                      )}
-                    </TableCell>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </Table>
-      </DataTableCard>
+      <SupplyPurchasesTable
+        entries={entries}
+        dailyTotal={dailyTotal}
+        selectedDate={selectedDate}
+        today={today}
+        closed={closed}
+        catalogItems={catalogItems}
+      />
 
       <Card className="p-5">
         <div className="flex items-center gap-2">
@@ -465,4 +382,113 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
       </Card>
     </AdminPage>
   );
+}
+
+function SupplyPurchasesTable({
+  entries,
+  dailyTotal,
+  selectedDate,
+  today,
+  closed,
+  catalogItems,
+}: {
+  entries: Prisma.SupplyPurchaseGetPayload<{
+    include: { createdBy: { select: { fullName: true } } };
+  }>[];
+  dailyTotal: ReturnType<typeof calculateSupplyDayTotal>;
+  selectedDate: string;
+  today: string;
+  closed: boolean;
+  catalogItems: React.ComponentProps<typeof SupplyRowActions>["catalogItems"];
+}) {
+  return (
+    <DataTableCard
+      footer={
+        <p className="text-sm font-medium text-muted-foreground">
+          {entries.length} item{entries.length === 1 ? "" : "s"} · Total{" "}
+          {formatMoney(Number(dailyTotal))}
+        </p>
+      }
+    >
+      <Table>
+        <TableColumnHeaders
+          columns={[
+            "Item",
+            "Quantity",
+            "Unit",
+            "Unit price",
+            "Line price",
+            "Recorded by",
+            "Actions",
+          ]}
+        />
+        <tbody>
+          {entries.length === 0 ? (
+            <tr>
+              <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                No Supply purchases have been recorded for {displayDate(selectedDate)}.
+              </TableCell>
+            </tr>
+          ) : (
+            entries.map((entry) => {
+              const lineTotal = calculateSupplyLineTotal(entry.quantity, entry.unitPrice);
+              return (
+                <tr key={entry.id} className="border-t align-top">
+                  <TableCell className="font-semibold">{entry.itemName}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {formatQuantity(Number(entry.quantity))}
+                  </TableCell>
+                  <TableCell>{entry.unit}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {formatUnitPrice(Number(entry.unitPrice))}
+                  </TableCell>
+                  <TableCell className="font-semibold tabular-nums">
+                    {formatMoney(Number(lineTotal))}
+                  </TableCell>
+                  <TableCell>{entry.createdBy.fullName}</TableCell>
+                  <TableCell>
+                    {!closed ? (
+                      <SupplyRowActions
+                        id={entry.id}
+                        itemName={entry.itemName}
+                        quantity={entry.quantity.toString()}
+                        unitPrice={entry.unitPrice.toString()}
+                        purchaseDate={selectedDate}
+                        maxDate={today}
+                        catalogItemId={entry.catalogItemId}
+                        catalogItems={catalogItems}
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Locked</span>
+                    )}
+                  </TableCell>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </Table>
+    </DataTableCard>
+  );
+}
+
+function summarizeSupplyHistory(
+  historyEntries: Pick<SupplyPurchase, "purchaseDate" | "quantity" | "unitPrice">[],
+) {
+  const history = new Map<
+    string,
+    { count: number; total: ReturnType<typeof calculateSupplyLineTotal> }
+  >();
+  for (const entry of historyEntries) {
+    const dateKey = entry.purchaseDate.toISOString().slice(0, 10);
+    const existing = history.get(dateKey);
+    const lineTotal = calculateSupplyLineTotal(entry.quantity, entry.unitPrice);
+    if (existing) {
+      existing.count += 1;
+      existing.total = existing.total.add(lineTotal);
+    } else {
+      history.set(dateKey, { count: 1, total: lineTotal });
+    }
+  }
+  return history;
 }

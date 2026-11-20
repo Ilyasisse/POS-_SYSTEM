@@ -7,7 +7,7 @@ import {
   DataTableCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { ToastOnMount } from "@/components/ui/toast";
@@ -175,15 +175,15 @@ export default async function SupplierPurchaseOrderDetailPage({
 
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Item</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit price</TableHead>
-              <TableHead>Line total</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Item",
+              "Unit",
+              "Quantity",
+              "Unit price",
+              "Line total",
+            ]}
+          />
           <tbody>
             {order.items.map((item) => (
               <tr key={item.id} className="border-t">

@@ -144,6 +144,21 @@ export default function ManualSupplierInvoiceBuilder({
     0,
   );
 
+  function addRow() {
+    const key = nextKey.current;
+    nextKey.current += 1;
+    setRows((current) => [
+      ...current,
+      {
+        key,
+        catalogItemId: "",
+        quantity: "1",
+        unitPrice: "",
+        notes: "",
+      },
+    ]);
+  }
+
   function updateRow(key: number, patch: Partial<InvoiceRow>) {
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
@@ -294,166 +309,17 @@ export default function ManualSupplierInvoiceBuilder({
           onEnabledChange={setRecurrenceEnabled}
         />
 
-        <Card className="overflow-hidden p-0">
-          <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold">Invoice items</h2>
-              <p className="text-sm text-muted-foreground">
-                Items must come from this supplier’s active catalog.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={
-                pending || rows.length >= Math.min(catalogItems.length, 100)
-              }
-              onClick={() => {
-                const key = nextKey.current;
-                nextKey.current += 1;
-                setRows((current) => [
-                  ...current,
-                  {
-                    key,
-                    catalogItemId: "",
-                    quantity: "1",
-                    unitPrice: "",
-                    notes: "",
-                  },
-                ]);
-              }}
-            >
-              <Plus /> Add item
-            </Button>
-          </div>
-          <Table>
-            <thead>
-              <tr>
-                <TableHead>Item</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Unit price</TableHead>
-                <TableHead>Line total</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>
-                  <span className="sr-only">Remove</span>
-                </TableHead>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const item = catalogById.get(row.catalogItemId);
-                return (
-                  <tr key={row.key} className="border-t align-top">
-                    <TableCell>
-                      <NativeSelect
-                        name="catalogItemId"
-                        value={row.catalogItemId}
-                        required
-                        disabled={pending}
-                        className="min-w-52"
-                        onChange={(event) => {
-                          const catalogItemId = event.target.value;
-                          updateRow(row.key, {
-                            catalogItemId,
-                            unitPrice:
-                              catalogById.get(catalogItemId)?.unitPrice ?? "",
-                          });
-                        }}
-                      >
-                        <option value="">Select item</option>
-                        {catalogItems.map((option) => (
-                          <option
-                            key={option.id}
-                            value={option.id}
-                            disabled={
-                              option.id !== row.catalogItemId &&
-                              selectedCatalogIds.has(option.id)
-                            }
-                          >
-                            {option.name}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </TableCell>
-                    <TableCell>{item?.unit ?? "--"}</TableCell>
-                    <TableCell>
-                      <Input
-                        name="quantity"
-                        type="number"
-                        min="0.001"
-                        max="999999999.999"
-                        step="0.001"
-                        value={row.quantity}
-                        required
-                        disabled={pending}
-                        className="min-w-28"
-                        onChange={(event) =>
-                          updateRow(row.key, { quantity: event.target.value })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        name="unitPrice"
-                        type="number"
-                        min="0"
-                        max="9999999999.99"
-                        step="0.01"
-                        value={row.unitPrice}
-                        required
-                        disabled={pending}
-                        className="min-w-32"
-                        onChange={(event) =>
-                          updateRow(row.key, { unitPrice: event.target.value })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="font-semibold tabular-nums">
-                      {MONEY.format(lineTotal(row.quantity, row.unitPrice))}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        name="lineNotes"
-                        maxLength={1000}
-                        value={row.notes}
-                        disabled={pending}
-                        className="min-w-40"
-                        onChange={(event) =>
-                          updateRow(row.key, { notes: event.target.value })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Remove invoice item"
-                        disabled={pending || rows.length === 1}
-                        onClick={() =>
-                          setRows((current) =>
-                            current.filter((entry) => entry.key !== row.key),
-                          )
-                        }
-                      >
-                        <Trash2 className="text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-          <div className="flex justify-end border-t bg-muted/30 px-5 py-4">
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Invoice total</div>
-              <output className="text-2xl font-semibold tabular-nums">
-                {MONEY.format(total)}
-              </output>
-            </div>
-          </div>
-        </Card>
+        <ManualInvoiceLines
+          rows={rows}
+          catalogItems={catalogItems}
+          catalogById={catalogById}
+          selectedCatalogIds={selectedCatalogIds}
+          total={total}
+          pending={pending}
+          addRow={addRow}
+          setRows={setRows}
+          updateRow={updateRow}
+        />
 
         <div className="flex justify-end">
           <Button type="submit" disabled={pending}>
@@ -462,5 +328,163 @@ export default function ManualSupplierInvoiceBuilder({
         </div>
       </form>
     </div>
+  );
+}
+
+function ManualInvoiceLines({
+  rows,
+  catalogItems,
+  catalogById,
+  selectedCatalogIds,
+  total,
+  pending,
+  addRow,
+  setRows,
+  updateRow,
+}: {
+  rows: InvoiceRow[];
+  catalogItems: CatalogItem[];
+  catalogById: Map<string, CatalogItem>;
+  selectedCatalogIds: Set<string>;
+  total: number;
+  pending: boolean;
+  addRow: () => void;
+  setRows: React.Dispatch<React.SetStateAction<InvoiceRow[]>>;
+  updateRow: (key: number, patch: Partial<InvoiceRow>) => void;
+}) {
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold">Invoice items</h2>
+          <p className="text-sm text-muted-foreground">
+            Items must come from this supplier’s active catalog.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending || rows.length >= Math.min(catalogItems.length, 100)}
+          onClick={addRow}
+        >
+          <Plus /> Add item
+        </Button>
+      </div>
+      <Table>
+        <thead>
+          <tr>
+            <TableHead>Item</TableHead>
+            <TableHead>Unit</TableHead>
+            <TableHead>Quantity</TableHead>
+            <TableHead>Unit price</TableHead>
+            <TableHead>Line total</TableHead>
+            <TableHead>Notes</TableHead>
+            <TableHead>
+              <span className="sr-only">Remove</span>
+            </TableHead>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const item = catalogById.get(row.catalogItemId);
+            return (
+              <tr key={row.key} className="border-t align-top">
+                <TableCell>
+                  <NativeSelect
+                    name="catalogItemId"
+                    value={row.catalogItemId}
+                    required
+                    disabled={pending}
+                    className="min-w-52"
+                    onChange={(event) => {
+                      const catalogItemId = event.target.value;
+                      updateRow(row.key, {
+                        catalogItemId,
+                        unitPrice: catalogById.get(catalogItemId)?.unitPrice ?? "",
+                      });
+                    }}
+                  >
+                    <option value="">Select item</option>
+                    {catalogItems.map((option) => (
+                      <option
+                        key={option.id}
+                        value={option.id}
+                        disabled={
+                          option.id !== row.catalogItemId && selectedCatalogIds.has(option.id)
+                        }
+                      >
+                        {option.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </TableCell>
+                <TableCell>{item?.unit ?? "--"}</TableCell>
+                <TableCell>
+                  <Input
+                    name="quantity"
+                    type="number"
+                    min="0.001"
+                    max="999999999.999"
+                    step="0.001"
+                    value={row.quantity}
+                    required
+                    disabled={pending}
+                    className="min-w-28"
+                    onChange={(event) => updateRow(row.key, { quantity: event.target.value })}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    name="unitPrice"
+                    type="number"
+                    min="0"
+                    max="9999999999.99"
+                    step="0.01"
+                    value={row.unitPrice}
+                    required
+                    disabled={pending}
+                    className="min-w-32"
+                    onChange={(event) => updateRow(row.key, { unitPrice: event.target.value })}
+                  />
+                </TableCell>
+                <TableCell className="font-semibold tabular-nums">
+                  {MONEY.format(lineTotal(row.quantity, row.unitPrice))}
+                </TableCell>
+                <TableCell>
+                  <Input
+                    name="lineNotes"
+                    maxLength={1000}
+                    value={row.notes}
+                    disabled={pending}
+                    className="min-w-40"
+                    onChange={(event) => updateRow(row.key, { notes: event.target.value })}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Remove invoice item"
+                    disabled={pending || rows.length === 1}
+                    onClick={() =>
+                      setRows((current) => current.filter((entry) => entry.key !== row.key))
+                    }
+                  >
+                    <Trash2 className="text-destructive" />
+                  </Button>
+                </TableCell>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+      <div className="flex justify-end border-t bg-muted/30 px-5 py-4">
+        <div className="text-right">
+          <div className="text-sm text-muted-foreground">Invoice total</div>
+          <output className="text-2xl font-semibold tabular-nums">{MONEY.format(total)}</output>
+        </div>
+      </div>
+    </Card>
   );
 }

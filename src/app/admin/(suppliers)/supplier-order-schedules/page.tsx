@@ -6,7 +6,7 @@ import {
   MetricCard,
   Table,
   TableCell,
-  TableHead,
+  TableColumnHeaders,
   ToneBadge,
 } from "@/components/admin/shared";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -77,16 +77,16 @@ export default async function SupplierOrderSchedulesPage({
       </section>
       <DataTableCard>
         <Table>
-          <thead>
-            <tr>
-              <TableHead>Schedule</TableHead>
-              <TableHead>Supplier</TableHead>
-              <TableHead>Employees</TableHead>
-              <TableHead>Next invitation</TableHead>
-              <TableHead>Recurrence</TableHead>
-              <TableHead>Status</TableHead>
-            </tr>
-          </thead>
+          <TableColumnHeaders
+            columns={[
+              "Schedule",
+              "Supplier",
+              "Employees",
+              "Next invitation",
+              "Recurrence",
+              "Status",
+            ]}
+          />
           <tbody>
             {schedules.length ? (
               schedules.map((schedule) => (

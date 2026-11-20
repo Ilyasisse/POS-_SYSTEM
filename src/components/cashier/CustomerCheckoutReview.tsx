@@ -29,6 +29,12 @@ type Receipt = {
   transactionAt: string | null;
 };
 
+const reviewDateTime = new Intl.DateTimeFormat("en-KE", {
+  timeZone: "Africa/Nairobi",
+  dateStyle: "medium",
+  timeStyle: "medium",
+});
+
 export default function CustomerCheckoutReview({
   admin = false,
 }: {
@@ -190,157 +196,256 @@ export default function CustomerCheckoutReview({
         </Button>
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Customer checkouts</h2>
-          <div className="flex items-center gap-2 text-sm">
-            <Button
-              variant="outline"
-              disabled={checkoutPage === 0 || busy}
-              onClick={() => {
-                setCheckoutId("");
-                setConfirmed(false);
-                setCheckoutPage((page) => page - 1);
-              }}
-            >
-              Previous
-            </Button>
-            <span>Page {checkoutPage + 1}</span>
-            <Button
-              variant="outline"
-              disabled={!hasMoreCheckouts || busy}
-              onClick={() => {
-                setCheckoutId("");
-                setConfirmed(false);
-                setCheckoutPage((page) => page + 1);
-              }}
-            >
-              Next
-            </Button>
-          </div>
-          {checkouts.length === 0 ? (
-            <p className="rounded-xl border p-4">
-              No pending customer checkouts.
-            </p>
-          ) : null}
-          {checkouts.map((checkout) => (
-            <div key={checkout.id} className="rounded-xl border bg-card p-4">
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="radio"
-                  name="checkout"
-                  checked={checkoutId === checkout.id}
-                  onChange={() => {
-                    setCheckoutId(checkout.id);
-                    setConfirmed(false);
-                  }}
-                  disabled={Boolean(checkout.receiptId)}
-                />
-                <span>
-                  <strong>{checkout.customerName}</strong> · $
-                  {checkout.amount.toFixed(2)}
-                  <span className="block text-sm">
-                    {checkout.payerPhone} ·{" "}
-                    {checkout.status.replaceAll("_", " ")}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {new Date(checkout.createdAt).toLocaleString()} ·{" "}
-                    {checkout.id}
-                  </span>
-                </span>
-              </label>
-              {checkout.status === "NEEDS_HELP" ? (
-                <Button
-                  type="button"
-                  className="mt-3"
-                  disabled={busy}
-                  onClick={() => void retry(checkout)}
-                >
-                  Retry paid order
-                </Button>
-              ) : null}
-            </div>
-          ))}
-        </section>
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">
-            Unassigned incoming receipts
-          </h2>
-          <div className="flex items-center gap-2 text-sm">
-            <Button
-              variant="outline"
-              disabled={receiptPage === 0 || busy}
-              onClick={() => {
-                setReceiptId("");
-                setConfirmed(false);
-                setReceiptPage((page) => page - 1);
-              }}
-            >
-              Previous
-            </Button>
-            <span>Page {receiptPage + 1}</span>
-            <Button
-              variant="outline"
-              disabled={!hasMoreReceipts || busy}
-              onClick={() => {
-                setReceiptId("");
-                setConfirmed(false);
-                setReceiptPage((page) => page + 1);
-              }}
-            >
-              Next
-            </Button>
-          </div>
-          {receipts.length === 0 ? (
-            <p className="rounded-xl border p-4">
-              No unassigned incoming receipts. Check the manager review inbox
-              for malformed messages.
-            </p>
-          ) : null}
-          {receipts.map((receipt) => (
-            <label
-              key={receipt.id}
-              className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4"
-            >
-              <input
-                type="radio"
-                name="receipt"
-                checked={receiptId === receipt.id}
-                onChange={() => {
-                  setReceiptId(receipt.id);
-                  setConfirmed(false);
-                }}
-              />
-              <span className="min-w-0">
-                <strong>Tix {receipt.providerReference ?? "unknown"}</strong> ·
-                ${receipt.amount.toFixed(2)}
-                <span className="block text-sm">
-                  {receipt.counterpartyLabel ?? "Payer unknown"}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Numbers:{" "}
-                  {Array.isArray(receipt.counterpartyIdentifiers)
-                    ? receipt.counterpartyIdentifiers.join(", ")
-                    : "none"}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {receipt.transactionAt
-                    ? new Date(receipt.transactionAt).toLocaleString()
-                    : "Time unknown"}
-                </span>
-                <span className="mt-2 block break-words text-xs">
-                  {receipt.rawMessage}
-                </span>
-              </span>
-            </label>
-          ))}
-        </section>
+        <CustomerCheckoutList
+          checkouts={checkouts}
+          checkoutId={checkoutId}
+          setCheckoutId={setCheckoutId}
+          checkoutPage={checkoutPage}
+          setCheckoutPage={setCheckoutPage}
+          hasMoreCheckouts={hasMoreCheckouts}
+          busy={busy}
+          setConfirmed={setConfirmed}
+          retry={retry}
+        />
+        <IncomingReceiptList
+          receipts={receipts}
+          receiptId={receiptId}
+          setReceiptId={setReceiptId}
+          receiptPage={receiptPage}
+          setReceiptPage={setReceiptPage}
+          hasMoreReceipts={hasMoreReceipts}
+          busy={busy}
+          setConfirmed={setConfirmed}
+        />
       </div>
+      <CheckoutReceiptConfirmation
+        selectedCheckout={selectedCheckout}
+        selectedReceipt={selectedReceipt}
+        amountMatches={amountMatches}
+        checkedAt={checkedAt}
+        reason={reason}
+        setReason={setReason}
+        canManage={canManage}
+        confirmed={confirmed}
+        setConfirmed={setConfirmed}
+        busy={busy}
+        submit={submit}
+      />
+    </main>
+  );
+}
+
+function IncomingReceiptList({
+  receipts,
+  receiptId,
+  setReceiptId,
+  receiptPage,
+  setReceiptPage,
+  hasMoreReceipts,
+  busy,
+  setConfirmed,
+}: {
+  receipts: Receipt[];
+  receiptId: string;
+  setReceiptId: (id: string) => void;
+  receiptPage: number;
+  setReceiptPage: React.Dispatch<React.SetStateAction<number>>;
+  hasMoreReceipts: boolean;
+  busy: boolean;
+  setConfirmed: (confirmed: boolean) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold">Unassigned incoming receipts</h2>
+      <div className="flex items-center gap-2 text-sm">
+        <Button
+          variant="outline"
+          disabled={receiptPage === 0 || busy}
+          onClick={() => {
+            setReceiptId("");
+            setConfirmed(false);
+            setReceiptPage((page) => page - 1);
+          }}
+        >
+          Previous
+        </Button>
+        <span>Page {receiptPage + 1}</span>
+        <Button
+          variant="outline"
+          disabled={!hasMoreReceipts || busy}
+          onClick={() => {
+            setReceiptId("");
+            setConfirmed(false);
+            setReceiptPage((page) => page + 1);
+          }}
+        >
+          Next
+        </Button>
+      </div>
+      {receipts.length === 0 ? (
+        <p className="rounded-xl border p-4">
+          No unassigned incoming receipts. Check the manager review inbox for malformed messages.
+        </p>
+      ) : null}
+      {receipts.map((receipt) => (
+        <label
+          key={receipt.id}
+          className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4"
+        >
+          <input
+            type="radio"
+            name="receipt"
+            checked={receiptId === receipt.id}
+            onChange={() => {
+              setReceiptId(receipt.id);
+              setConfirmed(false);
+            }}
+          />
+          <span className="min-w-0">
+            <strong>Tix {receipt.providerReference ?? "unknown"}</strong> · $
+            {receipt.amount.toFixed(2)}
+            <span className="block text-sm">{receipt.counterpartyLabel ?? "Payer unknown"}</span>
+            <span className="block text-xs text-muted-foreground">
+              Numbers:{" "}
+              {Array.isArray(receipt.counterpartyIdentifiers)
+                ? receipt.counterpartyIdentifiers.join(", ")
+                : "none"}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {receipt.transactionAt
+                ? reviewDateTime.format(new Date(receipt.transactionAt))
+                : "Time unknown"}
+            </span>
+            <span className="mt-2 block break-words text-xs">{receipt.rawMessage}</span>
+          </span>
+        </label>
+      ))}
+    </section>
+  );
+}
+
+function CustomerCheckoutList({
+  checkouts,
+  checkoutId,
+  setCheckoutId,
+  checkoutPage,
+  setCheckoutPage,
+  hasMoreCheckouts,
+  busy,
+  setConfirmed,
+  retry,
+}: {
+  checkouts: Checkout[];
+  checkoutId: string;
+  setCheckoutId: (id: string) => void;
+  checkoutPage: number;
+  setCheckoutPage: React.Dispatch<React.SetStateAction<number>>;
+  hasMoreCheckouts: boolean;
+  busy: boolean;
+  setConfirmed: (confirmed: boolean) => void;
+  retry: (checkout: Checkout) => Promise<void>;
+}) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold">Customer checkouts</h2>
+      <div className="flex items-center gap-2 text-sm">
+        <Button
+          variant="outline"
+          disabled={checkoutPage === 0 || busy}
+          onClick={() => {
+            setCheckoutId("");
+            setConfirmed(false);
+            setCheckoutPage((page) => page - 1);
+          }}
+        >
+          Previous
+        </Button>
+        <span>Page {checkoutPage + 1}</span>
+        <Button
+          variant="outline"
+          disabled={!hasMoreCheckouts || busy}
+          onClick={() => {
+            setCheckoutId("");
+            setConfirmed(false);
+            setCheckoutPage((page) => page + 1);
+          }}
+        >
+          Next
+        </Button>
+      </div>
+      {checkouts.length === 0 ? (
+        <p className="rounded-xl border p-4">No pending customer checkouts.</p>
+      ) : null}
+      {checkouts.map((checkout) => (
+        <div key={checkout.id} className="rounded-xl border bg-card p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="radio"
+              name="checkout"
+              checked={checkoutId === checkout.id}
+              onChange={() => {
+                setCheckoutId(checkout.id);
+                setConfirmed(false);
+              }}
+              disabled={Boolean(checkout.receiptId)}
+            />
+            <span>
+              <strong>{checkout.customerName}</strong> · ${checkout.amount.toFixed(2)}
+              <span className="block text-sm">
+                {checkout.payerPhone} · {checkout.status.replaceAll("_", " ")}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {reviewDateTime.format(new Date(checkout.createdAt))} · {checkout.id}
+              </span>
+            </span>
+          </label>
+          {checkout.status === "NEEDS_HELP" ? (
+            <Button
+              type="button"
+              className="mt-3"
+              disabled={busy}
+              onClick={() => void retry(checkout)}
+            >
+              Retry paid order
+            </Button>
+          ) : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function CheckoutReceiptConfirmation({
+  selectedCheckout,
+  selectedReceipt,
+  amountMatches,
+  checkedAt,
+  reason,
+  setReason,
+  canManage,
+  confirmed,
+  setConfirmed,
+  busy,
+  submit,
+}: {
+  selectedCheckout: Checkout | undefined;
+  selectedReceipt: Receipt | undefined;
+  amountMatches: boolean;
+  checkedAt: number;
+  reason: string;
+  setReason: (value: string) => void;
+  canManage: boolean;
+  confirmed: boolean;
+  setConfirmed: (value: boolean) => void;
+  busy: boolean;
+  submit: () => Promise<void>;
+}) {
+  return (
+    <>
       {selectedCheckout && selectedReceipt ? (
         <section className="rounded-xl border bg-card p-4">
           <p className="font-semibold">
-            {amountMatches
-              ? "Amounts match"
-              : "Amounts differ — choose another receipt"}
+            {amountMatches ? "Amounts match" : "Amounts differ — choose another receipt"}
           </p>
           <p className="mt-2 text-sm">
             Name:{" "}
@@ -361,8 +466,7 @@ export default function CustomerCheckoutReview({
               : "differs — manager review required"}
             . Window:{" "}
             {selectedReceipt.transactionAt &&
-            new Date(selectedReceipt.transactionAt) <=
-              new Date(selectedCheckout.expiresAt) &&
+            new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) &&
             checkedAt <= new Date(selectedCheckout.expiresAt).getTime()
               ? "within 15 minutes"
               : "expired — manager review required"}
@@ -379,8 +483,8 @@ export default function CustomerCheckoutReview({
           </label>
           {canManage ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              Admin/manager review can resolve name, phone, or time exceptions.
-              Amount and receipt uniqueness are always enforced.
+              Admin/manager review can resolve name, phone, or time exceptions. Amount and receipt
+              uniqueness are always enforced.
             </p>
           ) : null}
           <label className="mt-3 flex items-start gap-3 text-sm">
@@ -390,22 +494,19 @@ export default function CustomerCheckoutReview({
               onChange={(event) => setConfirmed(event.target.checked)}
             />
             <span>
-              I checked the SMS reference, payer, amount, and time for this
-              customer checkout.
+              I checked the SMS reference, payer, amount, and time for this customer checkout.
             </span>
           </label>
           <Button
             type="button"
             className="mt-4"
-            disabled={
-              !confirmed || !amountMatches || reason.trim().length < 5 || busy
-            }
+            disabled={!confirmed || !amountMatches || reason.trim().length < 5 || busy}
             onClick={() => void submit()}
           >
             Assign receipt and finish paid order
           </Button>
         </section>
       ) : null}
-    </main>
+    </>
   );
 }

@@ -10,7 +10,7 @@ Historical coverage begins only when each source feature was introduced. Reports
 
 | Requirement                 | Primary files                                                                 | Verification                                    |
 | --------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------- |
-| Attendance/payroll          | `EmploymentProfile`, `AttendanceRecord`, `PayrollRun`, `payroll-service.ts`   | `payroll-service.test.ts`                       |
+| Attendance/payroll          | `EmploymentProfile`, `AttendanceRecord`, `PayrollRun`, `staff-operations.ts`   | `payroll-service.test.ts`                       |
 | Finance/suppliers/customers | `ExpenseTransaction`, `OwnerWithdrawal`, `SupplierReceiving`, `ComplaintCase` | report endpoint authorization and service tests |
 | Advanced reports            | `advanced-report-service.ts`, `/api/admin/reports/*`                          | TypeScript + report tests                       |
 | Export/realtime             | `export-service.ts`, `report-realtime.ts`                                     | format and payload-privacy tests                |
