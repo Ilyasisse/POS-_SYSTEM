@@ -39,6 +39,7 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
   const currentUserName = options?.currentUserName ?? null;
   const currentUserRole = options?.currentUserRole ?? null;
   const [tickets, setTickets] = useState<KitchenTicket[]>([]);
+  const [hasLoadedTickets, setHasLoadedTickets] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const requestSequence = useRef(0);
   const refreshTimer = useRef<number | null>(null);
@@ -83,6 +84,7 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
     }
 
     setTickets(payload.tickets);
+    setHasLoadedTickets(true);
   }, [currentUserRole, station]);
 
   const scheduleRefresh = useCallback(() => {
@@ -254,6 +256,7 @@ export function useKitchenTickets(options?: UseKitchenTicketsOptions) {
   return {
     tickets,
     activeTickets,
+    hasLoadedTickets,
     statusMessage,
     updateTicketStatus,
     updatePickupStatus,
