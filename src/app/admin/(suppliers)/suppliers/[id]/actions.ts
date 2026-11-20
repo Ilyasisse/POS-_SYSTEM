@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
-import { recordSupplierPayment } from "@/lib/suppliers/bill-service";
+import { previewSupplierPayment, recordSupplierPayment } from "@/lib/suppliers/bill-service";
 import { parseSupplierCatalogItemInput } from "@/lib/suppliers/purchase-orders";
 
 type CatalogStatus =
@@ -52,10 +52,7 @@ function refreshCatalog(supplierId: string) {
 }
 
 function isUniqueError(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  );
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
 export async function createSupplierCatalogItem(formData: FormData) {
@@ -95,10 +92,8 @@ export async function createSupplierCatalogItem(formData: FormData) {
     await prisma.supplierCatalogItem.create({
       data: {
         supplierId,
-        productId:
-          parsed.value.targetKind === "product" ? parsed.value.targetId : null,
-        inventorySupplyId:
-          parsed.value.targetKind === "supply" ? parsed.value.targetId : null,
+        productId: parsed.value.targetKind === "product" ? parsed.value.targetId : null,
+        inventorySupplyId: parsed.value.targetKind === "supply" ? parsed.value.targetId : null,
         unit: parsed.value.unit,
         unitPrice: parsed.value.unitPrice,
         isActive: parsed.value.isActive,
@@ -170,4 +165,10 @@ export async function recordSupplierAdvance(formData: FormData) {
   for (const invoiceId of result.invoiceIds) {
     revalidatePath(`/admin/supplier-invoices/${invoiceId}`);
   }
+}
+
+export async function previewSupplierAdvance(supplierId: string, amount: number) {
+  await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
+  if (!supplierId) throw new Error("Supplier is required.");
+  return previewSupplierPayment(supplierId, amount);
 }
