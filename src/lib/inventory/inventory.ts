@@ -1,6 +1,10 @@
 import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import {
+  formatDailyInventoryDigestHtml,
+  type DailyInventoryDigestItem,
+} from "@/lib/inventory/inventory-digest";
 import { decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
   appendStockEvent,
@@ -32,16 +36,6 @@ type InventoryTrackedItem = {
   stockQty: number | Prisma.Decimal;
   lowStockThreshold: number | Prisma.Decimal;
   inventoryAlertStatus: InventoryAlertStatus;
-};
-
-type DailySupplyDigestItem = {
-  id: string;
-  name: string;
-  unit: string;
-  stockQty: number;
-  lowStockThreshold: number;
-  inventoryAlertStatus: InventoryAlertStatus;
-  previousInventoryAlertStatus: InventoryAlertStatus;
 };
 
 /**
@@ -121,21 +115,6 @@ function buildInventoryAlert(
  */
 function getInventoryAlertStatusLabel(alert: InventoryAlert) {
   return alert.status === "OUT" ? "OUT OF STOCK" : "LOW STOCK";
-}
-
-/**
- * Escapes unsafe HTML characters before inserting text into email HTML.
- *
- * @param value - The text value to escape.
- * @returns The HTML-safe text value.
- */
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 /**
@@ -241,82 +220,41 @@ export async function sendInventoryAlerts(alerts: InventoryAlert[]) {
 }
 
 /**
- * Formats the HTML email body for the daily internal supply inventory digest.
- *
- * @param items - The supply inventory items to include in the digest.
- * @returns The HTML body for the daily digest email.
- */
-function formatDailyInventoryDigestHtml(items: DailySupplyDigestItem[]) {
-  const alertItems = items.filter(
-    (item) =>
-      item.inventoryAlertStatus === "LOW" ||
-      item.inventoryAlertStatus === "OUT",
-  );
-
-  if (alertItems.length === 0) {
-    return `
-      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
-        <h2 style="margin: 0 0 12px;">Daily Inventory Alert</h2>
-        <p style="margin: 0;">All internal supplies are OK.</p>
-      </div>
-    `;
-  }
-
-  const rows = alertItems
-    .map(
-      (item) => `
-        <tr>
-          <td style="border-bottom: 1px solid #e2e8f0; padding: 8px;">${escapeHtml(item.name)}</td>
-          <td style="border-bottom: 1px solid #e2e8f0; padding: 8px;">${escapeHtml(item.inventoryAlertStatus)}</td>
-          <td style="border-bottom: 1px solid #e2e8f0; padding: 8px;">${item.stockQty} ${escapeHtml(item.unit)}</td>
-          <td style="border-bottom: 1px solid #e2e8f0; padding: 8px;">${item.lowStockThreshold} ${escapeHtml(item.unit)}</td>
-        </tr>
-      `,
-    )
-    .join("");
-
-  return `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
-      <h2 style="margin: 0 0 12px;">Daily Inventory Alert</h2>
-      <p style="margin: 0 0 12px;">The following internal supplies are low or out of stock.</p>
-      <table style="border-collapse: collapse; width: 100%;">
-        <thead>
-          <tr>
-            <th align="left" style="border-bottom: 2px solid #cbd5e1; padding: 8px;">Item</th>
-            <th align="left" style="border-bottom: 2px solid #cbd5e1; padding: 8px;">Status</th>
-            <th align="left" style="border-bottom: 2px solid #cbd5e1; padding: 8px;">Current stock</th>
-            <th align="left" style="border-bottom: 2px solid #cbd5e1; padding: 8px;">Low threshold</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  `;
-}
-
-/**
- * Sends the daily internal supply digest and refreshes supply alert statuses.
+ * Sends the daily inventory digest and refreshes tracked inventory alert statuses.
  *
  * @returns The daily digest delivery summary and low/out stock counts.
  */
 export async function sendDailyInventorySupplyDigest() {
-  const supplies = await prisma.inventorySupply.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: [{ stockQty: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      unit: true,
-      stockQty: true,
-      lowStockThreshold: true,
-      inventoryAlertStatus: true,
-    },
-  });
+  const [supplies, products] = await Promise.all([
+    prisma.inventorySupply.findMany({
+      where: { isActive: true },
+      orderBy: [{ stockQty: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        unit: true,
+        stockQty: true,
+        lowStockThreshold: true,
+        inventoryAlertStatus: true,
+      },
+    }),
+    prisma.product.findMany({
+      where: { isActive: true, trackStock: true },
+      orderBy: [{ stockQty: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        canonicalUnit: true,
+        stockQty: true,
+        lowStockThreshold: true,
+        inventoryAlertStatus: true,
+      },
+    }),
+  ]);
 
-  const items = supplies.map<DailySupplyDigestItem>((supply) => ({
+  const items = supplies.map<DailyInventoryDigestItem>((supply) => ({
     ...supply,
+    itemType: "Supply",
     stockQty: toValidQuantity(supply.stockQty),
     lowStockThreshold: toValidQuantity(supply.lowStockThreshold),
     previousInventoryAlertStatus: supply.inventoryAlertStatus,
@@ -325,16 +263,34 @@ export async function sendDailyInventorySupplyDigest() {
       Number(supply.lowStockThreshold),
     ),
   }));
+  const productItems = products.map<DailyInventoryDigestItem>((product) => ({
+    id: product.id,
+    name: product.name,
+    unit: product.canonicalUnit.toLowerCase(),
+    itemType: "Product",
+    stockQty: toValidQuantity(product.stockQty),
+    lowStockThreshold: toValidQuantity(product.lowStockThreshold),
+    previousInventoryAlertStatus: product.inventoryAlertStatus,
+    inventoryAlertStatus: getInventoryAlertStatus(
+      Number(product.stockQty),
+      Number(product.lowStockThreshold),
+    ),
+  }));
 
   await Promise.all(
-    items.flatMap((item) =>
+    [...items, ...productItems].flatMap((item) =>
       item.inventoryAlertStatus === item.previousInventoryAlertStatus
         ? []
         : [
-            prisma.inventorySupply.update({
-              where: { id: item.id },
-              data: { inventoryAlertStatus: item.inventoryAlertStatus },
-            }),
+            item.itemType === "Product"
+              ? prisma.product.update({
+                  where: { id: item.id },
+                  data: { inventoryAlertStatus: item.inventoryAlertStatus },
+                })
+              : prisma.inventorySupply.update({
+                  where: { id: item.id },
+                  data: { inventoryAlertStatus: item.inventoryAlertStatus },
+                }),
           ],
     ),
   );
@@ -342,10 +298,10 @@ export async function sendDailyInventorySupplyDigest() {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.INVENTORY_ALERT_EMAIL_FROM;
   const to = process.env.INVENTORY_ALERT_EMAIL_TO;
-  const lowStockCount = items.filter(
+  const lowStockCount = [...items, ...productItems].filter(
     (item) => item.inventoryAlertStatus === "LOW",
   ).length;
-  const outOfStockCount = items.filter(
+  const outOfStockCount = [...items, ...productItems].filter(
     (item) => item.inventoryAlertStatus === "OUT",
   ).length;
 
@@ -364,12 +320,13 @@ export async function sendDailyInventorySupplyDigest() {
 
   const resend = new Resend(apiKey);
 
-  await resend.emails.send({
+  const delivery = await resend.emails.send({
     from,
     to,
     subject: "Daily Inventory Alert",
-    html: formatDailyInventoryDigestHtml(items),
+    html: formatDailyInventoryDigestHtml([...items, ...productItems]),
   });
+  if (delivery.error) throw delivery.error;
 
   return {
     sent: true,
