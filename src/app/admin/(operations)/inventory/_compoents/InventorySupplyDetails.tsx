@@ -144,7 +144,7 @@ export default function InventorySupplyDetails({
         <div className="min-w-0">
           <h3 className="text-lg font-semibold wrap-break-word">{supply.name}</h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            {supply.stockQty} {supply.unit} on hand · {stockLabels[supply.status]}
+            {supply.stockQtyLabel} on hand · {stockLabels[supply.status]}
           </p>
         </div>
         <Button

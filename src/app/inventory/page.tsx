@@ -8,6 +8,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import {
   supplyDisplayQuantity,
+  supplyQuantityLabel,
   supplyMovementDisplay,
   supplyStockUnit,
 } from "@/lib/inventory/supply-units";
@@ -111,7 +112,7 @@ export default async function InventoryPage({ searchParams }: {
           </Link>
         </header>
 
-        <InventoryDateSelector key={selectedDate} date={selectedDate} today={today} />
+        <InventoryDateSelector key={`date-selector:${selectedDate}`} date={selectedDate} today={today} />
 
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="border-border bg-card rounded-2xl border p-4 shadow-lg">
@@ -145,19 +146,21 @@ export default async function InventoryPage({ searchParams }: {
         </section>
 
         <InventorySupplyPicker
-          key={selectedDate}
+          key={`supply-picker:${selectedDate}`}
           movementDate={selectedDate}
           takeSupply={takeSupplyInventory}
           canTake={hasPermission(user, PERMISSIONS.INVENTORY_MANAGE)}
           supplies={supplies.map((supply) => {
             const stockUnit = supplyStockUnit(supply);
+            const stockQty = supplyDisplayQuantity(supply.stockQty, stockUnit.factor);
             return {
               id: supply.id,
               name: supply.name,
               unit: stockUnit.label,
               stockUnit: stockUnit.token,
               step: stockUnit.step,
-              stockQty: supplyDisplayQuantity(supply.stockQty, stockUnit.factor),
+              stockQty,
+              stockQtyLabel: supplyQuantityLabel(stockQty, stockUnit.label),
               status: getInventoryAlertStatus(
                 supply.stockQty,
                 supply.lowStockThreshold,
@@ -200,8 +203,8 @@ export default async function InventoryPage({ searchParams }: {
                           })}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
-                        {display.quantity} {display.unit}
+                      <span className="max-w-[45%] shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-right text-xs font-bold text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                        {supplyQuantityLabel(display.quantity, display.unit)}
                       </span>
                     </div>
                     {movement.note ? (

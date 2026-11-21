@@ -5,6 +5,7 @@ import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { getInventoryAlertStatus } from "@/lib/inventory/inventory";
 import {
   supplyDisplayQuantity,
+  supplyQuantityLabel,
   supplyMovementDisplay,
   supplyStockUnit,
 } from "@/lib/inventory/supply-units";
@@ -103,6 +104,7 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
 
   const enrichedSupplies = supplies.map((supply) => {
     const stockUnit = supplyStockUnit(supply);
+    const stockQty = supplyDisplayQuantity(supply.stockQty, stockUnit.factor);
     return {
       id: supply.id,
       name: supply.name,
@@ -110,7 +112,8 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
       stockUnit: stockUnit.token,
       step: stockUnit.step,
       hasUnitMapping: supply.canonicalUnit !== null,
-      stockQty: supplyDisplayQuantity(supply.stockQty, stockUnit.factor),
+      stockQty,
+      stockQtyLabel: supplyQuantityLabel(stockQty, stockUnit.label),
       lowStockThreshold: supplyDisplayQuantity(supply.lowStockThreshold, stockUnit.factor),
       status: getInventoryAlertStatus(supply.stockQty, supply.lowStockThreshold),
     };
@@ -127,8 +130,12 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
     <AdminPage title="Inventory" description="Track stock levels and manage inventory">
       <InventoryNotice notice={notice} />
       <InventorySummary summary={summary} takenTodayCount={takenTodayMovements.length} />
-      <InventoryDateSelector key={selectedDate} date={selectedDate} today={today}
-        filters={{ q: params?.q ?? "", status: statusFilter }} />
+      <InventoryDateSelector
+        key={selectedDate}
+        date={selectedDate}
+        today={today}
+        filters={{ q: params?.q ?? "", status: statusFilter }}
+      />
       <CreateSupplyForm />
       <InventorySupplyWorkspace
         key={JSON.stringify([params?.q ?? "", statusFilter, selectedDate])}
@@ -148,6 +155,7 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
             ...movement,
             itemName: display.name,
             delta: display.quantity,
+            deltaLabel: supplyQuantityLabel(display.quantity, display.unit),
             unit: display.unit,
           };
         })}

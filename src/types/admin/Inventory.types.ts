@@ -10,6 +10,7 @@ export type InventorySupplyRow = {
   id: string;
   name: string;
   stockQty: string;
+  stockQtyLabel: string;
   unit: string;
   stockUnit: string;
   step: string;
@@ -23,6 +24,7 @@ export type InventoryMovementRow = {
   itemName: string;
   reason: string;
   delta: string;
+  deltaLabel: string;
   unit: string;
   createdAt: Date;
   occurredAt: Date;

@@ -39,6 +39,22 @@ export function supplyDisplayQuantity(value: Prisma.Decimal, factor: Prisma.Deci
   return value.div(factor).toFixed();
 }
 
+// The value is already in its displayed/recorded unit, including legacy history.
+export function supplyQuantityLabel(value: string, unit: string) {
+  const quantity = new Prisma.Decimal(value);
+  const mapping = classifyLegacyUnit(unit);
+  if (mapping.canonicalUnit !== "GRAM")
+    return [quantity.toFixed(), unit].filter(Boolean).join(" ");
+
+  const grams = quantity.abs().mul(mapping.factor);
+  const kilograms = grams.div(1000).floor();
+  const remainder = grams.mod(1000);
+  const parts: string[] = [];
+  if (kilograms.gt(0)) parts.push(kilograms.toFixed() + " kg");
+  if (remainder.gt(0) || parts.length === 0) parts.push(remainder.toFixed() + " g");
+  return (quantity.lt(0) ? "-" : "") + parts.join(" ");
+}
+
 export function supplyInputQuantity(
   value: string,
   factor: Prisma.Decimal,

@@ -44,14 +44,16 @@ const migration = readFileSync(
 const value = (v) =>
   v instanceof Prisma.Decimal ? v.toString() : v instanceof Date ? v.toISOString() : v;
 
-async function fixture({ omitContext = false, failMovement = false } = {}) {
+async function fixture({ omitContext = false, failMovement = false, actorId = "staff" } = {}) {
   const db = new PGlite();
   await db.exec(`
     CREATE TABLE "Staff" (id text PRIMARY KEY, "cafeteriaId" text NOT NULL);
     CREATE TABLE "InventorySupply" (
       id text PRIMARY KEY, name text, unit text, "stockQty" numeric(18,6), "lowStockThreshold" numeric(18,6),
-      "isActive" boolean, "canonicalUnit" text, "quantityCoverage" text, "standardUnitCost" numeric,
-      "inventoryAlertStatus" text, "cafeteriaId" text NOT NULL, "updatedAt" timestamp DEFAULT now());
+      "isActive" boolean DEFAULT true, "canonicalUnit" text, "quantityCoverage" text, "standardUnitCost" numeric,
+      "inventoryAlertStatus" text,
+      "cafeteriaId" text NOT NULL DEFAULT current_setting('app.cafeteria_id', true),
+      "updatedAt" timestamp DEFAULT now(), UNIQUE (name, unit));
     CREATE TABLE "StockEvent" (
       id text PRIMARY KEY, "supplyId" text, "productId" text, type text, "quantityDelta" numeric,
       "quantityBefore" numeric, "quantityAfter" numeric, "canonicalUnit" text, "standardUnitCostSnapshot" numeric,
@@ -84,10 +86,20 @@ async function fixture({ omitContext = false, failMovement = false } = {}) {
           throw new Error("forced history failure");
         const row = { id: `row-${++seq}`, ...data };
         const keys = Object.keys(row);
-        await conn.query(
-          `INSERT INTO "${table}" (${keys.map((k) => `"${k}"`).join(",")}) VALUES (${keys.map((_, i) => `$${i + 1}`).join(",")})`,
-          Object.values(row).map(value),
-        );
+        try {
+          await conn.query(
+            `INSERT INTO "${table}" (${keys.map((k) => `"${k}"`).join(",")}) VALUES (${keys.map((_, i) => `$${i + 1}`).join(",")})`,
+            Object.values(row).map(value),
+          );
+        } catch (error) {
+          // Match the Prisma adapter's translation of PostgreSQL unique violations.
+          if (error.code === "23505")
+            throw new Prisma.PrismaClientKnownRequestError("Unique constraint violation", {
+              code: "P2002",
+              clientVersion: Prisma.prismaVersion.client,
+            });
+          throw error;
+        }
         return row;
       };
     const find = async ({ where }) => {
@@ -122,13 +134,23 @@ async function fixture({ omitContext = false, failMovement = false } = {}) {
             params.map(value),
           )
         ).rows,
-      inventorySupply: { findUnique: find, findUniqueOrThrow: find, update, updateMany: update },
+      inventorySupply: {
+        create: insert("InventorySupply"),
+        findUnique: find,
+        findUniqueOrThrow: find,
+        update,
+        updateMany: update,
+      },
       stockEvent: { create: insert("StockEvent") },
       inventoryMovement: { create: insert("InventoryMovement") },
       auditLog: { create: insert("AuditLog") },
     };
   }
-  const prisma = { $transaction: (fn) => db.transaction((conn) => fn(adapter(conn))) };
+  const prisma = {
+    ...adapter(db),
+    $transaction: (fn) => db.transaction((conn) => fn(adapter(conn))),
+  };
+  const refreshedPaths = [];
   const ledger = load("src/lib/inventory/stock-ledger.ts", {
     "@prisma/client": client,
     "@/lib/prisma": { prisma },
@@ -144,10 +166,10 @@ async function fixture({ omitContext = false, failMovement = false } = {}) {
   const dependencies = {
     "@prisma/client": client,
     "@/lib/prisma": { prisma },
-    "next/cache": { revalidatePath() {} },
+    "next/cache": { revalidatePath(path) { refreshedPaths.push(path); } },
     "@/lib/auth/permissions": { PERMISSIONS: { INVENTORY_MANAGE: "manage" } },
     "@/lib/auth/require-permission": {
-      requirePermission: async () => ({ id: "staff", role: "ADMIN" }),
+      requirePermission: async () => ({ id: actorId, role: "ADMIN" }),
     },
     "@/lib/inventory/inventory": {
       ...inventory,
@@ -157,12 +179,18 @@ async function fixture({ omitContext = false, failMovement = false } = {}) {
     "@/lib/inventory/inventory-domain": domain,
     "@/lib/inventory/movement-date": dates,
     "@/lib/inventory/cafeteria-context": omitContext
-      ? { ...context, configureInventoryCafeteria: async () => {} }
+      ? {
+          ...context,
+          configureInventoryCafeteria: async () => {},
+          configureSupplyCreationCafeteria: async () => {},
+        }
       : context,
     "@/lib/posthog-server": { getPostHogClient: () => null },
   };
   return {
     db,
+    refreshedPaths,
+    setActor(id) { actorId = id; },
     ...load("src/app/inventory/actions.ts", dependencies),
     ...load("src/app/admin/(operations)/inventory/actions.ts", dependencies),
   };
@@ -317,4 +345,131 @@ test("date-only entries use Nairobi noon; today and older clients retain the act
   assert.equal(range.lt.toISOString(), "2026-11-18T21:00:00.000Z");
   for (const date of ["", "2026-02-29", "2026-11-20"])
     assert.throws(() => dates.inventoryMovementDate(date, now), /valid inventory date/);
+});
+
+function newSupplyForm(overrides = {}) {
+  return form({ name: "Sugar", unit: "kg", stockQty: "1.25", lowStockThreshold: "0.5", ...overrides });
+}
+
+async function assertNoCafeteriaContext(db) {
+  const { setting } = (await db.query(
+    `SELECT current_setting('app.cafeteria_id', true) AS setting`,
+  )).rows[0];
+  assert.ok(!setting, "cafeteria context must not outlive its transaction");
+}
+
+test("supply creation reproduces the missing cafeteria error when context is omitted", async () => {
+  const f = await fixture({ omitContext: true });
+  try {
+    assert.equal((await f.createSupply(newSupplyForm())).ok, false);
+    assert.equal((await f.db.query('SELECT count(*)::int AS count FROM "InventorySupply"')).rows[0].count, 2);
+    assert.deepEqual(f.refreshedPaths, []);
+    await assertNoCafeteriaContext(f.db);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("supply creation uses staff ownership and converts quantities before refreshing both pages", async () => {
+  const f = await fixture();
+  try {
+    assert.equal((await f.createSupply(newSupplyForm({ cafeteriaId: "cafe-b" }))).ok, true);
+    const row = (await f.db.query(`SELECT "cafeteriaId", "stockQty"::text AS stock,
+      "lowStockThreshold"::text AS threshold, "canonicalUnit", "quantityCoverage", "isActive",
+      "inventoryAlertStatus" FROM "InventorySupply" WHERE name='Sugar'`)).rows[0];
+    assert.deepEqual(row, {
+      cafeteriaId: "cafe-a", stock: "1250.000000", threshold: "500.000000",
+      canonicalUnit: "GRAM", quantityCoverage: "COMPLETE", isActive: true, inventoryAlertStatus: "OK",
+    });
+    assert.deepEqual(f.refreshedPaths, ["/admin/inventory", "/inventory"]);
+    await assertNoCafeteriaContext(f.db);
+
+    f.setActor("other-staff");
+    assert.equal((await f.createSupply(newSupplyForm({ name: "Salt", cafeteriaId: "cafe-a" }))).ok, true);
+    assert.equal((await f.db.query(`SELECT "cafeteriaId" FROM "InventorySupply" WHERE name='Salt'`)).rows[0].cafeteriaId, "cafe-b");
+    await assertNoCafeteriaContext(f.db);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("supply creation rejects missing staff and missing cafeteria ownership", async () => {
+  const f = await fixture({ actorId: "missing" });
+  try {
+    let result = await f.createSupply(newSupplyForm());
+    assert.equal(result.ok, false);
+    assert.match(result.error, /staff|sign in/i);
+
+    f.setActor("staff");
+    await f.db.exec('ALTER TABLE "Staff" ALTER COLUMN "cafeteriaId" DROP NOT NULL');
+    for (const cafeteriaId of [null, ""]) {
+      await f.db.query('UPDATE "Staff" SET "cafeteriaId"=$1 WHERE id=$2', [cafeteriaId, "staff"]);
+      result = await f.createSupply(newSupplyForm());
+      assert.equal(result.ok, false);
+      assert.match(result.error, /cafeteria/i);
+    }
+    assert.equal((await f.db.query('SELECT count(*)::int AS count FROM "InventorySupply"')).rows[0].count, 2);
+    assert.deepEqual(f.refreshedPaths, []);
+    await assertNoCafeteriaContext(f.db);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("supply creation supports the original schema without cafeteria columns", async () => {
+  const f = await fixture();
+  try {
+    for (const table of ["Staff", "InventorySupply", "StockEvent", "InventoryMovement", "AuditLog"])
+      await f.db.exec(`ALTER TABLE "${table}" DROP COLUMN "cafeteriaId"`);
+    assert.equal((await f.createSupply(newSupplyForm())).ok, true);
+    assert.equal((await f.db.query(`SELECT "stockQty"::text AS stock FROM "InventorySupply" WHERE name='Sugar'`)).rows[0].stock, "1250.000000");
+    await assertNoCafeteriaContext(f.db);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("supply creation preserves validation, zero defaults, counted units, and duplicate errors", async () => {
+  const f = await fixture();
+  try {
+    for (const [overrides, field] of [
+      [{ name: "" }, "name"],
+      [{ unit: "custom package" }, "unit"],
+      [{ stockQty: "-1" }, "stockQty"],
+      [{ lowStockThreshold: "invalid" }, "lowStockThreshold"],
+    ]) {
+      const result = await f.createSupply(newSupplyForm(overrides));
+      assert.equal(result.ok, false);
+      assert.equal(result.field, field);
+    }
+    assert.deepEqual(f.refreshedPaths, []);
+    assert.equal((await f.createSupply(newSupplyForm({ unit: "carton", countAsEntered: "yes", stockQty: "", lowStockThreshold: "" }))).ok, true);
+    const row = (await f.db.query(`SELECT "stockQty"::text AS stock, "lowStockThreshold"::text AS threshold,
+      "canonicalUnit" FROM "InventorySupply" WHERE name='Sugar'`)).rows[0];
+    assert.deepEqual(row, { stock: "0.000000", threshold: "0.000000", canonicalUnit: "PIECE" });
+    const result = await f.createSupply(newSupplyForm({ name: "Flour" }));
+    assert.equal(result.ok, false);
+    assert.equal(result.field, "name");
+    assert.equal(result.error, "A supply with this name and unit already exists.");
+    assert.equal(f.refreshedPaths.length, 2);
+    await assertNoCafeteriaContext(f.db);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("a failed supply insert rolls back cafeteria context and allows a clean retry", async () => {
+  const f = await fixture();
+  try {
+    await f.db.exec(`ALTER TABLE "InventorySupply" ADD CONSTRAINT reject_sugar CHECK (name <> 'Sugar')`);
+    assert.equal((await f.createSupply(newSupplyForm())).ok, false);
+    assert.equal((await f.db.query('SELECT count(*)::int AS count FROM "InventorySupply"')).rows[0].count, 2);
+    assert.deepEqual(f.refreshedPaths, []);
+    await assertNoCafeteriaContext(f.db);
+    await f.db.exec('ALTER TABLE "InventorySupply" DROP CONSTRAINT reject_sugar');
+    assert.equal((await f.createSupply(newSupplyForm())).ok, true);
+    await assertNoCafeteriaContext(f.db);
+  } finally {
+    await f.db.close();
+  }
 });

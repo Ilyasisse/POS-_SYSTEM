@@ -288,7 +288,7 @@ function SupplyReviewForm({
           <div className="min-w-0">
             <h3 className="text-lg font-semibold wrap-break-word">{selected.name}</h3>
             <p className="text-muted-foreground text-sm">
-              {selected.stockQty} {selected.unit} on hand
+              {selected.stockQtyLabel} on hand
             </p>
           </div>
           <Button

@@ -42,7 +42,7 @@ export default function RecentInventoryActivity({
               </div>
               <ToneBadge tone={movement.delta.startsWith("-") ? "red" : "green"}>
                 {Number(movement.delta) > 0 ? "+" : ""}
-                {movement.delta} {movement.unit}
+                {movement.deltaLabel}
               </ToneBadge>
             </div>
           ))

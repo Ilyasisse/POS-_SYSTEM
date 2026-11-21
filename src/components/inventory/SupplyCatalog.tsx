@@ -21,11 +21,12 @@ export type CatalogSupply = {
   name: string;
   unit: string;
   stockQty: string;
+  stockQtyLabel: string;
   status: StockStatus;
   hasUnitMapping: boolean;
 };
 
-const stockFilters: ("ALL" | StockStatus)[] = ["ALL", "OK", "LOW", "OUT"];
+const stockFilters: ("ALL" | StockStatus)[] = ["ALL", "OK", "LOW", "OUT",];
 
 export default function SupplyCatalog<T extends CatalogSupply>({
   supplies,
@@ -152,7 +153,7 @@ export default function SupplyCatalog<T extends CatalogSupply>({
                     {supply.name}
                   </h3>
                   <p className="text-muted-foreground mt-1 text-sm">
-                    {supply.stockQty} {supply.unit} on hand
+                    {supply.stockQtyLabel} on hand
                   </p>
                   {!supply.hasUnitMapping ? (
                     <p className="text-muted-foreground mt-1 text-xs">{mappingMessage}</p>

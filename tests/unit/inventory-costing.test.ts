@@ -20,6 +20,7 @@ import {
 import {
   classifySupplyUnit,
   supplyDisplayQuantity,
+  supplyQuantityLabel,
   supplyInputQuantity,
   supplyMovementDisplay,
   supplyStockUnit,
@@ -219,4 +220,61 @@ test("recent activity converts canonical movements and preserves historical amou
     }),
     { name: "Caano", quantity: "1", unit: "large bottle (4L)" },
   );
+});
+
+
+test("weight labels split kilograms and grams without rounding or padding", () => {
+  for (const [value, unit, expected] of [
+    ["1.250000", "kg", "1 kg 250 g"],
+    ["1.05", "Kg", "1 kg 50 g"],
+    ["0.5", "kilograms", "500 g"],
+    ["2", "kg", "2 kg"],
+    ["0", "kg", "0 g"],
+    ["-0", "kg", "0 g"],
+    ["1250", "grams", "1 kg 250 g"],
+    ["0.125000", "g", "0.125 g"],
+    ["1.250000001", "kg", "1 kg 250.000001 g"],
+    ["999999999999.999999", "g", "999999999 kg 999.999999 g"],
+    ["-1.25", "kg", "-1 kg 250 g"],
+    ["-0.05", "kg", "-50 g"],
+  ]) assert.equal(supplyQuantityLabel(value, unit), expected);
+});
+
+test("count, volume, and unfamiliar unit labels preserve their quantities and units", () => {
+  for (const [value, unit, expected] of [
+    ["1.500000", "Box", "1.5 Box"],
+    ["0.5", "unit", "0.5 unit"],
+    ["2.500000", "litres", "2.5 litres"],
+    ["1250", "ml", "1250 ml"],
+    ["1.500000", "large bottle (4L)", "1.5 large bottle (4L)"],
+    ["-0.500000", "custom package", "-0.5 custom package"],
+    ["1.500000", "", "1.5"],
+  ]) assert.equal(supplyQuantityLabel(value, unit), expected);
+});
+
+test("weight labels leave numeric form values, fractional boxes, and costs exact", () => {
+  const kg = supplyStockUnit({ unit: "kg", canonicalUnit: "GRAM" });
+  const numeric = supplyDisplayQuantity(decimalQuantity("1250"), kg.factor);
+  assert.equal(supplyQuantityLabel(numeric, kg.label), "1 kg 250 g");
+  assert.equal(numeric, "1.25");
+  assert.equal(supplyInputQuantity(numeric, kg.factor).toFixed(), "1250");
+  const box = supplyStockUnit({ unit: "Box", canonicalUnit: "PIECE" });
+  assert.equal(supplyInputQuantity("1.5", box.factor).toFixed(), "1.5");
+  assert.equal(decimalCost("0.000333").toFixed(), "0.000333");
+});
+
+test("movement labels preserve legacy weights and the historical unit after edits", () => {
+  for (const movement of [
+    { itemName: "Bariis (Kg)", delta: new Prisma.Decimal("-0.5"), canonicalUnit: null },
+    { itemName: "Bariis (Kg)", delta: new Prisma.Decimal("-500"), canonicalUnit: "GRAM" as const },
+    { itemName: "Bariis (g)", delta: new Prisma.Decimal("-500"), canonicalUnit: "GRAM" as const, supply: { unit: "kg" } },
+    { itemName: "Bariis", delta: new Prisma.Decimal("-500"), canonicalUnit: "GRAM" as const },
+  ]) {
+    const display = supplyMovementDisplay(movement);
+    assert.equal(supplyQuantityLabel(display.quantity, display.unit), "-500 g");
+  }
+  const display = supplyMovementDisplay({
+    itemName: "Cartons (Box)", delta: new Prisma.Decimal("-1.5"), canonicalUnit: "PIECE",
+  });
+  assert.equal(supplyQuantityLabel(display.quantity, display.unit), "-1.5 Box");
 });

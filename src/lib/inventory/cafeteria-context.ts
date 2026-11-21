@@ -28,3 +28,25 @@ export async function configureInventoryCafeteria(
     throw new InventoryAccessError("This supply is not available in your cafeteria.");
   await tx.$queryRaw`SELECT set_config('app.cafeteria_id', ${actorCafeteria}, true)`;
 }
+
+/** Resolve ownership before a supply exists; keep this context transaction-local. */
+export async function configureSupplyCreationCafeteria(
+  tx: Prisma.TransactionClient,
+  actorId: string,
+) {
+  const [staff] = await tx.$queryRaw<
+    { hasCafeteria: boolean; cafeteriaId: string | null }[]
+  >`
+    SELECT to_jsonb(staff) ? 'cafeteriaId' AS "hasCafeteria",
+           to_jsonb(staff)->>'cafeteriaId' AS "cafeteriaId"
+    FROM public."Staff" staff
+    WHERE staff.id = ${actorId}
+  `;
+  if (!staff)
+    throw new InventoryAccessError("Your staff account is no longer available. Sign in again.");
+  // Older single-cafeteria databases have no ownership column.
+  if (!staff.hasCafeteria) return;
+  if (!staff.cafeteriaId)
+    throw new InventoryAccessError("Your staff account has no cafeteria assigned. Contact an administrator.");
+  await tx.$queryRaw`SELECT set_config('app.cafeteria_id', ${staff.cafeteriaId}, true)`;
+}

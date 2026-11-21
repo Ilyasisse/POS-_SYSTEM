@@ -20,7 +20,11 @@ import {
 } from "@/lib/inventory/inventory";
 
 import { inventoryMovementDate } from "@/lib/inventory/movement-date";
-import { configureInventoryCafeteria, InventoryAccessError } from "@/lib/inventory/cafeteria-context";
+import {
+  configureInventoryCafeteria,
+  configureSupplyCreationCafeteria,
+  InventoryAccessError,
+} from "@/lib/inventory/cafeteria-context";
 
 // Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
@@ -71,7 +75,7 @@ function readSupplyQuantity(
 }
 
 export async function createSupply(formData: FormData): Promise<SupplyFormResult> {
-  await requireInventoryAccess();
+  const user = await requireInventoryAccess();
   const name = getString(formData, "name");
   const unit = getString(formData, "unit") || "unit";
   if (!name) return { ok: false, field: "name", error: "Enter a supply name." };
@@ -91,21 +95,25 @@ export async function createSupply(formData: FormData): Promise<SupplyFormResult
   if (!threshold.ok) return threshold;
 
   try {
-    await prisma.inventorySupply.create({
-      data: {
-        name,
-        unit,
-        stockQty: stock.quantity,
-        lowStockThreshold: threshold.quantity,
-        canonicalUnit: mapping.canonicalUnit,
-        quantityCoverage: mapping.coverage,
-        inventoryAlertStatus: getInventoryAlertStatus(
-          stock.quantity,
-          threshold.quantity,
-        ),
-      },
+    await prisma.$transaction(async (tx) => {
+      await configureSupplyCreationCafeteria(tx, user.id);
+      await tx.inventorySupply.create({
+        data: {
+          name,
+          unit,
+          stockQty: stock.quantity,
+          lowStockThreshold: threshold.quantity,
+          canonicalUnit: mapping.canonicalUnit,
+          quantityCoverage: mapping.coverage,
+          inventoryAlertStatus: getInventoryAlertStatus(
+            stock.quantity,
+            threshold.quantity,
+          ),
+        },
+      });
     });
   } catch (error) {
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return {
         ok: false,
