@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import {
   getBusinessDayRange,
   getBusinessDateRange,
@@ -22,65 +22,58 @@ import { reportQuerySchema } from "../../src/lib/reports/validation";
 
 test("uses the Nairobi 7 AM to 5 AM next-day business window", () => {
   const range = getBusinessDayRange(new Date("2026-07-18T10:00:00.000Z"));
-  assert.equal(range.start.toISOString(), "2026-07-18T04:00:00.000Z");
-  assert.equal(range.end.toISOString(), "2026-07-19T02:00:00.000Z");
+  expect(range.start.toISOString()).toBe("2026-07-18T04:00:00.000Z");
+  expect(range.end.toISOString()).toBe("2026-07-19T02:00:00.000Z");
 });
 
 test("assigns after-midnight sales to the prior business date", () => {
   const range = getBusinessDayRange(new Date("2026-07-18T00:00:00.000Z"));
-  assert.equal(range.start.toISOString(), "2026-07-17T04:00:00.000Z");
-  assert.equal(range.end.toISOString(), "2026-07-18T02:00:00.000Z");
+  expect(range.start.toISOString()).toBe("2026-07-17T04:00:00.000Z");
+  expect(range.end.toISOString()).toBe("2026-07-18T02:00:00.000Z");
 });
 
 test("validates business dates and builds Saturday reporting weeks", () => {
-  assert.deepEqual(parseBusinessDate("2026-02-29"), null);
-  assert.ok(getBusinessDateRange("2026-07-18"));
+  expect(parseBusinessDate("2026-02-29")).toStrictEqual(null);
+  expect(getBusinessDateRange("2026-07-18")).toBeTruthy();
   const week = getReportingWeekRange(new Date("2026-07-24T12:00:00.000Z"));
-  assert.equal(week.start.toISOString(), "2026-07-18T04:00:00.000Z");
-  assert.equal(week.end.toISOString(), "2026-07-25T02:00:00.000Z");
+  expect(week.start.toISOString()).toBe("2026-07-18T04:00:00.000Z");
+  expect(week.end.toISOString()).toBe("2026-07-25T02:00:00.000Z");
 });
 
 test("uses calendar-month business-date boundaries", () => {
   const month = getReportingMonthRange(new Date("2026-07-18T12:00:00.000Z"));
-  assert.equal(month.start.toISOString(), "2026-07-01T04:00:00.000Z");
-  assert.equal(month.end.toISOString(), "2026-08-01T04:00:00.000Z");
+  expect(month.start.toISOString()).toBe("2026-07-01T04:00:00.000Z");
+  expect(month.end.toISOString()).toBe("2026-08-01T04:00:00.000Z");
 });
 
 test("provides yesterday and same-weekday comparisons", () => {
   const ranges = getComparisonRanges(new Date("2026-07-18T12:00:00.000Z"));
-  assert.equal(
-    ranges.yesterday.start.toISOString(),
-    "2026-07-17T04:00:00.000Z",
-  );
-  assert.equal(
-    ranges.sameWeekdayLastWeek.start.toISOString(),
-    "2026-07-11T04:00:00.000Z",
-  );
+  expect(ranges.yesterday.start.toISOString()).toBe("2026-07-17T04:00:00.000Z");
+  expect(ranges.sameWeekdayLastWeek.start.toISOString()).toBe("2026-07-11T04:00:00.000Z");
 });
 
 test("calculates financial values with Decimal precision", () => {
   const net = netSales("10.10", "0.10", "1.00");
-  assert.equal(net.toFixed(2), "9.00");
-  assert.equal(grossProfit(net, "3.25").toFixed(2), "5.75");
-  assert.equal(averageOrderValue(net, 3)?.toFixed(2), "3.00");
-  assert.equal(settlementVariance("11", "10.25").toFixed(2), "0.75");
-  assert.equal(
+  expect(net.toFixed(2)).toBe("9.00");
+  expect(grossProfit(net, "3.25").toFixed(2)).toBe("5.75");
+  expect(averageOrderValue(net, 3)?.toFixed(2)).toBe("3.00");
+  expect(settlementVariance("11", "10.25").toFixed(2)).toBe("0.75");
+  expect(
     netProfit({
       netSales: "100",
       cogs: "30",
       labour: "20",
       operatingExpenses: "10",
     }).toFixed(2),
-    "40.00",
-  );
+  ).toBe("40.00");
 });
 
 test("protects ratios and break-even calculations from zero", () => {
-  assert.equal(ratioPercent(10, 0), null);
-  assert.equal(averageOrderValue(10, 0), null);
-  assert.equal(breakEvenSales(100, 0), null);
-  assert.equal(ratioPercent(1, 4)?.toFixed(2), "25.00");
-  assert.equal(breakEvenSales(100, "0.25")?.toFixed(2), "400.00");
+  expect(ratioPercent(10, 0)).toBe(null);
+  expect(averageOrderValue(10, 0)).toBe(null);
+  expect(breakEvenSales(100, 0)).toBe(null);
+  expect(ratioPercent(1, 4)?.toFixed(2)).toBe("25.00");
+  expect(breakEvenSales(100, "0.25")?.toFixed(2)).toBe("400.00");
 });
 
 test("calculates expected stock without floating-point drift", () => {
@@ -91,18 +84,17 @@ test("calculates expected stock without floating-point drift", () => {
     waste: "0.250",
     adjustments: "0.100",
   });
-  assert.equal(value.toFixed(3), "11.100");
+  expect(value.toFixed(3)).toBe("11.100");
 });
 
 test("validates pagination and custom report ranges", () => {
-  assert.equal(reportQuerySchema.parse({}).pageSize, 25);
-  assert.equal(
+  expect(reportQuerySchema.parse({}).pageSize).toBe(25);
+  expect(
     reportQuerySchema.safeParse({
       preset: "custom",
       from: "2026-07-19",
       to: "2026-07-18",
     }).success,
-    false,
-  );
-  assert.equal(reportQuerySchema.safeParse({ pageSize: 101 }).success, false);
+  ).toBe(false);
+  expect(reportQuerySchema.safeParse({ pageSize: 101 }).success).toBe(false);
 });

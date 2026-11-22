@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import {
   clearProjectAuthCookies,
   getSupabaseAuthCookiePrefix,
@@ -23,11 +23,8 @@ function cookieStore(cookieNames: string[]) {
 }
 
 test("derives the project-specific Supabase auth cookie prefix", () => {
-  assert.equal(getSupabaseAuthCookiePrefix(SUPABASE_URL), AUTH_COOKIE_PREFIX);
-  assert.throws(
-    () => getSupabaseAuthCookiePrefix("not a url"),
-    /Supabase URL is invalid/,
-  );
+  expect(getSupabaseAuthCookiePrefix(SUPABASE_URL)).toBe(AUTH_COOKIE_PREFIX);
+  expect(() => getSupabaseAuthCookiePrefix("not a url")).toThrow(/Supabase URL is invalid/);
 });
 
 test("recognizes only the current project's auth cookies and chunks", () => {
@@ -40,7 +37,7 @@ test("recognizes only the current project's auth cookies and chunks", () => {
     `${AUTH_COOKIE_PREFIX}-user`,
     `${AUTH_COOKIE_PREFIX}-user.1`,
   ]) {
-    assert.equal(isProjectAuthCookie(name, AUTH_COOKIE_PREFIX), true);
+    expect(isProjectAuthCookie(name, AUTH_COOKIE_PREFIX)).toBe(true);
   }
 
   for (const name of [
@@ -49,7 +46,7 @@ test("recognizes only the current project's auth cookies and chunks", () => {
     "sb-other-project-auth-token",
     `${AUTH_COOKIE_PREFIX}-unrelated`,
   ]) {
-    assert.equal(isProjectAuthCookie(name, AUTH_COOKIE_PREFIX), false);
+    expect(isProjectAuthCookie(name, AUTH_COOKIE_PREFIX)).toBe(false);
   }
 });
 
@@ -64,23 +61,20 @@ test("expires project auth cookies without touching unrelated cookies", () => {
 
   const cleared = clearProjectAuthCookies(store, SUPABASE_URL);
 
-  assert.deepEqual(cleared, [
+  expect(cleared).toStrictEqual([
     `${AUTH_COOKIE_PREFIX}.0`,
     `${AUTH_COOKIE_PREFIX}.1`,
     `${AUTH_COOKIE_PREFIX}-code-verifier`,
   ]);
-  assert.deepEqual(
-    expired.map(({ name }) => name),
-    cleared,
-  );
+  expect(expired.map(({ name }) => name)).toStrictEqual(cleared);
   for (const cookie of expired) {
-    assert.equal(cookie.value, "");
-    assert.equal(cookie.path, "/");
-    assert.equal(cookie.httpOnly, true);
-    assert.equal(cookie.secure, true);
-    assert.equal(cookie.sameSite, "lax");
-    assert.equal(cookie.maxAge, 0);
-    assert.equal(cookie.expires.getTime(), 0);
+    expect(cookie.value).toBe("");
+    expect(cookie.path).toBe("/");
+    expect(cookie.httpOnly).toBe(true);
+    expect(cookie.secure).toBe(true);
+    expect(cookie.sameSite).toBe("lax");
+    expect(cookie.maxAge).toBe(0);
+    expect(cookie.expires.getTime()).toBe(0);
   }
 });
 
@@ -101,16 +95,13 @@ test("uses local scope and clears cookies after successful revocation", async ()
     supabaseUrl: SUPABASE_URL,
   });
 
-  assert.deepEqual(scopes, ["local"]);
-  assert.equal(result.remoteSignOutSucceeded, true);
-  assert.equal(expired.length, 1);
+  expect(scopes).toStrictEqual(["local"]);
+  expect(result.remoteSignOutSucceeded).toBe(true);
+  expect(expired.length).toBe(1);
 });
 
 test("still clears the local session when remote revocation fails", async () => {
-  const { expired, store } = cookieStore([
-    `${AUTH_COOKIE_PREFIX}.0`,
-    "sidebar_state",
-  ]);
+  const { expired, store } = cookieStore([`${AUTH_COOKIE_PREFIX}.0`, "sidebar_state"]);
   const remoteError = new Error("Supabase is unavailable");
   const reportedErrors: unknown[] = [];
 
@@ -127,11 +118,8 @@ test("still clears the local session when remote revocation fails", async () => 
     onRemoteSignOutError: (error) => reportedErrors.push(error),
   });
 
-  assert.equal(result.remoteSignOutSucceeded, false);
-  assert.deepEqual(result.clearedCookieNames, [`${AUTH_COOKIE_PREFIX}.0`]);
-  assert.deepEqual(
-    expired.map(({ name }) => name),
-    [`${AUTH_COOKIE_PREFIX}.0`],
-  );
-  assert.deepEqual(reportedErrors, [remoteError]);
+  expect(result.remoteSignOutSucceeded).toBe(false);
+  expect(result.clearedCookieNames).toStrictEqual([`${AUTH_COOKIE_PREFIX}.0`]);
+  expect(expired.map(({ name }) => name)).toStrictEqual([`${AUTH_COOKIE_PREFIX}.0`]);
+  expect(reportedErrors).toStrictEqual([remoteError]);
 });

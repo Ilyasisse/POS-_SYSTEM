@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import { validateSupplierInvoiceDraftInput } from "../../src/lib/suppliers/invoice-foundation";
 import { summarizeSupplierBillsDue } from "../../src/lib/suppliers/supplier-bills";
 import { supplierPurchaseDateKeyToDatabaseDate } from "../../src/lib/suppliers/purchase-orders";
@@ -35,18 +35,14 @@ test("accepts an installment schedule that exactly matches the invoice total", (
       { dueDate: "2026-08-08", amount: "10.00" },
     ]),
   );
-  assert.equal(result.installments?.length, 3);
-  assert.equal(result.totalAmount.toString(), "60");
+  expect(result.installments?.length).toBe(3);
+  expect(result.totalAmount.toString()).toBe("60");
 });
 
 test("rejects a schedule that does not equal the invoice total", () => {
-  assert.throws(
-    () =>
-      validateSupplierInvoiceDraftInput(
-        draft([{ dueDate: "2026-07-28", amount: "59.99" }]),
-      ),
-    /Installments total/,
-  );
+  expect(() =>
+    validateSupplierInvoiceDraftInput(draft([{ dueDate: "2026-07-28", amount: "59.99" }])),
+  ).toThrow(/Installments total/);
 });
 
 test("due summary counts only due installments, not the full invoice", () => {
@@ -84,7 +80,7 @@ test("due summary counts only due installments, not the full invoice", () => {
     ],
     new Date("2026-07-27T12:00:00.000Z"),
   );
-  assert.equal(summary.dueTomorrowRemaining, 30);
-  assert.equal(summary.totalRemaining, 30);
-  assert.equal(summary.billCount, 1);
+  expect(summary.dueTomorrowRemaining).toBe(30);
+  expect(summary.totalRemaining).toBe(30);
+  expect(summary.billCount).toBe(1);
 });

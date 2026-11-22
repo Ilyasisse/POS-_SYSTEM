@@ -1,9 +1,6 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import {
-  attendanceOutcome,
-  calculatePayrollLine,
-} from "../../src/lib/payroll/payroll-formulas";
+import { test } from "@jest/globals";
+import { expect } from "@jest/globals";
+import { attendanceOutcome, calculatePayrollLine } from "../../src/lib/payroll/payroll-formulas";
 
 test("attendance applies the grace period and approved overtime threshold", () => {
   const outcome = attendanceOutcome({
@@ -13,9 +10,9 @@ test("attendance applies the grace period and approved overtime threshold", () =
     graceMinutes: 10,
     overtimeThresholdMinutes: 480,
   });
-  assert.equal(outcome.lateMinutes, 3);
-  assert.equal(outcome.workedMinutes, 527);
-  assert.equal(outcome.overtimeMinutes, 47);
+  expect(outcome.lateMinutes).toBe(3);
+  expect(outcome.workedMinutes).toBe(527);
+  expect(outcome.overtimeMinutes).toBe(47);
 });
 
 test("daily and monthly payroll formulas preserve additions and deductions", () => {
@@ -35,6 +32,6 @@ test("daily and monthly payroll formulas preserve additions and deductions", () 
     additions: "0",
     deductions: "10",
   });
-  assert.equal(daily.netPay.toFixed(2), "58.00");
-  assert.equal(monthly.netPay.toFixed(2), "291.25");
+  expect(daily.netPay.toFixed(2)).toBe("58.00");
+  expect(monthly.netPay.toFixed(2)).toBe("291.25");
 });

@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { readFileSync } from "node:fs";
-import test from "node:test";
 
 const migration = readFileSync(
   "prisma/migrations/20260724_legacy_supplier_invoice_conversion/migration.sql",
@@ -8,19 +7,19 @@ const migration = readFileSync(
 );
 
 test("legacy conversion maps every delivery status to its invoice lifecycle", () => {
-  assert.match(migration, /WHEN 'VERIFIED' THEN 'FINALIZED'/);
-  assert.match(migration, /WHEN 'REJECTED' THEN 'VOID'/);
-  assert.match(migration, /ELSE 'DRAFT'/);
-  assert.match(migration, /'LEGACY_UPLOAD'::"SupplierInvoiceSource"/);
+  expect(migration).toMatch(/WHEN 'VERIFIED' THEN 'FINALIZED'/);
+  expect(migration).toMatch(/WHEN 'REJECTED' THEN 'VOID'/);
+  expect(migration).toMatch(/ELSE 'DRAFT'/);
+  expect(migration).toMatch(/'LEGACY_UPLOAD'::"SupplierInvoiceSource"/);
 });
 
 test("legacy conversion preserves IDs, receipts, audit timestamps, and bill payments", () => {
-  assert.match(migration, /delivery\."id",\s*delivery\."supplierId"/);
-  assert.match(migration, /delivery\."receiptObjectPath"/);
-  assert.match(migration, /delivery\."inventoryUpdatedAt"/);
-  assert.match(migration, /"invoiceId" = "deliveryId"/);
-  assert.match(migration, /SELECT COUNT\(\*\) FROM "SupplierPayment"/);
-  assert.doesNotMatch(migration, /DELETE FROM "SupplierPayment"/i);
+  expect(migration).toMatch(/delivery\."id",\s*delivery\."supplierId"/);
+  expect(migration).toMatch(/delivery\."receiptObjectPath"/);
+  expect(migration).toMatch(/delivery\."inventoryUpdatedAt"/);
+  expect(migration).toMatch(/"invoiceId" = "deliveryId"/);
+  expect(migration).toMatch(/SELECT COUNT\(\*\) FROM "SupplierPayment"/);
+  expect(migration).not.toMatch(/DELETE FROM "SupplierPayment"/i);
 });
 
 test("legacy tables are dropped only after record, line, bill, and payment audits", () => {
@@ -38,8 +37,8 @@ test("legacy tables are dropped only after record, line, bill, and payment audit
   );
   const dropDelivery = migration.indexOf('DROP TABLE "SupplierDelivery"');
 
-  assert.ok(invoiceAudit >= 0 && invoiceAudit < dropDelivery);
-  assert.ok(lineAudit >= 0 && lineAudit < dropDelivery);
-  assert.ok(billAudit >= 0 && billAudit < dropDelivery);
-  assert.ok(paymentAudit >= 0 && paymentAudit < dropDelivery);
+  expect(invoiceAudit >= 0 && invoiceAudit < dropDelivery).toBeTruthy();
+  expect(lineAudit >= 0 && lineAudit < dropDelivery).toBeTruthy();
+  expect(billAudit >= 0 && billAudit < dropDelivery).toBeTruthy();
+  expect(paymentAudit >= 0 && paymentAudit < dropDelivery).toBeTruthy();
 });

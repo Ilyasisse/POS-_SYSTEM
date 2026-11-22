@@ -1,0 +1,114 @@
+import { expect, afterAll, test } from "@jest/globals";
+
+import {
+  approveAttendance,
+  approvePayrollAdjustment,
+  createPayrollAdjustment,
+  createPayrollRun,
+  recordClockEvent,
+  transitionPayrollRun,
+} from "../../src/lib/staff/staff-operations";
+import {
+  completeCleaningRun,
+  completeCleaningTask,
+  createCleaningTemplate,
+  createOperationalIncident,
+  resolveOperationalIncident,
+  scheduleCleaningRun,
+} from "../../src/lib/kitchen/kitchen-operations";
+import { prisma } from "../../src/lib/prisma";
+import { db, unique, user } from "../workflow/fixtures";
+import { formatBusinessDate } from "../../src/lib/reports/reporting-calendar";
+
+afterAll(async () => {
+  await Promise.all([db.$disconnect(), prisma.$disconnect()]);
+});
+
+test("approved attendance and bonus drive one finalized payroll line", async () => {
+  const [worker, admin] = await Promise.all([user("CASHIER"), user("ADMIN")]);
+  const date = new Date(`${formatBusinessDate(new Date())}T00:00:00.000Z`);
+  const actorUserId = admin.id;
+  await db.employmentProfile.create({
+    data: { userId: worker.id, compensationType: "DAILY", dailyRate: 20, effectiveFrom: date },
+  });
+  const shift = await db.scheduledShift.create({
+    data: {
+      workerId: worker.id,
+      startsAt: new Date(date.getTime() + 4 * 3_600_000),
+      endsAt: new Date(date.getTime() + 25 * 3_600_000),
+      createdByUserId: admin.id,
+    },
+  });
+  const clockIn = await recordClockEvent({ workerId: worker.id, type: "IN" });
+  await expect(recordClockEvent({ workerId: worker.id, type: "IN" })).rejects.toThrow(
+    /already clocked in/,
+  );
+  const clockOut = await recordClockEvent({ workerId: worker.id, type: "OUT" });
+  expect(clockOut.occurredAt >= clockIn.occurredAt).toBeTruthy();
+  // Place the two recorded events inside the same test shift regardless of when CI runs.
+  await db.clockEvent.update({ where: { id: clockIn.id }, data: { occurredAt: shift.startsAt } });
+  await db.clockEvent.update({
+    where: { id: clockOut.id },
+    data: { occurredAt: new Date(shift.startsAt.getTime() + 8 * 3_600_000) },
+  });
+  await approveAttendance({ shiftId: shift.id, status: "PRESENT", actorUserId });
+  expect(
+    await db.attendanceRecord.count({ where: { workerId: worker.id, status: "PRESENT" } }),
+  ).toBe(1);
+
+  const period = { periodStart: date, periodEnd: date };
+  const bonus = await createPayrollAdjustment({
+    ...period,
+    workerId: worker.id,
+    type: "BONUS",
+    amount: 4,
+    reason: "Workflow bonus",
+    actorUserId,
+  });
+  await approvePayrollAdjustment({ adjustmentId: bonus.id, actorUserId });
+  const run = await createPayrollRun({ ...period, actorUserId });
+  const line = await db.payrollLine.findFirstOrThrow({
+    where: { payrollRunId: run.id, workerId: worker.id },
+  });
+  expect(Number(line.netPay)).toBe(24);
+  await transitionPayrollRun({ runId: run.id, action: "APPROVE", actorUserId });
+  await transitionPayrollRun({ runId: run.id, action: "FINALIZE", actorUserId });
+  await expect(createPayrollRun({ ...period, actorUserId })).rejects.toThrow(/finalized payroll/i);
+});
+
+test("cleaning requires all required tasks and resolving an incident audits the actor", async () => {
+  const admin = await user("ADMIN");
+  const actorUserId = admin.id;
+  const template = await createCleaningTemplate({
+    name: unique("Test checklist"),
+    schedule: "Daily",
+    tasks: [{ label: "Sanitize counter" }],
+  });
+  const run = await scheduleCleaningRun({ templateId: template.id, scheduledFor: new Date() });
+  await expect(completeCleaningRun({ runId: run.id, actorUserId })).rejects.toThrow(/required/i);
+  await completeCleaningTask({ runTaskId: run.tasks[0].id, actorUserId });
+  await completeCleaningRun({ runId: run.id, actorUserId, evidenceNote: "Test completed" });
+  expect((await db.cleaningChecklistRun.findUniqueOrThrow({ where: { id: run.id } })).status).toBe(
+    "COMPLETED",
+  );
+
+  const incident = await createOperationalIncident({
+    type: "POS",
+    severity: "LOW",
+    title: "Test printer issue",
+    description: "Synthetic incident",
+    reportedByUserId: admin.id,
+  });
+  const resolved = await resolveOperationalIncident({
+    incidentId: incident.id,
+    actorUserId,
+    resolutionNotes: "Test printer checked",
+  });
+  expect(resolved.status).toBe("RESOLVED");
+  expect(resolved.resolvedAt).toBeTruthy();
+  expect(
+    await db.auditLog.count({
+      where: { entityId: incident.id, action: "operations.incident.resolved", actorUserId },
+    }),
+  ).toBe(1);
+});

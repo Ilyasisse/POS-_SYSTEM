@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import {
   calculateSupplierPaymentState,
   getSupplierPaymentReversalError,
@@ -15,11 +15,11 @@ test("returns a bill to unpaid after its only payment is removed", () => {
     installments: [],
   });
 
-  assert.equal(state.bill.paidAmount.toFixed(2), "0.00");
-  assert.equal(state.bill.status, "UNPAID");
-  assert.equal(state.bill.settledAt, null);
-  assert.equal(state.bill.settledByUserId, null);
-  assert.equal(state.bill.dueDate, dueDate);
+  expect(state.bill.paidAmount.toFixed(2)).toBe("0.00");
+  expect(state.bill.status).toBe("UNPAID");
+  expect(state.bill.settledAt).toBe(null);
+  expect(state.bill.settledByUserId).toBe(null);
+  expect(state.bill.dueDate).toBe(dueDate);
 });
 
 test("keeps a bill partially paid when another payment remains", () => {
@@ -37,9 +37,9 @@ test("keeps a bill partially paid when another payment remains", () => {
     installments: [],
   });
 
-  assert.equal(state.bill.paidAmount.toFixed(2), "40.00");
-  assert.equal(state.bill.status, "PARTIAL");
-  assert.equal(state.bill.settledAt, null);
+  expect(state.bill.paidAmount.toFixed(2)).toBe("40.00");
+  expect(state.bill.status).toBe("PARTIAL");
+  expect(state.bill.settledAt).toBe(null);
 });
 
 test("recalculates installments and restores the earliest outstanding due date", () => {
@@ -62,45 +62,37 @@ test("recalculates installments and restores the earliest outstanding due date",
     ],
   });
 
-  assert.equal(state.bill.status, "PARTIAL");
-  assert.equal(state.bill.dueDate, firstDueDate);
-  assert.deepEqual(
-    state.installments.map((row) => [
-      row.id,
-      row.paidAmount.toFixed(2),
-      row.status,
-    ]),
-    [
-      ["installment-1", "0.00", "UNPAID"],
-      ["installment-2", "70.00", "PAID"],
-    ],
-  );
+  expect(state.bill.status).toBe("PARTIAL");
+  expect(state.bill.dueDate).toBe(firstDueDate);
+  expect(
+    state.installments.map((row) => [row.id, row.paidAmount.toFixed(2), row.status]),
+  ).toStrictEqual([
+    ["installment-1", "0.00", "UNPAID"],
+    ["installment-2", "70.00", "PAID"],
+  ]);
 });
 
 test("blocks unsafe scheduled and Daily Cash reversals", () => {
-  assert.match(
+  expect(
     getSupplierPaymentReversalError({
       legacyAllocationAfterSchedule: true,
       dailyCashLinked: false,
       dailyCashLocked: false,
       canManageDailyCash: true,
     }) || "",
-    /installment schedule/,
-  );
-  assert.match(
+  ).toMatch(/installment schedule/);
+  expect(
     getSupplierPaymentReversalError({
       dailyCashLinked: true,
       dailyCashLocked: false,
       canManageDailyCash: false,
     }) || "",
-    /permission/,
-  );
-  assert.match(
+  ).toMatch(/permission/);
+  expect(
     getSupplierPaymentReversalError({
       dailyCashLinked: true,
       dailyCashLocked: true,
       canManageDailyCash: true,
     }) || "",
-    /permanently locked/,
-  );
+  ).toMatch(/permanently locked/);
 });

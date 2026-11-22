@@ -1,23 +1,22 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import {
   groupCashierOpenOrders,
   resolveTableCheckIdentity,
 } from "../../src/lib/cashier/table-checks";
 
 test("table-check identity keeps the customer number while exposing each ticket", () => {
-  assert.deepEqual(
+  expect(
     resolveTableCheckIdentity({
       orderNumber: 102,
       tableCheckRound: 2,
       tableCheck: { checkNumber: 101 },
     }),
-    { orderNumber: 101, ticketNumber: 102, roundNumber: 2 },
-  );
+  ).toStrictEqual({ orderNumber: 101, ticketNumber: 102, roundNumber: 2 });
 });
 
 test("legacy orders retain their original customer-facing number", () => {
-  assert.deepEqual(resolveTableCheckIdentity({ orderNumber: 99 }), {
+  expect(resolveTableCheckIdentity({ orderNumber: 99 })).toStrictEqual({
     orderNumber: 99,
     ticketNumber: 99,
     roundNumber: 1,
@@ -50,13 +49,10 @@ test("cashier rounds group into one customer check and combined total", () => {
     },
   ]);
 
-  assert.equal(checks.length, 1);
-  assert.equal(checks[0]?.orderNumber, 101);
-  assert.equal(checks[0]?.total, 12.5);
-  assert.deepEqual(
-    checks[0]?.rounds.map((round) => round.tableCheckRound),
-    [1, 2],
-  );
+  expect(checks.length).toBe(1);
+  expect(checks[0]?.orderNumber).toBe(101);
+  expect(checks[0]?.total).toBe(12.5);
+  expect(checks[0]?.rounds.map((round) => round.tableCheckRound)).toStrictEqual([1, 2]);
 });
 
 test("multiple legacy open orders remain separate", () => {
@@ -74,8 +70,5 @@ test("multiple legacy open orders remain separate", () => {
     })),
   );
 
-  assert.deepEqual(
-    checks.map((check) => check.orderNumber),
-    [201, 202],
-  );
+  expect(checks.map((check) => check.orderNumber)).toStrictEqual([201, 202]);
 });

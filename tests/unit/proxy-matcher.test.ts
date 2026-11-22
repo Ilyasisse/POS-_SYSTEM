@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 
 import { config } from "../../src/proxy";
@@ -25,7 +25,7 @@ test("matches every protected staff route prefix", () => {
     "/kitchen/barista",
     "/inventory",
   ]) {
-    assert.equal(matches(url), true, url);
+    expect({ context: url, value: matches(url) }).toStrictEqual({ context: url, value: true });
   }
 });
 
@@ -44,6 +44,6 @@ test("does not match public, static, or API requests", () => {
     "/api/me",
     "/api/orders",
   ]) {
-    assert.equal(matches(url), false, url);
+    expect({ context: url, value: matches(url) }).toStrictEqual({ context: url, value: false });
   }
 });

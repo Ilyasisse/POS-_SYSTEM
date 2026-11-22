@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import type { Station, UserRole } from "@prisma/client";
 
 import {
@@ -19,19 +19,16 @@ test("admin navigation is grouped in the intended order", () => {
   const nodes = getStaffNavigationNodesFromItems(items);
   const dashboard = items.find((item) => item.key === "dashboard");
 
-  assert.equal(dashboard?.href, "/admin");
+  expect(dashboard?.href).toBe("/admin");
 
-  assert.deepEqual(
-    nodes.map((node) => (node.type === "link" ? node.item.key : node.key)),
-    [
-      "dashboard",
-      "catalog",
-      "admin-operations",
-      "suppliers",
-      "reports",
-      "administration",
-    ],
-  );
+  expect(nodes.map((node) => (node.type === "link" ? node.item.key : node.key))).toStrictEqual([
+    "dashboard",
+    "catalog",
+    "admin-operations",
+    "suppliers",
+    "reports",
+    "administration",
+  ]);
 });
 
 test("supplier routes stay together and include invoices and bills", () => {
@@ -40,17 +37,15 @@ test("supplier routes stay together and include invoices and bills", () => {
     (node) => node.type === "group" && node.key === "suppliers",
   );
 
-  assert.ok(suppliers && suppliers.type === "group");
-  assert.deepEqual(
-    suppliers.items.map((item) => item.key),
-    [
-      "suppliers",
-      "supplier-purchase-orders",
-      "supplier-order-schedules",
-      "supplier-invoices",
-      "supplier-bills",
-    ],
-  );
+  expect(suppliers && suppliers.type === "group").toBeTruthy();
+  if (!suppliers || suppliers.type !== "group") throw new Error("Expected suppliers group");
+  expect(suppliers.items.map((item) => item.key)).toStrictEqual([
+    "suppliers",
+    "supplier-purchase-orders",
+    "supplier-order-schedules",
+    "supplier-invoices",
+    "supplier-bills",
+  ]);
 });
 
 test("customer profiles are grouped with reporting", () => {
@@ -59,25 +54,26 @@ test("customer profiles are grouped with reporting", () => {
     (node) => node.type === "group" && node.key === "reports",
   );
 
-  assert.ok(reports && reports.type === "group");
-  assert.deepEqual(
-    reports.items.map((item) => item.key),
-    ["reports", "business-intelligence", "customers"],
-  );
+  expect(reports && reports.type === "group").toBeTruthy();
+  if (!reports || reports.type !== "group") throw new Error("Expected reports group");
+  expect(reports.items.map((item) => item.key)).toStrictEqual([
+    "reports",
+    "business-intelligence",
+    "customers",
+  ]);
 });
 
 test("permission filtering removes inaccessible groups and children", () => {
   const cashierItems = getVisibleStaffNavigationItems(user("CASHIER"));
   const nodes = getStaffNavigationNodesFromItems(cashierItems);
 
-  assert.equal(
-    nodes.some((node) => node.type === "group" && node.key === "suppliers"),
-    false,
-  );
-  assert.deepEqual(
-    cashierItems.map((item) => item.key),
-    ["cashier-home", "cashier-order", "cashier-waiter-orders", "customer-checkouts"],
-  );
+  expect(nodes.some((node) => node.type === "group" && node.key === "suppliers")).toBe(false);
+  expect(cashierItems.map((item) => item.key)).toStrictEqual([
+    "cashier-home",
+    "cashier-order",
+    "cashier-waiter-orders",
+    "customer-checkouts",
+  ]);
 });
 
 test("station filtering keeps only the authorized kitchen destination", () => {
@@ -86,11 +82,12 @@ test("station filtering keeps only the authorized kitchen destination", () => {
     (node) => node.type === "group" && node.key === "kitchen",
   );
 
-  assert.ok(kitchen && kitchen.type === "group");
-  assert.deepEqual(
-    kitchen.items.map((item) => item.key),
-    ["kitchen-home", "kitchen-fast-food"],
-  );
+  expect(kitchen && kitchen.type === "group").toBeTruthy();
+  if (!kitchen || kitchen.type !== "group") throw new Error("Expected kitchen group");
+  expect(kitchen.items.map((item) => item.key)).toStrictEqual([
+    "kitchen-home",
+    "kitchen-fast-food",
+  ]);
 });
 
 test("nested pages activate their parent navigation item", () => {
@@ -99,39 +96,22 @@ test("nested pages activate their parent navigation item", () => {
   const dashboard = items.find((item) => item.key === "dashboard");
   const invoices = items.find((item) => item.key === "supplier-invoices");
 
-  assert.ok(dashboard);
-  assert.equal(isStaffNavActive("/admin", dashboard), true);
-  assert.equal(isStaffNavActive("/admin/categories", dashboard), false);
-  assert.ok(invoices);
-  assert.equal(
-    isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices),
-    true,
-  );
-  assert.equal(
-    getActiveStaffNavigationGroupKey(
-      "/admin/supplier-invoices/invoice-123",
-      nodes,
-    ),
+  expect(dashboard).toBeTruthy();
+  if (!dashboard) throw new Error("Expected dashboard to be present");
+  expect(isStaffNavActive("/admin", dashboard)).toBe(true);
+  expect(isStaffNavActive("/admin/categories", dashboard)).toBe(false);
+  expect(invoices).toBeTruthy();
+  if (!invoices) throw new Error("Expected invoices to be present");
+  expect(isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices)).toBe(true);
+  expect(getActiveStaffNavigationGroupKey("/admin/supplier-invoices/invoice-123", nodes)).toBe(
     "suppliers",
   );
-  assert.equal(
-    getActiveStaffNavigationGroupKey("/admin/categories", nodes),
-    "catalog",
-  );
-  assert.equal(getActiveStaffNavigationGroupKey("/admin", nodes), null);
+  expect(getActiveStaffNavigationGroupKey("/admin/categories", nodes)).toBe("catalog");
+  expect(getActiveStaffNavigationGroupKey("/admin", nodes)).toBe(null);
 });
 
 test("selecting a group closes the previous group and toggles itself", () => {
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey("catalog", "suppliers"),
-    "suppliers",
-  );
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey("suppliers", "suppliers"),
-    null,
-  );
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey(null, "administration"),
-    "administration",
-  );
+  expect(getNextOpenStaffNavigationGroupKey("catalog", "suppliers")).toBe("suppliers");
+  expect(getNextOpenStaffNavigationGroupKey("suppliers", "suppliers")).toBe(null);
+  expect(getNextOpenStaffNavigationGroupKey(null, "administration")).toBe("administration");
 });

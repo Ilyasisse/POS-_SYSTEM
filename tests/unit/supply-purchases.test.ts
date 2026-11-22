@@ -1,5 +1,5 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "@jest/globals";
+
 import {
   calculateSupplyDayTotal,
   calculateSupplyLineTotal,
@@ -18,26 +18,20 @@ function purchaseFormData(values: Record<string, string>) {
 }
 
 test("uses the Nairobi calendar date for new Supply entries", () => {
-  assert.equal(
-    getTodaySupplyDateKey(new Date("2026-07-12T22:30:00.000Z")),
-    "2026-07-13",
-  );
+  expect(getTodaySupplyDateKey(new Date("2026-07-12T22:30:00.000Z"))).toBe("2026-07-13");
 });
 
 test("accepts only real calendar dates and stores them at UTC midnight", () => {
-  assert.equal(isValidSupplyDateKey("2026-02-29"), false);
-  assert.equal(isValidSupplyDateKey("2028-02-29"), true);
-  assert.equal(
-    supplyDateKeyToDatabaseDate("2026-07-13")?.toISOString(),
-    "2026-07-13T00:00:00.000Z",
-  );
+  expect(isValidSupplyDateKey("2026-02-29")).toBe(false);
+  expect(isValidSupplyDateKey("2028-02-29")).toBe(true);
+  expect(supplyDateKeyToDatabaseDate("2026-07-13")?.toISOString()).toBe("2026-07-13T00:00:00.000Z");
 });
 
 test("defaults invalid and future selected dates to today", () => {
   const now = new Date("2026-07-13T10:00:00.000Z");
-  assert.equal(resolveSupplyDateKey("bad-date", now), "2026-07-13");
-  assert.equal(resolveSupplyDateKey("2026-07-14", now), "2026-07-13");
-  assert.equal(resolveSupplyDateKey("2026-07-12", now), "2026-07-12");
+  expect(resolveSupplyDateKey("bad-date", now)).toBe("2026-07-13");
+  expect(resolveSupplyDateKey("2026-07-14", now)).toBe("2026-07-13");
+  expect(resolveSupplyDateKey("2026-07-12", now)).toBe("2026-07-12");
 });
 
 test("validates decimal quantities and unit prices", () => {
@@ -51,13 +45,13 @@ test("validates decimal quantities and unit prices", () => {
     }),
     now,
   );
-  assert.equal(valid.ok, true);
+  expect(valid.ok).toBe(true);
   if (valid.ok) {
-    assert.equal(valid.value.catalogItemId, "milk-id");
-    assert.equal(valid.value.unitPrice.toString(), "0.0742");
+    expect(valid.value.catalogItemId).toBe("milk-id");
+    expect(valid.value.unitPrice.toString()).toBe("0.0742");
   }
 
-  assert.deepEqual(
+  expect(
     parseSupplyPurchaseInput(
       purchaseFormData({
         catalogItemId: "milk-id",
@@ -67,31 +61,26 @@ test("validates decimal quantities and unit prices", () => {
       }),
       now,
     ),
-    { ok: false, status: "invalid_entry" },
-  );
+  ).toStrictEqual({ ok: false, status: "invalid_entry" });
 });
 
 test("accepts up to four decimal places for Supply unit prices", () => {
   for (const value of ["0", "0.07", "0.074", "0.0742"]) {
-    assert.equal(
-      parseSupplyUnitPrice(value)?.toString(),
-      String(Number(value)),
-    );
+    expect(parseSupplyUnitPrice(value)?.toString()).toBe(String(Number(value)));
   }
 
   for (const value of ["-0.0742", "0.07421", ".0742", "1.", "not-a-price"]) {
-    assert.equal(parseSupplyUnitPrice(value), null);
+    expect(parseSupplyUnitPrice(value)).toBe(null);
   }
 });
 
 test("rounds each Supply line before calculating the daily total", () => {
-  assert.equal(calculateSupplyLineTotal("1.005", "1").toString(), "1.01");
-  assert.equal(calculateSupplyLineTotal("100", "0.0742").toString(), "7.42");
-  assert.equal(
+  expect(calculateSupplyLineTotal("1.005", "1").toString()).toBe("1.01");
+  expect(calculateSupplyLineTotal("100", "0.0742").toString()).toBe("7.42");
+  expect(
     calculateSupplyDayTotal([
       { quantity: "1.005", unitPrice: "1" },
       { quantity: "1.005", unitPrice: "1" },
     ]).toString(),
-    "2.02",
-  );
+  ).toBe("2.02");
 });

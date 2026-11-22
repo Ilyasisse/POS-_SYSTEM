@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { createHmac } from "node:crypto";
-import test from "node:test";
+
 import {
   normalizeMycashGolisWebhookPayload,
   processMycashGolisWebhook,
@@ -38,9 +38,7 @@ function payload(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function store(
-  overrides: Partial<PaymentWebhookStore> = {},
-): PaymentWebhookStore & {
+function store(overrides: Partial<PaymentWebhookStore> = {}): PaymentWebhookStore & {
   markedPaid: Array<{
     method: string;
     reference: string;
@@ -74,42 +72,31 @@ function signBody(rawBody: string, secret: string) {
 }
 
 test("reads required webhook config and validates webhook signatures", () => {
-  assert.deepEqual(
+  expect(
     readPaymentWebhookConfig({
       PAYMENT_WEBHOOK_SECRET: " secret ",
       PAYMENT_WEBHOOK_CASHIER_ID: " cashier-1 ",
     }),
-    {
-      ok: true,
-      secret: "secret",
-      cashierId: "cashier-1",
-    },
-  );
+  ).toStrictEqual({
+    ok: true,
+    secret: "secret",
+    cashierId: "cashier-1",
+  });
 
   const rawBody = JSON.stringify(payload());
   const signature = signBody(rawBody, "secret");
 
-  assert.equal(verifyPaymentWebhookSignature(rawBody, null, "secret"), false);
-  assert.equal(
-    verifyPaymentWebhookSignature(rawBody, "sha256=wrong", "secret"),
-    false,
-  );
-  assert.equal(
-    verifyPaymentWebhookSignature(rawBody, `sha256=${signature}`, "secret"),
-    true,
-  );
-  assert.equal(
+  expect(verifyPaymentWebhookSignature(rawBody, null, "secret")).toBe(false);
+  expect(verifyPaymentWebhookSignature(rawBody, "sha256=wrong", "secret")).toBe(false);
+  expect(verifyPaymentWebhookSignature(rawBody, `sha256=${signature}`, "secret")).toBe(true);
+  expect(
     verifyPaymentWebhookSignature(
       JSON.stringify(payload({ amount: 1 })),
       `sha256=${signature}`,
       "secret",
     ),
-    false,
-  );
-  assert.equal(
-    readPaymentWebhookConfig({ PAYMENT_WEBHOOK_CASHIER_ID: "cashier-1" }).ok,
-    false,
-  );
+  ).toBe(false);
+  expect(readPaymentWebhookConfig({ PAYMENT_WEBHOOK_CASHIER_ID: "cashier-1" }).ok).toBe(false);
 });
 
 test("normalizes generic MYCASH/GOLIS payloads", () => {
@@ -122,41 +109,26 @@ test("normalizes generic MYCASH/GOLIS payloads", () => {
     }),
   );
 
-  assert.equal(result.ok, true);
+  expect(result.ok).toBe(true);
 
   if (result.ok) {
-    assert.equal(result.event.provider, "GOLIS");
-    assert.equal(result.event.status, "PAID");
-    assert.equal(result.event.orderNumber, 123);
-    assert.equal(result.event.amount, 15.5);
-    assert.equal(result.event.isSuccess, true);
+    expect(result.event.provider).toBe("GOLIS");
+    expect(result.event.status).toBe("PAID");
+    expect(result.event.orderNumber).toBe(123);
+    expect(result.event.amount).toBe(15.5);
+    expect(result.event.isSuccess).toBe(true);
   }
 });
 
 test("rejects invalid webhook payloads", () => {
-  assert.equal(normalizeMycashGolisWebhookPayload(null).ok, false);
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ provider: "CARD" })).ok,
+  expect(normalizeMycashGolisWebhookPayload(null).ok).toBe(false);
+  expect(normalizeMycashGolisWebhookPayload(payload({ provider: "CARD" })).ok).toBe(false);
+  expect(normalizeMycashGolisWebhookPayload(payload({ reference: "" })).ok).toBe(false);
+  expect(normalizeMycashGolisWebhookPayload(payload({ orderId: "", orderNumber: "" })).ok).toBe(
     false,
   );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ reference: "" })).ok,
-    false,
-  );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(
-      payload({ orderId: "", orderNumber: "" }),
-    ).ok,
-    false,
-  );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ amount: 0 })).ok,
-    false,
-  );
-  assert.equal(
-    normalizeMycashGolisWebhookPayload(payload({ paidAt: "not-a-date" })).ok,
-    false,
-  );
+  expect(normalizeMycashGolisWebhookPayload(payload({ amount: 0 })).ok).toBe(false);
+  expect(normalizeMycashGolisWebhookPayload(payload({ paidAt: "not-a-date" })).ok).toBe(false);
 });
 
 test("successful webhook marks an open order paid", async () => {
@@ -166,10 +138,10 @@ test("successful webhook marks an open order paid", async () => {
     store: fakeStore,
   });
 
-  assert.equal(result.status, 200);
-  assert.equal(result.body.ok, true);
-  assert.equal(fakeStore.markedPaid.length, 1);
-  assert.deepEqual(fakeStore.markedPaid[0], {
+  expect(result.status).toBe(200);
+  expect(result.body.ok).toBe(true);
+  expect(fakeStore.markedPaid.length).toBe(1);
+  expect(fakeStore.markedPaid[0]).toStrictEqual({
     method: "MYCASH",
     reference: "provider-reference-1",
     paidAt: new Date("2026-06-25T10:00:00.000Z"),
@@ -189,9 +161,9 @@ test("GOLIS webhook records the provider reference", async () => {
     },
   );
 
-  assert.equal(result.status, 200);
-  assert.equal(fakeStore.markedPaid[0]?.method, "GOLIS");
-  assert.equal(fakeStore.markedPaid[0]?.reference, "golis-transaction-7");
+  expect(result.status).toBe(200);
+  expect(fakeStore.markedPaid[0]?.method).toBe("GOLIS");
+  expect(fakeStore.markedPaid[0]?.reference).toBe("golis-transaction-7");
 });
 
 test("duplicate provider reference returns success without another payment", async () => {
@@ -208,9 +180,9 @@ test("duplicate provider reference returns success without another payment", asy
     store: fakeStore,
   });
 
-  assert.equal(result.status, 200);
-  assert.equal(result.body.duplicate, true);
-  assert.equal(fakeStore.markedPaid.length, 0);
+  expect(result.status).toBe(200);
+  expect(result.body.duplicate).toBe(true);
+  expect(fakeStore.markedPaid.length).toBe(0);
 });
 
 test("amount mismatch rejects without changing the order", async () => {
@@ -223,9 +195,9 @@ test("amount mismatch rejects without changing the order", async () => {
     store: fakeStore,
   });
 
-  assert.equal(result.status, 400);
-  assert.equal(result.body.error, "Payment amount does not match order total.");
-  assert.equal(fakeStore.markedPaid.length, 0);
+  expect(result.status).toBe(400);
+  expect(result.body.error).toBe("Payment amount does not match order total.");
+  expect(fakeStore.markedPaid.length).toBe(0);
 });
 
 test("already-paid order with a new reference returns a conflict", async () => {
@@ -236,30 +208,24 @@ test("already-paid order with a new reference returns a conflict", async () => {
     }),
   });
 
-  const result = await processMycashGolisWebhook(
-    payload({ reference: "new-reference" }),
-    {
-      cashierId: "cashier-1",
-      store: fakeStore,
-    },
-  );
+  const result = await processMycashGolisWebhook(payload({ reference: "new-reference" }), {
+    cashierId: "cashier-1",
+    store: fakeStore,
+  });
 
-  assert.equal(result.status, 409);
-  assert.equal(result.body.error, "Order is not open for payment.");
-  assert.equal(fakeStore.markedPaid.length, 0);
+  expect(result.status).toBe(409);
+  expect(result.body.error).toBe("Order is not open for payment.");
+  expect(fakeStore.markedPaid.length).toBe(0);
 });
 
 test("failed provider status is ignored", async () => {
   const fakeStore = store();
-  const result = await processMycashGolisWebhook(
-    payload({ status: "FAILED" }),
-    {
-      cashierId: "cashier-1",
-      store: fakeStore,
-    },
-  );
+  const result = await processMycashGolisWebhook(payload({ status: "FAILED" }), {
+    cashierId: "cashier-1",
+    store: fakeStore,
+  });
 
-  assert.equal(result.status, 200);
-  assert.equal(result.body.ignored, true);
-  assert.equal(fakeStore.markedPaid.length, 0);
+  expect(result.status).toBe(200);
+  expect(result.body.ignored).toBe(true);
+  expect(fakeStore.markedPaid.length).toBe(0);
 });

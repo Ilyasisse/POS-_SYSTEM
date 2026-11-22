@@ -1,6 +1,6 @@
-import assert from "node:assert/strict";
+import { expect, test } from "@jest/globals";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+
 import { PDFDocument } from "pdf-lib";
 import twilio from "twilio";
 import {
@@ -43,51 +43,42 @@ import {
 
 test("converts Nairobi wall-clock schedule values to UTC and back", () => {
   const value = zonedDateTimeToUtc("2026-08-10T09:30", "Africa/Nairobi");
-  assert.equal(value?.toISOString(), "2026-08-10T06:30:00.000Z");
-  assert.equal(
-    formatDateTimeLocal(value as Date, "Africa/Nairobi"),
-    "2026-08-10T09:30",
-  );
-  assert.equal(zonedDateTimeToUtc("not-a-date", "Africa/Nairobi"), null);
+  expect(value?.toISOString()).toBe("2026-08-10T06:30:00.000Z");
+  expect(formatDateTimeLocal(value as Date, "Africa/Nairobi")).toBe("2026-08-10T09:30");
+  expect(zonedDateTimeToUtc("not-a-date", "Africa/Nairobi")).toBe(null);
 });
 
 test("advances daily, weekly, and month-end recurrences in local time", () => {
-  const start = zonedDateTimeToUtc(
-    "2026-01-31T09:00",
-    "Africa/Nairobi",
-  ) as Date;
-  assert.equal(
+  const start = zonedDateTimeToUtc("2026-01-31T09:00", "Africa/Nairobi") as Date;
+  expect(
     formatDateTimeLocal(
       advanceRecurringDate(start, "DAY", 2, "Africa/Nairobi") as Date,
       "Africa/Nairobi",
     ),
-    "2026-02-02T09:00",
-  );
-  assert.equal(
+  ).toBe("2026-02-02T09:00");
+  expect(
     formatDateTimeLocal(
       advanceRecurringDate(start, "WEEK", 1, "Africa/Nairobi") as Date,
       "Africa/Nairobi",
     ),
-    "2026-02-07T09:00",
-  );
-  assert.equal(
+  ).toBe("2026-02-07T09:00");
+  expect(
     formatDateTimeLocal(
       advanceRecurringDate(start, "MONTH", 1, "Africa/Nairobi") as Date,
       "Africa/Nairobi",
     ),
-    "2026-02-28T09:00",
-  );
+  ).toBe("2026-02-28T09:00");
 });
 
 test("normalizes E.164 numbers and creates deterministic unguessable tokens", () => {
-  assert.equal(normalizeE164Phone("+252 61 234 5678"), "+252612345678");
-  assert.equal(normalizeE164Phone("0612345678"), null);
+  expect(normalizeE164Phone("+252 61 234 5678")).toBe("+252612345678");
+  expect(normalizeE164Phone("0612345678")).toBe(null);
   const secret = "a-secure-link-secret-that-is-longer-than-32-characters";
   const token = deriveRecipientToken("recipient-1", secret);
-  assert.equal(token, deriveRecipientToken("recipient-1", secret));
-  assert.notEqual(token, deriveRecipientToken("recipient-2", secret));
-  assert.equal(hashRecipientToken(token).length, 64);
-  assert.throws(() => deriveRecipientToken("recipient", "short"));
+  expect(token).toBe(deriveRecipientToken("recipient-1", secret));
+  expect(token).not.toBe(deriveRecipientToken("recipient-2", secret));
+  expect(hashRecipientToken(token).length).toBe(64);
+  expect(() => deriveRecipientToken("recipient", "short")).toThrow();
 });
 
 test("sends reminders only to pending invited employees before the deadline", () => {
@@ -99,22 +90,15 @@ test("sends reminders only to pending invited employees before the deadline", ()
     deadline: new Date("2026-08-10T12:00:00Z"),
     now: new Date("2026-08-10T07:00:00Z"),
   };
-  assert.equal(isSupplierOrderReminderDue(base), true);
-  assert.equal(
-    isSupplierOrderReminderDue({ ...base, status: "RESPONDED" }),
-    false,
-  );
-  assert.equal(
-    isSupplierOrderReminderDue({ ...base, now: base.deadline }),
-    false,
-  );
-  assert.equal(
+  expect(isSupplierOrderReminderDue(base)).toBe(true);
+  expect(isSupplierOrderReminderDue({ ...base, status: "RESPONDED" })).toBe(false);
+  expect(isSupplierOrderReminderDue({ ...base, now: base.deadline })).toBe(false);
+  expect(
     isSupplierOrderReminderDue({
       ...base,
       lastReminderAt: new Date("2026-08-10T06:30:00Z"),
     }),
-    false,
-  );
+  ).toBe(false);
 });
 
 test("validates employee item/no-order payloads and aggregates quantities", () => {
@@ -125,12 +109,12 @@ test("validates employee item/no-order payloads and aggregates quantities", () =
       { catalogItemId: "milk", quantity: "2" },
     ],
   });
-  assert.equal(response.noOrder, false);
-  assert.deepEqual(parseEmployeeResponse({ noOrder: true, items: [] }), {
+  expect(response.noOrder).toBe(false);
+  expect(parseEmployeeResponse({ noOrder: true, items: [] })).toStrictEqual({
     noOrder: true,
     items: [],
   });
-  assert.throws(() =>
+  expect(() =>
     parseEmployeeResponse({
       noOrder: false,
       items: [
@@ -138,18 +122,17 @@ test("validates employee item/no-order payloads and aggregates quantities", () =
         { catalogItemId: "coffee", quantity: "2" },
       ],
     }),
-  );
+  ).toThrow();
   const totals = aggregateResponseQuantities([
     { catalogItemId: "coffee", quantity: "1.25" },
     { catalogItemId: "coffee", quantity: "2.75" },
   ]);
-  assert.equal(totals.get("coffee")?.toString(), "4");
+  expect(totals.get("coffee")?.toString()).toBe("4");
 });
 
 test("calculates expected delivery from the schedule local date", () => {
   const lateNairobi = new Date("2026-08-10T22:30:00.000Z");
-  assert.equal(
-    expectedDeliveryDate(lateNairobi, 1, "Africa/Nairobi").toISOString(),
+  expect(expectedDeliveryDate(lateNairobi, 1, "Africa/Nairobi").toISOString()).toBe(
     "2026-08-12T00:00:00.000Z",
   );
 });
@@ -162,59 +145,55 @@ test("verifies Twilio signatures and maps status callbacks", () => {
     MessageStatus: "delivered",
   };
   const signature = twilio.getExpectedTwilioSignature(authToken, url, params);
-  assert.equal(
+  expect(
     verifyTwilioSignature({
       authToken,
       signatureHeader: signature,
       url,
       params,
     }),
-    true,
-  );
-  assert.equal(
+  ).toBe(true);
+  expect(
     verifyTwilioSignature({
       authToken,
       signatureHeader: "invalid",
       url,
       params,
     }),
-    false,
-  );
-  assert.deepEqual(extractTwilioStatusUpdate(params), {
+  ).toBe(false);
+  expect(extractTwilioStatusUpdate(params)).toStrictEqual({
     messageId: params.MessageSid,
     status: "delivered",
   });
-  assert.deepEqual(
+  expect(
     extractTwilioStatusUpdate({
       MessageSid: "SM22222222222222222222222222222222",
       MessageStatus: "undelivered",
       ErrorCode: "63015",
       ChannelStatusMessage: "Recipient is not available",
     }),
-    {
-      messageId: "SM22222222222222222222222222222222",
-      status: "failed",
-      error: "Recipient is not available",
-    },
-  );
-  assert.deepEqual(
+  ).toStrictEqual({
+    messageId: "SM22222222222222222222222222222222",
+    status: "failed",
+    error: "Recipient is not available",
+  });
+  expect(
     extractTwilioStatusUpdate({
       MessageSid: "SM33333333333333333333333333333333",
       MessageStatus: "delivered",
       EventType: "READ",
     }),
-    {
-      messageId: "SM33333333333333333333333333333333",
-      status: "read",
-    },
-  );
+  ).toStrictEqual({
+    messageId: "SM33333333333333333333333333333333",
+    status: "read",
+  });
 });
 
 test("ignores stale or regressive Twilio status updates", () => {
-  assert.equal(shouldApplyWhatsAppStatus("PENDING", "ACCEPTED"), true);
-  assert.equal(shouldApplyWhatsAppStatus("DELIVERED", "ACCEPTED"), false);
-  assert.equal(shouldApplyWhatsAppStatus("READ", "FAILED"), false);
-  assert.equal(shouldApplyWhatsAppStatus("FAILED", "DELIVERED"), false);
+  expect(shouldApplyWhatsAppStatus("PENDING", "ACCEPTED")).toBe(true);
+  expect(shouldApplyWhatsAppStatus("DELIVERED", "ACCEPTED")).toBe(false);
+  expect(shouldApplyWhatsAppStatus("READ", "FAILED")).toBe(false);
+  expect(shouldApplyWhatsAppStatus("FAILED", "DELIVERED")).toBe(false);
 });
 
 test("builds Twilio invitation and supplier Content API messages", async () => {
@@ -226,8 +205,7 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     TWILIO_AUTH_TOKEN: "auth-token",
     TWILIO_WHATSAPP_FROM: "+15553269140",
     APP_BASE_URL: "https://cafe.example.com/",
-    TWILIO_EMPLOYEE_INVITATION_CONTENT_SID:
-      "HX11111111111111111111111111111111",
+    TWILIO_EMPLOYEE_INVITATION_CONTENT_SID: "HX11111111111111111111111111111111",
     TWILIO_EMPLOYEE_REMINDER_CONTENT_SID: "HX22222222222222222222222222222222",
     TWILIO_SUPPLIER_ORDER_CONTENT_SID: "HX33333333333333333333333333333333",
   });
@@ -252,20 +230,17 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     },
     client,
   );
-  assert.equal(invitationId, "SM00000000000000000000000000000001");
-  assert.equal(calls[0]?.from, "whatsapp:+15553269140");
-  assert.equal(calls[0]?.to, "whatsapp:+252612345678");
-  assert.equal(calls[0]?.contentSid, "HX11111111111111111111111111111111");
-  assert.deepEqual(JSON.parse(calls[0]?.contentVariables ?? "{}"), {
+  expect(invitationId).toBe("SM00000000000000000000000000000001");
+  expect(calls[0]?.from).toBe("whatsapp:+15553269140");
+  expect(calls[0]?.to).toBe("whatsapp:+252612345678");
+  expect(calls[0]?.contentSid).toBe("HX11111111111111111111111111111111");
+  expect(JSON.parse(calls[0]?.contentVariables ?? "{}")).toStrictEqual({
     "1": "Amina",
     "2": "Jasper Market",
     "3": "Aug 10, 2026, 3:00 PM",
     "4": "link-token",
   });
-  assert.equal(
-    calls[0]?.statusCallback,
-    "https://cafe.example.com/api/webhooks/whatsapp",
-  );
+  expect(calls[0]?.statusCallback).toBe("https://cafe.example.com/api/webhooks/whatsapp");
 
   const supplierMessageId = await sendSupplierPurchaseOrder(
     {
@@ -278,9 +253,9 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     },
     client,
   );
-  assert.equal(supplierMessageId, "SM00000000000000000000000000000002");
-  assert.equal(calls[1]?.contentSid, "HX33333333333333333333333333333333");
-  assert.deepEqual(JSON.parse(calls[1]?.contentVariables ?? "{}"), {
+  expect(supplierMessageId).toBe("SM00000000000000000000000000000002");
+  expect(calls[1]?.contentSid).toBe("HX33333333333333333333333333333333");
+  expect(JSON.parse(calls[1]?.contentVariables ?? "{}")).toStrictEqual({
     "1": "delivery-id/token/purchase-order-101.pdf",
     "2": "101",
     "3": "Aug 11, 2026",
@@ -289,37 +264,19 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
 });
 
 test("gates WhatsApp processing and signs private PDF paths", () => {
-  assert.equal(
-    isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "true" }),
-    true,
-  );
-  assert.equal(
-    isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "false" }),
-    false,
-  );
+  expect(isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "true" })).toBe(true);
+  expect(isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "false" })).toBe(false);
   const env = {
     NODE_ENV: "test" as const,
-    SUPPLIER_ORDER_PDF_LINK_SECRET:
-      "a-different-pdf-link-secret-with-at-least-32-characters",
+    SUPPLIER_ORDER_PDF_LINK_SECRET: "a-different-pdf-link-secret-with-at-least-32-characters",
   };
   const filename = "purchase-order-101.pdf";
   const token = derivePurchaseOrderPdfToken("delivery-1", filename, env);
-  assert.equal(
-    verifyPurchaseOrderPdfToken("delivery-1", filename, token, env),
-    true,
-  );
-  assert.equal(
-    verifyPurchaseOrderPdfToken("delivery-2", filename, token, env),
-    false,
-  );
-  assert.equal(
-    purchaseOrderPdfMediaPath("delivery-1", 101, env),
-    `delivery-1/${token}/${filename}`,
-  );
-  assert.doesNotThrow(() => assertWhatsAppPdfSize(new Uint8Array(100)));
-  assert.throws(() =>
-    assertWhatsAppPdfSize(new Uint8Array(MAX_WHATSAPP_PDF_BYTES + 1)),
-  );
+  expect(verifyPurchaseOrderPdfToken("delivery-1", filename, token, env)).toBe(true);
+  expect(verifyPurchaseOrderPdfToken("delivery-2", filename, token, env)).toBe(false);
+  expect(purchaseOrderPdfMediaPath("delivery-1", 101, env)).toBe(`delivery-1/${token}/${filename}`);
+  expect(() => assertWhatsAppPdfSize(new Uint8Array(100))).not.toThrow();
+  expect(() => assertWhatsAppPdfSize(new Uint8Array(MAX_WHATSAPP_PDF_BYTES + 1))).toThrow();
 });
 
 test("generates valid one-page and multi-page purchase-order PDFs", async () => {
@@ -343,8 +300,8 @@ test("generates valid one-page and multi-page purchase-order PDFs", async () => 
     lineTotal: "40.00",
   };
   const onePage = await generatePurchaseOrderPdf({ ...base, items: [item] });
-  assert.equal(Buffer.from(onePage).subarray(0, 4).toString(), "%PDF");
-  assert.equal((await PDFDocument.load(onePage)).getPageCount(), 1);
+  expect(Buffer.from(onePage).subarray(0, 4).toString()).toBe("%PDF");
+  expect((await PDFDocument.load(onePage)).getPageCount()).toBe(1);
   const multiPage = await generatePurchaseOrderPdf({
     ...base,
     items: Array.from({ length: 45 }, (_, index) => ({
@@ -352,12 +309,11 @@ test("generates valid one-page and multi-page purchase-order PDFs", async () => 
       name: `${item.name} ${index + 1}`,
     })),
   });
-  assert.ok((await PDFDocument.load(multiPage)).getPageCount() > 1);
+  expect((await PDFDocument.load(multiPage)).getPageCount() > 1).toBeTruthy();
 });
 
 function inMemorySchedulerLease(clock: { now: number }) {
-  let current:
-    { key: string; ownerToken: string; expiresAt: number } | undefined;
+  let current: { key: string; ownerToken: string; expiresAt: number } | undefined;
   const operations: SchedulerLeaseOperations = {
     async tryAcquire(claim: SchedulerLeaseClaim) {
       if (current?.key === claim.key && current.expiresAt > clock.now) {
@@ -412,15 +368,15 @@ test("allows only one concurrent supplier-order scheduler execution", async () =
       return "duplicate-result";
     },
   });
-  assert.deepEqual(overlapping, { alreadyRunning: true });
-  assert.equal(processed, 1);
+  expect(overlapping).toStrictEqual({ alreadyRunning: true });
+  expect(processed).toBe(1);
 
   finishFirst();
-  assert.deepEqual(await first, {
+  expect(await first).toStrictEqual({
     alreadyRunning: false,
     result: "first-result",
   });
-  assert.equal(lease.current(), undefined);
+  expect(lease.current()).toBe(undefined);
 });
 
 test("recovers expired leases and releases only the current owner", async () => {
@@ -431,35 +387,31 @@ test("recovers expired leases and releases only the current owner", async () => 
     ownerToken: "stale-owner",
     leaseDurationMs: SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS,
   };
-  assert.equal(await lease.operations.tryAcquire(staleClaim), true);
-  assert.equal(
-    await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "blocked" }),
-    false,
-  );
+  expect(await lease.operations.tryAcquire(staleClaim)).toBe(true);
+  expect(await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "blocked" })).toBe(false);
 
   clock.now += SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS;
-  assert.equal(
+  expect(
     await lease.operations.tryAcquire({
       ...staleClaim,
       ownerToken: "new-owner",
     }),
-    true,
-  );
+  ).toBe(true);
   await lease.operations.release({
     key: staleClaim.key,
     ownerToken: "stale-owner",
   });
-  assert.equal(lease.current()?.ownerToken, "new-owner");
+  expect(lease.current()?.ownerToken).toBe("new-owner");
   await lease.operations.release({
     key: staleClaim.key,
     ownerToken: "new-owner",
   });
-  assert.equal(lease.current(), undefined);
+  expect(lease.current()).toBe(undefined);
 });
 
 test("releases the supplier-order scheduler lease after processor failure", async () => {
   const lease = inMemorySchedulerLease({ now: 10_000 });
-  await assert.rejects(
+  await expect(
     executeWithSupplierOrderSchedulerLease({
       lease: lease.operations,
       createOwnerToken: () => "failing-owner",
@@ -467,128 +419,108 @@ test("releases the supplier-order scheduler lease after processor failure", asyn
         throw new Error("processor failed");
       },
     }),
-    /processor failed/,
-  );
-  assert.equal(lease.current(), undefined);
+  ).rejects.toThrow(/processor failed/);
+  expect(lease.current()).toBe(undefined);
 });
 
 test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => {
-  assert.equal(SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS, 180_000);
+  expect(SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS).toBe(180_000);
 
-  const route = readFileSync(
-    "src/app/api/cron/supplier-order-schedules/route.ts",
-    "utf8",
-  );
-  assert.match(route, /export const maxDuration = 120;/);
+  const route = readFileSync("src/app/api/cron/supplier-order-schedules/route.ts", "utf8");
+  expect(route).toMatch(/export const maxDuration = 120;/);
 
-  const setup = readFileSync(
-    "ops/supabase/supplier-order-cron-setup.sql",
-    "utf8",
-  );
-  assert.match(setup, /timeout_milliseconds := 135000/);
-  assert.match(setup, /SECURITY INVOKER/);
-  assert.match(setup, /SET search_path = ''/);
-  assert.match(setup, /FROM vault\.decrypted_secrets/);
-  assert.match(setup, /SELECT net\.http_get/);
-  assert.match(setup, /REVOKE ALL ON SCHEMA private FROM PUBLIC/);
-  assert.match(setup, /REVOKE ALL ON FUNCTION[\s\S]+FROM authenticated/);
-  assert.doesNotMatch(setup, /cron\.schedule/);
+  const setup = readFileSync("ops/supabase/supplier-order-cron-setup.sql", "utf8");
+  expect(setup).toMatch(/timeout_milliseconds := 135000/);
+  expect(setup).toMatch(/SECURITY INVOKER/);
+  expect(setup).toMatch(/SET search_path = ''/);
+  expect(setup).toMatch(/FROM vault\.decrypted_secrets/);
+  expect(setup).toMatch(/SELECT net\.http_get/);
+  expect(setup).toMatch(/REVOKE ALL ON SCHEMA private FROM PUBLIC/);
+  expect(setup).toMatch(/REVOKE ALL ON FUNCTION[\s\S]+FROM authenticated/);
+  expect(setup).not.toMatch(/cron\.schedule/);
 
-  const activation = readFileSync(
-    "ops/supabase/supplier-order-cron-activate.sql",
-    "utf8",
-  );
-  assert.match(activation, /BEGIN;/);
-  assert.match(activation, /supplier-order-scheduler-every-minute/);
-  assert.match(activation, /supplier-order-scheduler-every-30-minutes/);
-  assert.match(activation, /'\*\/30 \* \* \* \*'/);
-  assert.doesNotMatch(activation, /'\* \* \* \* \*'/);
-  assert.match(activation, /active := true/);
-  assert.match(activation, /COMMIT;/);
+  const activation = readFileSync("ops/supabase/supplier-order-cron-activate.sql", "utf8");
+  expect(activation).toMatch(/BEGIN;/);
+  expect(activation).toMatch(/supplier-order-scheduler-every-minute/);
+  expect(activation).toMatch(/supplier-order-scheduler-every-30-minutes/);
+  expect(activation).toMatch(/'\*\/30 \* \* \* \*'/);
+  expect(activation).not.toMatch(/'\* \* \* \* \*'/);
+  expect(activation).toMatch(/active := true/);
+  expect(activation).toMatch(/COMMIT;/);
 
-  const disabling = readFileSync(
-    "ops/supabase/supplier-order-cron-disable.sql",
-    "utf8",
-  );
-  assert.match(disabling, /active := false/);
-  assert.match(disabling, /supplier-order-scheduler-every-30-minutes/);
-  assert.match(disabling, /supplier-order-scheduler-every-minute/);
+  const disabling = readFileSync("ops/supabase/supplier-order-cron-disable.sql", "utf8");
+  expect(disabling).toMatch(/active := false/);
+  expect(disabling).toMatch(/supplier-order-scheduler-every-30-minutes/);
+  expect(disabling).toMatch(/supplier-order-scheduler-every-minute/);
 
-  const workflow = readFileSync(
-    ".github/workflows/supplier-order-scheduler.yml",
-    "utf8",
-  );
-  assert.match(workflow, /cron: "\*\/30 \* \* \* \*"/);
-  assert.doesNotMatch(workflow, /cron: "\*\/5 \* \* \* \*"/);
+  const workflow = readFileSync(".github/workflows/supplier-order-scheduler.yml", "utf8");
+  expect(workflow).toMatch(/cron: "\*\/30 \* \* \* \*"/);
+  expect(workflow).not.toMatch(/cron: "\*\/5 \* \* \* \*"/);
 });
 
 test("soft-deletes supplier-order schedules while preserving their audit history", () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
-  assert.match(
-    schema,
-    /model SupplierOrderSchedule \{[\s\S]*deletedAt\s+DateTime\?/,
-  );
+  expect(schema).toMatch(/model SupplierOrderSchedule \{[\s\S]*deletedAt\s+DateTime\?/);
 
   const migration = readFileSync(
     "prisma/migrations/20260818_supplier_order_schedule_soft_delete/migration.sql",
     "utf8",
   );
-  assert.match(migration, /ADD COLUMN "deletedAt" TIMESTAMP\(3\)/);
+  expect(migration).toMatch(/ADD COLUMN "deletedAt" TIMESTAMP\(3\)/);
 
   const actions = readFileSync(
     "src/app/admin/(suppliers)/supplier-order-schedules/actions.ts",
     "utf8",
   );
-  assert.match(
-    actions,
+  expect(actions).toMatch(
     /deleteSupplierOrderSchedule[\s\S]*requirePermission\(PERMISSIONS\.SUPPLIER_MANAGE\)/,
   );
-  assert.match(
-    actions,
+  expect(actions).toMatch(
     /deleteSupplierOrderSchedule[\s\S]*executeExclusiveSupplierOrderSchedulerOperation/,
   );
-  assert.match(
-    actions,
+  expect(actions).toMatch(
     /deletedAt,[\s\S]*isActive: false,[\s\S]*nextInviteAt: null,[\s\S]*nextSupplierSendAt: null/,
   );
-  assert.match(
-    actions,
+  expect(actions).toMatch(
     /status: \{ in: \["SCHEDULED", "COLLECTING", "FINALIZING"\] \}[\s\S]*status: "CANCELLED"/,
   );
-  assert.doesNotMatch(actions, /supplierOrderSchedule\.delete\(/);
-  assert.doesNotMatch(actions, /supplierOrderRun\.delete/);
-  assert.doesNotMatch(actions, /supplierPurchaseOrder\.delete/);
-  assert.doesNotMatch(actions, /supplierOrderWhatsAppDelivery\.delete/);
+  expect(actions).not.toMatch(/supplierOrderSchedule\.delete\(/);
+  expect(actions).not.toMatch(/supplierOrderRun\.delete/);
+  expect(actions).not.toMatch(/supplierPurchaseOrder\.delete/);
+  expect(actions).not.toMatch(/supplierOrderWhatsAppDelivery\.delete/);
 
   const service = readFileSync("src/lib/supplier-orders/service.ts", "utf8");
-  assert.ok(
-    (service.match(/deletedAt: null/g)?.length ?? 0) >= 6,
-    "every scheduler stage and the transactional claim must exclude deleted schedules",
-  );
+  expect({
+    context: "every scheduler stage and the transactional claim must exclude deleted schedules",
+    value: Boolean((service.match(/deletedAt: null/g)?.length ?? 0) >= 6),
+  }).toStrictEqual({
+    context: "every scheduler stage and the transactional claim must exclude deleted schedules",
+    value: true,
+  });
 
   const listPage = readFileSync(
     "src/app/admin/(suppliers)/supplier-order-schedules/page.tsx",
     "utf8",
   );
-  assert.match(listPage, /where: \{ deletedAt: null \}/);
-  assert.match(listPage, /Schedule deleted/);
+  expect(listPage).toMatch(/where: \{ deletedAt: null \}/);
+  expect(listPage).toMatch(/Schedule deleted/);
 
   const detailPage = readFileSync(
     "src/app/admin/(suppliers)/supplier-order-schedules/\[id\]/page.tsx",
     "utf8",
   );
-  assert.match(detailPage, /where: \{ id, deletedAt: null \}/);
-  assert.match(detailPage, /DeleteScheduleButton/);
+  expect(detailPage).toMatch(/where: \{ id, deletedAt: null \}/);
+  expect(detailPage).toMatch(/DeleteScheduleButton/);
 
   const deleteButton = readFileSync(
     "src/app/admin/(suppliers)/supplier-order-schedules/\[id\]/DeleteScheduleButton.tsx",
     "utf8",
   );
-  assert.match(deleteButton, /AlertDialog/);
-  assert.match(deleteButton, /variant="destructive"/);
-  assert.match(deleteButton, /Existing purchase orders/);
+  expect(deleteButton).toMatch(/AlertDialog/);
+  expect(deleteButton).toMatch(/variant="destructive"/);
+  expect(deleteButton).toMatch(/Existing purchase orders/);
 
   const requests = readFileSync("src/lib/supplier-orders/requests.ts", "utf8");
-  assert.match(requests, /recipient\.run\.schedule\.deletedAt === null/);
-  assert.match(requests, /recipient\.run\.schedule\.deletedAt !== null/);
+  expect(requests).toMatch(/recipient\.run\.schedule\.deletedAt === null/);
+  expect(requests).toMatch(/recipient\.run\.schedule\.deletedAt !== null/);
 });

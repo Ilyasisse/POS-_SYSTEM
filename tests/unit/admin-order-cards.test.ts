@@ -1,9 +1,6 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import {
-  groupOrderCards,
-  type OrderCardRound,
-} from "../../src/lib/admin/order-cards";
+import { expect, test } from "@jest/globals";
+
+import { groupOrderCards, type OrderCardRound } from "../../src/lib/admin/order-cards";
 
 function round(overrides: Partial<OrderCardRound> = {}): OrderCardRound {
   return {
@@ -28,18 +25,21 @@ function round(overrides: Partial<OrderCardRound> = {}): OrderCardRound {
 test("combines every round of a check in round order with its shared number", () => {
   const older = round();
   const newer = round({
-    id: "round-2", orderNumber: 102, tableCheckRound: 2,
-    status: "OPEN", total: 42.5,
+    id: "round-2",
+    orderNumber: 102,
+    tableCheckRound: 2,
+    status: "OPEN",
+    total: 42.5,
     createdAt: new Date("2026-09-30T10:00:00Z"),
   });
   const [card] = groupOrderCards([newer, older]);
-  assert.ok(card);
-  assert.equal(card.orderNumber, 101);
-  assert.deepEqual(card.rounds.map((r) => r.id), ["round-1", "round-2"]);
-  assert.equal(card.latest.id, "round-2");
-  assert.equal(card.total, 60.5);
-  assert.equal(card.status, "OPEN");
-  assert.equal(newer.tableCheckRound, 2);
+  expect(card).toBeTruthy();
+  expect(card.orderNumber).toBe(101);
+  expect(card.rounds.map((r) => r.id)).toStrictEqual(["round-1", "round-2"]);
+  expect(card.latest.id).toBe("round-2");
+  expect(card.total).toBe(60.5);
+  expect(card.status).toBe("OPEN");
+  expect(newer.tableCheckRound).toBe(2);
 });
 
 test("keeps separate visits to the same table in separate cards", () => {
@@ -47,20 +47,26 @@ test("keeps separate visits to the same table in separate cards", () => {
     round(),
     round({ id: "other-visit", tableCheckId: "check-2", checkNumber: 103 }),
   ]);
-  assert.equal(cards.length, 2);
+  expect(cards.length).toBe(2);
 });
 
 test("standalone customer and legacy orders never merge by table or missing check", () => {
   const cards = groupOrderCards([
-    round({ id: "takeout", tableCheckId: null, tableCheckRound: null,
-      checkNumber: null, tableName: null, type: "TAKEOUT",
-      customerName: "Layla", waiterName: null }),
-    round({ id: "legacy", tableCheckId: null, tableCheckRound: null,
-      checkNumber: null }),
+    round({
+      id: "takeout",
+      tableCheckId: null,
+      tableCheckRound: null,
+      checkNumber: null,
+      tableName: null,
+      type: "TAKEOUT",
+      customerName: "Layla",
+      waiterName: null,
+    }),
+    round({ id: "legacy", tableCheckId: null, tableCheckRound: null, checkNumber: null }),
   ]);
-  assert.equal(cards.length, 2);
-  assert.equal(cards[0]?.latest.customerName, "Layla");
-  assert.equal(cards[0]?.latest.waiterName, null);
+  expect(cards.length).toBe(2);
+  expect(cards[0]?.latest.customerName).toBe("Layla");
+  expect(cards[0]?.latest.waiterName).toBe(null);
 });
 
 test("cancelled rounds remain visible but do not increase the check total", () => {
@@ -68,14 +74,14 @@ test("cancelled rounds remain visible but do not increase the check total", () =
     round(),
     round({ id: "cancelled", tableCheckRound: 2, status: "CANCELLED", total: 50 }),
   ]);
-  assert.equal(card?.rounds.length, 2);
-  assert.equal(card?.total, 18);
-  assert.equal(card?.status, "PAID");
+  expect(card?.rounds.length).toBe(2);
+  expect(card?.total).toBe(18);
+  expect(card?.status).toBe("PAID");
   const [cancelled] = groupOrderCards([round({ status: "CANCELLED" })]);
-  assert.equal(cancelled?.status, "CANCELLED");
-  assert.equal(cancelled?.total, 0);
+  expect(cancelled?.status).toBe("CANCELLED");
+  expect(cancelled?.total).toBe(0);
 });
 
 test("empty results produce no cards", () => {
-  assert.deepEqual(groupOrderCards([]), []);
+  expect(groupOrderCards([])).toStrictEqual([]);
 });
