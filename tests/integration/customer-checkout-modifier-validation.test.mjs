@@ -15,7 +15,6 @@ const modifier = {
   id: "large",
   name: "Large",
   price: 2,
-  productId: "coffee",
   isActive: true,
   modifierGroup: group,
 };
@@ -48,8 +47,7 @@ const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "@/lib/auth/api-authorization")
       return { url: "mock:checkout-auth", shortCircuit: true };
-    if (specifier === "@/lib/prisma")
-      return { url: "mock:checkout-prisma", shortCircuit: true };
+    if (specifier === "@/lib/prisma") return { url: "mock:checkout-prisma", shortCircuit: true };
     return nextResolve(specifier, context);
   },
   load(url, context, nextLoad) {
@@ -74,7 +72,7 @@ const base = {
   orderType: "DINE_IN",
   tableId: "table-1",
 };
-async function checkout(modifiers, extra = {}) {
+async function checkout(modifiers, extra = {}, productId = "coffee") {
   globalThis.__checkoutRegression.writes.length = 0;
   return POST(
     new Request("http://localhost/api/customer/checkouts", {
@@ -83,7 +81,7 @@ async function checkout(modifiers, extra = {}) {
       body: JSON.stringify({
         ...base,
         ...extra,
-        items: [{ productId: "coffee", qty: 1, modifiers }],
+        items: [{ productId, qty: 1, modifiers }],
       }),
     }),
   );
@@ -98,23 +96,15 @@ test("valid catalog modifiers create checkout while preserving main fulfillment"
   assert.equal(Number(write.amount), 7);
 });
 test("spoofed placeholder with catalog ID cannot satisfy a required group", async () => {
-  const response = await checkout([
-    { modifierId: "large", isPlaceholder: true, price: 0 },
-  ]);
+  const response = await checkout([{ modifierId: "large", isPlaceholder: true, price: 0 }]);
   assert.equal(response.status, 400);
-  assert.match(
-    (await response.json()).error,
-    /requires at least 1 choice from Size/,
-  );
+  assert.match((await response.json()).error, /requires at least 1 choice from Size/);
   assert.equal(globalThis.__checkoutRegression.writes.length, 0);
 });
 test("missing required modifier creates no checkout", async () => {
   const response = await checkout([]);
   assert.equal(response.status, 400);
-  assert.match(
-    (await response.json()).error,
-    /requires at least 1 choice from Size/,
-  );
+  assert.match((await response.json()).error, /requires at least 1 choice from Size/);
   assert.equal(globalThis.__checkoutRegression.writes.length, 0);
 });
 test("real required choice and custom placeholder remain supported", async () => {
@@ -137,4 +127,44 @@ test("main local payment phone validation remains in effect", async () => {
   });
   assert.equal(response.status, 400);
   assert.equal(globalThis.__checkoutRegression.writes.length, 0);
+});
+
+test("one shared modifier is accepted for another linked product with the same price", async () => {
+  const state = globalThis.__checkoutRegression;
+  const original = state.product;
+  state.product = { ...original, id: "tea", name: "Tea", price: 3 };
+  try {
+    const response = await checkout([{ modifierId: "large" }], {}, "tea");
+    assert.equal(response.status, 201);
+    assert.equal(Number(state.writes[0].amount), 5);
+  } finally {
+    state.product = original;
+  }
+});
+
+test("a modifier linked only to another product creates no checkout", async () => {
+  const state = globalThis.__checkoutRegression;
+  const original = state.product;
+  state.product = { ...original, modifiers: [] };
+  try {
+    const response = await checkout([{ modifierId: "large" }]);
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /invalid for product/);
+    assert.equal(state.writes.length, 0);
+  } finally {
+    state.product = original;
+  }
+});
+
+test("inactive linked modifier cannot satisfy the required selection", async () => {
+  const state = globalThis.__checkoutRegression;
+  const original = state.product;
+  state.product = { ...original, modifiers: [{ ...modifier, isActive: false }] };
+  try {
+    const response = await checkout([{ modifierId: "large" }]);
+    assert.equal(response.status, 400);
+    assert.equal(state.writes.length, 0);
+  } finally {
+    state.product = original;
+  }
 });

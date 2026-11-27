@@ -556,7 +556,6 @@ model ModifierGroup {
 
 model Modifier {
   id                    String              @id @default(cuid())
-  productId             String
   modifierGroupId       String
   name                  String
   price                 Decimal
@@ -565,10 +564,9 @@ model Modifier {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   modifierGroup         ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
-  product               Product             @relation(fields: [productId], references: [id])
+  products              Product[]
   orderItemModifiers    OrderItemModifier[]
 
-  @@index([productId])
   @@index([modifierGroupId])
 }
 

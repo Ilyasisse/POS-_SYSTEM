@@ -6,15 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import {
-  selectEffectiveRecipe,
-  snapshotInventoryCost,
-} from "@/lib/inventory/inventory-domain";
-import {
-  deductProductInventoryForSale,
-  sendInventoryAlerts,
-} from "@/lib/inventory/inventory";
-import { ModifierSelectionError, validateModifierSelections } from "@/lib/orders/modifier-selection-validation";
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "@/lib/orders/modifier-selection-validation";
 import { parseCounterOrderType } from "@/lib/orders/counter-order-type";
 
 type CompleteSaleItemModifierInput = {
@@ -61,12 +58,7 @@ type SavedOrderItemForTicket = {
   modifiers: PreparedModifier[];
 };
 
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+const PAYMENT_METHODS = new Set<PaymentMethod>(["MYCASH", "GOLIS", "Dahabshiil", "OTHER"]);
 
 function isPaymentMethod(value: string): value is PaymentMethod {
   return PAYMENT_METHODS.has(value as PaymentMethod);
@@ -102,10 +94,7 @@ export async function POST(request: Request) {
     });
 
     if (!currentUser || !currentUser.isActive) {
-      return NextResponse.json(
-        { error: "Staff account not found." },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Staff account not found." }, { status: 403 });
     }
 
     if (!hasPermission(currentUser, PERMISSIONS.ORDER_CREATE)) {
@@ -115,20 +104,11 @@ export async function POST(request: Request) {
     const body = (await request.json()) as CompleteSaleBody;
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        { error: "No items provided." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No items provided." }, { status: 400 });
     }
 
-    if (
-      typeof body.paymentMethod !== "string" ||
-      !isPaymentMethod(body.paymentMethod)
-    ) {
-      return NextResponse.json(
-        { error: "Payment method is invalid." },
-        { status: 400 },
-      );
+    if (typeof body.paymentMethod !== "string" || !isPaymentMethod(body.paymentMethod)) {
+      return NextResponse.json({ error: "Payment method is invalid." }, { status: 400 });
     }
 
     const paymentMethod: PaymentMethod = body.paymentMethod;
@@ -220,7 +200,6 @@ export async function POST(request: Request) {
               id: true,
               name: true,
               price: true,
-              productId: true,
               modifierGroup: {
                 select: {
                   id: true,
@@ -245,15 +224,9 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(
-      products.map((product) => [product.id, product]),
-    );
-    const modifierMap = new Map(
-      modifierRecords.map((modifier) => [modifier.id, modifier]),
-    );
-    const baristaMap = new Map(
-      baristas.map((barista) => [barista.id, barista]),
-    );
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
+    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -279,10 +252,7 @@ export async function POST(request: Request) {
       const station = product.category?.station ?? null;
 
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
-      const incomingModifierMap = new Map<
-        string,
-        (typeof itemModifiers)[number]
-      >();
+      const incomingModifierMap = new Map<string, (typeof itemModifiers)[number]>();
 
       for (const modifier of itemModifiers) {
         if (!incomingModifierMap.has(modifier.modifierId)) {
@@ -298,28 +268,29 @@ export async function POST(request: Request) {
         selectedModifierIds: uniqueModifierIds,
       });
 
-      const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map(
-        (modifierId) => {
-          const modifier = modifierMap.get(modifierId);
+      const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map((modifierId) => {
+        const modifier = modifierMap.get(modifierId);
 
-          if (!modifier || modifier.productId !== product.id) {
-            throw new Error(
-              `Modifier ${modifierId} is invalid for product ${product.name}.`,
-            );
-          }
+        if (
+          !modifier ||
+          !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
+        ) {
+          throw new ModifierSelectionError(
+            `Modifier ${modifierId} is invalid for product ${product.name}.`,
+          );
+        }
 
-          const incomingModifier = incomingModifierMap.get(modifierId);
+        const incomingModifier = incomingModifierMap.get(modifierId);
 
-          return {
-            groupId: modifier.modifierGroup.id,
-            groupName: modifier.modifierGroup.name,
-            optionId: modifier.id,
-            optionName: modifier.name,
-            price: roundCurrency(Number(modifier.price)),
-            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
-          };
-        },
-      );
+        return {
+          groupId: modifier.modifierGroup.id,
+          groupName: modifier.modifierGroup.name,
+          optionId: modifier.id,
+          optionName: modifier.name,
+          price: roundCurrency(Number(modifier.price)),
+          qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+        };
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
@@ -374,17 +345,15 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
-      (line) => ({
-        id: crypto.randomUUID(),
-        productName: line.productName,
-        qty: line.qty,
-        station: line.station,
-        assignedUserId: line.assignedBaristaId,
-        assignedUserName: line.assignedBaristaName,
-        modifiers: line.modifiers,
-      }),
-    );
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
+      id: crypto.randomUUID(),
+      productName: line.productName,
+      qty: line.qty,
+      station: line.station,
+      assignedUserId: line.assignedBaristaId,
+      assignedUserName: line.assignedBaristaName,
+      modifiers: line.modifiers,
+    }));
 
     const result = await prisma.$transaction(
       async (tx) => {
@@ -499,8 +468,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to complete sale.",
+        error: error instanceof Error ? error.message : "Failed to complete sale.",
       },
       { status: 500 },
     );

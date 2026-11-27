@@ -34,7 +34,7 @@ export async function GET() {
         },
 
         modifiers: {
-          where: { isActive: true },
+          where: { isActive: true, modifierGroup: { isActive: true } },
           select: {
             id: true,
             name: true,
