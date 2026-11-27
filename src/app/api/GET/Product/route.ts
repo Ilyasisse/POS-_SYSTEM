@@ -16,6 +16,7 @@ export async function GET() {
         modifiers: {
           where: {
             isActive: true,
+            modifierGroup: { isActive: true },
           },
           include: {
             modifierGroup: true,
