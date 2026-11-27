@@ -31,7 +31,7 @@ export function getPostHogClient(): PostHog | null {
       flushAt: 1,
       flushInterval: 0,
       enableExceptionAutocapture: reportExceptions,
-      before_send: (event) =>
+      beforeSend: (event) =>
         !reportExceptions && event?.event === "$exception" ? null : event,
     });
   }
