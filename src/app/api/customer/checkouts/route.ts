@@ -5,10 +5,14 @@ import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 import {
+  describeOnlineOrderingHours,
+  isOnlineOrderingOpen,
+} from "@/lib/customer/online-ordering-hours";
+import type { SelectedModifierLine } from "@/lib/types";
+import {
   ModifierSelectionError,
   validateModifierSelections,
 } from "@/lib/orders/modifier-selection-validation";
-import type { SelectedModifierLine } from "@/lib/types";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 
 type CustomerOrderItemModifierInput = {
@@ -354,6 +358,32 @@ export async function POST(request: Request) {
           status: existing.status,
         },
       });
+    }
+
+    const cafeSetting = await prisma.cafeSetting.findUnique({
+      where: { id: "default" },
+      select: {
+        onlineOrderingEnabled: true,
+        onlineOrderStartMinute: true,
+        onlineOrderEndMinute: true,
+        timezone: true,
+      },
+    });
+    const onlineOrderingSchedule = {
+      enabled: cafeSetting?.onlineOrderingEnabled ?? true,
+      startMinute: cafeSetting?.onlineOrderStartMinute ?? 0,
+      endMinute: cafeSetting?.onlineOrderEndMinute ?? 0,
+      timezone: cafeSetting?.timezone ?? "Africa/Nairobi",
+    };
+
+    if (!isOnlineOrderingOpen(onlineOrderingSchedule)) {
+      return NextResponse.json(
+        {
+          error: describeOnlineOrderingHours(onlineOrderingSchedule),
+          code: "ONLINE_ORDERING_CLOSED",
+        },
+        { status: 409 },
+      );
     }
 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
