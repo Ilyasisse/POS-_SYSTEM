@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.staff.findUnique({
     where: { id: data.user.id },
     select: {
       id: true,
@@ -58,15 +58,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { error: "Your staff account is inactive." },
-      { status: 403 },
-    );
-  }
-
-  if (user.role === "CUSTOMER") {
-    await supabase.auth.signOut();
-
-    return NextResponse.json(
-      { error: "Customer accounts should use the customer login page." },
       { status: 403 },
     );
   }

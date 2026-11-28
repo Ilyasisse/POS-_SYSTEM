@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { prisma } from "@/lib/prisma";
+import { findAppUser } from "@/lib/auth/app-user";
 import { createClient } from "@/lib/supabase/server";
 
 async function resolveCurrentUser() {
@@ -11,7 +11,7 @@ async function resolveCurrentUser() {
 
   if (!authUser) return null;
 
-  return prisma.user.findUnique({ where: { id: authUser.id } });
+  return findAppUser(authUser.id);
 }
 
 // React clears this cache after each Server Component render, so layouts and

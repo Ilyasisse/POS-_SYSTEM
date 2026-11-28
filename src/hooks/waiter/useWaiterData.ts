@@ -122,13 +122,15 @@ async function loadWaiterData() {
         ? categoriesResult.value
         : [];
     const baristas =
-      baristasResult.status === "fulfilled" && Array.isArray(baristasResult.value)
+      baristasResult.status === "fulfilled" &&
+      Array.isArray(baristasResult.value)
         ? baristasResult.value
         : [];
 
     if (categoriesResult.status === "rejected") {
       console.error(
-        "Failed to fetch categories:\n" + getErrorMessage(categoriesResult.reason),
+        "Failed to fetch categories:\n" +
+          getErrorMessage(categoriesResult.reason),
       );
     }
     if (baristasResult.status === "rejected") {

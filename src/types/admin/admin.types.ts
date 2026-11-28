@@ -1,0 +1,1 @@
+export type Tone = "blue" | "green" | "purple" | "orange" | "pink" | "slate";

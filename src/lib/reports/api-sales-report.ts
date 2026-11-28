@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { authorizeApi } from "@/lib/auth/api-authorization";
-import { hasPermission, PERMISSIONS, type Permission } from "@/lib/auth/permissions";
+import {
+  hasPermission,
+  PERMISSIONS,
+  type Permission,
+} from "@/lib/auth/permissions";
 import { getSalesReport } from "@/lib/reports/services/sales-report-service";
 import { resolveReportRange } from "@/lib/reports/resolve-range";
 import { reportQuerySchema } from "@/lib/reports/validation";
@@ -78,7 +82,11 @@ export async function salesReportResponse(
       };
   return NextResponse.json(
     select === "products"
-      ? { period: authorizedReport.period, summary: authorizedReport.summary, products: authorizedReport.products }
+      ? {
+          period: authorizedReport.period,
+          summary: authorizedReport.summary,
+          products: authorizedReport.products,
+        }
       : authorizedReport,
   );
 }
