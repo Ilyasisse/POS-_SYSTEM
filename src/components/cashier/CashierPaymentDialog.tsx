@@ -90,6 +90,7 @@ export default function CashierPaymentDialog({
   const [syncError, setSyncError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState("");
   const [equalSplitCount, setEqualSplitCount] = useState("2");
   const [lines, setLines] = useState<Line[]>([
     {
