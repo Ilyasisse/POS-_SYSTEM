@@ -153,6 +153,7 @@ export default async function AttendanceAdminPage() {
               <TableHead>Worker</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Worked</TableHead>
+              <TableHead>Breaks</TableHead>
               <TableHead>Late</TableHead>
               <TableHead>Overtime</TableHead>
             </tr>
@@ -181,13 +182,14 @@ export default async function AttendanceAdminPage() {
                     </ToneBadge>
                   </TableCell>
                   <TableCell>{record.workedMinutes} min</TableCell>
+                  <TableCell>{record.breakMinutes} min</TableCell>
                   <TableCell>{record.lateMinutes} min</TableCell>
                   <TableCell>{record.approvedOvertimeMinutes} min</TableCell>
                 </tr>
               ))
             ) : (
               <tr>
-                <TableCell colSpan={6} className="py-10 text-center">
+                <TableCell colSpan={7} className="py-10 text-center">
                   No attendance records.
                 </TableCell>
               </tr>

@@ -23,14 +23,7 @@ test("admin navigation is grouped in the intended order", () => {
 
   assert.deepEqual(
     nodes.map((node) => (node.type === "link" ? node.item.key : node.key)),
-    [
-      "dashboard",
-      "catalog",
-      "admin-operations",
-      "suppliers",
-      "reports",
-      "administration",
-    ],
+    ["dashboard", "catalog", "admin-operations", "suppliers", "reports", "administration"],
   );
 });
 
@@ -76,7 +69,13 @@ test("permission filtering removes inaccessible groups and children", () => {
   );
   assert.deepEqual(
     cashierItems.map((item) => item.key),
-    ["cashier-home", "cashier-order", "cashier-waiter-orders", "customer-checkouts"],
+    [
+      "cashier-home",
+      "cashier-order",
+      "cashier-waiter-orders",
+      "customer-checkouts",
+      "my-attendance",
+    ],
   );
 });
 
@@ -103,35 +102,17 @@ test("nested pages activate their parent navigation item", () => {
   assert.equal(isStaffNavActive("/admin", dashboard), true);
   assert.equal(isStaffNavActive("/admin/categories", dashboard), false);
   assert.ok(invoices);
+  assert.equal(isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices), true);
   assert.equal(
-    isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices),
-    true,
-  );
-  assert.equal(
-    getActiveStaffNavigationGroupKey(
-      "/admin/supplier-invoices/invoice-123",
-      nodes,
-    ),
+    getActiveStaffNavigationGroupKey("/admin/supplier-invoices/invoice-123", nodes),
     "suppliers",
   );
-  assert.equal(
-    getActiveStaffNavigationGroupKey("/admin/categories", nodes),
-    "catalog",
-  );
+  assert.equal(getActiveStaffNavigationGroupKey("/admin/categories", nodes), "catalog");
   assert.equal(getActiveStaffNavigationGroupKey("/admin", nodes), null);
 });
 
 test("selecting a group closes the previous group and toggles itself", () => {
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey("catalog", "suppliers"),
-    "suppliers",
-  );
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey("suppliers", "suppliers"),
-    null,
-  );
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey(null, "administration"),
-    "administration",
-  );
+  assert.equal(getNextOpenStaffNavigationGroupKey("catalog", "suppliers"), "suppliers");
+  assert.equal(getNextOpenStaffNavigationGroupKey("suppliers", "suppliers"), null);
+  assert.equal(getNextOpenStaffNavigationGroupKey(null, "administration"), "administration");
 });
