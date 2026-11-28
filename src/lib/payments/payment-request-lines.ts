@@ -7,8 +7,8 @@ export const PAYMENT_METHODS = [
   "OTHER",
 ] as const satisfies readonly PaymentMethod[];
 
-export function isPaymentMethod(value: unknown): value is PaymentMethod {
-  return PAYMENT_METHODS.includes(value as PaymentMethod);
+export function isPaymentMethod(value: unknown): value is (typeof PAYMENT_METHODS)[number] {
+  return PAYMENT_METHODS.includes(value as (typeof PAYMENT_METHODS)[number]);
 }
 
 export type PaymentRequestLineDraft = {
@@ -28,7 +28,9 @@ export function preparePaymentRequestLines(
     amountCents: Math.round(Number(line.amount) * 100),
     method:
       line.method === undefined || line.method === ""
-        ? fallbackMethod
+        ? isPaymentMethod(fallbackMethod)
+          ? fallbackMethod
+          : undefined
         : isPaymentMethod(line.method)
           ? line.method
           : undefined,
@@ -47,12 +49,8 @@ export function preparePaymentRequestLines(
         !line.method,
     )
   ) {
-    throw new Error(
-      "Every payment needs a method, name, phone number, and amount.",
-    );
+    throw new Error("Every payment needs a method, name, phone number, and amount.");
   }
 
-  return prepared as Array<
-    Omit<(typeof prepared)[number], "method"> & { method: PaymentMethod }
-  >;
+  return prepared as Array<Omit<(typeof prepared)[number], "method"> & { method: PaymentMethod }>;
 }

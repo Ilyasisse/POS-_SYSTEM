@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createPaymentRequestBatch } from "@/lib/payments/cashier-payment-requests";
+import { isReceiptMatchPaymentMethod } from "@/lib/payments/payment-methods";
 import { getPostHogClient } from "@/lib/posthog-server";
-import { isPaymentMethod } from "@/lib/payments/payment-request-lines";
 
 async function currentCashier() {
   const supabase = await createClient();
@@ -17,22 +17,17 @@ async function currentCashier() {
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });
-  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE)
-    ? cashier
-    : null;
+  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE) ? cashier : null;
 }
 
 export async function POST(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   try {
     const body = await request.json();
     const rawFallbackMethod = String(body.method ?? "");
-    const fallbackMethod = rawFallbackMethod
-      ? (rawFallbackMethod as PaymentMethod)
-      : undefined;
-    if (fallbackMethod && !isPaymentMethod(fallbackMethod))
+    const fallbackMethod = rawFallbackMethod ? (rawFallbackMethod as PaymentMethod) : undefined;
+    if (fallbackMethod && !isReceiptMatchPaymentMethod(fallbackMethod))
       return NextResponse.json(
         { error: "The default payment method is invalid." },
         { status: 400 },
@@ -81,10 +76,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not start payment checks.",
+        error: error instanceof Error ? error.message : "Could not start payment checks.",
       },
       { status: 400 },
     );
@@ -93,14 +85,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const batchKey = new URL(request.url).searchParams.get("batchKey")?.trim();
-  if (!batchKey)
-    return NextResponse.json(
-      { error: "batchKey is required." },
-      { status: 400 },
-    );
+  if (!batchKey) return NextResponse.json({ error: "batchKey is required." }, { status: 400 });
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },

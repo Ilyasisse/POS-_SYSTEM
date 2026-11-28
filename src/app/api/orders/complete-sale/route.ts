@@ -1,3 +1,4 @@
+import { isPosPaymentMethod } from "@/lib/payments/payment-methods";
 import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -60,12 +61,6 @@ type SavedOrderItemForTicket = {
   modifiers: PreparedModifier[];
 };
 
-const PAYMENT_METHODS = new Set<PaymentMethod>(["MYCASH", "GOLIS", "Dahabshiil", "OTHER"]);
-
-function isPaymentMethod(value: string): value is PaymentMethod {
-  return PAYMENT_METHODS.has(value as PaymentMethod);
-}
-
 function toDecimal(value: number) {
   return new Prisma.Decimal(value);
 }
@@ -122,7 +117,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No items provided." }, { status: 400 });
     }
 
-    if (typeof body.paymentMethod !== "string" || !isPaymentMethod(body.paymentMethod)) {
+    if (typeof body.paymentMethod !== "string" || !isPosPaymentMethod(body.paymentMethod)) {
       return NextResponse.json({ error: "Payment method is invalid." }, { status: 400 });
     }
 
