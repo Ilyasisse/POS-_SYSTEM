@@ -22,13 +22,13 @@ export default async function NewModifierPage() {
 
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="bg-background text-foreground min-h-screen px-4 py-6 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="border-border bg-card flex items-center justify-between rounded-2xl border p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Create Modifier</h1>
@@ -37,36 +37,30 @@ export default async function NewModifierPage() {
           <Link
             prefetch={false}
             href="/admin/modifiers"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="border-border hover:bg-card rounded-lg border px-4 py-2 text-sm"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
+        <section className="border-border bg-card rounded-2xl border p-6 shadow-lg">
           <form action={createModifier} className="space-y-4">
             <div>
-              <label
-                htmlFor="new-modifier-name"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="new-modifier-name" className="mb-1 block text-sm font-medium">
                 Name
               </label>
               <Input
                 id="new-modifier-name"
                 name="name"
                 type="text"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 placeholder="Modifier name"
                 required
               />
             </div>
 
             <div>
-              <label
-                htmlFor="new-modifier-price"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="new-modifier-price" className="mb-1 block text-sm font-medium">
                 Price
               </label>
               <Input
@@ -74,22 +68,23 @@ export default async function NewModifierPage() {
                 name="price"
                 type="number"
                 step="0.01"
+                min="0"
                 defaultValue={0}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
               />
             </div>
 
             <div>
               <p className="mb-2 block text-sm font-medium">Products</p>
-              <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-slate-300 p-3">
+              <div className="border-border max-h-72 space-y-2 overflow-y-auto rounded-lg border p-3">
                 {products.length === 0 ? (
-                  <p className="text-sm text-slate-500">No products found.</p>
+                  <p className="text-muted-foreground text-sm">No products found.</p>
                 ) : (
                   products.map((product) => (
                     <label
                       key={product.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-1 text-md hover:bg-slate-50"
+                      className="text-md hover:bg-card flex items-center gap-2 rounded-md px-2 py-1"
                     >
                       <Input
                         name="productIds"
@@ -102,22 +97,20 @@ export default async function NewModifierPage() {
                   ))
                 )}
               </div>
-              <p className="mt-1 text-xs text-slate-500">
-                You can select multiple products.
+              <p className="text-muted-foreground mt-1 text-xs">
+                Select at least one product. One shared modifier with the same price will be created
+                for all selected products.
               </p>
             </div>
 
             <div>
-              <label
-                htmlFor="new-modifier-group"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="new-modifier-group" className="mb-1 block text-sm font-medium">
                 Modifier Group
               </label>
               <NativeSelect
                 id="new-modifier-group"
                 name="modifierGroupId"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
                 defaultValue=""
               >
@@ -132,10 +125,7 @@ export default async function NewModifierPage() {
               </NativeSelect>
             </div>
 
-            <label
-              htmlFor="new-modifier-active"
-              className="flex items-center gap-2 text-md"
-            >
+            <label htmlFor="new-modifier-active" className="text-md flex items-center gap-2">
               <Input
                 id="new-modifier-active"
                 name="isActive"
@@ -155,7 +145,7 @@ export default async function NewModifierPage() {
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2"
               >
                 Create Modifier
               </Button>
@@ -163,7 +153,7 @@ export default async function NewModifierPage() {
               <Link
                 prefetch={false}
                 href="/admin/modifiers"
-                className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-50"
+                className="border-border hover:bg-card rounded-lg border px-4 py-2"
               >
                 Cancel
               </Link>

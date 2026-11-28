@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 
 export const money = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value);
 
-export function attendanceMinutes(clockIn: Date | null, clockOut: Date | null) {
+function attendanceMinutes(clockIn: Date | null, clockOut: Date | null) {
   return clockIn && clockOut && clockOut > clockIn
     ? Math.floor((clockOut.getTime() - clockIn.getTime()) / 60_000)
     : 0;
