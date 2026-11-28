@@ -533,9 +533,12 @@ model InventoryMovement {
   standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
   reason                   String
   note                     String?
+  occurredAt               DateTime              @default(now())
   createdAt                DateTime              @default(now())
   supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
+  @@index([supplyId, occurredAt])
+  @@index([occurredAt])
   @@index([supplyId, createdAt])
   @@index([createdAt])
 }
@@ -556,7 +559,6 @@ model ModifierGroup {
 
 model Modifier {
   id                    String              @id @default(cuid())
-  productId             String
   modifierGroupId       String
   name                  String
   price                 Decimal
@@ -565,10 +567,9 @@ model Modifier {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   modifierGroup         ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
-  product               Product             @relation(fields: [productId], references: [id])
+  products              Product[]
   orderItemModifiers    OrderItemModifier[]
 
-  @@index([productId])
   @@index([modifierGroupId])
 }
 
