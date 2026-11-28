@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
+import { formatStaffDateTime } from "@/lib/staff/staff-date-time";
 import { recordOwnClockAction } from "./actions";
 
 export default async function MyAttendancePage() {
@@ -37,10 +38,7 @@ export default async function MyAttendancePage() {
         </p>
       </div>
       <Card className="p-5">
-        <form
-          action={recordOwnClockAction}
-          className="grid gap-4 sm:grid-cols-[1fr_auto]"
-        >
+        <form action={recordOwnClockAction} className="grid gap-4 sm:grid-cols-[1fr_auto]">
           <input type="hidden" name="type" value={nextType} />
           <label className="grid gap-1 text-sm font-semibold">
             Optional note
@@ -59,16 +57,13 @@ export default async function MyAttendancePage() {
               shifts.map((shift) => (
                 <li key={shift.id} className="rounded-lg border p-3">
                   <strong>{shift.station ?? "General"}</strong>
-                  <div className="text-sm text-muted-foreground">
-                    {shift.startsAt.toLocaleString()} –{" "}
-                    {shift.endsAt.toLocaleString()}
+                  <div className="text-muted-foreground text-sm">
+                    {formatStaffDateTime(shift.startsAt)} – {formatStaffDateTime(shift.endsAt)}
                   </div>
                 </li>
               ))
             ) : (
-              <li className="text-sm text-muted-foreground">
-                No upcoming shift.
-              </li>
+              <li className="text-muted-foreground text-sm">No upcoming shift.</li>
             )}
           </ul>
         </Card>
@@ -77,20 +72,15 @@ export default async function MyAttendancePage() {
           <ol className="mt-3 space-y-2">
             {events.length ? (
               events.map((event) => (
-                <li
-                  key={event.id}
-                  className="flex justify-between rounded-lg border p-3"
-                >
+                <li key={event.id} className="flex justify-between rounded-lg border p-3">
                   <strong>{event.type}</strong>
-                  <span className="text-sm text-muted-foreground">
-                    {event.occurredAt.toLocaleString()}
+                  <span className="text-muted-foreground text-sm">
+                    {formatStaffDateTime(event.occurredAt)}
                   </span>
                 </li>
               ))
             ) : (
-              <li className="text-sm text-muted-foreground">
-                No clock events yet.
-              </li>
+              <li className="text-muted-foreground text-sm">No clock events yet.</li>
             )}
           </ol>
         </Card>

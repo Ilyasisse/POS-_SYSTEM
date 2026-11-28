@@ -8,6 +8,11 @@ import {
   resolveTableCheckIdentity,
 } from "@/lib/cashier/table-checks";
 import { getPostHogClient } from "@/lib/posthog-server";
+import {
+  lockOrderForSettlement,
+  OrderSettlementError,
+  remainingOrderBalanceCents,
+} from "@/lib/payments/order-settlement";
 
 type PayOrderBody = {
   orderId?: string;
@@ -79,43 +84,45 @@ export async function POST(request: Request) {
       );
     }
 
-    const order = await prisma.order.findUnique({
-      where: {
-        id: orderId,
-      },
-      select: {
-        id: true,
-        orderNumber: true,
-        tableCheckId: true,
-        tableCheckRound: true,
-        tableCheck: { select: { checkNumber: true } },
-        status: true,
-        total: true,
-      },
-    });
-
-    if (!order) {
-      return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    }
-
-    if (order.status !== "OPEN") {
-      return NextResponse.json(
-        { error: "Only open orders can be paid." },
-        { status: 400 },
-      );
-    }
-
     const closedAt = new Date();
-    await prisma.$transaction(async (tx) => {
-      await tx.payment.create({
-        data: {
-          orderId: order.id,
-          cashierId: currentUser.id,
-          cashierName: currentUser.fullName,
-          method: paymentMethod,
-          amountPaid: toDecimal(Number(order.total)),
+    const order = await prisma.$transaction(async (tx) => {
+      await lockOrderForSettlement(tx, orderId);
+      const order = await tx.order.findUnique({
+        where: {
+          id: orderId,
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          tableCheckId: true,
+          tableCheckRound: true,
+          tableCheck: { select: { checkNumber: true } },
+          status: true,
+          total: true,
+          payments: { select: { amountPaid: true } },
         },
       });
+
+      if (!order) {
+        throw new OrderSettlementError("Order not found.", 404);
+      }
+
+      if (order.status !== "OPEN") {
+        throw new OrderSettlementError("Only open orders can be paid.", 409);
+      }
+
+      const remainingCents = remainingOrderBalanceCents(order);
+      if (remainingCents > 0) {
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            cashierId: currentUser.id,
+            cashierName: currentUser.fullName,
+            method: paymentMethod,
+            amountPaid: toDecimal(remainingCents / 100),
+          },
+        });
+      }
 
       await tx.order.update({
         where: {
@@ -128,23 +135,28 @@ export async function POST(request: Request) {
       });
 
       await closeSettledTableChecks(tx, [order.tableCheckId], closedAt);
+      return order;
     });
 
     const identity = resolveTableCheckIdentity(order);
 
-    const posthog = getPostHogClient();
-    if (posthog) {
-      posthog.capture({
-        distinctId: currentUser.id,
-        event: "order_paid",
-        properties: {
-          order_id: order.id,
-          payment_method: paymentMethod,
-          total: Number(order.total),
-          cashier_role: currentUser.role,
-        },
-      });
-      await posthog.flush();
+    try {
+      const posthog = getPostHogClient();
+      if (posthog) {
+        posthog.capture({
+          distinctId: currentUser.id,
+          event: "order_paid",
+          properties: {
+            order_id: order.id,
+            payment_method: paymentMethod,
+            total: Number(order.total),
+            cashier_role: currentUser.role,
+          },
+        });
+        await posthog.flush();
+      }
+    } catch (error) {
+      console.error("Paid order analytics failed:", error);
     }
 
     return NextResponse.json({
@@ -157,6 +169,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof OrderSettlementError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
     console.error("Pay order error:", error);
 
     return NextResponse.json(

@@ -58,9 +58,7 @@ export default function PaymentReceiptReview() {
             providerReference: form.get("reference"),
             amount: Number(form.get("amount")),
             counterpartyLabel: form.get("payer"),
-            counterpartyIdentifiers: String(form.get("phone") ?? "").split(
-              /[\s,]+/,
-            ),
+            counterpartyIdentifiers: String(form.get("phone") ?? "").split(/[\s,]+/),
             transactionAt: form.get("time"),
             providerBalance: Number(form.get("balance")),
             reason: form.get("reason"),
@@ -68,20 +66,17 @@ export default function PaymentReceiptReview() {
         },
       );
       const data = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new Error(data.error || "Could not save receipt review.");
+      if (!response.ok) throw new Error(data.error || "Could not save receipt review.");
       toast({
         tone: "success",
-        description:
-          "Receipt reviewed. Assign it to the verified customer checkout above.",
+        description: "Receipt reviewed. Assign it to the verified customer checkout above.",
       });
       setSelected(null);
       await refresh();
     } catch (cause) {
       toast({
         tone: "error",
-        description:
-          cause instanceof Error ? cause.message : "Could not save review.",
+        description: cause instanceof Error ? cause.message : "Could not save review.",
       });
     } finally {
       setBusy(false);
@@ -95,31 +90,25 @@ export default function PaymentReceiptReview() {
           Refresh
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Malformed messages require correction here. Incoming unassigned
-        payments, phone/amount/time exceptions remain available in the customer
-        review list above. Outgoing payments cannot fund an order.
+      <p className="text-muted-foreground text-sm">
+        Malformed messages require correction here. Incoming unassigned payments, phone/amount/time
+        exceptions remain available in the customer review list above. Outgoing payments cannot fund
+        an order.
       </p>
-      {receipts.filter((receipt) => receipt.status === "NEEDS_REVIEW")
-        .length === 0 ? (
+      {receipts.filter((receipt) => receipt.status === "NEEDS_REVIEW").length === 0 ? (
         <p>No malformed messages waiting for review.</p>
       ) : null}
       {receipts.map((receipt) => (
         <article key={receipt.id} className="rounded-xl border p-4">
           <p className="font-semibold">
-            {receipt.reference ?? "Unparsed message"} · {receipt.direction} ·{" "}
-            {receipt.status}
+            {receipt.reference ?? "Unparsed message"} · {receipt.direction} · {receipt.status}
           </p>
           {receipt.parseError ? (
             <p className="text-sm text-rose-700">{receipt.parseError}</p>
           ) : null}
-          <p className="mt-2 break-words text-sm">{receipt.rawMessage}</p>
+          <p className="mt-2 text-sm break-words">{receipt.rawMessage}</p>
           {receipt.status === "NEEDS_REVIEW" ? (
-            <Button
-              className="mt-3"
-              variant="outline"
-              onClick={() => setSelected(receipt)}
-            >
+            <Button className="mt-3" variant="outline" onClick={() => setSelected(receipt)}>
               Review message
             </Button>
           ) : null}
@@ -132,14 +121,10 @@ export default function PaymentReceiptReview() {
           className="space-y-3 rounded-xl border p-4"
         >
           <h3 className="font-bold">Correct message from its original SMS</h3>
-          <p className="break-words text-sm">{selected.rawMessage}</p>
+          <p className="text-sm break-words">{selected.rawMessage}</p>
           <label className="block">
             Direction
-            <select
-              name="direction"
-              required
-              className="ml-2 rounded border bg-background p-2"
-            >
+            <select name="direction" required className="bg-background ml-2 rounded border p-2">
               <option value="INCOMING">Incoming</option>
               <option value="OUTGOING">Outgoing</option>
             </select>
@@ -149,11 +134,7 @@ export default function PaymentReceiptReview() {
             ["amount", "Amount (USD)", "number"],
             ["payer", "Complete payer label", "text"],
             ["phone", "Payer phone / identifiers", "text"],
-            [
-              "time",
-              "Transaction time with timezone (ISO, e.g. +03:00)",
-              "text",
-            ],
+            ["time", "Transaction time with timezone (ISO, e.g. +03:00)", "text"],
             ["balance", "Provider balance", "number"],
             ["reason", "Review reason", "text"],
           ].map(([name, label, type]) => (
@@ -164,7 +145,7 @@ export default function PaymentReceiptReview() {
                 type={type}
                 required
                 step={type === "number" ? "0.01" : undefined}
-                className="mt-1 block w-full rounded border bg-background p-2"
+                className="bg-background mt-1 block w-full rounded border p-2"
               />
             </label>
           ))}

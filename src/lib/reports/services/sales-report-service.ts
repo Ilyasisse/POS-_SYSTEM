@@ -225,7 +225,10 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       unpaidOrders,
       voidedOrders,
       averageOrderValue: serialize(averageOrderValue(net, orders.length)),
-      cogs: costCoveredLines > 0 ? cogs.toFixed(2) : null,
+      cogs:
+        totalLines > 0 && costCoveredLines === totalLines
+          ? cogs.toFixed(2)
+          : null,
       grossProfit: serialize(profit),
       grossMargin: profit ? serialize(ratioPercent(profit, net)) : null,
       costCoveragePercent: serialize(

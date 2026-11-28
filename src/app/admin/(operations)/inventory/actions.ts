@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { lockInventoryTarget } from "@/lib/inventory/stock-ledger";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -40,7 +41,8 @@ function getQuantity(formData: FormData, key: string) {
 async function requireInventoryAccess() {
   return requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
-type SupplyFormField = "name" | "unit" | "stockQty" | "lowStockThreshold" | "quantity" | "movementDate";
+type SupplyFormField =
+  "name" | "unit" | "stockQty" | "lowStockThreshold" | "quantity" | "movementDate";
 export type SupplyFormResult =
   | { ok: true; email?: "sent" | "failed" | "skipped" }
   | { ok: false; error: string; field?: SupplyFormField };
@@ -105,10 +107,7 @@ export async function createSupply(formData: FormData): Promise<SupplyFormResult
           lowStockThreshold: threshold.quantity,
           canonicalUnit: mapping.canonicalUnit,
           quantityCoverage: mapping.coverage,
-          inventoryAlertStatus: getInventoryAlertStatus(
-            stock.quantity,
-            threshold.quantity,
-          ),
+          inventoryAlertStatus: getInventoryAlertStatus(stock.quantity, threshold.quantity),
         },
       });
     });
@@ -147,13 +146,7 @@ async function updateProductInventory(formData: FormData) {
   // Product movement reasons are no longer passed because product changes do
   // not create InventoryMovement rows after productId was removed from that table.
   const alerts = await prisma.$transaction((tx) =>
-    setProductInventoryLevel(
-      tx,
-      productId,
-      stockQty,
-      lowStockThreshold,
-      user.id,
-    ),
+    setProductInventoryLevel(tx, productId, stockQty, lowStockThreshold, user.id),
   );
 
   await sendInventoryAlerts(alerts);
@@ -177,8 +170,12 @@ async function adjustProductInventory(formData: FormData) {
     throw new Error("Adjustment quantity must be greater than zero.");
   }
 
+  if (direction !== "add" && direction !== "remove")
+    throw new Error("Choose whether to add or remove stock.");
+
   // Calculates and saves the product adjustment inside one database transaction.
   const alerts = await prisma.$transaction(async (tx) => {
+    await lockInventoryTarget(tx, { productId });
     // Loads the product's current stock so the delta can be applied safely.
     const product = await tx.product.findUnique({
       where: { id: productId },
@@ -221,7 +218,8 @@ async function saveSupplyInventory(
 
   let occurredAt;
   try {
-    occurredAt = reason === "RESTOCK" ? inventoryMovementDate(formData.get("movementDate")) : new Date();
+    occurredAt =
+      reason === "RESTOCK" ? inventoryMovementDate(formData.get("movementDate")) : new Date();
   } catch (error) {
     return { ok: false, field: "movementDate", error: (error as Error).message };
   }
@@ -230,6 +228,7 @@ async function saveSupplyInventory(
     result = await prisma.$transaction(
       async (tx) => {
         await configureInventoryCafeteria(tx, user.id, supplyId);
+        await lockInventoryTarget(tx, { supplyId });
         const supply = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
         if (!supply?.isActive)
           return { ok: false, error: "This supply is no longer available." } as const;
@@ -327,6 +326,7 @@ export async function editSupply(formData: FormData): Promise<SupplyFormResult> 
     result = await prisma.$transaction(
       async (tx) => {
         await configureInventoryCafeteria(tx, user.id, supplyId);
+        await lockInventoryTarget(tx, { supplyId });
         const current = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
         if (!current?.isActive)
           return { ok: false, error: "This supply is no longer available." } as const;

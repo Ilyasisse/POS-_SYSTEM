@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/prisma";
 import {
   getTodaySupplyDateKey,
+  isValidSupplyDateKey,
   calculateSupplyDayTotal,
   parseSupplyPurchaseInput,
   resolveSupplyDateKey,
@@ -14,13 +16,11 @@ import {
 } from "@/lib/supplies/supply-purchases";
 
 type SupplyStatus =
-  | "created"
-  | "updated"
-  | "deleted"
-  | "closed_day"
-  | "invalid_date"
-  | "invalid_entry"
-  | "not_found";
+  "created" | "updated" | "deleted" | "closed_day" | "invalid_date" | "invalid_entry" | "not_found";
+
+const SUPPLY_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+} as const;
 
 async function activeCatalogItem(id: string) {
   return prisma.supplyCatalogItem.findFirst({ where: { id, isActive: true } });
@@ -37,15 +37,11 @@ function redirectToSupply(date: string, status: SupplyStatus): never {
 export async function createSupplyPurchase(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.SUPPLY_MANAGE);
   const parsed = parseSupplyPurchaseInput(formData);
-  const returnDate = resolveSupplyDateKey(
-    String(formData.get("purchaseDate") ?? ""),
-  );
+  const returnDate = resolveSupplyDateKey(String(formData.get("purchaseDate") ?? ""));
 
   if (!parsed.ok) redirectToSupply(returnDate, parsed.status);
 
-  const purchaseDate = supplyDateKeyToDatabaseDate(
-    parsed.value.purchaseDateKey,
-  );
+  const purchaseDate = supplyDateKeyToDatabaseDate(parsed.value.purchaseDateKey);
   if (!purchaseDate) redirectToSupply(returnDate, "invalid_date");
 
   const item = await activeCatalogItem(parsed.value.catalogItemId);
@@ -70,7 +66,7 @@ export async function createSupplyPurchase(formData: FormData) {
       },
     });
     return true;
-  });
+  }, SUPPLY_TRANSACTION_OPTIONS);
   if (!created) redirectToSupply(parsed.value.purchaseDateKey, "closed_day");
 
   revalidatePath("/admin/supplies");
@@ -81,37 +77,30 @@ export async function updateSupplyPurchase(formData: FormData) {
   await requirePermission(PERMISSIONS.SUPPLY_MANAGE);
   const id = String(formData.get("id") ?? "").trim();
   const parsed = parseSupplyPurchaseInput(formData);
-  const returnDate = resolveSupplyDateKey(
-    String(formData.get("purchaseDate") ?? ""),
-  );
+  const returnDate = resolveSupplyDateKey(String(formData.get("purchaseDate") ?? ""));
 
   if (!id) redirectToSupply(returnDate, "not_found");
   if (!parsed.ok) redirectToSupply(returnDate, parsed.status);
 
-  const existing = await prisma.supplyPurchase.findUnique({
-    where: { id },
-    select: { purchaseDate: true, day: { select: { closedAt: true } } },
-  });
-  if (!existing) redirectToSupply(returnDate, "not_found");
-  if (existing.day.closedAt)
-    throw new Error("Reopen this supply day before editing items.");
-
-  const purchaseDate = supplyDateKeyToDatabaseDate(
-    parsed.value.purchaseDateKey,
-  );
+  const purchaseDate = supplyDateKeyToDatabaseDate(parsed.value.purchaseDateKey);
   if (!purchaseDate) redirectToSupply(returnDate, "invalid_date");
 
   const item = await activeCatalogItem(parsed.value.catalogItemId);
   if (!item) redirectToSupply(returnDate, "invalid_entry");
 
   await prisma.$transaction(async (tx) => {
+    const existing = await tx.supplyPurchase.findUnique({
+      where: { id },
+      select: { day: { select: { closedAt: true } } },
+    });
+    if (!existing) redirectToSupply(returnDate, "not_found");
+    if (existing.day.closedAt) throw new Error("Reopen this supply day before editing items.");
     const targetDay = await tx.supplyDay.upsert({
       where: { purchaseDate },
       create: { purchaseDate },
       update: {},
     });
-    if (targetDay.closedAt)
-      throw new Error("Reopen the target supply day before moving items.");
+    if (targetDay.closedAt) throw new Error("Reopen the target supply day before moving items.");
     await tx.supplyPurchase.update({
       where: { id },
       data: {
@@ -123,7 +112,7 @@ export async function updateSupplyPurchase(formData: FormData) {
         unitPrice: parsed.value.unitPrice,
       },
     });
-  });
+  }, SUPPLY_TRANSACTION_OPTIONS);
 
   revalidatePath("/admin/supplies");
   redirectToSupply(parsed.value.purchaseDateKey, "updated");
@@ -132,19 +121,18 @@ export async function updateSupplyPurchase(formData: FormData) {
 export async function deleteSupplyPurchase(formData: FormData) {
   await requirePermission(PERMISSIONS.SUPPLY_MANAGE);
   const id = String(formData.get("id") ?? "").trim();
-  const returnDate = resolveSupplyDateKey(
-    String(formData.get("returnDate") ?? ""),
-  );
+  const returnDate = resolveSupplyDateKey(String(formData.get("returnDate") ?? ""));
 
   if (!id) redirectToSupply(returnDate, "not_found");
 
-  const existing = await prisma.supplyPurchase.findUnique({
-    where: { id },
-    include: { day: { select: { closedAt: true } } },
-  });
-  if (existing?.day.closedAt)
-    throw new Error("Reopen this supply day before deleting items.");
-  const result = await prisma.supplyPurchase.deleteMany({ where: { id } });
+  const result = await prisma.$transaction(async (tx) => {
+    const existing = await tx.supplyPurchase.findUnique({
+      where: { id },
+      select: { day: { select: { closedAt: true } } },
+    });
+    if (existing?.day.closedAt) throw new Error("Reopen this supply day before deleting items.");
+    return tx.supplyPurchase.deleteMany({ where: { id } });
+  }, SUPPLY_TRANSACTION_OPTIONS);
   if (result.count === 0) redirectToSupply(returnDate, "not_found");
 
   revalidatePath("/admin/supplies");
@@ -153,7 +141,10 @@ export async function deleteSupplyPurchase(formData: FormData) {
 
 export async function closeSupplyDay(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.SUPPLY_MANAGE);
-  const dateKey = resolveSupplyDateKey(String(formData.get("date") ?? ""));
+  const dateKey = String(formData.get("date") ?? "").trim();
+  if (!isValidSupplyDateKey(dateKey) || dateKey > getTodaySupplyDateKey()) {
+    redirectToSupply(resolveSupplyDateKey(dateKey), "invalid_date");
+  }
   const purchaseDate = supplyDateKeyToDatabaseDate(dateKey);
   if (!purchaseDate) redirectToSupply(dateKey, "invalid_date");
   await prisma.$transaction(async (tx) => {
@@ -161,8 +152,7 @@ export async function closeSupplyDay(formData: FormData) {
       where: { purchaseDate },
       select: { quantity: true, unitPrice: true },
     });
-    if (entries.length === 0)
-      throw new Error("Add at least one supply before closing the day.");
+    if (entries.length === 0) throw new Error("Add at least one supply before closing the day.");
     const total = calculateSupplyDayTotal(entries);
     await tx.supplyDay.upsert({
       where: { purchaseDate },
@@ -178,14 +168,17 @@ export async function closeSupplyDay(formData: FormData) {
         closedByUserId: user.id,
       },
     });
-  });
+  }, SUPPLY_TRANSACTION_OPTIONS);
   revalidatePath("/admin/supplies");
   revalidatePath("/admin/daily-cash");
 }
 
 export async function reopenSupplyDay(formData: FormData) {
   const user = await requirePermission(PERMISSIONS.SUPPLY_MANAGE);
-  const dateKey = resolveSupplyDateKey(String(formData.get("date") ?? ""));
+  const dateKey = String(formData.get("date") ?? "").trim();
+  if (!isValidSupplyDateKey(dateKey) || dateKey > getTodaySupplyDateKey()) {
+    redirectToSupply(resolveSupplyDateKey(dateKey), "invalid_date");
+  }
   const purchaseDate = supplyDateKeyToDatabaseDate(dateKey);
   if (!purchaseDate) redirectToSupply(dateKey, "invalid_date");
   await prisma.$transaction(async (tx) => {
@@ -194,8 +187,7 @@ export async function reopenSupplyDay(formData: FormData) {
       include: { _count: { select: { payments: true } } },
     });
     if (!day?.closedAt) throw new Error("This supply day is not closed.");
-    if (day._count.payments > 0)
-      throw new Error("A supply day with payments cannot be reopened.");
+    if (day._count.payments > 0) throw new Error("A supply day with payments cannot be reopened.");
     await tx.supplyDay.update({
       where: { id: day.id },
       data: {
@@ -206,7 +198,7 @@ export async function reopenSupplyDay(formData: FormData) {
         reopenedByUserId: user.id,
       },
     });
-  });
+  }, SUPPLY_TRANSACTION_OPTIONS);
   revalidatePath("/admin/supplies");
   revalidatePath("/admin/daily-cash");
 }

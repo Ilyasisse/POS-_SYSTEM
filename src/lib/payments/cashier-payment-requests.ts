@@ -1,6 +1,7 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { lockTableForSettlement } from "@/lib/payments/order-settlement";
 import {
   preparePaymentRequestLines,
   type PaymentRequestLineDraft,
@@ -11,10 +12,7 @@ const decimal = (value: number) => new Prisma.Decimal(value);
 
 export type PaymentRequestLineInput = PaymentRequestLineDraft;
 
-async function getOpenTableBalance(
-  tx: Pick<Prisma.TransactionClient, "order">,
-  tableId: string,
-) {
+async function getOpenTableBalance(tx: Pick<Prisma.TransactionClient, "order">, tableId: string) {
   const orders = await tx.order.findMany({
     where: { tableId, type: "DINE_IN", status: "OPEN" },
     orderBy: { createdAt: "asc" },
@@ -26,10 +24,7 @@ async function getOpenTableBalance(
       Math.max(
         0,
         cents(order.total) -
-          order.payments.reduce(
-            (paid, payment) => paid + cents(payment.amountPaid),
-            0,
-          ),
+          order.payments.reduce((paid, payment) => paid + cents(payment.amountPaid), 0),
       ),
     0,
   );
@@ -43,11 +38,28 @@ export async function createPaymentRequestBatch(input: {
   lines: PaymentRequestLineInput[];
   payLater: boolean;
 }) {
+  if (!input.batchKey.trim() || !input.tableId.trim()) {
+    throw new Error("A payment check key and table are required.");
+  }
   const existing = await prisma.paymentRequest.findMany({
     where: { batchKey: input.batchKey },
     orderBy: { lineIndex: "asc" },
   });
-  if (existing.length) return existing;
+  if (existing.length) {
+    if (
+      existing.some(
+        (request) =>
+          request.cashierId !== input.cashier.id ||
+          request.tableId !== input.tableId ||
+          (input.method !== undefined && request.method !== input.method),
+      )
+    ) {
+      throw new Error(
+        "This payment check belongs to another cashier, table, or payment method. Start a new payment check.",
+      );
+    }
+    return existing;
+  }
   return prisma.$transaction(async (tx) => {
     // Serialize payer creation with table transfers and settlement.
     await tx.$queryRaw(
@@ -57,18 +69,30 @@ export async function createPaymentRequestBatch(input: {
       where: { batchKey: input.batchKey },
       orderBy: { lineIndex: "asc" },
     });
-    if (existingAfterLock.length) return existingAfterLock;
+    if (existingAfterLock.length) {
+      if (
+        existingAfterLock.some(
+          (request) =>
+            request.cashierId !== input.cashier.id ||
+            request.tableId !== input.tableId ||
+            (input.method !== undefined && request.method !== input.method),
+        )
+      ) {
+        throw new Error(
+          "This payment check belongs to another cashier, table, or payment method. Start a new payment check.",
+        );
+      }
+      return existingAfterLock;
+    }
+
     const dueCents = await getOpenTableBalance(tx, input.tableId);
-    if (dueCents <= 0)
-      throw new Error("This table no longer has an unpaid balance.");
+    if (dueCents <= 0) throw new Error("This table no longer has an unpaid balance.");
     const lines = preparePaymentRequestLines(input.lines, input.method);
     const requestedCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
     if (requestedCents > dueCents)
       throw new Error("Split payments cannot exceed the table balance.");
     if (requestedCents < dueCents && !input.payLater)
-      throw new Error(
-        "Add another payer or choose Pay later for the remaining balance.",
-      );
+      throw new Error("Add another payer or choose Pay later for the remaining balance.");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     const requests = await Promise.all(
       lines.map((line, lineIndex) =>
@@ -105,7 +129,7 @@ export async function createPaymentRequestBatch(input: {
   });
 }
 
-async function matchPaymentRequest(input: {
+export async function matchPaymentRequest(input: {
   paymentRequestId?: string;
   payerPhone?: string;
   provider?: PaymentMethod;
@@ -115,12 +139,10 @@ async function matchPaymentRequest(input: {
   rawMessage: string;
   paidAt?: Date;
 }) {
-  if (!input.reference.trim())
-    throw new Error("Payment reference is required.");
+  if (!input.reference.trim()) throw new Error("Payment reference is required.");
   if (!Number.isFinite(input.amount) || input.amount <= 0)
     throw new Error("Payment amount must be greater than zero.");
-  const expectedSender =
-    process.env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "A98";
+  const expectedSender = process.env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "A98";
   if (input.sender.trim().toUpperCase() !== expectedSender.toUpperCase())
     throw new Error("The SMS sender is not allowed.");
   const paidAt = input.paidAt ?? new Date();
@@ -143,19 +165,22 @@ async function matchPaymentRequest(input: {
         take: 2,
       });
       if (candidates.length > 1)
-        throw new Error(
-          "Payment matches more than one pending request; send paymentRequestId.",
-        );
+        throw new Error("Payment matches more than one pending request; send paymentRequestId.");
       request = candidates[0] ?? null;
     }
+    if (!request) throw new Error("Payment request not found.");
+    await lockTableForSettlement(tx, request.tableId);
+    await tx.$queryRawUnsafe(
+      'SELECT "id" FROM "PaymentRequest" WHERE "id" = $1 FOR UPDATE',
+      request.id,
+    );
+    request = await tx.paymentRequest.findUnique({ where: { id: request.id } });
     if (!request) throw new Error("Payment request not found.");
     if (request.status === "MATCHED") return { duplicate: true, request };
     if (request.status !== "PENDING" || request.expiresAt < paidAt)
       throw new Error("Payment request is no longer active.");
     if (cents(request.expectedAmount) !== cents(input.amount))
-      throw new Error(
-        "Payment amount does not match the selected payer amount.",
-      );
+      throw new Error("Payment amount does not match the selected payer amount.");
     const duplicate = await tx.paymentRequest.findFirst({
       where: { method: request.method, providerReference: input.reference },
     });
@@ -168,10 +193,7 @@ async function matchPaymentRequest(input: {
     let remainingCents = cents(input.amount);
     for (const order of orders) {
       if (remainingCents <= 0) break;
-      const paidCents = order.payments.reduce(
-        (sum, payment) => sum + cents(payment.amountPaid),
-        0,
-      );
+      const paidCents = order.payments.reduce((sum, payment) => sum + cents(payment.amountPaid), 0);
       const orderRemaining = Math.max(0, cents(order.total) - paidCents);
       const allocation = Math.min(orderRemaining, remainingCents);
       if (!allocation) continue;
@@ -196,8 +218,7 @@ async function matchPaymentRequest(input: {
           data: { status: "PAID", closedAt: paidAt },
         });
     }
-    if (remainingCents > 0)
-      throw new Error("Payment exceeds the remaining table balance.");
+    if (remainingCents > 0) throw new Error("Payment exceeds the remaining table balance.");
     const matched = await tx.paymentRequest.update({
       where: { id: request.id },
       data: {

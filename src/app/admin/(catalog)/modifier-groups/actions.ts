@@ -5,21 +5,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import {
+  modifierGroupFields,
+  modifierGroupId,
+} from "@/lib/catalog/form-validation";
 
 export async function createModifierGroup(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
-  const name = String(formData.get("name") || "").trim();
-  const minSelect = Number(formData.get("minSelect") || 0);
-  const maxSelect = Number(formData.get("maxSelect") || 1);
-  const isActive = formData.get("isActive") === "on";
+  const data = modifierGroupFields(formData);
 
   await prisma.modifierGroup.create({
-    data: {
-      name,
-      minSelect,
-      maxSelect,
-      isActive,
-    },
+    data,
   });
 
   revalidatePath("/admin/modifier-groups");
@@ -28,20 +24,12 @@ export async function createModifierGroup(formData: FormData) {
 
 export async function updateModifierGroup(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
-  const id = String(formData.get("id"));
-  const name = String(formData.get("name"));
-  const minSelect = Number(formData.get("minSelect"));
-  const maxSelect = Number(formData.get("maxSelect"));
-  const isActive = formData.get("isActive") === "on";
+  const id = modifierGroupId(formData);
+  const data = modifierGroupFields(formData);
 
   await prisma.modifierGroup.update({
     where: { id },
-    data: {
-      name,
-      minSelect,
-      maxSelect,
-      isActive,
-    },
+    data,
   });
 
   revalidatePath("/admin/modifier-groups");
@@ -50,7 +38,7 @@ export async function updateModifierGroup(formData: FormData) {
 
 export async function deleteModifierGroup(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
-  const id = String(formData.get("id"));
+  const id = modifierGroupId(formData);
 
   await prisma.modifierGroup.delete({
     where: { id },

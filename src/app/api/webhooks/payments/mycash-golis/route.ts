@@ -11,6 +11,11 @@ import {
   type PaymentWebhookStore,
 } from "@/lib/payments/mycash-golis-webhook";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import {
+  lockOrderForSettlement,
+  OrderSettlementError,
+  remainingOrderBalanceCents,
+} from "@/lib/payments/order-settlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +42,7 @@ async function findTableCheckForWebhook(tableCheckId: string) {
           id: true,
           status: true,
           total: true,
+          payments: { select: { amountPaid: true } },
         },
         orderBy: [{ tableCheckRound: "asc" }, { createdAt: "asc" }],
       },
@@ -59,6 +65,11 @@ async function findTableCheckForWebhook(tableCheckId: string) {
     orderNumber: check.checkNumber,
     status,
     total: payableRounds.reduce((sum, order) => sum + Number(order.total), 0),
+    remainingAmount:
+      payableRounds.reduce(
+        (sum, order) => sum + remainingOrderBalanceCents(order),
+        0,
+      ) / 100,
     tableCheckId: check.id,
     rounds: payableRounds.map((order) => ({
       id: order.id,
@@ -102,6 +113,7 @@ function buildPaymentWebhookStore(): PaymentWebhookStore {
             status: true,
             total: true,
             tableCheckId: true,
+            payments: { select: { amountPaid: true } },
           },
         });
 
@@ -109,7 +121,12 @@ function buildPaymentWebhookStore(): PaymentWebhookStore {
           return findTableCheckForWebhook(order.tableCheckId);
         }
 
-        return order;
+        return order
+          ? {
+              ...order,
+              remainingAmount: remainingOrderBalanceCents(order) / 100,
+            }
+          : null;
       }
 
       const tableCheck = await prisma.tableCheck.findUnique({
@@ -121,15 +138,19 @@ function buildPaymentWebhookStore(): PaymentWebhookStore {
         return findTableCheckForWebhook(tableCheck.id);
       }
 
-      return prisma.order.findUnique({
+      const order = await prisma.order.findUnique({
         where: { orderNumber: event.orderNumber ?? 0 },
         select: {
           id: true,
           orderNumber: true,
           status: true,
           total: true,
+          payments: { select: { amountPaid: true } },
         },
       });
+      return order
+        ? { ...order, remainingAmount: remainingOrderBalanceCents(order) / 100 }
+        : null;
     },
     async markOrderPaid(input: {
       event: MycashGolisWebhookEvent;
@@ -139,20 +160,50 @@ function buildPaymentWebhookStore(): PaymentWebhookStore {
     }) {
       await prisma.$transaction(
         async (tx) => {
-          const rounds = input.order.rounds?.length
-            ? input.order.rounds
-            : [{ id: input.order.id, total: input.order.total }];
+          await lockOrderForSettlement(tx, input.order.id);
+          const existing = await tx.payment.findFirst({
+            where: {
+              method: input.event.provider,
+              reference: input.event.reference,
+            },
+          });
+          if (existing) return;
+          const rounds = await tx.order.findMany({
+            where: input.order.tableCheckId
+              ? { tableCheckId: input.order.tableCheckId, status: "OPEN" }
+              : { id: input.order.id, status: "OPEN" },
+            include: { payments: { select: { amountPaid: true } } },
+            orderBy: [{ tableCheckRound: "asc" }, { createdAt: "asc" }],
+          });
+          if (!rounds.length) {
+            throw new OrderSettlementError(
+              "Order is not open for payment.",
+              409,
+            );
+          }
+          const remainingCents = rounds.reduce(
+            (sum, round) => sum + remainingOrderBalanceCents(round),
+            0,
+          );
+          if (remainingCents !== Math.round(input.event.amount * 100)) {
+            throw new OrderSettlementError(
+              "Payment amount does not match the remaining order balance.",
+              409,
+            );
+          }
 
           await tx.payment.createMany({
-            data: rounds.map((round, index) => ({
-              orderId: round.id,
-              cashierId: input.cashier.id,
-              cashierName: input.cashier.fullName,
-              method: input.event.provider,
-              amountPaid: toDecimal(Number(round.total)),
-              reference: index === 0 ? input.event.reference : null,
-              createdAt: input.paidAt,
-            })),
+            data: rounds
+              .filter((round) => remainingOrderBalanceCents(round) > 0)
+              .map((round, index) => ({
+                orderId: round.id,
+                cashierId: input.cashier.id,
+                cashierName: input.cashier.fullName,
+                method: input.event.provider,
+                amountPaid: toDecimal(remainingOrderBalanceCents(round) / 100),
+                reference: index === 0 ? input.event.reference : null,
+                createdAt: input.paidAt,
+              })),
           });
 
           await tx.order.updateMany({
@@ -210,6 +261,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
+    if (error instanceof OrderSettlementError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
     if (isPaymentReferenceDuplicateError(error)) {
       return NextResponse.json(
         {

@@ -1,15 +1,18 @@
 import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
-import { decimalQuantity } from "@/lib/inventory/inventory-domain";
+import { canonicalUnitLabel, decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
   appendStockEvent,
   deductSaleInventory,
+  lockInventoryTarget,
 } from "@/lib/inventory/stock-ledger";
 
 export type InventorySaleLine = {
   productId: string;
   qty: number;
+  /** Undefined resolves the current recipe; null preserves a no-recipe snapshot. */
+  recipeVersionId?: string | null;
 };
 
 export type InventoryAlert = {
@@ -98,8 +101,7 @@ function buildInventoryAlert(
   delta: number,
 ): { status: InventoryAlertStatus; alert: InventoryAlert | null } {
   const status = getInventoryAlertStatus(nextStockQty, nextLowStockThreshold);
-  const shouldAlert =
-    delta <= 0 && status !== "OK" && status !== item.inventoryAlertStatus;
+  const shouldAlert = delta <= 0 && status !== "OK" && status !== item.inventoryAlertStatus;
 
   return {
     status,
@@ -152,7 +154,7 @@ function formatInventoryAlertHtml(alert: InventoryAlert) {
   return `
     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
       <h2 style="margin: 0 0 12px;">Inventory Alert: ${statusLabel}</h2>
-      <p style="margin: 0 0 8px;"><strong>${alert.itemType}:</strong> ${alert.itemName}</p>
+      <p style="margin: 0 0 8px;"><strong>${alert.itemType}:</strong> ${escapeHtml(alert.itemName)}</p>
       <p style="margin: 0 0 8px;"><strong>Current stock:</strong> ${alert.stockQty}</p>
       <p style="margin: 0;"><strong>Low threshold:</strong> ${alert.lowStockThreshold}</p>
     </div>
@@ -250,9 +252,7 @@ export async function sendInventoryAlerts(alerts: InventoryAlert[]) {
  */
 function formatDailyInventoryDigestHtml(items: DailySupplyDigestItem[]) {
   const alertItems = items.filter(
-    (item) =>
-      item.inventoryAlertStatus === "LOW" ||
-      item.inventoryAlertStatus === "OUT",
+    (item) => item.inventoryAlertStatus === "LOW" || item.inventoryAlertStatus === "OUT",
   );
 
   if (alertItems.length === 0) {
@@ -311,6 +311,7 @@ export async function sendDailyInventorySupplyDigest() {
       id: true,
       name: true,
       unit: true,
+      canonicalUnit: true,
       stockQty: true,
       lowStockThreshold: true,
       inventoryAlertStatus: true,
@@ -319,6 +320,7 @@ export async function sendDailyInventorySupplyDigest() {
 
   const items = supplies.map<DailySupplyDigestItem>((supply) => ({
     ...supply,
+    unit: supply.canonicalUnit ? canonicalUnitLabel(supply.canonicalUnit) : supply.unit,
     stockQty: toValidQuantity(supply.stockQty),
     lowStockThreshold: toValidQuantity(supply.lowStockThreshold),
     previousInventoryAlertStatus: supply.inventoryAlertStatus,
@@ -344,17 +346,11 @@ export async function sendDailyInventorySupplyDigest() {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.INVENTORY_ALERT_EMAIL_FROM;
   const to = process.env.INVENTORY_ALERT_EMAIL_TO;
-  const lowStockCount = items.filter(
-    (item) => item.inventoryAlertStatus === "LOW",
-  ).length;
-  const outOfStockCount = items.filter(
-    (item) => item.inventoryAlertStatus === "OUT",
-  ).length;
+  const lowStockCount = items.filter((item) => item.inventoryAlertStatus === "LOW").length;
+  const outOfStockCount = items.filter((item) => item.inventoryAlertStatus === "OUT").length;
 
   if (!apiKey || !from || !to) {
-    console.warn(
-      "Daily inventory email skipped: missing Resend environment variables.",
-    );
+    console.warn("Daily inventory email skipped: missing Resend environment variables.");
 
     return {
       sent: false,
@@ -366,12 +362,23 @@ export async function sendDailyInventorySupplyDigest() {
 
   const resend = new Resend(apiKey);
 
-  await resend.emails.send({
-    from,
-    to,
-    subject: "Daily Inventory Alert",
-    html: formatDailyInventoryDigestHtml(items),
-  });
+  try {
+    const result = await resend.emails.send({
+      from,
+      to,
+      subject: "Daily Inventory Alert",
+      html: formatDailyInventoryDigestHtml(items),
+    });
+    if (result.error) throw result.error;
+  } catch (error) {
+    console.error("Daily inventory email failed:", error);
+    return {
+      sent: false,
+      lowStockCount,
+      outOfStockCount,
+      reason: "email_delivery_failed",
+    };
+  }
 
   return {
     sent: true,
@@ -394,22 +401,12 @@ export async function deductProductInventoryForSale(
   actorUserId?: string | null,
   actorCustomerId?: string | null,
 ) {
-  const events = await deductSaleInventory(
-    tx,
-    lines,
-    sourceOrderId,
-    actorUserId,
-    actorCustomerId,
-  );
+  const events = await deductSaleInventory(tx, lines, sourceOrderId, actorUserId, actorCustomerId);
   const productIds = [
-    ...new Set(
-      events.flatMap((event) => (event.productId ? [event.productId] : [])),
-    ),
+    ...new Set(events.flatMap((event) => (event.productId ? [event.productId] : []))),
   ];
   const supplyIds = [
-    ...new Set(
-      events.flatMap((event) => (event.supplyId ? [event.supplyId] : [])),
-    ),
+    ...new Set(events.flatMap((event) => (event.supplyId ? [event.supplyId] : []))),
   ];
   const [products, supplies] = await Promise.all([
     tx.product.findMany({
@@ -487,6 +484,7 @@ export async function setProductInventoryLevel(
   // Admin product adjustments keep their stock/alert behavior but no longer
   // write InventoryMovement rows. This prevents Prisma from touching the deleted
   // InventoryMovement.productId column while preserving product inventory totals.
+  await lockInventoryTarget(tx, { productId });
   const product = await tx.product.findUnique({
     where: { id: productId },
     select: {
@@ -557,6 +555,7 @@ export async function setSupplyInventoryLevel(
   actorUserId?: string | null,
   occurredAt = new Date(),
 ) {
+  await lockInventoryTarget(tx, { supplyId });
   const supply = await tx.inventorySupply.findUnique({
     where: { id: supplyId },
     select: {
@@ -590,9 +589,7 @@ export async function setSupplyInventoryLevel(
     delta,
   );
   const forcedZeroStockAlert =
-    status === "OUT" &&
-    quantityAfterDecimal.isZero() &&
-    (delta < 0 || reason === "TAKEN");
+    status === "OUT" && quantityAfterDecimal.isZero() && (delta < 0 || reason === "TAKEN");
   const supplyAlert =
     alert ??
     (forcedZeroStockAlert
@@ -625,7 +622,7 @@ export async function setSupplyInventoryLevel(
       data: {
         supplyId: supply.id,
         occurredAt,
-        itemName: `${supply.name} (${supply.unit})`,
+        itemName: `${supply.name} (${canonicalUnitLabel(supply.canonicalUnit)})`,
         itemType: "Supply",
         delta: deltaDecimal,
         quantityBefore: quantityBeforeDecimal,

@@ -8,9 +8,9 @@ export default async function CashierStatusPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <h1 className="text-2xl font-bold">Cashier status and audit history</h1>
-      <p className="text-sm text-muted-foreground">
-        Refresh this page for current status. A cashier must be available and
-        seen within 90 seconds to receive a new order.
+      <p className="text-muted-foreground text-sm">
+        Refresh this page for current status. A cashier must be available and seen within 90 seconds
+        to receive a new order.
       </p>
       <table className="w-full text-left">
         <thead>
@@ -41,9 +41,8 @@ export default async function CashierStatusPage() {
       <h2 className="text-xl font-semibold">Orders needing staff assignment</h2>
       {unassigned.length ? (
         <p>
-          Paid orders:{" "}
-          {unassigned.map((order) => `#${order.orderNumber}`).join(", ")}. Staff
-          can handle these on the customer payment page.
+          Paid orders: {unassigned.map((order) => `#${order.orderNumber}`).join(", ")}. Staff can
+          handle these on the customer payment page.
         </p>
       ) : (
         <p>All open paid customer orders have an assigned staff member.</p>
@@ -53,7 +52,7 @@ export default async function CashierStatusPage() {
         {history.map((event) => (
           <li key={event.id} className="rounded-lg border p-3">
             {event.actor?.fullName ?? "Staff"} · {event.createdAt.toISOString()}
-            <pre className="whitespace-pre-wrap text-xs">
+            <pre className="text-xs whitespace-pre-wrap">
               {JSON.stringify({
                 previous: event.previousValue,
                 next: event.newValue,

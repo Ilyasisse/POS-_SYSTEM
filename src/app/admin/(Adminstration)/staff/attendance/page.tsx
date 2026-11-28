@@ -13,10 +13,8 @@ import { Input } from "@/components/ui/input";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { prisma } from "@/lib/prisma";
-import {
-  approveAttendanceAction,
-  saveAttendancePolicyAction,
-} from "../actions";
+import { formatStaffDateTime } from "@/lib/staff/staff-date-time";
+import { approveAttendanceAction, saveAttendancePolicyAction } from "../actions";
 
 const label = "grid gap-1 text-sm font-semibold text-foreground";
 
@@ -55,10 +53,7 @@ export default async function AttendanceAdminPage() {
       </section>
       <Card className="p-5">
         <h2 className="mb-4 font-bold">Attendance policy</h2>
-        <form
-          action={saveAttendancePolicyAction}
-          className="grid gap-4 md:grid-cols-4"
-        >
+        <form action={saveAttendancePolicyAction} className="grid gap-4 md:grid-cols-4">
           <label className={label}>
             Shift minutes
             <Input
@@ -80,13 +75,13 @@ export default async function AttendanceAdminPage() {
             />
           </label>
           <label className={label}>
-            Overtime threshold
+            Overtime starts after (minutes worked)
             <Input
               name="overtimeThresholdMinutes"
               type="number"
-              min="0"
-              max="480"
-              defaultValue={policy?.overtimeThresholdMinutes ?? 30}
+              min="1"
+              max="1440"
+              defaultValue={policy?.overtimeThresholdMinutes ?? 480}
             />
           </label>
           <Button className="self-end" type="submit">
@@ -107,8 +102,8 @@ export default async function AttendanceAdminPage() {
                 <input type="hidden" name="shiftId" value={shift.id} />
                 <div>
                   <strong>{shift.worker.fullName}</strong>
-                  <div className="text-xs text-muted-foreground">
-                    {shift.startsAt.toLocaleString()}
+                  <div className="text-muted-foreground text-xs">
+                    {formatStaffDateTime(shift.startsAt)}
                   </div>
                 </div>
                 <label className={label}>
@@ -139,9 +134,7 @@ export default async function AttendanceAdminPage() {
               </form>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No shifts await approval.
-            </p>
+            <p className="text-muted-foreground text-sm">No shifts await approval.</p>
           )}
         </div>
       </Card>
@@ -161,12 +154,8 @@ export default async function AttendanceAdminPage() {
             {records.length ? (
               records.map((record) => (
                 <tr key={record.id}>
-                  <TableCell>
-                    {record.businessDate.toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {record.worker.fullName}
-                  </TableCell>
+                  <TableCell>{record.businessDate.toLocaleDateString()}</TableCell>
+                  <TableCell className="font-semibold">{record.worker.fullName}</TableCell>
                   <TableCell>
                     <ToneBadge
                       tone={

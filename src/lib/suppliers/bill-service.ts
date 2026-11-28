@@ -15,13 +15,13 @@ import {
 
 type Tx = Prisma.TransactionClient;
 
-function positivePaymentAmount(amount: number) {
+function positivePaymentAmount(amount: number, label = "Payment amount") {
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error("Payment amount must be positive.");
+    throw new Error(`${label} must be positive.`);
   }
   const decimal = new Prisma.Decimal(amount);
   if (!decimal.equals(decimal.toDecimalPlaces(2))) {
-    throw new Error("Payment amount must have at most two decimal places.");
+    throw new Error(`${label} must have at most two decimal places.`);
   }
   return decimal;
 }
@@ -383,9 +383,20 @@ export async function splitSupplierBillIntoInstallments(
   input: readonly SupplierInstallmentScheduleInput[],
 ) {
   if (!input.length) throw new Error("Add at least one installment.");
-  if (input.some((row) => !Number.isFinite(row.amount) || row.amount <= 0)) {
-    throw new Error("Every installment amount must be positive.");
+  if (input.length > 50) {
+    throw new Error("An invoice can have at most 50 installments.");
   }
+  const installments = input.map((row, index) => {
+    const label = `Installment ${index + 1}`;
+    const amount = positivePaymentAmount(row.amount, `${label} amount`);
+    if (amount.gt("999999999999.99")) {
+      throw new Error(`${label} amount is outside the supported range.`);
+    }
+    if (!Number.isFinite(row.dueDate.getTime())) {
+      throw new Error(`${label} needs a valid due date.`);
+    }
+    return { amount, dueDate: row.dueDate };
+  });
 
   return prisma.$transaction(
     async (tx) => {
@@ -405,8 +416,8 @@ export async function splitSupplierBillIntoInstallments(
       }
 
       const remaining = bill.totalAmount.sub(bill.paidAmount);
-      const scheduled = input.reduce(
-        (sum, row) => sum.add(new Prisma.Decimal(row.amount)),
+      const scheduled = installments.reduce(
+        (sum, row) => sum.add(row.amount),
         new Prisma.Decimal(0),
       );
       if (!scheduled.equals(remaining)) {
@@ -415,17 +426,17 @@ export async function splitSupplierBillIntoInstallments(
         );
       }
 
-      const dates = input.map((row) => row.dueDate);
+      const dates = installments.map((row) => row.dueDate);
       const earliest = dates.reduce(
         (first, date) => (date < first ? date : first),
         dates[0],
       );
       await tx.supplierInvoiceInstallment.createMany({
-        data: input.map((row, index) => ({
+        data: installments.map((row, index) => ({
           invoiceId: bill.invoiceId,
           billId: bill.id,
           sequence: index + 1,
-          amount: new Prisma.Decimal(row.amount).toDecimalPlaces(2),
+          amount: row.amount,
           dueDate: row.dueDate,
         })),
       });

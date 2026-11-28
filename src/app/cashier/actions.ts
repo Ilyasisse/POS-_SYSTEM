@@ -9,14 +9,13 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
 import { transferOpenTableService } from "@/lib/cashier/table-transfer";
 import { getPostHogClient } from "@/lib/posthog-server";
+import {
+  lockTableForSettlement,
+  remainingOrderBalanceCents,
+} from "@/lib/payments/order-settlement";
 
 function isPaymentMethod(value: string): value is PaymentMethod {
-  return (
-    value === "MYCASH" ||
-    value === "GOLIS" ||
-    value === "Dahabshiil" ||
-    value === "OTHER"
-  );
+  return value === "MYCASH" || value === "GOLIS" || value === "Dahabshiil" || value === "OTHER";
 }
 
 function toDecimal(value: number) {
@@ -30,7 +29,7 @@ function refreshCashierTableViews() {
   revalidatePath("/admin/reports");
 }
 
-async function payOpenTableOrdersFromCashier(formData: FormData) {
+export async function payOpenTableOrdersFromCashier(formData: FormData) {
   const currentUser = await requirePermission(PERMISSIONS.PAYMENT_TAKE);
 
   const tableId = String(formData.get("tableId") ?? "").trim();
@@ -44,9 +43,7 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
 
   try {
     const paidOrderCount = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw<Array<{ id: string }>>(
-        Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${tableId} FOR UPDATE`,
-      );
+      await lockTableForSettlement(tx, tableId);
 
       const orders = await tx.order.findMany({
         where: {
@@ -58,6 +55,7 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
           id: true,
           total: true,
           tableCheckId: true,
+          payments: { select: { amountPaid: true } },
         },
       });
 
@@ -65,13 +63,15 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
 
       const closedAt = new Date();
       await tx.payment.createMany({
-        data: orders.map((order) => ({
-          orderId: order.id,
-          cashierId: currentUser.id,
-          cashierName: currentUser.fullName,
-          method: paymentMethod,
-          amountPaid: toDecimal(Number(order.total)),
-        })),
+        data: orders
+          .filter((order) => remainingOrderBalanceCents(order) > 0)
+          .map((order) => ({
+            orderId: order.id,
+            cashierId: currentUser.id,
+            cashierName: currentUser.fullName,
+            method: paymentMethod,
+            amountPaid: toDecimal(remainingOrderBalanceCents(order) / 100),
+          })),
       });
 
       await tx.order.updateMany({
@@ -99,18 +99,22 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
       paymentStatus = "order_not_open";
     } else {
       refreshCashierTableViews();
-      const posthog = getPostHogClient();
-      if (posthog) {
-        posthog.capture({
-          distinctId: currentUser.id,
-          event: "table_orders_paid_from_cashier",
-          properties: {
-            payment_method: paymentMethod,
-            order_count: paidOrderCount,
-            cashier_role: currentUser.role,
-          },
-        });
-        await posthog.flush();
+      try {
+        const posthog = getPostHogClient();
+        if (posthog) {
+          posthog.capture({
+            distinctId: currentUser.id,
+            event: "table_orders_paid_from_cashier",
+            properties: {
+              payment_method: paymentMethod,
+              order_count: paidOrderCount,
+              cashier_role: currentUser.role,
+            },
+          });
+          await posthog.flush();
+        }
+      } catch (error) {
+        console.error("Paid table orders analytics failed:", error);
       }
     }
   } catch (error) {

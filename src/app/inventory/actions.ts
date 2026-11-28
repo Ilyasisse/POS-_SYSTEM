@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { sendInventoryAlerts, setSupplyInventoryLevel } from "@/lib/inventory/inventory";
+import { lockInventoryTarget } from "@/lib/inventory/stock-ledger";
 import { prisma } from "@/lib/prisma";
 import {
   supplyDisplayQuantity,
@@ -13,7 +14,10 @@ import {
 import { getPostHogClient } from "@/lib/posthog-server";
 
 import { inventoryMovementDate } from "@/lib/inventory/movement-date";
-import { configureInventoryCafeteria, InventoryAccessError } from "@/lib/inventory/cafeteria-context";
+import {
+  configureInventoryCafeteria,
+  InventoryAccessError,
+} from "@/lib/inventory/cafeteria-context";
 
 type TakeSupplyResult =
   | { ok: true; email: "sent" | "failed" | "skipped" | "none" }
@@ -45,6 +49,7 @@ export async function takeSupplyInventory(formData: FormData): Promise<TakeSuppl
     result = await prisma.$transaction(
       async (tx) => {
         await configureInventoryCafeteria(tx, user.id, supplyId);
+        await lockInventoryTarget(tx, { supplyId });
         const supply = await tx.inventorySupply.findUnique({
           where: { id: supplyId },
           select: {

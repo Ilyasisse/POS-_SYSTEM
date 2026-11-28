@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 
+import { validateCatalogPrice } from "@/lib/catalog/form-validation";
+
 function readModifierInput(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
@@ -13,17 +15,18 @@ function readModifierInput(formData: FormData) {
   const pronunciationAudioUrl = String(formData.get("pronunciationAudioUrl") || "").trim();
   const productIds = [
     ...new Set(
-      formData.getAll("productIds")
+      formData
+        .getAll("productIds")
         .filter((value): value is string => typeof value === "string")
         .map((value) => value.trim())
         .filter(Boolean),
     ),
   ];
 
-  console.log(productIds)
+  console.log(productIds);
 
   if (!name) throw new Error("Modifier name is required.");
-  if (!Number.isFinite(price) || price < 0) throw new Error("Price must be a valid number.");
+  validateCatalogPrice(price);
   if (!productIds.length) throw new Error("At least one product is required.");
   if (!modifierGroupId) throw new Error("Modifier group is required.");
 
