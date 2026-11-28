@@ -157,7 +157,9 @@ export default function SupplyEntryForm({
   purchaseDate,
   action,
   catalogItems,
+  today,
 }: {
+  today: string;
   purchaseDate: string;
   action: SupplyFormAction;
   catalogItems: SupplyCatalogOption[];
@@ -167,7 +169,21 @@ export default function SupplyEntryForm({
       action={action}
       className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_0.7fr_0.8fr_0.8fr_auto] xl:items-end"
     >
-      <Input type="hidden" name="purchaseDate" value={purchaseDate} />
+      <label className="grid gap-2 md:col-span-2 xl:col-span-full">
+        <span className="text-sm font-medium">Supply date</span>
+        <Input
+          type="date"
+          name="purchaseDate"
+          defaultValue={purchaseDate}
+          max={today}
+          required
+          className="max-w-xs"
+        />
+        <span className="text-muted-foreground text-xs">
+          Choose a previous date to fill in a missing supply day. Closed days must be reopened
+          first.
+        </span>
+      </label>
       <SupplyEntryFields prefix="new-supply" catalogItems={catalogItems} />
       <Button type="submit" disabled={catalogItems.length === 0}>
         Add item
