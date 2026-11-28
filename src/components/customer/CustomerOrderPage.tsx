@@ -44,8 +44,7 @@ import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 
 const posthogConfigured = Boolean(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {
@@ -57,9 +56,7 @@ function scrollToTop() {
 }
 
 function useBackToTopVisibility(offset: number) {
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(offset),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(() => isPastScrollOffset(offset));
 
   useEffect(() => {
     function handleScroll() {
@@ -255,16 +252,15 @@ type CustomerOrderPageProps = {
   accountName?: string;
 };
 
-export default function CustomerOrderPage({
-  authState,
-  accountName = "",
-}: CustomerOrderPageProps) {
+export default function CustomerOrderPage({ authState, accountName = "" }: CustomerOrderPageProps) {
   const {
     productsAll,
     categories,
     baristas,
     loading,
     error: catalogError,
+    stale: menuStale,
+    refresh: refreshMenu,
   } = useCustomerOrderData();
   const {
     cart,
@@ -284,6 +280,7 @@ export default function CustomerOrderPage({
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const restoredRef = useRef(false);
+  const wasStaleRef = useRef(false);
   const checkoutKeyRef = useRef<string | null>(null);
   useEffect(() => {
     checkoutKeyRef.current = null;
@@ -322,18 +319,14 @@ export default function CustomerOrderPage({
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: kioskProducts.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [kioskCategories, kioskProducts],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
-    categoryChips.some(
-      (category) => category.id === orderState.selectedCategoryValue,
-    )
+    categoryChips.some((category) => category.id === orderState.selectedCategoryValue)
       ? orderState.selectedCategoryValue
       : "all";
 
@@ -353,13 +346,20 @@ export default function CustomerOrderPage({
   }, [deferredSearch, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ??
-    "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All";
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
 
   useEffect(() => {
+    if (menuStale) {
+      wasStaleRef.current = true;
+      return;
+    }
+    if (wasStaleRef.current) {
+      restoredRef.current = false;
+      wasStaleRef.current = false;
+    }
     if (loading || catalogError || restoredRef.current) return;
     restoredRef.current = true;
     const restored = restoreCustomerOrderDraft(productsAll, baristas);
@@ -385,10 +385,9 @@ export default function CustomerOrderPage({
       });
     }
     const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment)
-      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
-  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
+  }, [loading, catalogError, menuStale, productsAll, baristas, replaceCart, accountName]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -438,15 +437,13 @@ export default function CustomerOrderPage({
   }
 
   function handleProductClick(product: Product) {
+    if (menuStale) return;
     if (product.category?.station === "BARISTA" && baristas.length === 0) {
       dispatchOrderState({ type: "baristaUnavailable" });
       return;
     }
 
-    if (
-      getProductModifierGroups(product).length > 0 ||
-      product.category?.station === "BARISTA"
-    ) {
+    if (getProductModifierGroups(product).length > 0 || product.category?.station === "BARISTA") {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -472,6 +469,13 @@ export default function CustomerOrderPage({
     selectedModifiers: SelectedModifiersMap,
     assignedBaristaId: string | null,
   ) {
+    if (menuStale) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Reconnect before adding items to your order.",
+      });
+      return;
+    }
     const modifierLines = buildModifierLines(product, selectedModifiers);
     const modifiersTotal = modifierLines.reduce(
       (sum, modifier) => sum + modifier.price * modifier.qty,
@@ -501,6 +505,13 @@ export default function CustomerOrderPage({
   }
 
   async function handlePlaceOrder() {
+    if (menuStale || !navigator.onLine) {
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Reconnect and refresh the live menu before checkout.",
+      });
+      return;
+    }
     if (cart.length === 0) {
       dispatchOrderState({
         type: "checkoutBlocked",
@@ -523,8 +534,7 @@ export default function CustomerOrderPage({
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error:
-          "Enter 90 followed by seven digits for the phone sending payment.",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
@@ -586,9 +596,7 @@ export default function CustomerOrderPage({
       if (!response.ok || !data.checkout?.id) {
         throw new Error(data.error || "Could not start mobile money checkout.");
       }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",
@@ -618,7 +626,7 @@ export default function CustomerOrderPage({
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -631,10 +639,24 @@ export default function CustomerOrderPage({
           onReset={resetKiosk}
           onOpenCart={() => dispatchOrderState({ type: "cartOpened" })}
         />
+        {menuStale ? (
+          <div
+            role="status"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500 bg-amber-100 p-4 text-amber-950"
+          >
+            <p className="text-sm font-semibold">
+              Saved menu for reference only. Availability and prices may have changed. Ordering is
+              paused until the live menu reconnects.
+            </p>
+            <Button type="button" variant="outline" onClick={refreshMenu}>
+              Retry live menu
+            </Button>
+          </div>
+        ) : null}
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -644,9 +666,7 @@ export default function CustomerOrderPage({
           searchTerm={orderState.searchTerm}
           categoryChips={categoryChips}
           selectedCategory={selectedCategory}
-          onSearchChange={(searchTerm) =>
-            dispatchOrderState({ type: "searchChanged", searchTerm })
-          }
+          onSearchChange={(searchTerm) => dispatchOrderState({ type: "searchChanged", searchTerm })}
           onCategorySelect={(category) =>
             startFiltering(() => {
               dispatchOrderState({ type: "categorySelected", category });
@@ -665,9 +685,7 @@ export default function CustomerOrderPage({
       </div>
 
       <BackToTopButton
-        show={
-          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
-        }
+        show={showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen}
         onClick={scrollToTop}
       />
 
@@ -706,23 +724,16 @@ export default function CustomerOrderPage({
           <DialogHeader>
             <DialogTitle>Sign in to place your order</DialogTitle>
             <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
+              Continue with Google. We will bring you back to this cart so you can review it before
+              placing your order.
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
+            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
               {signInError}
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
+          <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
             Continue with Google
           </Button>
           <Button
