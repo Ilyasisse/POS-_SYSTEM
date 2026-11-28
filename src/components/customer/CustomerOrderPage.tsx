@@ -42,10 +42,16 @@ import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+import {
+  MAX_MENU_FAVORITES,
+  MENU_FAVORITES_KEY,
+  parseMenuFavorites,
+  toggleMenuFavorite,
+} from "@/lib/customer/menu-favorites";
+import { useToast } from "@/components/ui/toast";
 
 const posthogConfigured = Boolean(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {
@@ -57,9 +63,7 @@ function scrollToTop() {
 }
 
 function useBackToTopVisibility(offset: number) {
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(offset),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(() => isPastScrollOffset(offset));
 
   useEffect(() => {
     function handleScroll() {
@@ -255,10 +259,7 @@ type CustomerOrderPageProps = {
   accountName?: string;
 };
 
-export default function CustomerOrderPage({
-  authState,
-  accountName = "",
-}: CustomerOrderPageProps) {
+export default function CustomerOrderPage({ authState, accountName = "" }: CustomerOrderPageProps) {
   const {
     productsAll,
     categories,
@@ -283,6 +284,41 @@ export default function CustomerOrderPage({
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [favoritesReady, setFavoritesReady] = useState(false);
+  const { toast } = useToast();
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        setFavoriteIds(parseMenuFavorites(window.localStorage.getItem(MENU_FAVORITES_KEY)));
+      } catch {
+        // Browser storage can be unavailable; favorites still work for this visit.
+      }
+      setFavoritesReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  function toggleFavorite(productId: string) {
+    const next = toggleMenuFavorite(favoriteIds, productId);
+    if (next.length === favoriteIds.length && !favoriteIds.includes(productId)) {
+      toast({
+        tone: "warning",
+        description: `You can save up to ${MAX_MENU_FAVORITES} items. Remove one before saving another.`,
+      });
+      return;
+    }
+    setFavoriteIds(next);
+    try {
+      window.localStorage.setItem(MENU_FAVORITES_KEY, JSON.stringify(next));
+    } catch {
+      toast({
+        tone: "warning",
+        description:
+          "Favorites could not be saved on this device. Enable site storage to keep them between visits.",
+      });
+    }
+  }
   const restoredRef = useRef(false);
   const checkoutKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -311,6 +347,7 @@ export default function CustomerOrderPage({
       })),
     [productsAll],
   );
+  const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
 
   const categoryChips = useMemo(
     () => [
@@ -319,21 +356,22 @@ export default function CustomerOrderPage({
         name: "All",
         count: kioskProducts.length,
       },
+      {
+        id: "favorites",
+        name: "Saved on this device",
+        count: kioskProducts.filter((product) => favoriteSet.has(product.id)).length,
+      },
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: kioskProducts.filter((product) => product.category?.id === category.id).length,
       })),
     ],
-    [kioskCategories, kioskProducts],
+    [favoriteSet, kioskCategories, kioskProducts],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
-    categoryChips.some(
-      (category) => category.id === orderState.selectedCategoryValue,
-    )
+    categoryChips.some((category) => category.id === orderState.selectedCategoryValue)
       ? orderState.selectedCategoryValue
       : "all";
 
@@ -342,7 +380,10 @@ export default function CustomerOrderPage({
 
     return kioskProducts.filter((product) => {
       const matchesCategory =
-        selectedCategory === "all" || product.category?.id === selectedCategory;
+        selectedCategory === "all" ||
+        (selectedCategory === "favorites"
+          ? favoriteSet.has(product.id)
+          : product.category?.id === selectedCategory);
       const matchesSearch =
         !term ||
         product.name.toLowerCase().includes(term) ||
@@ -350,11 +391,10 @@ export default function CustomerOrderPage({
 
       return matchesCategory && matchesSearch;
     });
-  }, [deferredSearch, kioskProducts, selectedCategory]);
+  }, [deferredSearch, favoriteSet, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ??
-    "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All";
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
@@ -385,8 +425,7 @@ export default function CustomerOrderPage({
       });
     }
     const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment)
-      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
   }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
 
@@ -443,10 +482,7 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (
-      getProductModifierGroups(product).length > 0 ||
-      product.category?.station === "BARISTA"
-    ) {
+    if (getProductModifierGroups(product).length > 0 || product.category?.station === "BARISTA") {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -523,8 +559,7 @@ export default function CustomerOrderPage({
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error:
-          "Enter 90 followed by seven digits for the phone sending payment.",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
@@ -586,9 +621,7 @@ export default function CustomerOrderPage({
       if (!response.ok || !data.checkout?.id) {
         throw new Error(data.error || "Could not start mobile money checkout.");
       }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",
@@ -618,7 +651,7 @@ export default function CustomerOrderPage({
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -634,7 +667,7 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -644,9 +677,7 @@ export default function CustomerOrderPage({
           searchTerm={orderState.searchTerm}
           categoryChips={categoryChips}
           selectedCategory={selectedCategory}
-          onSearchChange={(searchTerm) =>
-            dispatchOrderState({ type: "searchChanged", searchTerm })
-          }
+          onSearchChange={(searchTerm) => dispatchOrderState({ type: "searchChanged", searchTerm })}
           onCategorySelect={(category) =>
             startFiltering(() => {
               dispatchOrderState({ type: "categorySelected", category });
@@ -661,13 +692,14 @@ export default function CustomerOrderPage({
           selectedCategoryName={selectedCategoryName}
           isFiltering={isFiltering}
           onProductClick={handleProductClick}
+          favoriteIds={favoriteSet}
+          favoritesReady={favoritesReady}
+          onToggleFavorite={toggleFavorite}
         />
       </div>
 
       <BackToTopButton
-        show={
-          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
-        }
+        show={showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen}
         onClick={scrollToTop}
       />
 
@@ -706,23 +738,16 @@ export default function CustomerOrderPage({
           <DialogHeader>
             <DialogTitle>Sign in to place your order</DialogTitle>
             <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
+              Continue with Google. We will bring you back to this cart so you can review it before
+              placing your order.
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
+            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
               {signInError}
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
+          <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
             Continue with Google
           </Button>
           <Button

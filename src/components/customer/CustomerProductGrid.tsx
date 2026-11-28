@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { Button } from "@/components/ui/button";
+import { Heart } from "lucide-react";
 
 import ProductImage from "@/components/products/ProductImage";
 import { Card } from "@/components/ui/card";
@@ -15,16 +16,25 @@ type CustomerProductGridProps = {
   selectedCategoryName: string;
   isFiltering?: boolean;
   onProductClick: (product: Product) => void;
+  favoriteIds?: ReadonlySet<string>;
+  favoritesReady?: boolean;
+  onToggleFavorite?: (productId: string) => void;
 };
 
 function ProductCard({
   product,
   unavailable,
   onProductClick,
+  isFavorite,
+  favoritesReady,
+  onToggleFavorite,
 }: {
   product: Product;
   unavailable: boolean;
   onProductClick: (product: Product) => void;
+  isFavorite: boolean;
+  favoritesReady?: boolean;
+  onToggleFavorite?: (productId: string) => void;
 }) {
   const modifierGroups = getProductModifierGroups(product);
   const ctaLabel =
@@ -37,11 +47,11 @@ function ProductCard({
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[linear-gradient(135deg,#fbf7ef_0%,#ece0d1_48%,#d9b980_100%)]">
         <ProductImage
-          src={getProductImage(product)}
-          alt={product.name}
+              src={getProductImage(product)}
+              alt={product.name}
           sizes="(min-width: 1280px) 400px, (min-width: 640px) 50vw, 100vw"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
         <div className="absolute top-3 right-3 flex max-w-[70%] flex-wrap justify-end gap-2 sm:top-4 sm:right-4">
           <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-white uppercase">
             {product.category?.name ?? "Menu"}
@@ -89,6 +99,25 @@ function ProductCard({
           ) : null}
         </div>
 
+        {onToggleFavorite ? (
+          <Button
+            type="button"
+            variant="outline"
+            aria-pressed={isFavorite}
+            aria-label={`${isFavorite ? "Remove" : "Save"} ${product.name} ${isFavorite ? "from" : "to"} favorites on this device`}
+            disabled={!favoritesReady}
+            onClick={() => onToggleFavorite(product.id)}
+            className="w-full rounded-full border-amber-300 text-sm font-semibold"
+          >
+            <Heart
+              className={
+                isFavorite ? "fill-rose-500 text-rose-500" : "text-rose-500"
+              }
+            />
+            {isFavorite ? "Saved on this device" : "Save for later"}
+          </Button>
+        ) : null}
+
         <Button
           type="button"
           onClick={() => onProductClick(product)}
@@ -125,6 +154,9 @@ export default function CustomerProductGrid({
   selectedCategoryName,
   isFiltering = false,
   onProductClick,
+  favoriteIds,
+  favoritesReady,
+  onToggleFavorite,
 }: CustomerProductGridProps) {
   if (loading || isFiltering) {
     return <ProductGridSkeleton />;
@@ -152,6 +184,9 @@ export default function CustomerProductGrid({
             product={product}
             unavailable={unavailable}
             onProductClick={onProductClick}
+            isFavorite={favoriteIds?.has(product.id) ?? false}
+            favoritesReady={favoritesReady}
+            onToggleFavorite={onToggleFavorite}
           />
         );
       })}
