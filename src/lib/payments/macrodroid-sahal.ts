@@ -74,7 +74,7 @@ function nairobiDate(dateValue: string, timeValue: string) {
     : null;
 }
 
-export function normalizeSmsMessage(rawMessage: string) {
+function normalizeSmsMessage(rawMessage: string) {
   return rawMessage.replace(/\s+/g, " ").trim();
 }
 

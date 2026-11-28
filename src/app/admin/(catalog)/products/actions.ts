@@ -6,8 +6,20 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { availabilityRestorationTime } from "@/lib/products/availability";
+import {
+  PRODUCT_DESCRIPTION_MAX_LENGTH,
+  parseProductMenuContent,
+  productImageUrlError,
+} from "@/lib/products/product-content";
 
 const ALLOWED_DURATIONS = new Set([60, 180, 720, 1440]);
+
+function revalidateProductMenus() {
+  revalidatePath("/admin/products");
+  revalidatePath("/menu");
+  revalidatePath("/api/GET/Product");
+  revalidatePath("/api/GET/Product/all");
+}
 
 export async function setProductAvailability(formData: FormData) {
   const actor = await requirePermission(PERMISSIONS.CATALOG_MANAGE);
@@ -78,10 +90,7 @@ export async function setProductAvailability(formData: FormData) {
     });
   });
 
-  revalidatePath("/admin/products");
-  revalidatePath("/menu");
-  revalidatePath("/api/GET/Product");
-  revalidatePath("/api/GET/Product/all");
+  revalidateProductMenus();
 }
 
 export async function createProduct(formData: FormData) {
@@ -107,6 +116,10 @@ export async function createProduct(formData: FormData) {
     throw new Error("Category is required.");
   }
 
+  const menuContent = parseProductMenuContent(
+    formData.get("description")?.toString() ?? null,
+    formData.get("imageUrl")?.toString() ?? null,
+  );
   await prisma.product.create({
     data: {
       name,
@@ -114,13 +127,14 @@ export async function createProduct(formData: FormData) {
       isOpenPrice,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
+      ...menuContent,
       category: {
         connect: { id: categoryId },
       },
     },
   });
 
-  revalidatePath("/admin/products");
+  revalidateProductMenus();
   redirect("/admin/products");
 }
 
@@ -152,6 +166,25 @@ export async function updateProduct(formData: FormData) {
     throw new Error("Category is required.");
   }
 
+  let description = formData.get("description")?.toString() ?? null;
+  let imageUrl = formData.get("imageUrl")?.toString() ?? null;
+  const invalidDescription =
+    (description?.trim().length ?? 0) > PRODUCT_DESCRIPTION_MAX_LENGTH;
+  const invalidImageUrl = imageUrl !== null && productImageUrlError(imageUrl);
+
+  // Keep existing content that predates validation when staff leave it as-is.
+  if (invalidDescription || invalidImageUrl) {
+    const current = await prisma.product.findUnique({
+      where: { id },
+      select: { description: true, imageUrl: true },
+    });
+    if (invalidDescription && description === current?.description) {
+      description = null;
+    }
+    if (invalidImageUrl && imageUrl === current?.imageUrl) imageUrl = null;
+  }
+
+  const menuContent = parseProductMenuContent(description, imageUrl);
   await prisma.product.update({
     where: { id },
     data: {
@@ -160,14 +193,14 @@ export async function updateProduct(formData: FormData) {
       isOpenPrice,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
+      ...menuContent,
       category: {
         connect: { id: categoryId },
       },
     },
   });
 
-  revalidatePath("/admin/products");
-  revalidatePath(`/admin/products`);
+  revalidateProductMenus();
   redirect(`/admin/products`);
 }
 

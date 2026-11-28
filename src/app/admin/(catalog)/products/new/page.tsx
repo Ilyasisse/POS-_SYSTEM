@@ -5,6 +5,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createProduct } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
+import { ProductMenuFields } from "../ProductMenuFields";
 
 export default async function NewProductPage() {
   const categories = await prisma.category.findMany({
@@ -15,33 +16,30 @@ export default async function NewProductPage() {
 
   return (
     <div
-      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
+      className="bg-background text-foreground min-h-screen px-4 py-6 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
+        <header className="border-border bg-card flex items-center justify-between rounded-2xl border p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Create Product</h1>
           </div>
         </header>
 
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
+        <section className="border-border bg-card rounded-2xl border p-6 shadow-lg">
           <form action={createProduct} className="space-y-4">
             <div>
-              <label
-                htmlFor="new-product-name"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="new-product-name" className="mb-1 block text-sm font-medium">
                 Name
               </label>
               <Input
                 id="new-product-name"
                 name="name"
                 type="text"
-                className="w-full rounded-lg border border-border px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 placeholder="Product name"
                 required
               />
@@ -62,17 +60,15 @@ export default async function NewProductPage() {
                   Cashier enters the price
                 </strong>
                 <span className="mt-1 block text-xs text-amber-800 dark:text-amber-200">
-                  Use the listed price as a reference. Customer self-ordering
-                  will hide this product.
+                  Use the listed price as a reference. Customer self-ordering will hide this
+                  product.
                 </span>
               </span>
             </label>
+            <ProductMenuFields />
 
             <div>
-              <label
-                htmlFor="new-product-price"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="new-product-price" className="mb-1 block text-sm font-medium">
                 Price
               </label>
               <Input
@@ -80,23 +76,20 @@ export default async function NewProductPage() {
                 name="price"
                 type="number"
                 step="0.01"
-                className="w-full rounded-lg border border-border px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 placeholder="0.00"
                 required
               />
             </div>
 
             <div>
-              <label
-                htmlFor="new-product-category"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="new-product-category" className="mb-1 block text-sm font-medium">
                 Category
               </label>
               <NativeSelect
                 id="new-product-category"
                 name="categoryId"
-                className="w-full rounded-lg border border-border px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
                 defaultValue=""
               >
@@ -111,10 +104,7 @@ export default async function NewProductPage() {
               </NativeSelect>
             </div>
 
-            <label
-              htmlFor="new-product-track-stock"
-              className="flex items-center gap-2 text-md"
-            >
+            <label htmlFor="new-product-track-stock" className="text-md flex items-center gap-2">
               <Input
                 id="new-product-track-stock"
                 name="trackStock"
@@ -133,7 +123,7 @@ export default async function NewProductPage() {
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2"
               >
                 Create Product
               </Button>
@@ -141,7 +131,7 @@ export default async function NewProductPage() {
               <Link
                 prefetch={false}
                 href="/admin/products"
-                className="rounded-lg border border-border px-4 py-2 hover:bg-card"
+                className="border-border hover:bg-card rounded-lg border px-4 py-2"
               >
                 Cancel
               </Link>

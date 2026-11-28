@@ -5,8 +5,15 @@ import "tsx";
 
 const state = {
   product: {
-    id: "item", name: "Item", price: 5, isOpenPrice: false,
-    cost: null, recipeVersions: [], category: { station: null },
+    id: "item",
+    name: "Item",
+    price: 5,
+    isOpenPrice: false,
+    cost: null,
+    recipeVersions: [],
+    modifierLinks: [],
+    modifiers: [],
+    category: { station: null },
   },
   checkout: null,
   receipt: null,
@@ -16,7 +23,8 @@ const state = {
 };
 globalThis.__openPriceCheckoutRegression = state;
 const sources = {
-  "mock:open-price-auth": 'exports.authorizeApi = async () => ({ok:true,user:{id:"customer-1",role:"CUSTOMER",fullName:"Customer"}});',
+  "mock:open-price-auth":
+    'exports.authorizeApi = async () => ({ok:true,user:{id:"customer-1",role:"CUSTOMER",fullName:"Customer"}});',
   "mock:open-price-prisma": `const state = globalThis.__openPriceCheckoutRegression;
 const tx = {
  $queryRaw: async () => [],
@@ -33,10 +41,11 @@ const tx = {
  payment: { create: async ({data}) => { state.payments.push(data); return {id:"payment-1",...data}; } },
 };
 exports.prisma = { ...tx, $transaction: async (operation) => operation(tx) };`,
-  "mock:open-price-kitchen": 'exports.createKitchenTicketState = async () => {};',
-  "mock:open-price-inventory": 'exports.deductProductInventoryForSale = async () => []; exports.sendInventoryAlerts = async () => {};',
-  "mock:open-price-dispatch": 'exports.dispatchCustomerOrder = async () => {};',
-  "mock:open-price-analytics": 'exports.getPostHogClient = () => null;',
+  "mock:open-price-kitchen": "exports.createKitchenTicketState = async () => {};",
+  "mock:open-price-inventory":
+    "exports.deductProductInventoryForSale = async () => []; exports.sendInventoryAlerts = async () => {};",
+  "mock:open-price-dispatch": "exports.dispatchCustomerOrder = async () => {};",
+  "mock:open-price-analytics": "exports.getPostHogClient = () => null;",
 };
 const modules = {
   "@/lib/auth/api-authorization": "mock:open-price-auth",
@@ -64,24 +73,30 @@ after(() => {
   hooks.deregister();
   delete globalThis.__openPriceCheckoutRegression;
 });
-const { POST } = await import(new URL("../../src/app/api/customer/checkouts/route.ts", import.meta.url).href);
-const { finalizeCustomerCheckout } = await import(new URL("../../src/lib/payments/customer-checkout.ts", import.meta.url).href);
+const { POST } = await import(
+  new URL("../../src/app/api/customer/checkouts/route.ts", import.meta.url).href
+);
+const { finalizeCustomerCheckout } = await import(
+  new URL("../../src/lib/payments/customer-checkout.ts", import.meta.url).href
+);
 
 async function createCheckout() {
   state.checkout = null;
   state.orders.length = 0;
   state.items.length = 0;
   state.payments.length = 0;
-  return POST(new Request("http://localhost/api/customer/checkouts", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      paymentPhone: "901234567",
-      idempotencyKey: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-      orderType: "TAKEOUT",
-      items: [{ productId: "item", qty: 2, unitPriceOverride: 0.01 }],
+  return POST(
+    new Request("http://localhost/api/customer/checkouts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        paymentPhone: "901234567",
+        idempotencyKey: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        orderType: "TAKEOUT",
+        items: [{ productId: "item", qty: 2, unitPriceOverride: 0.01 }],
+      }),
     }),
-  }));
+  );
 }
 
 test("verified customer checkout rejects a cashier-priced product", async () => {
@@ -108,9 +123,13 @@ test("verified finalization preserves the server price agreed before a catalog c
   state.checkout.status = "PAYMENT_RECEIVED";
   state.checkout.receiptId = "receipt-1";
   state.receipt = {
-    id: "receipt-1", status: "ASSIGNED", amount: 10,
-    providerReference: "reference-1", assignedByUserId: null,
-    assignedByName: "Automatic", transactionAt: null,
+    id: "receipt-1",
+    status: "ASSIGNED",
+    amount: 10,
+    providerReference: "reference-1",
+    assignedByUserId: null,
+    assignedByName: "Automatic",
+    transactionAt: null,
   };
   state.product.price = 50;
   state.product.isOpenPrice = true;

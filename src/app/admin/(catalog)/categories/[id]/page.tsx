@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteCategory, updateCategory } from "../actions";
+import { DeleteCatalogItemSection } from "../../DeleteCatalogItemSection";
 import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
 
 type CategoryDetailsPageProps = {
@@ -142,26 +143,12 @@ export default async function CategoryDetailsPage({
           </form>
         </section>
 
-        <section className="rounded-2xl border border-red-200 dark:border-red-800 bg-card p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600 dark:text-red-300">
-            Delete Category
-          </h2>
-
-          <p className="mb-4 text-sm text-muted-foreground">
-            This will permanently delete{" "}
-            <span className="font-semibold">{category.name}</span>.
-          </p>
-
-          <form action={deleteCategory}>
-            <Input type="hidden" name="id" value={category.id} />
-            <Button
-              type="submit"
-              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Delete Category
-            </Button>
-          </form>
-        </section>
+        <DeleteCatalogItemSection
+          id={category.id}
+          name={category.name}
+          label="Delete Category"
+          action={deleteCategory}
+        />
       </div>
     </div>
   );
