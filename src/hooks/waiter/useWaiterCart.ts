@@ -103,10 +103,7 @@ export function useWaiterCart() {
               {
                 ...item,
                 quantity: nextQuantity,
-                lineTotal: calculateLineTotal(
-                  Number(item.finalPrice ?? item.price),
-                  nextQuantity,
-                ),
+                lineTotal: calculateLineTotal(Number(item.finalPrice ?? item.price), nextQuantity),
               },
             ]
           : [];
@@ -118,8 +115,8 @@ export function useWaiterCart() {
     setCart([]);
   };
 
-  const replaceCart = (nextCart: CartLine[]) => {
-    setCart(nextCart);
+  const replaceCart = (lines: CartLine[]) => {
+    setCart(lines);
   };
 
   const removeFromCart = (cartKey: string) => {
@@ -128,8 +125,7 @@ export function useWaiterCart() {
 
   const calculateCartTotal = () => {
     return cart.reduce(
-      (total, item) =>
-        total + Number(item.finalPrice ?? item.price) * item.quantity,
+      (total, item) => total + Number(item.finalPrice ?? item.price) * item.quantity,
       0,
     );
   };

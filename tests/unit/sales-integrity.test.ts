@@ -14,7 +14,12 @@ test("requires financial approval for refunds", () => {
     requiredAdjustmentPermission("REFUND"),
     PERMISSIONS.ADJUSTMENT_FINANCIAL_APPROVE,
   );
-  for (const type of ["DISCOUNT", "VOID", "COMPLIMENTARY", "STAFF_MEAL"] as const) {
+  for (const type of [
+    "DISCOUNT",
+    "VOID",
+    "COMPLIMENTARY",
+    "STAFF_MEAL",
+  ] as const) {
     assert.equal(
       requiredAdjustmentPermission(type),
       PERMISSIONS.ADJUSTMENT_OPERATIONAL_APPROVE,

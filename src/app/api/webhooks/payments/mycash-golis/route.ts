@@ -70,7 +70,7 @@ async function findTableCheckForWebhook(tableCheckId: string) {
 function buildPaymentWebhookStore(): PaymentWebhookStore {
   return {
     async getCashier(cashierId: string) {
-      return prisma.user.findUnique({
+      return prisma.staff.findUnique({
         where: { id: cashierId },
         select: {
           id: true,

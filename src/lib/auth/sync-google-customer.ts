@@ -34,40 +34,19 @@ function getCustomerFullName(user: SupabaseUser) {
   return fullName || user.email || "Google Customer";
 }
 
-/**
- * Ensures a Google OAuth user exists as an active customer in Prisma.
- *
- * Reuses an existing user when the Supabase id or email already exists. When no
- * matching user is found, creates a new active `CUSTOMER` record with no staff
- * station.
- *
- * @param user - Supabase user returned from Google OAuth.
- * @returns The existing or newly created Prisma user.
- * @throws When the Google account does not provide an email address.
- */
+/** Create only a customer profile for the verified Auth ID; never grant a staff role. */
 export async function syncGoogleCustomer(user: SupabaseUser) {
-  if (!user.email) {
+  if (!user.email)
     throw new Error("Google account is missing an email address.");
-  }
 
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      OR: [{ id: user.id }, { email: user.email }],
-    },
-  });
-
-  if (existingUser) {
-    return existingUser;
-  }
-
-  return prisma.user.create({
-    data: {
+  // Empty update preserves administrative deactivation and existing profile data.
+  return prisma.customer.upsert({
+    where: { id: user.id },
+    create: {
       id: user.id,
       email: user.email,
       fullName: getCustomerFullName(user),
-      role: "CUSTOMER",
-      isActive: true,
-      station: null,
     },
+    update: {},
   });
 }
