@@ -48,8 +48,14 @@ test("uses calendar-month business-date boundaries", () => {
 
 test("provides yesterday and same-weekday comparisons", () => {
   const ranges = getComparisonRanges(new Date("2026-07-18T12:00:00.000Z"));
-  assert.equal(ranges.yesterday.start.toISOString(), "2026-07-17T04:00:00.000Z");
-  assert.equal(ranges.sameWeekdayLastWeek.start.toISOString(), "2026-07-11T04:00:00.000Z");
+  assert.equal(
+    ranges.yesterday.start.toISOString(),
+    "2026-07-17T04:00:00.000Z",
+  );
+  assert.equal(
+    ranges.sameWeekdayLastWeek.start.toISOString(),
+    "2026-07-11T04:00:00.000Z",
+  );
 });
 
 test("calculates financial values with Decimal precision", () => {
@@ -58,7 +64,15 @@ test("calculates financial values with Decimal precision", () => {
   assert.equal(grossProfit(net, "3.25").toFixed(2), "5.75");
   assert.equal(averageOrderValue(net, 3)?.toFixed(2), "3.00");
   assert.equal(settlementVariance("11", "10.25").toFixed(2), "0.75");
-  assert.equal(netProfit({ netSales: "100", cogs: "30", labour: "20", operatingExpenses: "10" }).toFixed(2), "40.00");
+  assert.equal(
+    netProfit({
+      netSales: "100",
+      cogs: "30",
+      labour: "20",
+      operatingExpenses: "10",
+    }).toFixed(2),
+    "40.00",
+  );
 });
 
 test("protects ratios and break-even calculations from zero", () => {
@@ -70,12 +84,25 @@ test("protects ratios and break-even calculations from zero", () => {
 });
 
 test("calculates expected stock without floating-point drift", () => {
-  const value = expectedStock({ opening: "10.100", received: "2.200", usage: "1.050", waste: "0.250", adjustments: "0.100" });
+  const value = expectedStock({
+    opening: "10.100",
+    received: "2.200",
+    usage: "1.050",
+    waste: "0.250",
+    adjustments: "0.100",
+  });
   assert.equal(value.toFixed(3), "11.100");
 });
 
 test("validates pagination and custom report ranges", () => {
   assert.equal(reportQuerySchema.parse({}).pageSize, 25);
-  assert.equal(reportQuerySchema.safeParse({ preset: "custom", from: "2026-07-19", to: "2026-07-18" }).success, false);
+  assert.equal(
+    reportQuerySchema.safeParse({
+      preset: "custom",
+      from: "2026-07-19",
+      to: "2026-07-18",
+    }).success,
+    false,
+  );
   assert.equal(reportQuerySchema.safeParse({ pageSize: 101 }).success, false);
 });

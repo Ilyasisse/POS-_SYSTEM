@@ -20,8 +20,8 @@ PostHog AI
 
 ```javascript
 posthog.identify(
-  'distinct_id',  // Replace 'distinct_id' with your user's unique identifier
-  { email: 'max@hedgehogmail.com', name: 'Max Hedgehog' } // optional: set additional person properties
+  "distinct_id", // Replace 'distinct_id' with your user's unique identifier
+  { email: "max@hedgehogmail.com", name: "Max Hedgehog" }, // optional: set additional person properties
 );
 ```
 
@@ -48,10 +48,11 @@ PostHogSDK.shared.identify("distinct_id", // Replace "distinct_id" with your use
 ### React Native
 
 ```jsx
-posthog.identify('distinct_id', { // Replace "distinct_id" with your user's unique identifier
-    email: 'max@hedgehogmail.com', // optional: set additional person properties
-    name: 'Max Hedgehog'
-})
+posthog.identify("distinct_id", {
+  // Replace "distinct_id" with your user's unique identifier
+  email: "max@hedgehogmail.com", // optional: set additional person properties
+  name: "Max Hedgehog",
+});
 ```
 
 ### Dart
@@ -109,18 +110,18 @@ Web
 PostHog AI
 
 ```javascript
-posthog.init('<ph_project_token>', {
-    api_host: 'https://us.i.posthog.com',
-    defaults: '2026-05-30',
-    loaded: (posthog) => {
-        if (currentUser?.id) {
-            posthog.identify(currentUser.id, {
-                email: currentUser.email,
-                name: currentUser.name,
-            })
-        }
-    },
-})
+posthog.init("<ph_project_token>", {
+  api_host: "https://us.i.posthog.com",
+  defaults: "2026-05-30",
+  loaded: (posthog) => {
+    if (currentUser?.id) {
+      posthog.identify(currentUser.id, {
+        email: currentUser.email,
+        name: currentUser.name,
+      });
+    }
+  },
+});
 ```
 
 In this example, `currentUser` represents user data already available from your authentication system. If your app loads the user asynchronously, call `posthog.identify()` as soon as that data becomes available instead.
@@ -129,8 +130,8 @@ In this example, `currentUser` represents user data already available from your 
 
 If two users have the same distinct ID, their data is merged and they are considered one user in PostHog. Two common ways this can happen are:
 
--   Your logic for generating IDs does not generate sufficiently strong IDs and you can end up with a clash where 2 users have the same ID.
--   There's a bug, typo, or mistake in your code leading to most or all users being identified with generic IDs like `null`, `true`, or `distinctId`.
+- Your logic for generating IDs does not generate sufficiently strong IDs and you can end up with a clash where 2 users have the same ID.
+- There's a bug, typo, or mistake in your code leading to most or all users being identified with generic IDs like `null`, `true`, or `distinctId`.
 
 PostHog also has built-in protections to stop the most common distinct ID mistakes.
 
@@ -149,7 +150,7 @@ PostHog AI
 ### Web
 
 ```javascript
-posthog.reset()
+posthog.reset();
 ```
 
 ### iOS
@@ -167,7 +168,7 @@ PostHog.reset()
 ### React Native
 
 ```jsx
-posthog.reset()
+posthog.reset();
 ```
 
 ### Dart
@@ -176,14 +177,14 @@ posthog.reset()
 await Posthog().reset();
 ```
 
-If you *also* want to reset the `device_id` so that the device will be considered a new device in future events, you can pass `true` as an argument:
+If you _also_ want to reset the `device_id` so that the device will be considered a new device in future events, you can pass `true` as an argument:
 
 Web
 
 PostHog AI
 
 ```javascript
-posthog.reset(true)
+posthog.reset(true);
 ```
 
 ### 4\. Person profiles and properties
@@ -208,9 +209,9 @@ We recommend you call `identify` [as soon as you're able](#1-call-identify-as-so
 
 This doesn't work if one or both platforms are unauthenticated. Some examples of such cases are:
 
--   Onboarding and signup flows before authentication.
--   Unauthenticated web pages redirecting to authenticated mobile apps.
--   Authenticated web apps prompting an app download.
+- Onboarding and signup flows before authentication.
+- Unauthenticated web pages redirecting to authenticated mobile apps.
+- Authenticated web apps prompting an app download.
 
 In these cases, you can use a [deep link](https://developer.android.com/training/app-links/deep-linking) on Android and [universal links](https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app) on iOS to identify users.
 
@@ -218,8 +219,8 @@ In these cases, you can use a [deep link](https://developer.android.com/training
 2.  Add the distinct ID to the deep link as query parameters, along with other properties like UTM parameters.
 3.  When the user is redirected to the app, parse the deep link and handle the following cases:
 
--   The mobile app is already authenticated. In this case, call [`posthog.alias()`](/docs/libraries/js/usage.md#alias) with the distinct ID from the web. This associates the two distinct IDs as a single person.
--   The mobile app is unauthenticated. In this case, call [`posthog.identify()`](/docs/libraries/js/usage.md#identifying-users) with the distinct ID from the web so pre-login mobile events stay connected to the web session. When the user later logs in on mobile, call `identify()` again with your canonical user ID.
+- The mobile app is already authenticated. In this case, call [`posthog.alias()`](/docs/libraries/js/usage.md#alias) with the distinct ID from the web. This associates the two distinct IDs as a single person.
+- The mobile app is unauthenticated. In this case, call [`posthog.identify()`](/docs/libraries/js/usage.md#identifying-users) with the distinct ID from the web so pre-login mobile events stay connected to the web session. When the user later logs in on mobile, call `identify()` again with your canonical user ID.
 
 As long as you associate the distinct IDs with `posthog.identify()` or `posthog.alias()`, you can track events generated across platforms.
 
@@ -294,9 +295,9 @@ object DeepLinkIdentityManager {
 
 ## Further reading
 
--   [Identifying users docs](/docs/product-analytics/identify.md)
--   [How person processing works](/docs/how-posthog-works/ingestion-pipeline.md#2-person-processing)
--   [An introductory guide to identifying users in PostHog](/tutorials/identifying-users-guide.md)
+- [Identifying users docs](/docs/product-analytics/identify.md)
+- [How person processing works](/docs/how-posthog-works/ingestion-pipeline.md#2-person-processing)
+- [An introductory guide to identifying users in PostHog](/tutorials/identifying-users-guide.md)
 
 ### Still have questions?
 

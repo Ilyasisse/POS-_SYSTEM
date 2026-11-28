@@ -177,7 +177,9 @@ function ToastCard({
   return (
     <section
       role={tone === "error" || tone === "warning" ? "alert" : "status"}
-      aria-live={tone === "error" || tone === "warning" ? "assertive" : "polite"}
+      aria-live={
+        tone === "error" || tone === "warning" ? "assertive" : "polite"
+      }
       aria-atomic="true"
       className={cn(
         "pointer-events-auto w-full overflow-hidden rounded-2xl border p-4 shadow-lg shadow-black/10",
@@ -191,15 +193,14 @@ function ToastCard({
           className={cn("mt-0.5 size-5 shrink-0", config.iconClassName)}
         />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">
-            {item.title ?? config.fallbackTitle}
-          </p>
+          <p className="font-semibold">{item.title ?? config.fallbackTitle}</p>
           <p className="mt-1 text-sm leading-5 opacity-85">
             {item.description}
           </p>
           {item.action ? (
             item.action.href ? (
               <Link
+                prefetch={false}
                 href={item.action.href}
                 className="mt-3 inline-flex rounded-lg border border-current/20 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-black/5 dark:hover:bg-white/10"
               >

@@ -4,11 +4,7 @@ import {
   supplierPurchaseDateKeyToDatabaseDate,
 } from "@/lib/suppliers/purchase-orders";
 
-export type SupplierBillDueState =
-  | "overdue"
-  | "today"
-  | "tomorrow"
-  | "future";
+export type SupplierBillDueState = "overdue" | "today" | "tomorrow" | "future";
 
 export type SupplierBillDueInput = {
   id: string;
@@ -111,26 +107,55 @@ export function summarizeSupplierBillsDue(
   for (const bill of bills) {
     const obligations = bill.installments?.length
       ? bill.installments
-      : [{ dueDate: bill.dueDate, amount: bill.totalAmount, paidAmount: bill.paidAmount, status: bill.status }];
+      : [
+          {
+            dueDate: bill.dueDate,
+            amount: bill.totalAmount,
+            paidAmount: bill.paidAmount,
+            status: bill.status,
+          },
+        ];
     let countedBill = false;
     for (const obligation of obligations) {
       if (obligation.status === "PAID") continue;
       const dueState = getSupplierBillDueState(obligation.dueDate, now);
       if (dueState === "future") continue;
-      const remainingCents = Math.max(0, currencyCents(obligation.amount) - currencyCents(obligation.paidAmount));
+      const remainingCents = Math.max(
+        0,
+        currencyCents(obligation.amount) - currencyCents(obligation.paidAmount),
+      );
       if (!remainingCents) continue;
       const dueDateKey = dateKey(obligation.dueDate);
       const row = supplierRows.get(bill.supplierId) ?? {
-        supplierId: bill.supplierId, supplierName: bill.supplierName, billCount: 0,
-        oldestDueDateKey: dueDateKey, totalRemainingCents: 0, overdueRemainingCents: 0,
-        dueTodayRemainingCents: 0, dueTomorrowRemainingCents: 0,
+        supplierId: bill.supplierId,
+        supplierName: bill.supplierName,
+        billCount: 0,
+        oldestDueDateKey: dueDateKey,
+        totalRemainingCents: 0,
+        overdueRemainingCents: 0,
+        dueTodayRemainingCents: 0,
+        dueTomorrowRemainingCents: 0,
       };
-      if (!countedBill) { row.billCount += 1; billCount += 1; countedBill = true; }
+      if (!countedBill) {
+        row.billCount += 1;
+        billCount += 1;
+        countedBill = true;
+      }
       row.totalRemainingCents += remainingCents;
-      row.oldestDueDateKey = dueDateKey < row.oldestDueDateKey ? dueDateKey : row.oldestDueDateKey;
-      if (dueState === "overdue") { row.overdueRemainingCents += remainingCents; overdueRemainingCents += remainingCents; }
-      if (dueState === "today") { row.dueTodayRemainingCents += remainingCents; dueTodayRemainingCents += remainingCents; }
-      if (dueState === "tomorrow") { row.dueTomorrowRemainingCents += remainingCents; dueTomorrowRemainingCents += remainingCents; }
+      row.oldestDueDateKey =
+        dueDateKey < row.oldestDueDateKey ? dueDateKey : row.oldestDueDateKey;
+      if (dueState === "overdue") {
+        row.overdueRemainingCents += remainingCents;
+        overdueRemainingCents += remainingCents;
+      }
+      if (dueState === "today") {
+        row.dueTodayRemainingCents += remainingCents;
+        dueTodayRemainingCents += remainingCents;
+      }
+      if (dueState === "tomorrow") {
+        row.dueTomorrowRemainingCents += remainingCents;
+        dueTomorrowRemainingCents += remainingCents;
+      }
       supplierRows.set(bill.supplierId, row);
       totalRemainingCents += remainingCents;
     }

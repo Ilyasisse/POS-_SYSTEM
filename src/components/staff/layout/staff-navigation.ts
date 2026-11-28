@@ -80,7 +80,16 @@ const navigationGroups: readonly {
     key: "admin-operations",
     label: "Operations",
     icon: ClipboardList,
-    itemKeys: ["inventory", "supplies", "tables", "orders", "waiter-balances", "daily-cash", "operations"],
+    itemKeys: [
+      "inventory",
+      "supplies",
+      "tables",
+      "orders",
+      "payment-review",
+      "waiter-balances",
+      "daily-cash",
+      "operations",
+    ],
   },
   {
     key: "suppliers",
@@ -98,13 +107,13 @@ const navigationGroups: readonly {
     key: "reports",
     label: "Reports",
     icon: ChartNoAxesCombined,
-    itemKeys: ["reports", "business-intelligence"],
+    itemKeys: ["reports", "business-intelligence", "customers"],
   },
   {
     key: "administration",
     label: "Administration",
     icon: Settings,
-    itemKeys: ["staff", "settings"],
+    itemKeys: ["staff", "cashier-status", "settings"],
   },
   {
     key: "role-workspaces",
@@ -116,6 +125,7 @@ const navigationGroups: readonly {
       "cashier-home",
       "cashier-order",
       "cashier-waiter-orders",
+      "customer-checkouts",
       "waiter-home",
       "inventory-home",
     ],
@@ -157,10 +167,7 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     href: "/manager/waiter-orders",
     label: "Manager orders",
     icon: ReceiptText,
-    requiredPermissions: [
-      PERMISSIONS.DASHBOARD_VIEW,
-      PERMISSIONS.ORDER_MANAGE,
-    ] as const,
+    requiredPermissions: [PERMISSIONS.DASHBOARD_VIEW, PERMISSIONS.ORDER_MANAGE] as const,
     section: "operations",
   },
   {
@@ -192,10 +199,14 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     href: "/waiter/order",
     label: "Take order",
     icon: ClipboardList,
-    requiredPermissions: [
-      PERMISSIONS.ORDER_CREATE,
-      PERMISSIONS.ORDER_VIEW_ASSIGNED,
-    ] as const,
+    requiredPermissions: [PERMISSIONS.ORDER_CREATE, PERMISSIONS.ORDER_VIEW_ASSIGNED] as const,
+  },
+  {
+    key: "customer-checkouts",
+    href: "/cashier/customer-checkouts",
+    label: "Customer payments",
+    icon: ReceiptText,
+    requiredPermissions: [PERMISSIONS.PAYMENT_TAKE],
     section: "operations",
   },
   {
@@ -271,11 +282,7 @@ export function getVisibleStaffNavigationItems(
       : staffNavigationItems;
 
   return items.filter((item) => {
-    if (
-      !item.requiredPermissions.every((permission) =>
-        hasPermission(currentUser, permission),
-      )
-    ) {
+    if (!item.requiredPermissions.every((permission) => hasPermission(currentUser, permission))) {
       return false;
     }
     if (item.stations && !canAccessStation(currentUser, item.stations)) {
@@ -290,9 +297,7 @@ export function getStaffNavigationNodesFromItems(
   items: readonly StaffNavigationItem[],
 ): StaffNavigationNode[] {
   const itemsByKey = new Map(items.map((item) => [item.key, item]));
-  const groupedItemKeys = new Set(
-    navigationGroups.flatMap((group) => group.itemKeys),
-  );
+  const groupedItemKeys = new Set(navigationGroups.flatMap((group) => group.itemKeys));
   const directItems = items.filter((item) => !groupedItemKeys.has(item.key));
   const nodes: StaffNavigationNode[] = [];
 
@@ -340,9 +345,7 @@ export function getActiveStaffNavigationGroupKey(
   nodes: readonly StaffNavigationNode[],
 ): StaffNavigationGroupKey | null {
   const activeGroup = nodes.find(
-    (node) =>
-      node.type === "group" &&
-      node.items.some((item) => isStaffNavActive(pathname, item)),
+    (node) => node.type === "group" && node.items.some((item) => isStaffNavActive(pathname, item)),
   );
 
   return activeGroup?.type === "group" ? activeGroup.key : null;

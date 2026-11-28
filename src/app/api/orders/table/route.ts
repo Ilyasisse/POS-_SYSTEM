@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableForSale } from "@/lib/products/availability";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
-import {
-  deductProductInventoryForSale,
-  sendInventoryAlerts,
-} from "@/lib/inventory/inventory";
+import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import {
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "@/lib/orders/modifier-selection-validation";
 import { getPostHogClient } from "@/lib/posthog-server";
 import {
   resolveTableOrderAttribution,
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const currentUser = await prisma.user.findUnique({
+    const currentUser = await prisma.staff.findUnique({
       where: { id: authUser.id },
       select: {
         id: true,
@@ -88,10 +90,7 @@ export async function POST(request: Request) {
     });
 
     if (!currentUser || !currentUser.isActive) {
-      return NextResponse.json(
-        { error: "Staff account not found." },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Staff account not found." }, { status: 403 });
     }
 
     if (
@@ -123,10 +122,7 @@ export async function POST(request: Request) {
     });
 
     if (!table) {
-      return NextResponse.json(
-        { error: "Selected table is not active." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Selected table is not active." }, { status: 400 });
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -162,9 +158,35 @@ export async function POST(request: Request) {
           name: true,
           price: true,
           cost: true,
+          availableForSale: true,
+          availabilityRestoresAt: true,
           recipeVersions: {
             where: { isActive: true },
-            select: { id: true, standardCost: true, costCoverage: true, effectiveFrom: true, effectiveTo: true, isActive: true },
+            select: {
+              id: true,
+              standardCost: true,
+              costCoverage: true,
+              effectiveFrom: true,
+              effectiveTo: true,
+              isActive: true,
+            },
+          },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
           },
           category: {
             select: {
@@ -178,12 +200,12 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
               name: true,
               price: true,
-              productId: true,
               modifierGroup: {
                 select: {
                   id: true,
@@ -194,7 +216,7 @@ export async function POST(request: Request) {
           })
         : Promise.resolve([]),
       assignedBaristaIds.length > 0
-        ? prisma.user.findMany({
+        ? prisma.staff.findMany({
             where: {
               id: { in: assignedBaristaIds },
               role: "BARISTA",
@@ -209,9 +231,7 @@ export async function POST(request: Request) {
     ]);
 
     const productMap = new Map(products.map((product) => [product.id, product]));
-    const modifierMap = new Map(
-      modifierRecords.map((modifier) => [modifier.id, modifier]),
-    );
+    const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
     const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
     const preparedLines: PreparedLine[] = [];
@@ -227,13 +247,17 @@ export async function POST(request: Request) {
         );
       }
 
+      if (!isProductAvailableForSale(product)) {
+        return NextResponse.json(
+          { error: `${product.name} is temporarily unavailable.` },
+          { status: 409 },
+        );
+      }
+
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
-      const incomingModifierMap = new Map<
-        string,
-        (typeof itemModifiers)[number]
-      >();
+      const incomingModifierMap = new Map<string, (typeof itemModifiers)[number]>();
 
       for (const modifier of itemModifiers) {
         if (!incomingModifierMap.has(modifier.modifierId)) {
@@ -243,12 +267,20 @@ export async function POST(request: Request) {
 
       const uniqueModifierIds = Array.from(incomingModifierMap.keys());
 
-      const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map(
-        (modifierId) => {
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: uniqueModifierIds,
+      });
+
+      const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map((modifierId) => {
           const modifier = modifierMap.get(modifierId);
 
-          if (!modifier || modifier.productId !== product.id) {
-            throw new Error(
+        if (
+          !modifier ||
+          !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
+        ) {
+          throw new ModifierSelectionError(
               `Modifier ${modifierId} is invalid for product ${product.name}.`,
             );
           }
@@ -263,8 +295,7 @@ export async function POST(request: Request) {
             price: roundCurrency(Number(modifier.price)),
             qty: Math.max(1, Number(incomingModifier?.qty) || 1),
           };
-        },
-      );
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
@@ -536,12 +567,15 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Table order error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to create table order.",
+        error: error instanceof Error ? error.message : "Failed to create table order.",
       },
       { status: error instanceof TableOrderOwnershipError ? 409 : 500 },
     );
