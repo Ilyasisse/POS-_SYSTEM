@@ -107,7 +107,7 @@ const navigationGroups: readonly {
     key: "reports",
     label: "Reports",
     icon: ChartNoAxesCombined,
-    itemKeys: ["reports", "business-intelligence", "accounting"],
+    itemKeys: ["reports", "business-intelligence", "customers", "accounting"],
   },
   {
     key: "administration",
@@ -167,10 +167,7 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     href: "/manager/waiter-orders",
     label: "Manager orders",
     icon: ReceiptText,
-    requiredPermissions: [
-      PERMISSIONS.DASHBOARD_VIEW,
-      PERMISSIONS.ORDER_MANAGE,
-    ] as const,
+    requiredPermissions: [PERMISSIONS.DASHBOARD_VIEW, PERMISSIONS.ORDER_MANAGE] as const,
     section: "operations",
   },
   {
@@ -186,10 +183,7 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     href: "/cashier/order",
     label: "New order",
     icon: ClipboardList,
-    requiredPermissions: [
-      PERMISSIONS.ORDER_MANAGE,
-      PERMISSIONS.ORDER_CREATE,
-    ] as const,
+    requiredPermissions: [PERMISSIONS.ORDER_MANAGE, PERMISSIONS.ORDER_CREATE] as const,
     section: "operations",
   },
   {
@@ -200,7 +194,14 @@ const staffNavigationItems: readonly StaffNavigationItem[] = [
     requiredPermissions: [PERMISSIONS.ORDER_MANAGE] as const,
     section: "operations",
   },
-  { key: "customer-checkouts", href: "/cashier/customer-checkouts", label: "Customer payments", icon: ReceiptText, requiredPermissions: [PERMISSIONS.PAYMENT_TAKE], section: "operations" },
+  {
+    key: "customer-checkouts",
+    href: "/cashier/customer-checkouts",
+    label: "Customer payments",
+    icon: ReceiptText,
+    requiredPermissions: [PERMISSIONS.PAYMENT_TAKE],
+    section: "operations",
+  },
   {
     key: "waiter-home",
     href: "/waiter",
@@ -274,11 +275,7 @@ export function getVisibleStaffNavigationItems(
       : staffNavigationItems;
 
   return items.filter((item) => {
-    if (
-      !item.requiredPermissions.every((permission) =>
-        hasPermission(currentUser, permission),
-      )
-    ) {
+    if (!item.requiredPermissions.every((permission) => hasPermission(currentUser, permission))) {
       return false;
     }
     if (item.stations && !canAccessStation(currentUser, item.stations)) {
@@ -293,9 +290,7 @@ export function getStaffNavigationNodesFromItems(
   items: readonly StaffNavigationItem[],
 ): StaffNavigationNode[] {
   const itemsByKey = new Map(items.map((item) => [item.key, item]));
-  const groupedItemKeys = new Set(
-    navigationGroups.flatMap((group) => group.itemKeys),
-  );
+  const groupedItemKeys = new Set(navigationGroups.flatMap((group) => group.itemKeys));
   const directItems = items.filter((item) => !groupedItemKeys.has(item.key));
   const nodes: StaffNavigationNode[] = [];
 
@@ -343,9 +338,7 @@ export function getActiveStaffNavigationGroupKey(
   nodes: readonly StaffNavigationNode[],
 ): StaffNavigationGroupKey | null {
   const activeGroup = nodes.find(
-    (node) =>
-      node.type === "group" &&
-      node.items.some((item) => isStaffNavActive(pathname, item)),
+    (node) => node.type === "group" && node.items.some((item) => isStaffNavActive(pathname, item)),
   );
 
   return activeGroup?.type === "group" ? activeGroup.key : null;

@@ -24,7 +24,12 @@ export async function GET(
     where: { id, customerId: authorization.user.id },
     include: {
       table: { select: { name: true } },
-      order: { select: { orderNumber: true, kitchenTicketState: { include: { stationStates: true } } } },
+      order: {
+        select: {
+          orderNumber: true,
+          kitchenTicketState: { include: { stationStates: true } },
+        },
+      },
     },
   });
   if (!checkout)
@@ -37,7 +42,12 @@ export async function GET(
     where: { id, customerId: authorization.user.id },
     include: {
       table: { select: { name: true } },
-      order: { select: { orderNumber: true, kitchenTicketState: { include: { stationStates: true } } } },
+      order: {
+        select: {
+          orderNumber: true,
+          kitchenTicketState: { include: { stationStates: true } },
+        },
+      },
     },
   });
   if (!checkout)
@@ -54,7 +64,10 @@ export async function GET(
         paymentReceived: Boolean(checkout.receiptId),
         orderType: checkout.orderType,
         tableName: checkout.table?.name ?? null,
-        stage: customerOrderStage(checkout.status, checkout.order?.kitchenTicketState),
+        stage: customerOrderStage(
+          checkout.status,
+          checkout.order?.kitchenTicketState,
+        ),
       },
     },
     { headers: { "Cache-Control": "private, no-store" } },
