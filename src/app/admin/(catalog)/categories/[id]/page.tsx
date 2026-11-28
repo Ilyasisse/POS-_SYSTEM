@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteCategory, updateCategory } from "../actions";
+import { DeleteCatalogItemSection } from "../../DeleteCatalogItemSection";
 import { KITCHEN_STATIONS } from "@/lib/kitchen/kitchen-socket";
 
 type CategoryDetailsPageProps = {
@@ -28,29 +29,30 @@ export default async function CategoryDetailsPage({
 
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Category Details</h1>
-            <p className="text-sm text-slate-500">{category.name}</p>
+            <p className="text-sm text-muted-foreground">{category.name}</p>
           </div>
 
           <Link
+            prefetch={false}
             href="/admin/categories"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-slate-800">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
+          <h2 className="mb-4 text-lg font-bold text-foreground">
             Edit Category
           </h2>
 
@@ -69,7 +71,7 @@ export default async function CategoryDetailsPage({
                 name="name"
                 type="text"
                 defaultValue={category.name}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
@@ -85,7 +87,7 @@ export default async function CategoryDetailsPage({
                 id="category-station"
                 name="station"
                 defaultValue={category.station ?? ""}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               >
                 <option value="" disabled>
@@ -111,7 +113,7 @@ export default async function CategoryDetailsPage({
                 name="sortOrder"
                 type="number"
                 defaultValue={category.sortOrder}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
@@ -133,7 +135,7 @@ export default async function CategoryDetailsPage({
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 Save Changes
               </Button>
@@ -141,26 +143,12 @@ export default async function CategoryDetailsPage({
           </form>
         </section>
 
-        <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600">
-            Delete Category
-          </h2>
-
-          <p className="mb-4 text-sm text-slate-600">
-            This will permanently delete{" "}
-            <span className="font-semibold">{category.name}</span>.
-          </p>
-
-          <form action={deleteCategory}>
-            <Input type="hidden" name="id" value={category.id} />
-            <Button
-              type="submit"
-              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Delete Category
-            </Button>
-          </form>
-        </section>
+        <DeleteCatalogItemSection
+          id={category.id}
+          name={category.name}
+          label="Delete Category"
+          action={deleteCategory}
+        />
       </div>
     </div>
   );
