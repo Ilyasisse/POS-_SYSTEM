@@ -99,6 +99,8 @@ function statusNotice(status: string | undefined) {
         tone: "success",
         message: "Supply purchase deleted.",
       };
+    case "closed_day":
+      return { tone: "error", message: "Reopen this supply day before adding items." };
     case "invalid_date":
       return {
         tone: "error",
@@ -157,7 +159,10 @@ function SupplyDateControls({
             size="icon"
             aria-label="Previous day"
           >
-            <Link prefetch={false} href={`/admin/supplies?date=${previousDate}`}>
+            <Link
+              prefetch={false}
+              href={`/admin/supplies?date=${previousDate}`}
+            >
               <ChevronLeft className="size-4" />
             </Link>
           </Button>
@@ -330,6 +335,8 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
             </p>
           </div>
           <SupplyEntryForm
+                key={selectedDate}
+                today={today}
             purchaseDate={selectedDate}
             action={createSupplyPurchase}
             catalogItems={activeCatalogItems}
