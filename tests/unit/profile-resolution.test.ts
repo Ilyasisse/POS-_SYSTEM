@@ -35,6 +35,8 @@ test("inactive staff cannot fall back to an active customer profile", async () =
   const staff = {
     ...customer,
     role: "CASHIER" as const,
+    availability: "OFFLINE" as const,
+    lastSeenAt: null,
     station: null,
     isActive: false,
   };
