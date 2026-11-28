@@ -3,6 +3,7 @@ import "aos/dist/aos.css";
 import "./globals.css";
 import { AppProviders } from "@/components/AppProviders";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Mash Allah cafe",
@@ -22,6 +23,7 @@ export default function RootLayout({
       <body>
         <AppProviders>{children}</AppProviders>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
