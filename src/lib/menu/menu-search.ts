@@ -1,9 +1,6 @@
-import type { MenuProduct } from "./menu-data";
+import type { MenuProduct } from "@/types/menu/menu-types";
 
-type SearchableProduct = Pick<
-  MenuProduct,
-  "name" | "description" | "categoryName"
->;
+type SearchableProduct = Pick<MenuProduct, "name" | "description" | "categoryName">;
 
 export function searchMenuProducts<T extends SearchableProduct>(
   products: readonly T[],
