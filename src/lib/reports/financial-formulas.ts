@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
 
 export type DecimalInput = Prisma.Decimal | string | number;
-export const money = (value: DecimalInput = 0) =>
+const money = (value: DecimalInput = 0) =>
   new Prisma.Decimal(value).toDecimalPlaces(2);
 export const sumMoney = (values: readonly DecimalInput[]) =>
   values
     .reduce<Prisma.Decimal>((total, value) => total.plus(value), money(0))
     .toDecimalPlaces(2);
-export const grossSales = (lines: readonly DecimalInput[]) => sumMoney(lines);
+const grossSales = (lines: readonly DecimalInput[]) => sumMoney(lines);
 export const netSales = (
   gross: DecimalInput,
   discounts: DecimalInput,
@@ -46,10 +46,8 @@ export function expectedStock(input: {
     .minus(input.waste)
     .plus(input.adjustments);
 }
-export const inventoryVariance = (
-  physical: DecimalInput,
-  expected: DecimalInput,
-) => new Prisma.Decimal(physical).minus(expected);
+const inventoryVariance = (physical: DecimalInput, expected: DecimalInput) =>
+  new Prisma.Decimal(physical).minus(expected);
 export function netProfit(input: {
   netSales: DecimalInput;
   cogs: DecimalInput;

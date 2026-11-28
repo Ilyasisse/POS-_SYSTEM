@@ -1,4 +1,4 @@
-import { Tone } from "@/types/admin.types";
+import { Tone } from "@/types/admin/admin.types";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { getToneClasses } from "@/lib/admin/helper/getToneClasses";

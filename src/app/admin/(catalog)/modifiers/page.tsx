@@ -23,9 +23,7 @@ type AdminModifiersPageProps = {
   }>;
 };
 
-export default async function AdminModifiersPage({
-  searchParams,
-}: AdminModifiersPageProps) {
+export default async function AdminModifiersPage({ searchParams }: AdminModifiersPageProps) {
   const params = await searchParams;
   const currentPage = Math.max(Number(params.page) || 1, 1);
   const pageSize = 10;
@@ -46,15 +44,22 @@ export default async function AdminModifiersPage({
 
   const [modifiersList, totalModifiers] = await Promise.all([
     prisma.modifier.findMany({
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        isActive: true,
+        products: {
+          select: { name: true },
+          orderBy: { name: "asc" },
+        },
+        modifierGroup: { select: { name: true } },
+      },
       where,
       skip: (currentPage - 1) * pageSize,
       take: pageSize,
       orderBy: {
         createdAt: "desc",
-      },
-      include: {
-        product: true,
-        modifierGroup: true,
       },
     }),
     prisma.modifier.count({ where }),
@@ -66,9 +71,7 @@ export default async function AdminModifiersPage({
     <AdminPage
       title="Modifiers"
       description="Manage add-ons and extra options"
-      action={
-        <PrimaryLink href="/admin/modifiers/new">Add Modifier</PrimaryLink>
-      }
+      action={<PrimaryLink href="/admin/modifiers/new">Add Modifier</PrimaryLink>}
     >
       <DataTableCard
         footer={
@@ -98,7 +101,7 @@ export default async function AdminModifiersPage({
               <TableHead>#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Product</TableHead>
+              <TableHead>Products</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Action</TableHead>
@@ -113,17 +116,15 @@ export default async function AdminModifiersPage({
               </tr>
             ) : (
               modifiersList.map((modifier, index) => (
-                <tr key={modifier.id} className="border-b border-border">
-                  <TableCell className="font-bold text-muted-foreground">
+                <tr key={modifier.id} className="border-border border-b">
+                  <TableCell className="text-muted-foreground font-bold">
                     {(currentPage - 1) * pageSize + index + 1}
                   </TableCell>
-                  <TableCell className="font-black text-foreground">
-                    {modifier.name}
-                  </TableCell>
+                  <TableCell className="text-foreground font-black">{modifier.name}</TableCell>
+                  <TableCell>{modifier.modifierGroup?.name ?? "Option"}</TableCell>
                   <TableCell>
-                    {modifier.modifierGroup?.name ?? "Option"}
+                    {modifier.products.map((product) => product.name).join(", ") || "-"}
                   </TableCell>
-                  <TableCell>{modifier.product?.name ?? "-"}</TableCell>
                   <TableCell>${Number(modifier.price).toFixed(2)}</TableCell>
                   <TableCell>
                     <StatusBadge active={modifier.isActive} />
