@@ -11,6 +11,8 @@ model Staff {
   id                                  String                           @id
   phoneNumber                         String?                          @unique
   fullName                            String
+  availability                        StaffAvailability                @default(OFFLINE)
+  lastSeenAt                          DateTime?
   isActive                            Boolean                          @default(true)
   role                                UserRole                         @default(CASHIER)
   email                               String                           @unique
@@ -98,6 +100,7 @@ model Staff {
   reportExports                       ReportExportAudit[]              @relation("ReportExportActor")
 
   @@index([role, isActive])
+  @@index([role, availability, lastSeenAt])
   @@index([station])
 }
 
@@ -450,6 +453,9 @@ model Product {
   imageUrl                    String?
   pronunciationAudioUrl       String?
   isActive                    Boolean               @default(true)
+  availableForSale            Boolean               @default(true)
+  availabilityRestoresAt      DateTime?
+  availabilityReason          String?
   isPopular                   Boolean               @default(false)
   price                       Decimal
   cost                        Decimal?              @db.Decimal(14, 6)
@@ -474,6 +480,7 @@ model Product {
   inventoryCountLines         InventoryCountLine[]
 
   @@index([categoryId, isActive])
+  @@index([availableForSale, availabilityRestoresAt])
   @@index([trackStock, inventoryAlertStatus])
   @@index([price, name])
   @@index([standardCostUpdatedByUserId])
@@ -534,9 +541,12 @@ model InventoryMovement {
   standardUnitCostSnapshot Decimal?              @db.Decimal(14, 6)
   reason                   String
   note                     String?
+  occurredAt               DateTime              @default(now())
   createdAt                DateTime              @default(now())
   supply                   InventorySupply?      @relation(fields: [supplyId], references: [id], onDelete: SetNull)
 
+  @@index([supplyId, occurredAt])
+  @@index([occurredAt])
   @@index([supplyId, createdAt])
   @@index([createdAt])
 }
@@ -557,7 +567,6 @@ model ModifierGroup {
 
 model Modifier {
   id                    String              @id @default(cuid())
-  productId             String
   modifierGroupId       String
   name                  String
   price                 Decimal
@@ -566,10 +575,9 @@ model Modifier {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   modifierGroup         ModifierGroup       @relation(fields: [modifierGroupId], references: [id])
-  product               Product             @relation(fields: [productId], references: [id])
+  products              Product[]
   orderItemModifiers    OrderItemModifier[]
 
-  @@index([productId])
   @@index([modifierGroupId])
 }
 
@@ -580,6 +588,7 @@ model Table {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   orders           Order[]
+  customerCheckouts CustomerCheckout[]
   tableChecks      TableCheck[]
   paymentRequests  PaymentRequest[]
   paymentDeferrals PaymentDeferral[]
@@ -1110,6 +1119,9 @@ model CustomerCheckout {
   id             String                 @id @default(cuid())
   customerId     String
   customerName   String
+  orderType      OrderType              @default(TAKEOUT)
+  tableId        String?
+  table          Table?                 @relation(fields: [tableId], references: [id], onDelete: Restrict)
   payerPhone     String
   notes          String?
   amount         Decimal                @db.Decimal(14, 2)
@@ -1129,6 +1141,7 @@ model CustomerCheckout {
   @@index([customerId, createdAt])
   @@index([status, amount, expiresAt])
   @@index([payerPhone, status, amount])
+  @@index([tableId])
 }
 
 model PaymentGatewayStatus {
@@ -2134,4 +2147,11 @@ enum SupplierInvoiceRecurrenceUnit {
   DAY
   WEEK
   MONTH
+}
+
+enum StaffAvailability {
+  AVAILABLE
+  BUSY
+  AWAY
+  OFFLINE
 }
