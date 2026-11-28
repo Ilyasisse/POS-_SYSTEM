@@ -64,6 +64,8 @@ function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+class TableNeedsCleaningError extends Error {}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -111,11 +113,21 @@ export async function POST(request: Request) {
       select: {
         id: true,
         name: true,
+        needsCleaning: true,
       },
     });
 
     if (!table) {
       return NextResponse.json({ error: "Selected table is not active." }, { status: 400 });
+    }
+
+    if (table.needsCleaning) {
+      return NextResponse.json(
+        {
+          error: "This table needs cleaning before a new order can be opened.",
+        },
+        { status: 409 },
+      );
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -358,6 +370,16 @@ export async function POST(request: Request) {
           Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${table.id} FOR UPDATE`,
         );
 
+        const lockedTable = await tx.table.findUnique({
+          where: { id: table.id },
+          select: { isActive: true, needsCleaning: true },
+        });
+        if (!lockedTable?.isActive || lockedTable.needsCleaning) {
+          throw new TableNeedsCleaningError(
+            "This table is unavailable until it is cleaned and active.",
+          );
+        }
+
         const latestOpenOrder = await tx.order.findFirst({
           where: {
             tableId: table.id,
@@ -555,6 +577,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof TableNeedsCleaningError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     if (error instanceof ModifierSelectionError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }

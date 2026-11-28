@@ -19,6 +19,7 @@ export default async function CashierOrderPage({
     prisma.table.findMany({
       where: {
         isActive: true,
+        needsCleaning: false,
         OR: [
           {
             orders: {

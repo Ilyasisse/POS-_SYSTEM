@@ -67,7 +67,7 @@ export function groupCashierOpenOrders(
 }
 
 export async function closeSettledTableChecks(
-  tx: Pick<Prisma.TransactionClient, "tableCheck">,
+  tx: Pick<Prisma.TransactionClient, "tableCheck" | "table">,
   tableCheckIds: readonly (string | null | undefined)[],
   closedAt: Date,
 ) {
@@ -85,4 +85,21 @@ export async function closeSettledTableChecks(
     },
     data: { closedAt },
   });
+
+  // Mark a table for cleaning only after every dine-in order on it has closed.
+  // A partial bill payment leaves the table occupied and does not reset its state.
+  const settledChecks = await tx.tableCheck.findMany({
+    where: { id: { in: ids }, closedAt: { not: null } },
+    select: { tableId: true },
+  });
+  if (settledChecks.length) {
+    await tx.table.updateMany({
+      where: {
+        id: { in: [...new Set(settledChecks.map((check) => check.tableId))] },
+        needsCleaning: false,
+        orders: { none: { status: "OPEN", type: "DINE_IN" } },
+      },
+      data: { needsCleaning: true },
+    });
+  }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "Table" ADD COLUMN "needsCleaning" BOOLEAN NOT NULL DEFAULT false;
