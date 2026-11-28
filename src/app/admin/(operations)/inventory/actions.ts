@@ -1,20 +1,30 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
-  classifyLegacyUnit,
-  decimalQuantity,
-} from "@/lib/inventory/inventory-domain";
+  classifySupplyUnit,
+  supplyInputQuantity,
+  supplyEditMapping,
+  supplyStockUnit,
+} from "@/lib/inventory/supply-units";
+import { Prisma } from "@prisma/client";
 import {
   getInventoryAlertStatus,
   sendInventoryAlerts,
   setProductInventoryLevel,
   setSupplyInventoryLevel,
 } from "@/lib/inventory/inventory";
+
+import { inventoryMovementDate } from "@/lib/inventory/movement-date";
+import {
+  configureInventoryCafeteria,
+  configureSupplyCreationCafeteria,
+  InventoryAccessError,
+} from "@/lib/inventory/cafeteria-context";
 
 // Reads a string field from an inventory form and removes extra spaces.
 function getString(formData: FormData, key: string) {
@@ -30,66 +40,98 @@ function getQuantity(formData: FormData, key: string) {
 async function requireInventoryAccess() {
   return requirePermission(PERMISSIONS.INVENTORY_MANAGE);
 }
-// Redirects back to inventory with a query param that drives the email status popup.
-function redirectWithInventoryEmailStatus(
-  result: Awaited<ReturnType<typeof sendInventoryAlerts>>,
+type SupplyFormField = "name" | "unit" | "stockQty" | "lowStockThreshold" | "quantity" | "movementDate";
+export type SupplyFormResult =
+  | { ok: true; email?: "sent" | "failed" | "skipped" }
+  | { ok: false; error: string; field?: SupplyFormField };
+
+function readSupplyQuantity(
+  formData: FormData,
+  field: "stockQty" | "lowStockThreshold" | "quantity",
+  factor: Prisma.Decimal,
+  defaultToZero = false,
 ) {
-  revalidatePath("/admin/inventory");
-  revalidatePath("/inventory");
-
-  if (result.attempted === 0) {
-    redirect("/admin/inventory?inventoryEmail=none");
+  const label = {
+    stockQty: "Stock quantity",
+    lowStockThreshold: "Low-stock threshold",
+    quantity: "Restock quantity",
+  }[field];
+  const value = getString(formData, field);
+  try {
+    return {
+      ok: true,
+      quantity: supplyInputQuantity(defaultToZero && !value ? "0" : value, factor, {
+        positive: field === "quantity",
+        field: label,
+      }),
+    } as const;
+  } catch (error) {
+    return {
+      ok: false,
+      field,
+      error: error instanceof Error ? error.message : "Enter a valid quantity.",
+    } as const;
   }
-
-  if (result.sent > 0) {
-    redirect("/admin/inventory?inventoryEmail=sent");
-  }
-
-  if (result.skipped) {
-    redirect("/admin/inventory?inventoryEmail=skipped");
-  }
-
-  redirect("/admin/inventory?inventoryEmail=failed");
 }
 
-// Creates a new internal supply row from the admin inventory form.
-export async function createSupply(formData: FormData) {
-  await requireInventoryAccess();
-
-  // Pulls the submitted supply fields from the create form.
+export async function createSupply(formData: FormData): Promise<SupplyFormResult> {
+  const user = await requireInventoryAccess();
   const name = getString(formData, "name");
   const unit = getString(formData, "unit") || "unit";
-  const stockQty = getQuantity(formData, "stockQty");
-  const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
-  const mapping = classifyLegacyUnit(unit);
-  const canonicalStockQty = stockQty.mul(mapping.factor);
-  const canonicalLowStockThreshold = lowStockThreshold.mul(mapping.factor);
+  if (!name) return { ok: false, field: "name", error: "Enter a supply name." };
 
-  if (!name) {
-    throw new Error("Supply name is required.");
+  const mapping = classifySupplyUnit(unit, formData.get("countAsEntered") === "yes");
+  if (!mapping.canonicalUnit) {
+    return {
+      ok: false,
+      field: "unit",
+      error: "Choose a known unit or confirm that each entered unit counts as one.",
+    };
   }
 
-  await prisma.inventorySupply.create({
-    data: {
-      name,
-      unit,
-      stockQty: canonicalStockQty,
-      lowStockThreshold: canonicalLowStockThreshold,
-      canonicalUnit: mapping.canonicalUnit,
-      quantityCoverage: mapping.coverage,
-      inventoryAlertStatus: getInventoryAlertStatus(
-        Number(canonicalStockQty),
-        Number(canonicalLowStockThreshold),
-      ),
-    },
-  });
+  const stock = readSupplyQuantity(formData, "stockQty", mapping.factor, true);
+  if (!stock.ok) return stock;
+  const threshold = readSupplyQuantity(formData, "lowStockThreshold", mapping.factor, true);
+  if (!threshold.ok) return threshold;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await configureSupplyCreationCafeteria(tx, user.id);
+      await tx.inventorySupply.create({
+        data: {
+          name,
+          unit,
+          stockQty: stock.quantity,
+          lowStockThreshold: threshold.quantity,
+          canonicalUnit: mapping.canonicalUnit,
+          quantityCoverage: mapping.coverage,
+          inventoryAlertStatus: getInventoryAlertStatus(
+            stock.quantity,
+            threshold.quantity,
+          ),
+        },
+      });
+    });
+  } catch (error) {
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return {
+        ok: false,
+        field: "name",
+        error: "A supply with this name and unit already exists.",
+      };
+    }
+    console.error("Failed to create supply:", error);
+    return { ok: false, error: "Could not create the supply. Try again." };
+  }
 
   revalidatePath("/admin/inventory");
   revalidatePath("/inventory");
+  return { ok: true };
 }
 
 // Sets a menu product's stock quantity and low-stock threshold.
-export async function updateProductInventory(formData: FormData) {
+async function updateProductInventory(formData: FormData) {
   const user = await requireInventoryAccess();
 
   // Pulls the submitted product inventory fields from the update form.
@@ -119,7 +161,7 @@ export async function updateProductInventory(formData: FormData) {
 }
 
 // Adds to or removes from a menu product's stock level.
-export async function adjustProductInventory(formData: FormData) {
+async function adjustProductInventory(formData: FormData) {
   const user = await requireInventoryAccess();
 
   // Pulls the submitted product adjustment fields from the form.
@@ -169,82 +211,211 @@ export async function adjustProductInventory(formData: FormData) {
   revalidatePath("/admin/inventory");
 }
 
-// Sets an internal supply's stock quantity and low-stock threshold.
-export async function updateSupplyInventory(formData: FormData) {
+async function saveSupplyInventory(
+  formData: FormData,
+  reason: "SET" | "RESTOCK",
+): Promise<SupplyFormResult> {
   const user = await requireInventoryAccess();
-
-  // Pulls the submitted supply inventory fields from the update form.
   const supplyId = getString(formData, "supplyId");
-  const stockQty = getQuantity(formData, "stockQty");
-  const lowStockThreshold = getQuantity(formData, "lowStockThreshold");
+  if (!supplyId) return { ok: false, error: "Supply is required." };
 
-  if (!supplyId) {
-    throw new Error("Supply is required.");
+  let occurredAt;
+  try {
+    occurredAt = reason === "RESTOCK" ? inventoryMovementDate(formData.get("movementDate")) : new Date();
+  } catch (error) {
+    return { ok: false, field: "movementDate", error: (error as Error).message };
   }
+  let result;
+  try {
+    result = await prisma.$transaction(
+      async (tx) => {
+        await configureInventoryCafeteria(tx, user.id, supplyId);
+        const supply = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
+        if (!supply?.isActive)
+          return { ok: false, error: "This supply is no longer available." } as const;
+        if (!supply.canonicalUnit)
+          return { ok: false, error: "Configure the stock unit before changing stock." } as const;
 
-  // Saves the supply stock change and collects any low/out alert.
-  const alerts = await prisma.$transaction((tx) =>
-    setSupplyInventoryLevel(
-      tx,
-      supplyId,
-      stockQty,
-      lowStockThreshold,
-      "SET",
-      "Inventory page update",
-      user.id,
-    ),
-  );
+        const stockUnit = supplyStockUnit(supply);
+        const unitToken = formData.get("stockUnit");
+        if (unitToken !== null && unitToken !== stockUnit.token) {
+          return { ok: false, error: "The stock unit changed. Refresh and try again." } as const;
+        }
+        // Earlier forms submitted canonical quantities.
+        const factor = unitToken === null ? new Prisma.Decimal(1) : stockUnit.factor;
+        const stock = readSupplyQuantity(
+          formData,
+          reason === "SET" ? "stockQty" : "quantity",
+          factor,
+        );
+        if (!stock.ok) return stock;
+        const threshold =
+          reason === "SET"
+            ? readSupplyQuantity(formData, "lowStockThreshold", factor)
+            : ({ ok: true, quantity: supply.lowStockThreshold } as const);
+        if (!threshold.ok) return threshold;
 
-  // Sends any supply alert and redirects with popup status.
-  const emailResult = await sendInventoryAlerts(alerts);
-  redirectWithInventoryEmailStatus(emailResult);
+        const nextStock = reason === "SET" ? stock.quantity : supply.stockQty.add(stock.quantity);
+        const note =
+          reason === "SET"
+            ? "Inventory page update"
+            : getString(formData, "note") || "Internal supply restock";
+        return {
+          ok: true,
+          alerts: await setSupplyInventoryLevel(
+            tx,
+            supplyId,
+            nextStock,
+            threshold.quantity,
+            reason,
+            note,
+            user.id,
+            occurredAt,
+          ),
+        } as const;
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
+  } catch (error) {
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
+    console.error("Failed to save supply inventory:", error);
+    return { ok: false, error: "Could not save the stock change. Try again." };
+  }
+  if (!result.ok) return result;
+
+  revalidatePath("/admin/inventory");
+  revalidatePath("/inventory");
+  try {
+    const email = await sendInventoryAlerts(result.alerts);
+    if (email.attempted === 0) return { ok: true };
+    if (email.sent > 0) return { ok: true, email: "sent" };
+    return { ok: true, email: email.skipped ? "skipped" : "failed" };
+  } catch (error) {
+    console.error("Failed to send inventory alert:", error);
+    return { ok: true, email: "failed" };
+  }
 }
 
-// Restocks an internal supply's stock level from the admin inventory page.
+export async function updateSupplyInventory(formData: FormData) {
+  return saveSupplyInventory(formData, "SET");
+}
+
 export async function adjustSupplyInventory(formData: FormData) {
+  return saveSupplyInventory(formData, "RESTOCK");
+}
+
+// Metadata and stock are saved together so a unit edit cannot partially apply.
+export async function editSupply(formData: FormData): Promise<SupplyFormResult> {
   const user = await requireInventoryAccess();
-
-  // Pulls the submitted supply adjustment fields from the form.
   const supplyId = getString(formData, "supplyId");
-  const quantity = getQuantity(formData, "quantity");
-  const note = getString(formData, "note");
-
-  if (!supplyId) {
-    throw new Error("Supply is required.");
-  }
-
-  if (quantity.lte(0)) {
-    throw new Error("Adjustment quantity must be greater than zero.");
-  }
-
-  // Calculates and saves the supply adjustment inside one database transaction.
-  const alerts = await prisma.$transaction(async (tx) => {
-    // Loads the supply's current stock so the delta can be applied safely.
-    const supply = await tx.inventorySupply.findUnique({
-      where: { id: supplyId },
-      select: {
-        stockQty: true,
-        lowStockThreshold: true,
+  const name = getString(formData, "name");
+  const unit = getString(formData, "unit");
+  if (!name) return { ok: false, field: "name", error: "Enter a supply name." };
+  const mapping = classifySupplyUnit(unit, formData.get("countAsEntered") === "yes");
+  if (!unit || !mapping.canonicalUnit)
+    return {
+      ok: false,
+      field: "unit",
+      error: "Choose a known unit or confirm that each custom unit counts as one.",
+    };
+  const stock = readSupplyQuantity(formData, "stockQty", mapping.factor);
+  if (!stock.ok) return stock;
+  const threshold = readSupplyQuantity(formData, "lowStockThreshold", mapping.factor);
+  if (!threshold.ok) return threshold;
+  let result;
+  try {
+    result = await prisma.$transaction(
+      async (tx) => {
+        await configureInventoryCafeteria(tx, user.id, supplyId);
+        const current = await tx.inventorySupply.findUnique({ where: { id: supplyId } });
+        if (!current?.isActive)
+          return { ok: false, error: "This supply is no longer available." } as const;
+        if (getString(formData, "version") !== current.updatedAt.toISOString())
+          return { ok: false, error: "This supply changed. Refresh before saving again." } as const;
+        let editMapping;
+        try {
+          editMapping = supplyEditMapping(current, unit, formData.get("countAsEntered") === "yes");
+        } catch (error) {
+          return {
+            ok: false,
+            field: "unit",
+            error: error instanceof Error ? error.message : "Choose a valid stock unit.",
+          } as const;
+        }
+        // Normalize legacy balances once; historical movements keep their original units.
+        const factor = editMapping.legacyFactor;
+        await tx.inventorySupply.update({
+          where: { id: supplyId },
+          data: {
+            name,
+            unit,
+            canonicalUnit: mapping.canonicalUnit,
+            quantityCoverage: "COMPLETE",
+            stockQty: current.stockQty.mul(factor),
+            lowStockThreshold: current.lowStockThreshold.mul(factor),
+            ...(!current.canonicalUnit && current.standardUnitCost != null
+              ? { standardUnitCost: current.standardUnitCost.div(factor) }
+              : {}),
+          },
+        });
+        const alerts = await setSupplyInventoryLevel(
+          tx,
+          supplyId,
+          stock.quantity,
+          threshold.quantity,
+          "SET",
+          "Supply details update",
+          user.id,
+        );
+        await tx.auditLog.create({
+          data: {
+            actorUserId: user.id,
+            action: "inventory.supply.edited",
+            entityType: "InventorySupply",
+            entityId: supplyId,
+            reason: "Supply details update",
+            previousValue: {
+              name: current.name,
+              unit: current.unit,
+              canonicalUnit: current.canonicalUnit,
+              stockQty: current.stockQty.toString(),
+              lowStockThreshold: current.lowStockThreshold.toString(),
+            },
+            newValue: {
+              name,
+              unit,
+              canonicalUnit: mapping.canonicalUnit,
+              legacyFactor: factor.toString(),
+              stockQty: stock.quantity.toString(),
+              lowStockThreshold: threshold.quantity.toString(),
+            },
+          },
+        });
+        return { ok: true, alerts } as const;
       },
-    });
-
-    if (!supply) {
-      throw new Error("Supply not found.");
-    }
-
-    // Admin supply adjustments are restocks only; taking supplies is handled on /inventory.
-    return setSupplyInventoryLevel(
-      tx,
-      supplyId,
-      supply.stockQty.add(quantity),
-      supply.lowStockThreshold,
-      "RESTOCK",
-      note || "Internal supply restock",
-      user.id,
+      { isolationLevel: "Serializable" },
     );
-  });
-
-  // Sends any supply alert and redirects with popup status.
-  const emailResult = await sendInventoryAlerts(alerts);
-  redirectWithInventoryEmailStatus(emailResult);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")
+      return {
+        ok: false,
+        field: "name",
+        error: "A supply with this name and unit already exists.",
+      };
+    if (error instanceof InventoryAccessError) return { ok: false, error: error.message };
+    console.error("Failed to edit supply:", error);
+    return { ok: false, error: "Could not save this supply. Refresh and try again." };
+  }
+  if (!result.ok) return result;
+  revalidatePath("/admin/inventory");
+  revalidatePath(`/admin/inventory/${supplyId}`);
+  revalidatePath("/inventory");
+  try {
+    const email = await sendInventoryAlerts(result.alerts);
+    if (email.attempted === 0) return { ok: true };
+    if (email.sent > 0) return { ok: true, email: "sent" };
+    return { ok: true, email: email.skipped ? "skipped" : "failed" };
+  } catch {
+    return { ok: true, email: "failed" };
+  }
 }
