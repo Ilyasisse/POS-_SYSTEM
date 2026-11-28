@@ -5,6 +5,7 @@ import {
   AdminPage,
   SearchToolbar,
   MetricCard,
+  RowActions,
   Table,
   DataTableCard,
   TableCell,
@@ -24,8 +25,7 @@ type TablePageProps = {
 
 function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
   if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
-  if (table.orders.length > 0)
-    return { label: "Occupied", tone: "red" as const };
+  if (table.orders.length > 0) return { label: "Occupied", tone: "red" as const };
   return { label: "Available", tone: "green" as const };
 }
 
@@ -39,7 +39,7 @@ function getTableStatusMessage(tableStatus?: string) {
     case "invalid_table":
       return {
         tone: "error" as const,
-        message: "Enter a table name or number.",
+        message: "Enter a valid table name, section, and capacity from 1 to 50.",
       };
     case "duplicate_table":
       return {
@@ -47,10 +47,18 @@ function getTableStatusMessage(tableStatus?: string) {
         message: "A table with that name already exists.",
       };
     case "table_create_failed":
+      return { tone: "error" as const, message: "The table could not be created." };
+    case "table_updated":
+      return { tone: "success" as const, message: "The table details were updated." };
+    case "occupied_table":
       return {
-        tone: "error" as const,
-        message: "The table could not be created.",
+        tone: "warning" as const,
+        message: "An occupied table cannot be hidden. Settle or transfer its open orders first.",
       };
+    case "table_not_found":
+      return { tone: "error" as const, message: "The table no longer exists." };
+    case "table_update_failed":
+      return { tone: "error" as const, message: "The table could not be updated." };
     default:
       return null;
   }
@@ -85,22 +93,12 @@ export default async function TablePage({ searchParams }: TablePageProps) {
   ).filter((table) => !q || table.name.toLowerCase().includes(q));
 
   const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter(
-    (table) => table.orders.length > 0,
-  ).length;
-  const openOrders = tables.reduce(
-    (sum, table) => sum + table.orders.length,
-    0,
-  );
+  const occupiedTables = tables.filter((table) => table.orders.length > 0).length;
+  const openOrders = tables.reduce((sum, table) => sum + table.orders.length, 0);
 
   return (
-    <AdminPage
-      title="Tables"
-      description="Manage dine-in tables and their status"
-    >
-      {notice ? (
-        <ToastOnMount tone={notice.tone} description={notice.message} />
-      ) : null}
+    <AdminPage title="Tables" description="Manage dine-in tables and their status">
+      {notice ? <ToastOnMount tone={notice.tone} description={notice.message} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Total Tables" value={tables.length} />
@@ -110,14 +108,32 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <form
         action={createActiveTableFromAdmin}
-        className="grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_auto]"
+        className="border-border bg-card grid gap-3 rounded-2xl border p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_9rem_1fr_auto]"
       >
         <Input
           aria-label="Table name or number"
           name="tableName"
           type="text"
-          className="h-11 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
+          className="border-border h-11 rounded-lg border px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 dark:focus:border-blue-800 dark:focus:ring-blue-800"
           placeholder="Table name or number"
+          required
+        />
+        <Input
+          aria-label="Seating capacity"
+          name="capacity"
+          type="number"
+          min={1}
+          max={50}
+          defaultValue={4}
+          required
+        />
+        <Input
+          aria-label="Floor section"
+          name="section"
+          type="text"
+          maxLength={80}
+          defaultValue="Main Floor"
+          required
         />
         <Button type="submit">Add Table</Button>
       </form>
@@ -125,7 +141,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <DataTableCard
           footer={
-            <p className="text-sm font-medium text-muted-foreground">
+            <p className="text-muted-foreground text-sm font-medium">
               Showing 1 to {tables.length} of {tables.length} tables
             </p>
           }
@@ -145,12 +161,13 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 <TableHead>Status</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Open Orders</TableHead>
+                <TableHead>Action</TableHead>
               </tr>
             </thead>
             <tbody>
               {tables.length === 0 ? (
                 <tr>
-                  <TableCell colSpan={6} className="py-10 text-center">
+                  <TableCell colSpan={7} className="py-10 text-center">
                     No tables found.
                   </TableCell>
                 </tr>
@@ -158,21 +175,18 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 tables.map((table, index) => {
                   const status = getTableStatus(table);
                   return (
-                    <tr key={table.id} className="border-b border-border">
-                      <TableCell className="font-bold text-muted-foreground">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-black text-foreground">
-                        {table.name}
-                      </TableCell>
-                      <TableCell>{4 + (index % 4)}</TableCell>
+                    <tr key={table.id} className="border-border border-b">
+                      <TableCell className="text-muted-foreground font-bold">{index + 1}</TableCell>
+                      <TableCell className="text-foreground font-black">{table.name}</TableCell>
+                      <TableCell>{table.capacity}</TableCell>
                       <TableCell>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                       </TableCell>
-                      <TableCell>
-                        {index % 2 === 0 ? "Main Floor" : "Outdoor"}
-                      </TableCell>
+                      <TableCell>{table.section}</TableCell>
                       <TableCell>{table.orders.length}</TableCell>
+                      <TableCell>
+                        <RowActions editHref={`/admin/tables/${table.id}`} />
+                      </TableCell>
                     </tr>
                   );
                 })
@@ -182,14 +196,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
         </DataTableCard>
 
         <Card className="p-5">
-          <h2 className="text-lg font-black text-foreground">Floor Plan</h2>
-          <p className="mt-1 text-sm font-medium text-muted-foreground">
+          <h2 className="text-foreground text-lg font-black">Floor Plan</h2>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">
             Visual status map based on live table availability.
           </p>
           {/* REVIEW: This floor plan uses generated positions until editable table layout data is added. */}
-          <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="absolute inset-x-8 top-8 h-20 rounded-xl border border-border bg-card" />
-            <div className="absolute bottom-8 right-8 h-32 w-20 rounded-xl border border-border bg-card" />
+          <div className="border-border bg-card relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border">
+            <div className="border-border bg-card absolute inset-x-8 top-8 h-20 rounded-xl border" />
+            <div className="border-border bg-card absolute right-8 bottom-8 h-32 w-20 rounded-xl border" />
             {tables.slice(0, 8).map((table, index) => {
               const status = getTableStatus(table);
               const positions = [
@@ -219,7 +233,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               );
             })}
           </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-muted-foreground">
+          <div className="text-muted-foreground mt-4 flex flex-wrap gap-4 text-xs font-bold">
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-500" />
               Available
@@ -229,7 +243,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               Occupied
             </span>
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-muted" />
+              <span className="bg-muted size-2 rounded-full" />
               Hidden
             </span>
           </div>
