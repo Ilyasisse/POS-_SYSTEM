@@ -5,9 +5,11 @@ import ProductCard from "@/components/menu/MenuProductCard";
 import FeaturedCard from "@/components/menu/FeaturedCard";
 import { Button } from "@/components/ui/button";
 
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 
 import type { MenuData, MenuProduct } from "@/types/menu/menu-types";
+
+import { sortMenuProducts, type MenuSort } from "@/lib/menu/menu-sort";
 
 type MenuShowcaseProps = {
   data: MenuData;
@@ -66,6 +68,7 @@ function menuShowcaseReducer(
 }
 
 export default function MenuShowcase({ data }: MenuShowcaseProps) {
+  const [sort, setSort] = useState<MenuSort>("menu");
   const hasFeaturedItems = data.featuredItems.length > 0;
 
   const firstCategoryId = data.categories[0]?.id ?? "";
@@ -89,7 +92,10 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
     ? (menuState.visibleCounts[selectedCategoryData.id] ?? INITIAL_CATEGORY_ITEMS)
     : 0;
 
-  const visibleProducts = selectedCategoryProducts.slice(0, visibleProductCount);
+  const visibleProducts = sortMenuProducts(selectedCategoryProducts, sort).slice(
+    0,
+    visibleProductCount,
+  );
 
   const remainingProductCount = Math.max(
     selectedCategoryProducts.length - visibleProducts.length,
@@ -119,6 +125,20 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
         onOpenCategory={openCategory}
       />
 
+      <div className="mx-auto mt-6 flex max-w-7xl justify-end gap-3 px-4">
+        <label htmlFor="menu-sort">Sort menu</label>
+        <select
+          id="menu-sort"
+          value={sort}
+          onChange={(event) => setSort(event.target.value as MenuSort)}
+          className="border-border bg-card rounded-lg border p-2"
+        >
+          <option value="menu">Menu order</option>
+          <option value="price-low">Price: low to high</option>
+          <option value="price-high">Price: high to low</option>
+          <option value="name">Name: A to Z</option>
+        </select>
+      </div>
       <MenuProductSection
         visibleProducts={visibleProducts}
         remainingProductCount={remainingProductCount}
