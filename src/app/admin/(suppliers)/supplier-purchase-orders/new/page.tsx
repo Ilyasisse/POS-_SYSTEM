@@ -8,6 +8,7 @@ import {
   getSupplierPurchaseDefaultDeliveryDateKey,
   getSupplierPurchaseTodayDateKey,
 } from "@/lib/suppliers/purchase-orders";
+import { validPurchaseItem } from "@/lib/inventory/reorder-review";
 import PurchaseOrderBuilder from "./PurchaseOrderBuilder";
 
 function statusMessage(status: string | undefined) {
@@ -32,7 +33,11 @@ function statusMessage(status: string | undefined) {
 export default async function NewSupplierPurchaseOrderPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ supplier?: string; orderStatus?: string }>;
+  searchParams?: Promise<{
+    supplier?: string;
+    item?: string;
+    orderStatus?: string;
+  }>;
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
@@ -106,6 +111,7 @@ export default async function NewSupplierPurchaseOrderPage({
         />
       ) : null}
       <PurchaseOrderBuilder
+        key={selectedSupplier?.id ?? "none"}
         suppliers={suppliers}
         selectedSupplier={
           selectedSupplier
@@ -113,6 +119,7 @@ export default async function NewSupplierPurchaseOrderPage({
             : null
         }
         catalogItems={catalogItems}
+        initialCatalogItemId={validPurchaseItem(query.item, catalogItems)}
         todayDateKey={getSupplierPurchaseTodayDateKey(now)}
         defaultDeliveryDateKey={getSupplierPurchaseDefaultDeliveryDateKey(
           yesterday,

@@ -1,4 +1,5 @@
-import { AdminPage } from "@/components/admin/shared";
+import Link from "next/link";
+import { AdminPage, Button } from "@/components/admin/shared";
 import { ToastOnMount, type ToastTone } from "@/components/ui/toast";
 import { prisma } from "@/lib/prisma";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
@@ -129,6 +130,9 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
   return (
     <AdminPage title="Inventory" description="Track stock levels and manage inventory">
       <InventoryNotice notice={notice} />
+      <Button variant="outline" asChild>
+        <Link href="/admin/inventory/reorder">Review reorder needs</Link>
+      </Button>
       <InventorySummary summary={summary} takenTodayCount={takenTodayMovements.length} />
       <InventoryDateSelector
         key={selectedDate}
