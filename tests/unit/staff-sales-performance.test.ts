@@ -78,7 +78,7 @@ test("staff-sales endpoint is permission protected and discoverable", async () =
       "utf8",
     ),
     readFile(
-      new URL("../../src/app/admin/business-intelligence/page.tsx", import.meta.url),
+      new URL("../../src/app/admin/(reports)/business-intelligence/page.tsx", import.meta.url),
       "utf8",
     ),
   ]);

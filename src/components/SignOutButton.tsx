@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import posthog from "posthog-js";
 
 type SignOutButtonProps = Omit<
   ComponentProps<typeof Button>,
@@ -39,6 +40,13 @@ export default function SignOutButton({
           error?: string;
         } | null;
         throw new Error(result?.error || "Sign out failed.");
+      }
+
+      if (
+        process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
+        process.env.NEXT_PUBLIC_POSTHOG_HOST
+      ) {
+        posthog.reset();
       }
 
       window.location.replace("/staff-login");

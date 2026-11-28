@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { transferOpenTableService } from "@/lib/cashier/table-transfer";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 function isPaymentMethod(value: string): value is PaymentMethod {
   return (
@@ -28,7 +30,7 @@ function refreshCashierTableViews() {
   revalidatePath("/admin/reports");
 }
 
-export async function payOpenTableOrdersFromCashier(formData: FormData) {
+async function payOpenTableOrdersFromCashier(formData: FormData) {
   const currentUser = await requirePermission(PERMISSIONS.PAYMENT_TAKE);
 
   const tableId = String(formData.get("tableId") ?? "").trim();
@@ -97,6 +99,19 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
       paymentStatus = "order_not_open";
     } else {
       refreshCashierTableViews();
+      const posthog = getPostHogClient();
+      if (posthog) {
+        posthog.capture({
+          distinctId: currentUser.id,
+          event: "table_orders_paid_from_cashier",
+          properties: {
+            payment_method: paymentMethod,
+            order_count: paidOrderCount,
+            cashier_role: currentUser.role,
+          },
+        });
+        await posthog.flush();
+      }
     }
   } catch (error) {
     console.error("Failed to pay open table orders:", error);
@@ -104,4 +119,21 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
   }
 
   redirect(`/cashier?paymentStatus=${paymentStatus}`);
+}
+
+export async function transferOpenTableServiceFromCashier(formData: FormData) {
+  await requirePermission(PERMISSIONS.ORDER_MANAGE);
+  const sourceTableId = String(formData.get("sourceTableId") ?? "").trim();
+  const targetTableId = String(formData.get("targetTableId") ?? "").trim();
+  let transferStatus = "table_moved";
+
+  try {
+    await transferOpenTableService({ sourceTableId, targetTableId });
+    refreshCashierTableViews();
+  } catch (error) {
+    console.error("Failed to transfer open table service:", error);
+    transferStatus = "table_move_failed";
+  }
+
+  redirect(`/cashier?transferStatus=${transferStatus}`);
 }

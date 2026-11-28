@@ -18,11 +18,15 @@ export default async function SupplierOrderRequestPage({
   const request = await getSupplierOrderRequest(token);
   if (!request) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-slate-50 p-5">
-        <section className="max-w-md rounded-3xl border bg-white p-8 text-center shadow-sm">
-          <ShoppingBasket className="mx-auto size-10 text-slate-400" />
-          <h1 className="mt-4 text-2xl font-black text-slate-950">Link unavailable</h1>
-          <p className="mt-2 text-slate-600">This temporary order link is invalid or has expired.</p>
+      <main className="grid min-h-dvh place-items-center bg-card p-5">
+        <section className="max-w-md rounded-3xl border bg-card p-8 text-center shadow-sm">
+          <ShoppingBasket className="mx-auto size-10 text-muted-foreground" />
+          <h1 className="mt-4 text-2xl font-black text-foreground">
+            Link unavailable
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            This temporary order link is invalid or has expired.
+          </p>
         </section>
       </main>
     );
@@ -34,17 +38,24 @@ export default async function SupplierOrderRequestPage({
   }).format(request.deadline);
 
   return (
-    <main className="min-h-dvh bg-slate-50 px-4 py-8 text-slate-950">
+    <main className="min-h-dvh bg-card px-4 py-8 text-foreground">
       <div className="mx-auto max-w-2xl space-y-6">
         <header>
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-700">Mash Allah Cafe</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">Hello, {request.employeeName}</h1>
-          <p className="mt-2 text-slate-600">
-            Select what is needed from <strong>{request.supplierName}</strong>. Prices are handled by management.
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">
+            Mash Allah Cafe
           </p>
-          <div className="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-950">
+          <h1 className="mt-2 text-3xl font-black tracking-tight">
+            Hello, {request.employeeName}
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Select what is needed from <strong>{request.supplierName}</strong>.
+            Prices are handled by management.
+          </p>
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 p-3 text-sm font-semibold text-blue-950 dark:text-blue-300">
             <Clock3 className="mt-0.5 size-4 shrink-0" />
-            <span>Changes close {deadline} ({request.timeZone}).</span>
+            <span>
+              Changes close {deadline} ({request.timeZone}).
+            </span>
           </div>
         </header>
         <SupplierOrderRequestForm

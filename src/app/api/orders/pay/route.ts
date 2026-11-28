@@ -7,6 +7,7 @@ import {
   closeSettledTableChecks,
   resolveTableCheckIdentity,
 } from "@/lib/cashier/table-checks";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 type PayOrderBody = {
   orderId?: string;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const currentUser = await prisma.user.findUnique({
+    const currentUser = await prisma.staff.findUnique({
       where: { id: authUser.id },
       select: {
         id: true,
@@ -65,7 +66,10 @@ export async function POST(request: Request) {
     const paymentMethod = String(body.paymentMethod ?? "").trim();
 
     if (!orderId) {
-      return NextResponse.json({ error: "Order is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Order is required." },
+        { status: 400 },
+      );
     }
 
     if (!isPaymentMethod(paymentMethod)) {
@@ -127,6 +131,21 @@ export async function POST(request: Request) {
     });
 
     const identity = resolveTableCheckIdentity(order);
+
+    const posthog = getPostHogClient();
+    if (posthog) {
+      posthog.capture({
+        distinctId: currentUser.id,
+        event: "order_paid",
+        properties: {
+          order_id: order.id,
+          payment_method: paymentMethod,
+          total: Number(order.total),
+          cashier_role: currentUser.role,
+        },
+      });
+      await posthog.flush();
+    }
 
     return NextResponse.json({
       success: true,
