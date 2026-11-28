@@ -10,8 +10,13 @@ import {
   deductProductInventoryForSale,
   sendInventoryAlerts,
 } from "@/lib/inventory/inventory";
-import { chooseUniqueCustomerCheckout } from "@/lib/payments/customer-ussd";
+import {
+  chooseUniqueCustomerCheckout,
+  customerPaymentNameMatches,
+  normalizeSomaliPhone,
+} from "@/lib/payments/customer-ussd";
 import type { SelectedModifierLine } from "@/lib/types";
+import { dispatchCustomerOrder } from "@/lib/staff/customer-order-dispatch";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type CheckoutLine = {
@@ -95,19 +100,32 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
         const note = [
           `Customer: ${checkout.customerName}`,
           `Phone: ${checkout.payerPhone}`,
-          checkout.notes ? `Note: ${checkout.notes}` : null,
+          checkout.orderType === "DINE_IN" ? "Dine in" : "To go",
         ]
           .filter(Boolean)
           .join(" | ");
         const order = await tx.order.create({
           data: {
-            type: "TAKEOUT",
+            type: checkout.orderType,
+            tableId: checkout.tableId,
             status: "PAID",
             total: checkout.amount,
             customerId: checkout.customerId,
             notes: note,
             closedAt: receipt.transactionAt ?? new Date(),
           },
+        });
+        const table = checkout.tableId
+          ? await tx.table.findUnique({
+              where: { id: checkout.tableId },
+              select: { name: true },
+            })
+          : null;
+        await dispatchCustomerOrder(tx, {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerId: checkout.customerId,
+          tableName: table?.name ?? null,
         });
         const ticketLines = lines.map((line) => ({
           id: crypto.randomUUID(),
@@ -211,7 +229,7 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
               event: "customer_order_placed",
               properties: {
                 order_id: result.order.id,
-                order_type: "TAKEOUT",
+                order_type: result.order.type,
                 total: Number(checkout.amount),
                 item_count: Array.isArray(checkout.snapshot)
                   ? checkout.snapshot.length
@@ -248,6 +266,8 @@ export async function assignCustomerCheckoutReceipt(input: {
   checkoutId: string;
   receiptId: string;
   staff?: { id: string; fullName: string };
+  reviewReason?: string;
+  allowExceptions?: boolean;
 }) {
   const now = new Date();
   const checkoutId = input.checkoutId;
@@ -282,10 +302,11 @@ export async function assignCustomerCheckoutReceipt(input: {
       ) {
         throw new Error("Receipt predates the checkout.");
       }
-      if (!input.staff) {
+      {
         const match = chooseUniqueCustomerCheckout(
           {
             amount: Number(receipt.amount),
+            counterpartyLabel: receipt.counterpartyLabel,
             identifiers: Array.isArray(receipt.counterpartyIdentifiers)
               ? receipt.counterpartyIdentifiers.filter(
                   (value): value is string => typeof value === "string",
@@ -296,6 +317,7 @@ export async function assignCustomerCheckoutReceipt(input: {
           [
             {
               id: checkout.id,
+              customerName: checkout.customerName,
               amount: Number(checkout.amount),
               payerPhone: checkout.payerPhone,
               createdAt: checkout.createdAt,
@@ -304,8 +326,17 @@ export async function assignCustomerCheckoutReceipt(input: {
           ],
           now,
         );
-        if (match !== checkout.id)
-          throw new Error("Receipt needs staff review.");
+        if (
+          match !== checkout.id &&
+          (!input.staff ||
+            !input.allowExceptions ||
+            (input.reviewReason?.trim().length ?? 0) < 5)
+        )
+          throw new Error(
+            "Name, phone, or payment window differs. An admin or manager must review it with a reason.",
+          );
+        if (input.staff && (input.reviewReason?.trim().length ?? 0) < 5)
+          throw new Error("Enter a review reason of at least five characters.");
       }
       const claimed = await tx.mobileMoneyReceipt.updateMany({
         where: {
@@ -332,10 +363,88 @@ export async function assignCustomerCheckoutReceipt(input: {
       });
       if (updated.count !== 1)
         throw new Error("Checkout was settled elsewhere.");
+      await tx.auditLog.create({
+        data: {
+          actorUserId: input.staff?.id ?? null,
+          action: input.staff
+            ? "customer_checkout.receipt_reviewed"
+            : "customer_checkout.receipt_matched",
+          entityType: "CustomerCheckout",
+          entityId: checkout.id,
+          relatedEntityType: "MobileMoneyReceipt",
+          relatedEntityId: receipt.id,
+          reason: input.reviewReason?.trim() ?? null,
+          previousValue: {
+            status: checkout.status,
+            receiptId: checkout.receiptId,
+          },
+          newValue: {
+            status: "PAYMENT_RECEIVED",
+            receiptId: receipt.id,
+            allowExceptions: Boolean(input.allowExceptions),
+          },
+        },
+      });
     },
     { timeout: 15000, maxWait: 5000 },
   );
   await finalizeCustomerCheckout(checkoutId);
+}
+
+// Keep the receipt unassigned for staff. Correlation only routes a checkout to
+// review; it never relaxes any of the automatic approval rules.
+async function queueCustomerPaymentReview(receipt: {
+  amount: Prisma.Decimal | null;
+  counterpartyIdentifiers: Prisma.JsonValue;
+  counterpartyLabel: string | null;
+}) {
+  const phones = Array.isArray(receipt.counterpartyIdentifiers)
+    ? receipt.counterpartyIdentifiers.flatMap((value) => {
+        const phone =
+          typeof value === "string" ? normalizeSomaliPhone(value) : null;
+        return phone ? [phone] : [];
+      })
+    : [];
+  const candidates = await prisma.customerCheckout.findMany({
+    where: {
+      status: {
+        in: [
+          CustomerCheckoutStatus.PENDING,
+          CustomerCheckoutStatus.REVIEW,
+          CustomerCheckoutStatus.EXPIRED,
+        ],
+      },
+      receiptId: null,
+      OR: [
+        { payerPhone: { in: phones } },
+        ...(receipt.amount ? [{ amount: receipt.amount }] : []),
+      ],
+    },
+    select: { id: true, payerPhone: true, customerName: true },
+    take: 100,
+    orderBy: { createdAt: "desc" },
+  });
+  const ids = candidates
+    .filter(
+      (candidate) =>
+        phones.includes(candidate.payerPhone) ||
+        customerPaymentNameMatches(
+          candidate.customerName,
+          receipt.counterpartyLabel,
+        ),
+    )
+    .map((candidate) => candidate.id);
+  if (!ids.length) return;
+  await prisma.customerCheckout.updateMany({
+    where: {
+      id: { in: ids },
+      status: {
+        in: [CustomerCheckoutStatus.PENDING, CustomerCheckoutStatus.EXPIRED],
+      },
+      receiptId: null,
+    },
+    data: { status: CustomerCheckoutStatus.REVIEW },
+  });
 }
 
 export async function autoMatchCustomerReceipt(
@@ -370,14 +479,19 @@ export async function autoMatchCustomerReceipt(
       id: true,
       amount: true,
       payerPhone: true,
+      customerName: true,
       createdAt: true,
       expiresAt: true,
     },
   });
-  if (candidates.length === 100) return;
+  if (candidates.length === 100) {
+    await queueCustomerPaymentReview(receipt);
+    return;
+  }
   const checkoutId = chooseUniqueCustomerCheckout(
     {
       amount: Number(receipt.amount),
+      counterpartyLabel: receipt.counterpartyLabel,
       identifiers: Array.isArray(receipt.counterpartyIdentifiers)
         ? receipt.counterpartyIdentifiers.filter(
             (value): value is string => typeof value === "string",
@@ -391,8 +505,11 @@ export async function autoMatchCustomerReceipt(
     })),
     new Date(),
   );
-  if (!checkoutId || (expectedCheckoutId && checkoutId !== expectedCheckoutId))
+  if (!checkoutId) {
+    await queueCustomerPaymentReview(receipt);
     return;
+  }
+  if (expectedCheckoutId && checkoutId !== expectedCheckoutId) return;
   try {
     await assignCustomerCheckoutReceipt({
       checkoutId,
@@ -400,6 +517,7 @@ export async function autoMatchCustomerReceipt(
     });
   } catch (error) {
     console.error("Customer receipt needs staff review:", receiptId, error);
+    await queueCustomerPaymentReview(receipt);
   }
 }
 
