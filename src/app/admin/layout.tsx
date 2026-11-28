@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import AdminShell from "@/components/admin/layout/AdminShell";
 import { getPermissionsForRole, PERMISSIONS } from "@/lib/auth/permissions";
@@ -51,6 +52,11 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         orders: openOrdersCount,
       }}
     >
+      {"isPlatformAdmin" in currentUser && currentUser.isPlatformAdmin && (
+        <Link href="/admin/cafeterias" className="m-4 inline-flex rounded-lg border px-4 py-2">
+          Manage cafeterias and domains
+        </Link>
+      )}
       {children}
     </AdminShell>
   );
