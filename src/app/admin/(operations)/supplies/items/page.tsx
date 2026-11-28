@@ -33,7 +33,7 @@ export default async function SupplyItemsPage() {
     >
       <div>
         <Button asChild variant="outline">
-          <Link href="/admin/supplies">
+          <Link prefetch={false} href="/admin/supplies">
             <ArrowLeft className="size-4" />
             Back to daily supplies
           </Link>

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { deleteProduct, updateProduct } from "../actions";
+import { DeleteCatalogItemSection } from "../../DeleteCatalogItemSection";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
+import { ProductMenuFields } from "../ProductMenuFields";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -38,29 +40,30 @@ export default async function ProductDetailsPage({
 
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Product Details</h1>
-            <p className="text-sm text-slate-500">{product.name}</p>
+            <p className="text-sm text-muted-foreground">{product.name}</p>
           </div>
 
           <Link
+            prefetch={false}
             href="/admin/products"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-slate-800">
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
+          <h2 className="mb-4 text-lg font-bold text-foreground">
             Edit Product
           </h2>
 
@@ -79,10 +82,15 @@ export default async function ProductDetailsPage({
                 name="name"
                 type="text"
                 defaultValue={product.name}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
+
+            <ProductMenuFields
+              description={product.description}
+              imageUrl={product.imageUrl}
+            />
 
             <div>
               <label
@@ -97,7 +105,7 @@ export default async function ProductDetailsPage({
                 type="number"
                 step="0.01"
                 defaultValue={Number(product.price)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               />
             </div>
@@ -113,7 +121,7 @@ export default async function ProductDetailsPage({
                 id="product-category"
                 name="categoryId"
                 defaultValue={product.categoryId}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="w-full rounded-lg border border-border px-3 py-2"
                 required
               >
                 {categories.map((category) => (
@@ -170,7 +178,7 @@ export default async function ProductDetailsPage({
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
                 Save Changes
               </Button>
@@ -178,26 +186,12 @@ export default async function ProductDetailsPage({
           </form>
         </section>
 
-        <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600">
-            Delete Product
-          </h2>
-
-          <p className="mb-4 text-sm text-slate-600">
-            This will permanently delete{" "}
-            <span className="font-semibold">{product.name}</span>.
-          </p>
-
-          <form action={deleteProduct}>
-            <Input type="hidden" name="id" value={product.id} />
-            <Button
-              type="submit"
-              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Delete Product
-            </Button>
-          </form>
-        </section>
+        <DeleteCatalogItemSection
+          id={product.id}
+          name={product.name}
+          label="Delete Product"
+          action={deleteProduct}
+        />
       </div>
     </div>
   );
