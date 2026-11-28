@@ -9,6 +9,7 @@ import type { SelectedModifierLine } from "@/lib/types";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import { resolveProductBasePrice } from "@/lib/catalog/open-price";
 import {
   ModifierSelectionError,
   validateModifierSelections,
@@ -25,6 +26,7 @@ type TableOrderItemInput = {
   qty: number;
   modifiers?: TableOrderItemModifierInput[];
   assignedBaristaId?: string | null;
+  unitPriceOverride?: number;
 };
 
 type TableOrderBody = {
@@ -42,6 +44,8 @@ type PreparedLine = {
   assignedBaristaName: string | null;
   unitPrice: number;
   lineTotal: number;
+  basePrice: number;
+  isOpenPrice: boolean;
   costSnapshot: ReturnType<typeof snapshotInventoryCost>;
   modifiers: SelectedModifierLine[];
 };
@@ -150,6 +154,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          isOpenPrice: true,
           cost: true,
           availableForSale: true,
           availabilityRestoresAt: true,
@@ -318,7 +323,18 @@ export async function POST(request: Request) {
         (sum, modifier) => sum + modifier.price * modifier.qty,
         0,
       );
-      const unitPrice = roundCurrency(Number(product.price) + modifierTotal);
+      const priceResolution = resolveProductBasePrice({
+        isOpenPrice: product.isOpenPrice,
+        catalogPrice: Number(product.price),
+        submittedPrice: item.unitPriceOverride,
+      });
+      if (!priceResolution.ok) {
+        return NextResponse.json(
+          { error: `${product.name}: ${priceResolution.error}` },
+          { status: 400 },
+        );
+      }
+      const unitPrice = roundCurrency(priceResolution.basePrice + modifierTotal);
       const lineTotal = roundCurrency(unitPrice * qty);
 
       preparedLines.push({
@@ -330,6 +346,8 @@ export async function POST(request: Request) {
         assignedBaristaName,
         unitPrice,
         lineTotal,
+        basePrice: priceResolution.basePrice,
+        isOpenPrice: product.isOpenPrice,
         costSnapshot: snapshotInventoryCost(
           selectEffectiveRecipe(product.recipeVersions, new Date()),
           product.cost,
@@ -483,6 +501,24 @@ export async function POST(request: Request) {
         if (modifierRows.length > 0) {
           await tx.orderItemModifier.createMany({
             data: modifierRows,
+          });
+        }
+
+        const openPriceLines = preparedLines.filter((line) => line.isOpenPrice);
+        if (openPriceLines.length > 0) {
+          await tx.auditLog.create({
+            data: {
+              actorUserId: currentUser.id,
+              action: "order.open_price.recorded",
+              entityType: "Order",
+              entityId: createdOrder.id,
+              newValue: openPriceLines.map((line) => ({
+                productId: line.productId,
+                productName: line.productName,
+                quantity: line.qty,
+                basePrice: line.basePrice,
+              })) as Prisma.InputJsonValue,
+            },
           });
         }
 

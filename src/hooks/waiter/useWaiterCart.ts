@@ -25,6 +25,8 @@ function buildModifierSignature(modifiers: SelectedModifierLine[]) {
 
 function buildCartLineKey(product: {
   id: string;
+  price?: number;
+  isOpenPrice?: boolean;
   station?: Station;
   assignedUserId?: string | null;
   selectedModifiers?: SelectedModifierLine[];
@@ -34,8 +36,17 @@ function buildCartLineKey(product: {
   );
   const station = product.station ?? "NO_STATION";
   const assignedUserId = product.assignedUserId ?? "UNASSIGNED";
+  const openPrice = product.isOpenPrice
+    ? Number(product.price ?? 0).toFixed(2)
+    : "FIXED_PRICE";
 
-  return [product.id, station, assignedUserId, modifierSignature].join("__");
+  return [
+    product.id,
+    station,
+    assignedUserId,
+    modifierSignature,
+    openPrice,
+  ].join("__");
 }
 
 function calculateLineTotal(unitPrice: number, quantity: number) {
@@ -54,6 +65,8 @@ export function useWaiterCart() {
       const unitPrice = Number(product.finalPrice ?? product.price);
       const cartKey = buildCartLineKey({
         id: product.id,
+        price: Number(product.price),
+        isOpenPrice: product.isOpenPrice,
         station,
         assignedUserId: product.assignedUserId ?? null,
         selectedModifiers,

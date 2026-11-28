@@ -90,7 +90,7 @@ function restoreLine(
   baristas: Map<string, StaffSummary>,
 ): { line: CartLine; repriced: boolean } | null {
   const product = products.get(item.productId);
-  if (!product) return null;
+  if (!product || product.isOpenPrice) return null;
 
   const selectedModifiers: SelectedModifierLine[] = [];
   for (const requested of item.modifiers) {
@@ -146,6 +146,7 @@ function restoreLine(
       .map((modifier) => `${modifier.optionId}:${modifier.qty}`)
       .sort()
       .join("|"),
+    "FIXED_PRICE",
   ].join("__");
   return {
     line: {

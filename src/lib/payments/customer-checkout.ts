@@ -96,6 +96,8 @@ export async function finalizeCustomerCheckout(checkoutId: string) {
           throw new Error("Payment amount differs from checkout amount.");
         }
 
+        // These prices were calculated by the server before payment. Catalog
+        // changes must not reprice a checkout after its receipt was verified.
         const lines = snapshotLines(checkout.snapshot);
         const note = [
           `Customer: ${checkout.customerName}`,

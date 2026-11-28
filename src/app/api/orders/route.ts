@@ -151,6 +151,7 @@ export async function POST(request: Request) {
           id: true,
           name: true,
           price: true,
+          isOpenPrice: true,
           cost: true,
           availableForSale: true,
           availabilityRestoresAt: true,
@@ -248,6 +249,13 @@ export async function POST(request: Request) {
         );
       }
 
+      if (product.isOpenPrice) {
+        return NextResponse.json(
+          { error: `${product.name} must be priced by a cashier.` },
+          { status: 400 },
+        );
+      }
+
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
 
@@ -269,27 +277,27 @@ export async function POST(request: Request) {
       });
 
       const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map((modifierId) => {
-        const modifier = modifierMap.get(modifierId);
+          const modifier = modifierMap.get(modifierId);
 
         if (
           !modifier ||
           !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
         ) {
           throw new ModifierSelectionError(
-            `Modifier ${modifierId} is invalid for product ${product.name}.`,
-          );
-        }
+              `Modifier ${modifierId} is invalid for product ${product.name}.`,
+            );
+          }
 
-        const incomingModifier = incomingModifierMap.get(modifierId);
+          const incomingModifier = incomingModifierMap.get(modifierId);
 
-        return {
-          groupId: modifier.modifierGroup.id,
-          groupName: modifier.modifierGroup.name,
-          optionId: modifier.id,
-          optionName: modifier.name,
-          price: roundCurrency(Number(modifier.price)),
-          qty: Math.max(1, Number(incomingModifier?.qty) || 1),
-        };
+          return {
+            groupId: modifier.modifierGroup.id,
+            groupName: modifier.modifierGroup.name,
+            optionId: modifier.id,
+            optionName: modifier.name,
+            price: roundCurrency(Number(modifier.price)),
+            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+          };
       });
 
       let assignedBaristaId: string | null = null;
@@ -346,13 +354,13 @@ export async function POST(request: Request) {
     calculatedTotal = roundCurrency(calculatedTotal);
 
     const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
-      id: crypto.randomUUID(),
-      productName: line.productName,
-      qty: line.qty,
-      station: line.station,
-      assignedUserId: line.assignedBaristaId,
-      assignedUserName: line.assignedBaristaName,
-      modifiers: line.modifiers,
+        id: crypto.randomUUID(),
+        productName: line.productName,
+        qty: line.qty,
+        station: line.station,
+        assignedUserId: line.assignedBaristaId,
+        assignedUserName: line.assignedBaristaName,
+        modifiers: line.modifiers,
     }));
 
     const result = await prisma.$transaction(

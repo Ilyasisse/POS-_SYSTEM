@@ -31,6 +31,8 @@ export type CartLine = {
   product: {
     id: string;
     name: string;
+    price: number;
+    isOpenPrice?: boolean;
     pronunciationAudioUrl?: string | null;
     category?: {
       id: string;
