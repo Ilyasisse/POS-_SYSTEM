@@ -10,9 +10,7 @@ type CashierOrderPageProps = {
   }>;
 };
 
-export default async function CashierOrderPage({
-  searchParams,
-}: CashierOrderPageProps) {
+export default async function CashierOrderPage({ searchParams }: CashierOrderPageProps) {
   const params = await searchParams;
   const requestedTableId = params?.tableId?.trim() ?? "";
   const repeatOrderId = params?.repeatOrderId?.trim() ?? "";

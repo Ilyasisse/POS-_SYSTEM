@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import type { CartLine, Product, SelectedModifierLine, Station } from "@/lib/types";
+import type {
+  CartLine,
+  Product,
+  SelectedModifierLine,
+  Station,
+} from "@/lib/types";
 
 type ProductWithConfiguration = Product & {
   finalPrice?: number;
@@ -118,6 +123,10 @@ export function useWaiterCart() {
     setCart([]);
   };
 
+  const replaceCart = (lines: CartLine[]) => {
+    setCart(lines);
+  };
+
   const removeFromCart = (cartKey: string) => {
     setCart((current) => current.filter((item) => item.cartKey !== cartKey));
   };
@@ -136,6 +145,7 @@ export function useWaiterCart() {
     changeQuantity,
     removeFromCart,
     clearCart,
+    replaceCart,
     calculateCartTotal,
   };
 }

@@ -2,7 +2,10 @@ import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { decimalQuantity } from "@/lib/inventory/inventory-domain";
-import { appendStockEvent, deductSaleInventory } from "@/lib/inventory/stock-ledger";
+import {
+  appendStockEvent,
+  deductSaleInventory,
+} from "@/lib/inventory/stock-ledger";
 
 export type InventorySaleLine = {
   productId: string;
@@ -51,8 +54,6 @@ function toValidQuantity(value: number | Prisma.Decimal) {
   return Number(decimalQuantity(value));
 }
 
-
-
 /**
  * Calculates the inventory alert status for a stock quantity and low-stock threshold.
  *
@@ -61,14 +62,16 @@ function toValidQuantity(value: number | Prisma.Decimal) {
  * @returns The current inventory alert status.
  */
 export function getInventoryAlertStatus(
-  stockQty: number,
-  lowStockThreshold: number,
+  stockQty: number | Prisma.Decimal,
+  lowStockThreshold: number | Prisma.Decimal,
 ): InventoryAlertStatus {
-  if (stockQty <= 0) {
+  const stock = new Prisma.Decimal(stockQty);
+  const threshold = new Prisma.Decimal(lowStockThreshold);
+  if (stock.lte(0)) {
     return "OUT";
   }
 
-  if (lowStockThreshold > 0 && stockQty <= lowStockThreshold) {
+  if (threshold.gt(0) && stock.lte(threshold)) {
     return "LOW";
   }
 
@@ -90,15 +93,13 @@ function buildInventoryAlert(
   item: InventoryTrackedItem,
   itemName: string,
   itemType: InventoryAlert["itemType"],
-  nextStockQty: number,
-  nextLowStockThreshold: number,
+  nextStockQty: number | Prisma.Decimal,
+  nextLowStockThreshold: number | Prisma.Decimal,
   delta: number,
 ): { status: InventoryAlertStatus; alert: InventoryAlert | null } {
   const status = getInventoryAlertStatus(nextStockQty, nextLowStockThreshold);
   const shouldAlert =
-    delta <= 0 &&
-    status !== "OK" &&
-    status !== item.inventoryAlertStatus;
+    delta <= 0 && status !== "OK" && status !== item.inventoryAlertStatus;
 
   return {
     status,
@@ -107,8 +108,8 @@ function buildInventoryAlert(
           itemName,
           itemType,
           status,
-          stockQty: nextStockQty,
-          lowStockThreshold: nextLowStockThreshold,
+          stockQty: Number(nextStockQty),
+          lowStockThreshold: Number(nextLowStockThreshold),
         }
       : null,
   };
@@ -391,23 +392,53 @@ export async function deductProductInventoryForSale(
   lines: InventorySaleLine[],
   sourceOrderId: string | null = null,
   actorUserId?: string | null,
+  actorCustomerId?: string | null,
 ) {
-  const events = await deductSaleInventory(tx, lines, sourceOrderId, actorUserId);
-  const productIds = [...new Set(events.flatMap((event) => event.productId ? [event.productId] : []))];
-  const supplyIds = [...new Set(events.flatMap((event) => event.supplyId ? [event.supplyId] : []))];
+  const events = await deductSaleInventory(
+    tx,
+    lines,
+    sourceOrderId,
+    actorUserId,
+    actorCustomerId,
+  );
+  const productIds = [
+    ...new Set(
+      events.flatMap((event) => (event.productId ? [event.productId] : [])),
+    ),
+  ];
+  const supplyIds = [
+    ...new Set(
+      events.flatMap((event) => (event.supplyId ? [event.supplyId] : [])),
+    ),
+  ];
   const [products, supplies] = await Promise.all([
     tx.product.findMany({
       where: { id: { in: productIds } },
-      select: { id: true, name: true, stockQty: true, lowStockThreshold: true, inventoryAlertStatus: true },
+      select: {
+        id: true,
+        name: true,
+        stockQty: true,
+        lowStockThreshold: true,
+        inventoryAlertStatus: true,
+      },
     }),
     tx.inventorySupply.findMany({
       where: { id: { in: supplyIds } },
-      select: { id: true, name: true, stockQty: true, lowStockThreshold: true, inventoryAlertStatus: true },
+      select: {
+        id: true,
+        name: true,
+        stockQty: true,
+        lowStockThreshold: true,
+        inventoryAlertStatus: true,
+      },
     }),
   ]);
   const alerts: InventoryAlert[] = [];
   const statusUpdates = [
-    ...products.map((product) => ({ ...product, itemType: "Product" as const })),
+    ...products.map((product) => ({
+      ...product,
+      itemType: "Product" as const,
+    })),
     ...supplies.map((supply) => ({ ...supply, itemType: "Supply" as const })),
   ].map((item) => {
     const stockQty = Number(item.stockQty);
@@ -422,9 +453,15 @@ export async function deductProductInventoryForSale(
     );
     if (alert) alerts.push(alert);
     if (item.itemType === "Product") {
-      return tx.product.update({ where: { id: item.id }, data: { inventoryAlertStatus: status } });
+      return tx.product.update({
+        where: { id: item.id },
+        data: { inventoryAlertStatus: status },
+      });
     }
-    return tx.inventorySupply.update({ where: { id: item.id }, data: { inventoryAlertStatus: status } });
+    return tx.inventorySupply.update({
+      where: { id: item.id },
+      data: { inventoryAlertStatus: status },
+    });
   });
   await Promise.all(statusUpdates);
   return alerts;
@@ -480,7 +517,10 @@ export async function setProductInventoryLevel(
     delta,
   );
 
-  await tx.product.update({ where: { id: product.id }, data: { trackStock: true, lowStockThreshold, inventoryAlertStatus: status } });
+  await tx.product.update({
+    where: { id: product.id },
+    data: { trackStock: true, lowStockThreshold, inventoryAlertStatus: status },
+  });
   if (!deltaDecimal.isZero()) {
     await appendStockEvent(tx, {
       productId: product.id,
@@ -515,6 +555,7 @@ export async function setSupplyInventoryLevel(
   reason: string,
   note?: string,
   actorUserId?: string | null,
+  occurredAt = new Date(),
 ) {
   const supply = await tx.inventorySupply.findUnique({
     where: { id: supplyId },
@@ -537,22 +578,20 @@ export async function setSupplyInventoryLevel(
 
   const quantityBeforeDecimal = decimalQuantity(supply.stockQty);
   const quantityAfterDecimal = decimalQuantity(nextStockQty);
-  const quantityBefore = Number(quantityBeforeDecimal);
-  const quantityAfter = Number(quantityAfterDecimal);
   const deltaDecimal = quantityAfterDecimal.sub(quantityBeforeDecimal);
   const delta = Number(deltaDecimal);
-  const lowStockThreshold = toValidQuantity(nextLowStockThreshold);
+  const lowStockThreshold = decimalQuantity(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     supply,
     supply.name,
     "Supply",
-    quantityAfter,
+    quantityAfterDecimal,
     lowStockThreshold,
     delta,
   );
   const forcedZeroStockAlert =
     status === "OUT" &&
-    quantityAfter === 0 &&
+    quantityAfterDecimal.isZero() &&
     (delta < 0 || reason === "TAKEN");
   const supplyAlert =
     alert ??
@@ -561,12 +600,15 @@ export async function setSupplyInventoryLevel(
           itemName: supply.name,
           itemType: "Supply" as const,
           status,
-          stockQty: quantityAfter,
-          lowStockThreshold,
+          stockQty: Number(quantityAfterDecimal),
+          lowStockThreshold: Number(lowStockThreshold),
         }
       : null);
 
-  await tx.inventorySupply.update({ where: { id: supply.id }, data: { lowStockThreshold, inventoryAlertStatus: status } });
+  await tx.inventorySupply.update({
+    where: { id: supply.id },
+    data: { lowStockThreshold, inventoryAlertStatus: status },
+  });
 
   if (delta !== 0) {
     await appendStockEvent(tx, {
@@ -577,15 +619,17 @@ export async function setSupplyInventoryLevel(
       actorUserId,
       sourceType: "InventoryAdmin",
       sourceId: supply.id,
+      occurredAt,
     });
     await tx.inventoryMovement.create({
       data: {
         supplyId: supply.id,
+        occurredAt,
         itemName: `${supply.name} (${supply.unit})`,
         itemType: "Supply",
-        delta,
-        quantityBefore,
-        quantityAfter,
+        delta: deltaDecimal,
+        quantityBefore: quantityBeforeDecimal,
+        quantityAfter: quantityAfterDecimal,
         canonicalUnit: supply.canonicalUnit,
         dataCoverage: supply.quantityCoverage,
         standardUnitCostSnapshot: supply.standardUnitCost,
