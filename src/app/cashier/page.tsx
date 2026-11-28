@@ -12,12 +12,14 @@ import { groupCashierOpenOrders } from "@/lib/cashier/table-checks";
 import { canShowEqualBillSplit } from "@/lib/payments/equal-bill-split-flag";
 import CashierLiveSync from "@/components/cashier/CashierLiveSync";
 import CashierPaymentDialog from "@/components/cashier/CashierPaymentDialog";
+import { transferOpenTableServiceFromCashier } from "./actions";
 import { ToastOnMount } from "@/components/ui/toast";
 
 type CashierPageProps = {
   searchParams?: Promise<{
     paymentStatus?: string;
     orderStatus?: string;
+    transferStatus?: string;
   }>;
 };
 
@@ -61,13 +63,42 @@ function getPaymentStatusMessage(paymentStatus?: string) {
   }
 }
 
+function getTransferStatusMessage(transferStatus?: string) {
+  switch (transferStatus) {
+    case "table_moved":
+      return {
+        tone: "success" as const,
+        message: "The open service was moved to the new table.",
+      };
+    case "table_move_failed":
+      return {
+        tone: "error" as const,
+        message: "The table could not be moved. The destination may now be occupied.",
+      };
+    default:
+      return null;
+  }
+}
+
+function getOrderStatusMessage(orderStatus?: string) {
+  if (orderStatus === "takeaway_paid") {
+    return {
+      tone: "success" as const,
+      message: "The takeaway order was paid and sent to the kitchen.",
+    };
+  }
+  if (orderStatus === "sent") {
+    return {
+      tone: "success" as const,
+      message: "The table order was sent to the kitchen.",
+    };
+  }
+  return null;
+}
+
 export default async function CashierPage({ searchParams }: CashierPageProps) {
-  const { start: businessDayStart, end: businessDayEnd } =
-    getCashierBusinessDayRange();
-  const businessDayLabel = formatCashierBusinessDayRange(
-    businessDayStart,
-    businessDayEnd,
-  );
+  const { start: businessDayStart, end: businessDayEnd } = getCashierBusinessDayRange();
+  const businessDayLabel = formatCashierBusinessDayRange(businessDayStart, businessDayEnd);
 
   // Resolve URL state with auth, but keep protected table reads after auth.
   const [currentUser, params] = await Promise.all([
@@ -76,51 +107,61 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   ]);
   const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
-  const orderNotice =
-    params?.orderStatus === "sent"
-      ? {
-          tone: "success" as const,
-          message: "The table order was sent to the kitchen.",
-        }
-      : null;
-  const notice = paymentNotice ?? orderNotice;
+  const transferNotice = getTransferStatusMessage(params?.transferStatus);
+  const orderNotice = getOrderStatusMessage(params?.orderStatus);
+  const notice = paymentNotice ?? transferNotice ?? orderNotice;
 
-  const tables = await prisma.table.findMany({
-    where: {
-      isActive: true,
-      orders: {
-        some: {
-          status: "OPEN",
-          type: "DINE_IN",
+  const [tables, availableTables] = await Promise.all([
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          some: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
         },
       },
-    },
-    orderBy: { name: "asc" },
-    include: {
-      orders: {
-        where: {
-          status: "OPEN",
-          type: "DINE_IN",
-        },
-        orderBy: { createdAt: "desc" },
-        include: {
-          cashier: { select: { fullName: true } },
-          tableCheck: { select: { checkNumber: true } },
-          orderItems: {
-            select: {
-              id: true,
-              productName: true,
-              qty: true,
+      orderBy: { name: "asc" },
+      include: {
+        orders: {
+          where: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+          orderBy: { createdAt: "desc" },
+          include: {
+            cashier: { select: { fullName: true } },
+            tableCheck: { select: { checkNumber: true } },
+            orderItems: {
+              select: {
+                id: true,
+                productName: true,
+                qty: true,
+              },
+              orderBy: { createdAt: "asc" },
             },
-            orderBy: { createdAt: "asc" },
-          },
-          payments: {
-            select: { amountPaid: true },
+            payments: {
+              select: { amountPaid: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          none: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+        },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const openChecksByTable = new Map(
     tables.map((table) => [
@@ -135,10 +176,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           total: Math.max(
             0,
             Number(order.total) -
-              order.payments.reduce(
-                (paid, payment) => paid + Number(payment.amountPaid),
-                0,
-              ),
+              order.payments.reduce((paid, payment) => paid + Number(payment.amountPaid), 0),
           ),
           createdAt: order.createdAt,
           cashierName: order.cashier?.fullName ?? null,
@@ -149,42 +187,54 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   );
 
   return (
-    <main className="min-h-screen bg-muted/35 p-4 text-foreground sm:p-6">
+    <main className="bg-muted/35 text-foreground min-h-screen p-4 sm:p-6">
       <CashierLiveSync />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Cashier table settlement</h1>
-          <p className="mt-2 text-lg text-foreground">
-            Welcome {currentUser.fullName}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Business day: {businessDayLabel}
-          </p>
+          <p className="text-foreground mt-2 text-lg">Welcome {currentUser.fullName}</p>
+          <p className="text-muted-foreground text-sm">Business day: {businessDayLabel}</p>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <Link
+            prefetch={false}
+            href="/cashier/receipts"
+            className="border-border bg-card hover:bg-muted rounded-xl border px-4 py-2 text-sm font-semibold"
+          >
+            Receipts
+          </Link>
+          <Link
+            prefetch={false}
+            href="/cashier/order"
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            New table order
+          </Link>
+          <Link
+            href="/cashier/handover"
+            className="rounded-xl border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
+          >
+            Shift handover
+          </Link>
+          <Link
+            prefetch={false}
+            href="/cashier/takeaway"
+            className="border-border bg-card hover:bg-muted rounded-xl border px-4 py-2 text-sm font-semibold"
+          >
+            Takeaway order
+          </Link>
+        </div>
         <Link
-          href="/cashier/order"
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          New table order
-        </Link>
-        <Link
-          href="/cashier/handover"
-          className="rounded-xl border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-50"
-        >
-          Shift handover
-        </Link>
-        <Link
+          prefetch={false}
           href="/cashier/customer-checkouts"
-          className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50"
+          className="rounded-xl border border-amber-600 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-900/30"
         >
           Customer payment review
         </Link>
       </div>
 
-      {notice ? (
-        <ToastOnMount tone={notice.tone} description={notice.message} />
-      ) : null}
+      {notice ? <ToastOnMount tone={notice.tone} description={notice.message} /> : null}
 
       {/*
       
@@ -209,85 +259,61 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {tables.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-muted-foreground shadow-sm md:col-span-2 xl:col-span-3">
-            <h2 className="text-lg font-bold text-foreground">
-              No occupied tables
-            </h2>
+          <div className="border-border bg-card text-muted-foreground rounded-2xl border border-dashed p-6 text-sm shadow-sm md:col-span-2 xl:col-span-3">
+            <h2 className="text-foreground text-lg font-bold">No occupied tables</h2>
             <p className="mt-2">
-              Tables appear here only after an unpaid table order is sent. Use
-              New table order to start service for an active table.
+              Tables appear here only after an unpaid table order is sent. Use New table order to
+              start service for an active table.
             </p>
           </div>
         ) : (
           tables.map((table) => {
             const tableChecks = openChecksByTable.get(table.id) ?? [];
-            const tableTotal = tableChecks.reduce(
-              (sum, check) => sum + check.total,
-              0,
-            );
+            const tableTotal = tableChecks.reduce((sum, check) => sum + check.total, 0);
 
             return (
               <article
                 key={table.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                className="border-border bg-card rounded-2xl border p-4 shadow-sm"
               >
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-3xl font-bold text-foreground">
-                      {table.name}
-                    </h2>
+                    <h2 className="text-foreground text-3xl font-bold">{table.name}</h2>
                   </div>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase text-amber-700">
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 uppercase dark:bg-amber-950/40 dark:text-amber-300">
                     occupied
                   </span>
                 </div>
 
-                <div className="mb-4 rounded-xl bg-muted/50 px-3 py-2">
+                <div className="bg-muted/50 mb-4 rounded-xl px-3 py-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Open orders</span>
                     <span className="font-semibold">{tableChecks.length}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Table total</span>
-                    <span className="font-semibold">
-                      {formatMoney(tableTotal)}
-                    </span>
+                    <span className="font-semibold">{formatMoney(tableTotal)}</span>
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   {tableChecks.map((check) => (
-                    <div
-                      key={check.key}
-                      className="rounded-xl border border-border px-3 py-3"
-                    >
+                    <div key={check.key} className="border-border rounded-xl border px-3 py-3">
                       <div className="flex flex-wrap items-start justify-between gap-2">
-                        <p className="font-semibold text-foreground">
-                          Order #{check.orderNumber}
-                        </p>
-                        <p className="font-bold text-foreground">
-                          {formatMoney(check.total)}
-                        </p>
+                        <p className="text-foreground font-semibold">Order #{check.orderNumber}</p>
+                        <p className="text-foreground font-bold">{formatMoney(check.total)}</p>
                       </div>
 
                       <div className="mt-2 space-y-2">
                         {check.rounds.map((round) => (
-                          <div
-                            key={round.id}
-                            className="rounded-lg bg-muted/50 px-2.5 py-2"
-                          >
-                            <p className="text-xs font-semibold text-muted-foreground">
-                              Round {round.tableCheckRound ?? 1} ·{" "}
-                              {formatDateTime(round.createdAt)}
-                              {round.cashierName
-                                ? ` by ${round.cashierName}`
-                                : ""}
+                          <div key={round.id} className="bg-muted/50 rounded-lg px-2.5 py-2">
+                            <p className="text-muted-foreground text-xs font-semibold">
+                              Round {round.tableCheckRound ?? 1} · {formatDateTime(round.createdAt)}
+                              {round.cashierName ? ` by ${round.cashierName}` : ""}
                             </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="text-muted-foreground mt-1 text-sm">
                               {round.items
-                                .map(
-                                  (item) => `${item.qty}x ${item.productName}`,
-                                )
+                                .map((item) => `${item.qty}x ${item.productName}`)
                                 .join(", ")}
                             </p>
                           </div>
@@ -298,6 +324,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                 </div>
                 <div className="mt-4 grid gap-2">
                   <Link
+                    prefetch={false}
                     href={`/cashier/order?tableId=${encodeURIComponent(table.id)}`}
                     className="block rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-emerald-700"
                   >
@@ -309,6 +336,36 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                     amountDue={tableTotal}
                     showEqualSplit={showEqualSplit}
                   />
+                  {availableTables.length ? (
+                    <form
+                      action={transferOpenTableServiceFromCashier}
+                      className="grid grid-cols-[1fr_auto] gap-2"
+                    >
+                      <input type="hidden" name="sourceTableId" value={table.id} />
+                      <select
+                        name="targetTableId"
+                        required
+                        aria-label={`Move ${table.name} to an available table`}
+                        className="border-border bg-background h-11 min-w-0 rounded-xl border px-3 text-sm"
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          Move to table…
+                        </option>
+                        {availableTables.map((target) => (
+                          <option key={target.id} value={target.id}>
+                            {target.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="border-border bg-card hover:bg-muted h-11 rounded-xl border px-4 text-sm font-semibold"
+                      >
+                        Move
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               </article>
             );
