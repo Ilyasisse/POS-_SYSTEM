@@ -63,9 +63,9 @@ function SalesTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg shadow-slate-200/80">
-      <p className="text-xs font-bold text-slate-500">{point.label}</p>
-      <p className="text-sm font-black text-slate-950">
+    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg shadow-black/80">
+      <p className="text-xs font-bold text-muted-foreground">{point.label}</p>
+      <p className="text-sm font-black text-foreground">
         {formatMoney(point.value)}
       </p>
     </div>
@@ -144,18 +144,18 @@ export default function SalesChartCard({ points }: { points: ChartPoint[] }) {
   return (
     <div
       ref={ref}
-      className="relative h-64 min-w-0 overflow-hidden rounded-xl border border-slate-100 bg-linear-to-b from-white to-slate-50 px-2 py-4 sm:h-72 sm:px-3"
+      className="relative h-64 min-w-0 overflow-hidden rounded-xl border border-border bg-card px-2 py-4 sm:h-72 sm:px-3"
     >
       {!hasSales && (
-        <div className="pointer-events-none absolute inset-x-4 top-4 z-10 rounded-xl border border-dashed border-slate-200 bg-white/80 px-4 py-3 text-center text-sm font-semibold text-slate-500 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-x-4 top-4 z-10 rounded-xl border border-dashed border-border bg-card/80 px-4 py-3 text-center text-sm font-semibold text-muted-foreground backdrop-blur-sm">
           No sales recorded this week yet.
         </div>
       )}
       {!isReady ? (
-        <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 px-4">
+        <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-card/60 px-4">
           <div className="grid w-full gap-3">
-            <div className="h-5 w-40 rounded-full bg-slate-200/80" />
-            <div className="h-40 rounded-2xl bg-slate-200/60" />
+            <div className="h-5 w-40 rounded-full bg-muted/80" />
+            <div className="h-40 rounded-2xl bg-muted/60" />
           </div>
         </div>
       ) : (

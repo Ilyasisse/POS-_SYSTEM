@@ -200,6 +200,7 @@ function ToastCard({
           {item.action ? (
             item.action.href ? (
               <Link
+                prefetch={false}
                 href={item.action.href}
                 className="mt-3 inline-flex rounded-lg border border-current/20 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-black/5 dark:hover:bg-white/10"
               >
