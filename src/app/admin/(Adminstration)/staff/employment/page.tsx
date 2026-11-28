@@ -20,7 +20,7 @@ import {
 import Link from "next/link";
 import { saveEmploymentAction } from "../actions";
 
-const label = "grid gap-1 text-sm font-semibold text-slate-700";
+const label = "grid gap-1 text-sm font-semibold text-foreground";
 
 type Props = { searchParams?: Promise<{ review?: string }> };
 
@@ -155,7 +155,7 @@ export default async function EmploymentPage({ searchParams }: Props) {
                 <tr key={profile.id}>
                   <TableCell className="font-semibold">
                     {profile.user.fullName}
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {profile.user.role}
                     </div>
                   </TableCell>
