@@ -536,7 +536,7 @@ test("soft-deletes supplier-order schedules while preserving their audit history
   assert.match(migration, /ADD COLUMN "deletedAt" TIMESTAMP\(3\)/);
 
   const actions = readFileSync(
-    "src/app/admin/supplier-order-schedules/actions.ts",
+    "src/app/admin/(suppliers)/supplier-order-schedules/actions.ts",
     "utf8",
   );
   assert.match(
@@ -562,26 +562,26 @@ test("soft-deletes supplier-order schedules while preserving their audit history
 
   const service = readFileSync("src/lib/supplier-orders/service.ts", "utf8");
   assert.ok(
-    service.match(/deletedAt: null/g)?.length >= 6,
+    (service.match(/deletedAt: null/g)?.length ?? 0) >= 6,
     "every scheduler stage and the transactional claim must exclude deleted schedules",
   );
 
   const listPage = readFileSync(
-    "src/app/admin/supplier-order-schedules/page.tsx",
+    "src/app/admin/(suppliers)/supplier-order-schedules/page.tsx",
     "utf8",
   );
   assert.match(listPage, /where: \{ deletedAt: null \}/);
   assert.match(listPage, /Schedule deleted/);
 
   const detailPage = readFileSync(
-    "src/app/admin/supplier-order-schedules/\[id\]/page.tsx",
+    "src/app/admin/(suppliers)/supplier-order-schedules/\[id\]/page.tsx",
     "utf8",
   );
   assert.match(detailPage, /where: \{ id, deletedAt: null \}/);
   assert.match(detailPage, /DeleteScheduleButton/);
 
   const deleteButton = readFileSync(
-    "src/app/admin/supplier-order-schedules/\[id\]/DeleteScheduleButton.tsx",
+    "src/app/admin/(suppliers)/supplier-order-schedules/\[id\]/DeleteScheduleButton.tsx",
     "utf8",
   );
   assert.match(deleteButton, /AlertDialog/);
