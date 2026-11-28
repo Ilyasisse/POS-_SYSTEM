@@ -29,19 +29,16 @@ export default async function MyAttendancePage() {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 sm:p-8">
       <div>
-        <p className="text-sm font-semibold text-emerald-700">
+        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
           Staff attendance
         </p>
         <h1 className="text-3xl font-black">Hello, {worker.fullName}</h1>
-        <p className="text-slate-600">
+        <p className="text-muted-foreground">
           Clock events are append-only and use Nairobi business time.
         </p>
       </div>
       <Card className="p-5">
-        <form
-          action={recordOwnClockAction}
-          className="grid gap-4 sm:grid-cols-[1fr_auto]"
-        >
+        <form action={recordOwnClockAction} className="grid gap-4 sm:grid-cols-[1fr_auto]">
           <input type="hidden" name="type" value={nextType} />
           <label className="grid gap-1 text-sm font-semibold">
             Optional note
@@ -60,14 +57,13 @@ export default async function MyAttendancePage() {
               shifts.map((shift) => (
                 <li key={shift.id} className="rounded-lg border p-3">
                   <strong>{shift.station ?? "General"}</strong>
-                  <div className="text-sm text-slate-600">
-                    {formatStaffDateTime(shift.startsAt)} –{" "}
-                    {formatStaffDateTime(shift.endsAt)}
+                  <div className="text-muted-foreground text-sm">
+                    {formatStaffDateTime(shift.startsAt)} – {formatStaffDateTime(shift.endsAt)}
                   </div>
                 </li>
               ))
             ) : (
-              <li className="text-sm text-slate-500">No upcoming shift.</li>
+              <li className="text-muted-foreground text-sm">No upcoming shift.</li>
             )}
           </ul>
         </Card>
@@ -76,18 +72,15 @@ export default async function MyAttendancePage() {
           <ol className="mt-3 space-y-2">
             {events.length ? (
               events.map((event) => (
-                <li
-                  key={event.id}
-                  className="flex justify-between rounded-lg border p-3"
-                >
+                <li key={event.id} className="flex justify-between rounded-lg border p-3">
                   <strong>{event.type}</strong>
-                  <span className="text-sm text-slate-600">
+                  <span className="text-muted-foreground text-sm">
                     {formatStaffDateTime(event.occurredAt)}
                   </span>
                 </li>
               ))
             ) : (
-              <li className="text-sm text-slate-500">No clock events yet.</li>
+              <li className="text-muted-foreground text-sm">No clock events yet.</li>
             )}
           </ol>
         </Card>

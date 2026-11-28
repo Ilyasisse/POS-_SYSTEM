@@ -1,3 +1,5 @@
+import * as modifierValidation from "../../src/lib/orders/modifier-selection-validation";
+import * as counterOrderType from "../../src/lib/orders/counter-order-type";
 /* eslint-disable @typescript-eslint/no-explicit-any -- isolated adapters execute actual transpiled API modules. */
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -18,6 +20,8 @@ function loadModule(path: string, dependencies: Record<string, unknown>) {
   vm.runInNewContext(output, {
     exports,
     require: (name: string) => {
+      if (name === "@/lib/orders/modifier-selection-validation") return modifierValidation;
+      if (name === "@/lib/orders/counter-order-type") return counterOrderType;
       if (!(name in dependencies)) {
         throw new Error(`Missing isolated dependency: ${name}`);
       }
@@ -45,10 +49,7 @@ const routePaths = {
 } as const;
 type RouteName = keyof typeof routePaths;
 
-function project(
-  record: Record<string, any>,
-  select: Record<string, any>,
-): Record<string, any> {
+function project(record: Record<string, any>, select: Record<string, any>): Record<string, any> {
   return Object.fromEntries(
     Object.entries(select).map(([key, field]) => [
       key,
@@ -94,6 +95,9 @@ function fixture(
     availableForSale: options.availableForSale ?? true,
     availabilityRestoresAt: options.availabilityRestoresAt ?? null,
     recipeVersions: [],
+    get modifiers() {
+      return [modifier];
+    },
     category: { station: "COOK", isActive: options.categoryActive ?? true },
   };
   const modifier = {
@@ -136,25 +140,17 @@ function fixture(
         if (categoryFilter?.isActive === true && !product.category.isActive) {
           return [];
         }
-        return query.where.id.in.includes(product.id)
-          ? [project(product, query.select)]
-          : [];
+        return query.where.id.in.includes(product.id) ? [project(product, query.select)] : [];
       },
     },
     modifier: {
       findMany: async (query: any) => {
         state.modifierQueries.push(query);
-        const groupFilter =
-          query.where.modifierGroup?.is ?? query.where.modifierGroup;
-        if (
-          groupFilter?.isActive === true &&
-          !modifier.modifierGroup.isActive
-        ) {
+        const groupFilter = query.where.modifierGroup?.is ?? query.where.modifierGroup;
+        if (groupFilter?.isActive === true && !modifier.modifierGroup.isActive) {
           return [];
         }
-        return query.where.id.in.includes(modifier.id)
-          ? [project(modifier, query.select)]
-          : [];
+        return query.where.id.in.includes(modifier.id) ? [project(modifier, query.select)] : [];
       },
     },
     order: {
@@ -310,17 +306,11 @@ const routeNames = Object.keys(routePaths) as RouteName[];
 for (const name of ["sale", "completeSale"] as const) {
   test(`${name}: an active waiter cannot create an immediately paid order`, async () => {
     assert.equal(
-      permissions.hasPermission(
-        { role: "WAITER" },
-        permissions.PERMISSIONS.ORDER_CREATE,
-      ),
+      permissions.hasPermission({ role: "WAITER" }, permissions.PERMISSIONS.ORDER_CREATE),
       true,
     );
     assert.equal(
-      permissions.hasPermission(
-        { role: "WAITER" },
-        permissions.PERMISSIONS.PAYMENT_TAKE,
-      ),
+      permissions.hasPermission({ role: "WAITER" }, permissions.PERMISSIONS.PAYMENT_TAKE),
       false,
     );
     const f = fixture(name, { role: "WAITER" });
@@ -333,21 +323,9 @@ for (const name of ["sale", "completeSale"] as const) {
 
 for (const name of routeNames) {
   test(`${name}: invalid item quantities return 400 before writes`, async () => {
-    for (const qty of [
-      0,
-      -1,
-      1.5,
-      NaN,
-      Infinity,
-      "2",
-      null,
-      undefined,
-      2147483648,
-    ]) {
+    for (const qty of [0, -1, 1.5, NaN, Infinity, "2", null, undefined, 2147483648]) {
       const f = fixture(name);
-      const response = await f.route.POST(
-        request(body([{ productId: "product", qty }])),
-      );
+      const response = await f.route.POST(request(body([{ productId: "product", qty }])));
       assert.equal(response.status, 400, `quantity ${String(qty)}`);
       assert.equal(f.state.transactions, 0);
       assert.equal(f.state.writes, 0);
@@ -435,8 +413,7 @@ for (const name of routeNames) {
       assert.equal(f.state.modifiers[0].qty, 3);
       assert.equal(f.state.deductions[0].qty, 2);
       assert.equal(f.state.tickets[0].lines[0].qty, 2);
-      if (name !== "table")
-        assert.equal(Number(f.state.payments[0].amountPaid), 32);
+      if (name !== "table") assert.equal(Number(f.state.payments[0].amountPaid), 32);
     }
   });
 
@@ -455,9 +432,7 @@ for (const name of routeNames) {
     );
     assert.equal(response.status, name === "checkout" ? 201 : 200);
     const selected =
-      name === "checkout"
-        ? f.state.checkouts[0].snapshot[0].modifiers[0]
-        : f.state.modifiers[0];
+      name === "checkout" ? f.state.checkouts[0].snapshot[0].modifiers[0] : f.state.modifiers[0];
     assert.equal(selected.qty, 1);
   });
 

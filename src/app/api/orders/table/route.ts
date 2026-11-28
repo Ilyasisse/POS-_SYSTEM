@@ -8,15 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
-import {
-  selectEffectiveRecipe,
-  snapshotInventoryCost,
-} from "@/lib/inventory/inventory-domain";
-import {
-  deductProductInventoryForSale,
-  sendInventoryAlerts,
-} from "@/lib/inventory/inventory";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import {
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "@/lib/orders/modifier-selection-validation";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 type TableOrderItemModifierInput = {
@@ -90,10 +88,7 @@ export async function POST(request: Request) {
     });
 
     if (!currentUser || !currentUser.isActive) {
-      return NextResponse.json(
-        { error: "Staff account not found." },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Staff account not found." }, { status: 403 });
     }
 
     if (!hasPermission(currentUser, PERMISSIONS.ORDER_MANAGE)) {
@@ -122,10 +117,7 @@ export async function POST(request: Request) {
     });
 
     if (!table) {
-      return NextResponse.json(
-        { error: "Selected table is not active." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Selected table is not active." }, { status: 400 });
     }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
@@ -171,6 +163,23 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -189,7 +198,6 @@ export async function POST(request: Request) {
               id: true,
               name: true,
               price: true,
-              productId: true,
               modifierGroup: {
                 select: {
                   id: true,
@@ -214,15 +222,9 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(
-      products.map((product) => [product.id, product]),
-    );
-    const modifierMap = new Map(
-      modifierRecords.map((modifier) => [modifier.id, modifier]),
-    );
-    const baristaMap = new Map(
-      baristas.map((barista) => [barista.id, barista]),
-    );
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
+    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -247,10 +249,7 @@ export async function POST(request: Request) {
       const qty = item.qty;
       const station = product.category?.station ?? null;
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
-      const incomingModifierMap = new Map<
-        string,
-        (typeof itemModifiers)[number]
-      >();
+      const incomingModifierMap = new Map<string, (typeof itemModifiers)[number]>();
 
       for (const modifier of itemModifiers) {
         if (!incomingModifierMap.has(modifier.modifierId)) {
@@ -260,28 +259,35 @@ export async function POST(request: Request) {
 
       const uniqueModifierIds = Array.from(incomingModifierMap.keys());
 
-      const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map(
-        (modifierId) => {
-          const modifier = modifierMap.get(modifierId);
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: uniqueModifierIds,
+      });
 
-          if (!modifier || modifier.productId !== product.id) {
-            throw new OrderInputError(
-              `Modifier ${modifierId} is invalid for product ${product.name}.`,
-            );
-          }
+      const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map((modifierId) => {
+        const modifier = modifierMap.get(modifierId);
 
-          const incomingModifier = incomingModifierMap.get(modifierId);
+        if (
+          !modifier ||
+          !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
+        ) {
+          throw new ModifierSelectionError(
+            `Modifier ${modifierId} is invalid for product ${product.name}.`,
+          );
+        }
 
-          return {
-            groupId: modifier.modifierGroup.id,
-            groupName: modifier.modifierGroup.name,
-            optionId: modifier.id,
-            optionName: modifier.name,
-            price: roundCurrency(Number(modifier.price)),
-            qty: incomingModifier?.qty ?? 1,
-          };
-        },
-      );
+        const incomingModifier = incomingModifierMap.get(modifierId);
+
+        return {
+          groupId: modifier.modifierGroup.id,
+          groupName: modifier.modifierGroup.name,
+          optionId: modifier.id,
+          optionName: modifier.name,
+          price: roundCurrency(Number(modifier.price)),
+          qty: incomingModifier?.qty ?? 1,
+        };
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
@@ -335,17 +341,15 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
-      (line) => ({
-        id: crypto.randomUUID(),
-        productName: line.productName,
-        qty: line.qty,
-        station: line.station,
-        assignedUserId: line.assignedBaristaId,
-        assignedUserName: line.assignedBaristaName,
-        modifiers: line.modifiers,
-      }),
-    );
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
+      id: crypto.randomUUID(),
+      productName: line.productName,
+      qty: line.qty,
+      station: line.station,
+      assignedUserId: line.assignedBaristaId,
+      assignedUserName: line.assignedBaristaName,
+      modifiers: line.modifiers,
+    }));
 
     const result = await prisma.$transaction(
       async (tx) => {
@@ -516,32 +520,28 @@ export async function POST(request: Request) {
       { timeout: 15000, maxWait: 5000 },
     );
 
-    await runOrderPostCommitEffect(
-      "Order inventory alert delivery failed:",
-      () => sendInventoryAlerts(result.inventoryAlerts),
+    await runOrderPostCommitEffect("Order inventory alert delivery failed:", () =>
+      sendInventoryAlerts(result.inventoryAlerts),
     );
 
-    await runOrderPostCommitEffect(
-      "Order analytics delivery failed:",
-      async () => {
-        const posthog = getPostHogClient();
-        if (posthog) {
-          posthog.capture({
-            distinctId: currentUser.id,
-            event: "table_order_placed",
-            properties: {
-              table_name: table.name,
-              item_count: preparedLines.length,
-              total: calculatedTotal,
-              appended_to_existing: result.appendedToExisting,
-              cashier_role: currentUser.role,
-              order_id: result.order.id,
-            },
-          });
-          await posthog.flush();
-        }
-      },
-    );
+    await runOrderPostCommitEffect("Order analytics delivery failed:", async () => {
+      const posthog = getPostHogClient();
+      if (posthog) {
+        posthog.capture({
+          distinctId: currentUser.id,
+          event: "table_order_placed",
+          properties: {
+            table_name: table.name,
+            item_count: preparedLines.length,
+            total: calculatedTotal,
+            appended_to_existing: result.appendedToExisting,
+            cashier_role: currentUser.role,
+            order_id: result.order.id,
+          },
+        });
+        await posthog.flush();
+      }
+    });
 
     const order = result.order;
     const identity = resolveTableCheckIdentity(order);
@@ -561,14 +561,15 @@ export async function POST(request: Request) {
     if (error instanceof OrderInputError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Table order error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to create table order.",
+        error: error instanceof Error ? error.message : "Failed to create table order.",
       },
       { status: 500 },
     );

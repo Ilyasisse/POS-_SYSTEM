@@ -44,18 +44,12 @@ import {
 test("converts Nairobi wall-clock schedule values to UTC and back", () => {
   const value = zonedDateTimeToUtc("2026-08-10T09:30", "Africa/Nairobi");
   assert.equal(value?.toISOString(), "2026-08-10T06:30:00.000Z");
-  assert.equal(
-    formatDateTimeLocal(value as Date, "Africa/Nairobi"),
-    "2026-08-10T09:30",
-  );
+  assert.equal(formatDateTimeLocal(value as Date, "Africa/Nairobi"), "2026-08-10T09:30");
   assert.equal(zonedDateTimeToUtc("not-a-date", "Africa/Nairobi"), null);
 });
 
 test("advances daily, weekly, and month-end recurrences in local time", () => {
-  const start = zonedDateTimeToUtc(
-    "2026-01-31T09:00",
-    "Africa/Nairobi",
-  ) as Date;
+  const start = zonedDateTimeToUtc("2026-01-31T09:00", "Africa/Nairobi") as Date;
   assert.equal(
     formatDateTimeLocal(
       advanceRecurringDate(start, "DAY", 2, "Africa/Nairobi") as Date,
@@ -100,14 +94,8 @@ test("sends reminders only to pending invited employees before the deadline", ()
     now: new Date("2026-08-10T07:00:00Z"),
   };
   assert.equal(isSupplierOrderReminderDue(base), true);
-  assert.equal(
-    isSupplierOrderReminderDue({ ...base, status: "RESPONDED" }),
-    false,
-  );
-  assert.equal(
-    isSupplierOrderReminderDue({ ...base, now: base.deadline }),
-    false,
-  );
+  assert.equal(isSupplierOrderReminderDue({ ...base, status: "RESPONDED" }), false);
+  assert.equal(isSupplierOrderReminderDue({ ...base, now: base.deadline }), false);
   assert.equal(
     isSupplierOrderReminderDue({
       ...base,
@@ -226,8 +214,7 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     TWILIO_AUTH_TOKEN: "auth-token",
     TWILIO_WHATSAPP_FROM: "+15553269140",
     APP_BASE_URL: "https://cafe.example.com/",
-    TWILIO_EMPLOYEE_INVITATION_CONTENT_SID:
-      "HX11111111111111111111111111111111",
+    TWILIO_EMPLOYEE_INVITATION_CONTENT_SID: "HX11111111111111111111111111111111",
     TWILIO_EMPLOYEE_REMINDER_CONTENT_SID: "HX22222222222222222222222222222222",
     TWILIO_SUPPLIER_ORDER_CONTENT_SID: "HX33333333333333333333333333333333",
   });
@@ -262,10 +249,7 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
     "3": "Aug 10, 2026, 3:00 PM",
     "4": "link-token",
   });
-  assert.equal(
-    calls[0]?.statusCallback,
-    "https://cafe.example.com/api/webhooks/whatsapp",
-  );
+  assert.equal(calls[0]?.statusCallback, "https://cafe.example.com/api/webhooks/whatsapp");
 
   const supplierMessageId = await sendSupplierPurchaseOrder(
     {
@@ -289,37 +273,22 @@ test("builds Twilio invitation and supplier Content API messages", async () => {
 });
 
 test("gates WhatsApp processing and signs private PDF paths", () => {
-  assert.equal(
-    isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "true" }),
-    true,
-  );
-  assert.equal(
-    isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "false" }),
-    false,
-  );
+  assert.equal(isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "true" }), true);
+  assert.equal(isWhatsAppEnabled({ NODE_ENV: "test", TWILIO_WHATSAPP_ENABLED: "false" }), false);
   const env = {
     NODE_ENV: "test" as const,
-    SUPPLIER_ORDER_PDF_LINK_SECRET:
-      "a-different-pdf-link-secret-with-at-least-32-characters",
+    SUPPLIER_ORDER_PDF_LINK_SECRET: "a-different-pdf-link-secret-with-at-least-32-characters",
   };
   const filename = "purchase-order-101.pdf";
   const token = derivePurchaseOrderPdfToken("delivery-1", filename, env);
-  assert.equal(
-    verifyPurchaseOrderPdfToken("delivery-1", filename, token, env),
-    true,
-  );
-  assert.equal(
-    verifyPurchaseOrderPdfToken("delivery-2", filename, token, env),
-    false,
-  );
+  assert.equal(verifyPurchaseOrderPdfToken("delivery-1", filename, token, env), true);
+  assert.equal(verifyPurchaseOrderPdfToken("delivery-2", filename, token, env), false);
   assert.equal(
     purchaseOrderPdfMediaPath("delivery-1", 101, env),
     `delivery-1/${token}/${filename}`,
   );
   assert.doesNotThrow(() => assertWhatsAppPdfSize(new Uint8Array(100)));
-  assert.throws(() =>
-    assertWhatsAppPdfSize(new Uint8Array(MAX_WHATSAPP_PDF_BYTES + 1)),
-  );
+  assert.throws(() => assertWhatsAppPdfSize(new Uint8Array(MAX_WHATSAPP_PDF_BYTES + 1)));
 });
 
 test("generates valid one-page and multi-page purchase-order PDFs", async () => {
@@ -356,8 +325,7 @@ test("generates valid one-page and multi-page purchase-order PDFs", async () => 
 });
 
 function inMemorySchedulerLease(clock: { now: number }) {
-  let current:
-    { key: string; ownerToken: string; expiresAt: number } | undefined;
+  let current: { key: string; ownerToken: string; expiresAt: number } | undefined;
   const operations: SchedulerLeaseOperations = {
     async tryAcquire(claim: SchedulerLeaseClaim) {
       if (current?.key === claim.key && current.expiresAt > clock.now) {
@@ -432,10 +400,7 @@ test("recovers expired leases and releases only the current owner", async () => 
     leaseDurationMs: SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS,
   };
   assert.equal(await lease.operations.tryAcquire(staleClaim), true);
-  assert.equal(
-    await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "blocked" }),
-    false,
-  );
+  assert.equal(await lease.operations.tryAcquire({ ...staleClaim, ownerToken: "blocked" }), false);
 
   clock.now += SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS;
   assert.equal(
@@ -475,16 +440,10 @@ test("releases the supplier-order scheduler lease after processor failure", asyn
 test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => {
   assert.equal(SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS, 180_000);
 
-  const route = readFileSync(
-    "src/app/api/cron/supplier-order-schedules/route.ts",
-    "utf8",
-  );
+  const route = readFileSync("src/app/api/cron/supplier-order-schedules/route.ts", "utf8");
   assert.match(route, /export const maxDuration = 120;/);
 
-  const setup = readFileSync(
-    "ops/supabase/supplier-order-cron-setup.sql",
-    "utf8",
-  );
+  const setup = readFileSync("ops/supabase/supplier-order-cron-setup.sql", "utf8");
   assert.match(setup, /timeout_milliseconds := 135000/);
   assert.match(setup, /SECURITY INVOKER/);
   assert.match(setup, /SET search_path = ''/);
@@ -494,10 +453,7 @@ test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => 
   assert.match(setup, /REVOKE ALL ON FUNCTION[\s\S]+FROM authenticated/);
   assert.doesNotMatch(setup, /cron\.schedule/);
 
-  const activation = readFileSync(
-    "ops/supabase/supplier-order-cron-activate.sql",
-    "utf8",
-  );
+  const activation = readFileSync("ops/supabase/supplier-order-cron-activate.sql", "utf8");
   assert.match(activation, /BEGIN;/);
   assert.match(activation, /supplier-order-scheduler-every-minute/);
   assert.match(activation, /supplier-order-scheduler-every-30-minutes/);
@@ -506,28 +462,19 @@ test("locks scheduler, Supabase HTTP, and Vercel duration configuration", () => 
   assert.match(activation, /active := true/);
   assert.match(activation, /COMMIT;/);
 
-  const disabling = readFileSync(
-    "ops/supabase/supplier-order-cron-disable.sql",
-    "utf8",
-  );
+  const disabling = readFileSync("ops/supabase/supplier-order-cron-disable.sql", "utf8");
   assert.match(disabling, /active := false/);
   assert.match(disabling, /supplier-order-scheduler-every-30-minutes/);
   assert.match(disabling, /supplier-order-scheduler-every-minute/);
 
-  const workflow = readFileSync(
-    ".github/workflows/supplier-order-scheduler.yml",
-    "utf8",
-  );
+  const workflow = readFileSync(".github/workflows/supplier-order-scheduler.yml", "utf8");
   assert.match(workflow, /cron: "\*\/30 \* \* \* \*"/);
   assert.doesNotMatch(workflow, /cron: "\*\/5 \* \* \* \*"/);
 });
 
 test("soft-deletes supplier-order schedules while preserving their audit history", () => {
   const schema = readFileSync("prisma/schema.prisma", "utf8");
-  assert.match(
-    schema,
-    /model SupplierOrderSchedule \{[\s\S]*deletedAt\s+DateTime\?/,
-  );
+  assert.match(schema, /model SupplierOrderSchedule \{[\s\S]*deletedAt\s+DateTime\?/);
 
   const migration = readFileSync(
     "prisma/migrations/20260818_supplier_order_schedule_soft_delete/migration.sql",

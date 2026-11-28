@@ -1,10 +1,7 @@
 import { InventoryAlertStatus, Prisma } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
-import {
-  canonicalUnitLabel,
-  decimalQuantity,
-} from "@/lib/inventory/inventory-domain";
+import { canonicalUnitLabel, decimalQuantity } from "@/lib/inventory/inventory-domain";
 import {
   appendStockEvent,
   deductSaleInventory,
@@ -68,14 +65,16 @@ function toValidQuantity(value: number | Prisma.Decimal) {
  * @returns The current inventory alert status.
  */
 export function getInventoryAlertStatus(
-  stockQty: number,
-  lowStockThreshold: number,
+  stockQty: number | Prisma.Decimal,
+  lowStockThreshold: number | Prisma.Decimal,
 ): InventoryAlertStatus {
-  if (stockQty <= 0) {
+  const stock = new Prisma.Decimal(stockQty);
+  const threshold = new Prisma.Decimal(lowStockThreshold);
+  if (stock.lte(0)) {
     return "OUT";
   }
 
-  if (lowStockThreshold > 0 && stockQty <= lowStockThreshold) {
+  if (threshold.gt(0) && stock.lte(threshold)) {
     return "LOW";
   }
 
@@ -97,13 +96,12 @@ function buildInventoryAlert(
   item: InventoryTrackedItem,
   itemName: string,
   itemType: InventoryAlert["itemType"],
-  nextStockQty: number,
-  nextLowStockThreshold: number,
+  nextStockQty: number | Prisma.Decimal,
+  nextLowStockThreshold: number | Prisma.Decimal,
   delta: number,
 ): { status: InventoryAlertStatus; alert: InventoryAlert | null } {
   const status = getInventoryAlertStatus(nextStockQty, nextLowStockThreshold);
-  const shouldAlert =
-    delta <= 0 && status !== "OK" && status !== item.inventoryAlertStatus;
+  const shouldAlert = delta <= 0 && status !== "OK" && status !== item.inventoryAlertStatus;
 
   return {
     status,
@@ -112,8 +110,8 @@ function buildInventoryAlert(
           itemName,
           itemType,
           status,
-          stockQty: nextStockQty,
-          lowStockThreshold: nextLowStockThreshold,
+          stockQty: Number(nextStockQty),
+          lowStockThreshold: Number(nextLowStockThreshold),
         }
       : null,
   };
@@ -254,9 +252,7 @@ export async function sendInventoryAlerts(alerts: InventoryAlert[]) {
  */
 function formatDailyInventoryDigestHtml(items: DailySupplyDigestItem[]) {
   const alertItems = items.filter(
-    (item) =>
-      item.inventoryAlertStatus === "LOW" ||
-      item.inventoryAlertStatus === "OUT",
+    (item) => item.inventoryAlertStatus === "LOW" || item.inventoryAlertStatus === "OUT",
   );
 
   if (alertItems.length === 0) {
@@ -324,9 +320,7 @@ export async function sendDailyInventorySupplyDigest() {
 
   const items = supplies.map<DailySupplyDigestItem>((supply) => ({
     ...supply,
-    unit: supply.canonicalUnit
-      ? canonicalUnitLabel(supply.canonicalUnit)
-      : supply.unit,
+    unit: supply.canonicalUnit ? canonicalUnitLabel(supply.canonicalUnit) : supply.unit,
     stockQty: toValidQuantity(supply.stockQty),
     lowStockThreshold: toValidQuantity(supply.lowStockThreshold),
     previousInventoryAlertStatus: supply.inventoryAlertStatus,
@@ -352,17 +346,11 @@ export async function sendDailyInventorySupplyDigest() {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.INVENTORY_ALERT_EMAIL_FROM;
   const to = process.env.INVENTORY_ALERT_EMAIL_TO;
-  const lowStockCount = items.filter(
-    (item) => item.inventoryAlertStatus === "LOW",
-  ).length;
-  const outOfStockCount = items.filter(
-    (item) => item.inventoryAlertStatus === "OUT",
-  ).length;
+  const lowStockCount = items.filter((item) => item.inventoryAlertStatus === "LOW").length;
+  const outOfStockCount = items.filter((item) => item.inventoryAlertStatus === "OUT").length;
 
   if (!apiKey || !from || !to) {
-    console.warn(
-      "Daily inventory email skipped: missing Resend environment variables.",
-    );
+    console.warn("Daily inventory email skipped: missing Resend environment variables.");
 
     return {
       sent: false,
@@ -413,22 +401,12 @@ export async function deductProductInventoryForSale(
   actorUserId?: string | null,
   actorCustomerId?: string | null,
 ) {
-  const events = await deductSaleInventory(
-    tx,
-    lines,
-    sourceOrderId,
-    actorUserId,
-    actorCustomerId,
-  );
+  const events = await deductSaleInventory(tx, lines, sourceOrderId, actorUserId, actorCustomerId);
   const productIds = [
-    ...new Set(
-      events.flatMap((event) => (event.productId ? [event.productId] : [])),
-    ),
+    ...new Set(events.flatMap((event) => (event.productId ? [event.productId] : []))),
   ];
   const supplyIds = [
-    ...new Set(
-      events.flatMap((event) => (event.supplyId ? [event.supplyId] : [])),
-    ),
+    ...new Set(events.flatMap((event) => (event.supplyId ? [event.supplyId] : []))),
   ];
   const [products, supplies] = await Promise.all([
     tx.product.findMany({
@@ -575,6 +553,7 @@ export async function setSupplyInventoryLevel(
   reason: string,
   note?: string,
   actorUserId?: string | null,
+  occurredAt = new Date(),
 ) {
   await lockInventoryTarget(tx, { supplyId });
   const supply = await tx.inventorySupply.findUnique({
@@ -598,23 +577,19 @@ export async function setSupplyInventoryLevel(
 
   const quantityBeforeDecimal = decimalQuantity(supply.stockQty);
   const quantityAfterDecimal = decimalQuantity(nextStockQty);
-  const quantityBefore = Number(quantityBeforeDecimal);
-  const quantityAfter = Number(quantityAfterDecimal);
   const deltaDecimal = quantityAfterDecimal.sub(quantityBeforeDecimal);
   const delta = Number(deltaDecimal);
-  const lowStockThreshold = toValidQuantity(nextLowStockThreshold);
+  const lowStockThreshold = decimalQuantity(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     supply,
     supply.name,
     "Supply",
-    quantityAfter,
+    quantityAfterDecimal,
     lowStockThreshold,
     delta,
   );
   const forcedZeroStockAlert =
-    status === "OUT" &&
-    quantityAfter === 0 &&
-    (delta < 0 || reason === "TAKEN");
+    status === "OUT" && quantityAfterDecimal.isZero() && (delta < 0 || reason === "TAKEN");
   const supplyAlert =
     alert ??
     (forcedZeroStockAlert
@@ -622,8 +597,8 @@ export async function setSupplyInventoryLevel(
           itemName: supply.name,
           itemType: "Supply" as const,
           status,
-          stockQty: quantityAfter,
-          lowStockThreshold,
+          stockQty: Number(quantityAfterDecimal),
+          lowStockThreshold: Number(lowStockThreshold),
         }
       : null);
 
@@ -641,15 +616,17 @@ export async function setSupplyInventoryLevel(
       actorUserId,
       sourceType: "InventoryAdmin",
       sourceId: supply.id,
+      occurredAt,
     });
     await tx.inventoryMovement.create({
       data: {
         supplyId: supply.id,
+        occurredAt,
         itemName: `${supply.name} (${canonicalUnitLabel(supply.canonicalUnit)})`,
         itemType: "Supply",
-        delta,
-        quantityBefore,
-        quantityAfter,
+        delta: deltaDecimal,
+        quantityBefore: quantityBeforeDecimal,
+        quantityAfter: quantityAfterDecimal,
         canonicalUnit: supply.canonicalUnit,
         dataCoverage: supply.quantityCoverage,
         standardUnitCostSnapshot: supply.standardUnitCost,

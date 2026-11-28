@@ -1,3 +1,4 @@
+import { getPublicProductImageUrl } from "@/lib/products/product-images";
 import { prisma } from "@/lib/prisma";
 import { availableForSaleWhere } from "@/lib/products/availability";
 
@@ -79,6 +80,7 @@ export async function getPublicProducts(popularOnly = false) {
     }
     return {
       ...product,
+      imageUrl: getPublicProductImageUrl(product.imageUrl),
       price: Number(product.price),
       stockQty: Number(product.stockQty),
       modifiers: product.modifiers.map((modifier) => ({

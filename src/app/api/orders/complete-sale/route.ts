@@ -8,16 +8,15 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
-import {
-  selectEffectiveRecipe,
-  snapshotInventoryCost,
-} from "@/lib/inventory/inventory-domain";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import { getActiveWaiterOrderingShift } from "@/lib/waiter/waiter-shifts";
 import {
-  deductProductInventoryForSale,
-  sendInventoryAlerts,
-} from "@/lib/inventory/inventory";
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "@/lib/orders/modifier-selection-validation";
+import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import { getPostHogClient } from "@/lib/posthog-server";
+import { parseCounterOrderType } from "@/lib/orders/counter-order-type";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -34,6 +33,7 @@ type CompleteSaleItemInput = {
 type CompleteSaleBody = {
   items: CompleteSaleItemInput[];
   paymentMethod: PaymentMethod | string;
+  orderType?: string;
   notes?: string;
 };
 
@@ -62,12 +62,7 @@ type SavedOrderItemForTicket = {
   modifiers: PreparedModifier[];
 };
 
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+const PAYMENT_METHODS = new Set<PaymentMethod>(["MYCASH", "GOLIS", "Dahabshiil", "OTHER"]);
 
 function isPaymentMethod(value: string): value is PaymentMethod {
   return PAYMENT_METHODS.has(value as PaymentMethod);
@@ -103,10 +98,7 @@ export async function POST(request: Request) {
     });
 
     if (!currentUser || !currentUser.isActive) {
-      return NextResponse.json(
-        { error: "Staff account not found." },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Staff account not found." }, { status: 403 });
     }
 
     if (
@@ -122,8 +114,7 @@ export async function POST(request: Request) {
       if (!activeShift) {
         return NextResponse.json(
           {
-            error:
-              "Go to the cashier and enter your opening balance first before ordering.",
+            error: "Go to the cashier and enter your opening balance first before ordering.",
           },
           { status: 403 },
         );
@@ -132,17 +123,19 @@ export async function POST(request: Request) {
 
     const body = await readOrderRequest<CompleteSaleBody>(request);
 
-    if (
-      typeof body.paymentMethod !== "string" ||
-      !isPaymentMethod(body.paymentMethod)
-    ) {
-      return NextResponse.json(
-        { error: "Payment method is invalid." },
-        { status: 400 },
-      );
+    if (typeof body.paymentMethod !== "string" || !isPaymentMethod(body.paymentMethod)) {
+      return NextResponse.json({ error: "Payment method is invalid." }, { status: 400 });
     }
 
     const paymentMethod: PaymentMethod = body.paymentMethod;
+    const orderType = parseCounterOrderType(body.orderType);
+
+    if (!orderType) {
+      return NextResponse.json(
+        { error: "Counter orders must use the takeaway order type." },
+        { status: 400 },
+      );
+    }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
     const modifierIds = [
@@ -189,6 +182,23 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -207,7 +217,6 @@ export async function POST(request: Request) {
               id: true,
               name: true,
               price: true,
-              productId: true,
               modifierGroup: {
                 select: {
                   id: true,
@@ -232,15 +241,9 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(
-      products.map((product) => [product.id, product]),
-    );
-    const modifierMap = new Map(
-      modifierRecords.map((modifier) => [modifier.id, modifier]),
-    );
-    const baristaMap = new Map(
-      baristas.map((barista) => [barista.id, barista]),
-    );
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
+    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -266,10 +269,7 @@ export async function POST(request: Request) {
       const station = product.category?.station ?? null;
 
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
-      const incomingModifierMap = new Map<
-        string,
-        (typeof itemModifiers)[number]
-      >();
+      const incomingModifierMap = new Map<string, (typeof itemModifiers)[number]>();
 
       for (const modifier of itemModifiers) {
         if (!incomingModifierMap.has(modifier.modifierId)) {
@@ -279,28 +279,35 @@ export async function POST(request: Request) {
 
       const uniqueModifierIds = Array.from(incomingModifierMap.keys());
 
-      const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map(
-        (modifierId) => {
-          const modifier = modifierMap.get(modifierId);
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: uniqueModifierIds,
+      });
 
-          if (!modifier || modifier.productId !== product.id) {
-            throw new OrderInputError(
-              `Modifier ${modifierId} is invalid for product ${product.name}.`,
-            );
-          }
+      const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map((modifierId) => {
+        const modifier = modifierMap.get(modifierId);
 
-          const incomingModifier = incomingModifierMap.get(modifierId);
+        if (
+          !modifier ||
+          !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
+        ) {
+          throw new ModifierSelectionError(
+            `Modifier ${modifierId} is invalid for product ${product.name}.`,
+          );
+        }
 
-          return {
-            groupId: modifier.modifierGroup.id,
-            groupName: modifier.modifierGroup.name,
-            optionId: modifier.id,
-            optionName: modifier.name,
-            price: roundCurrency(Number(modifier.price)),
-            qty: incomingModifier?.qty ?? 1,
-          };
-        },
-      );
+        const incomingModifier = incomingModifierMap.get(modifierId);
+
+        return {
+          groupId: modifier.modifierGroup.id,
+          groupName: modifier.modifierGroup.name,
+          optionId: modifier.id,
+          optionName: modifier.name,
+          price: roundCurrency(Number(modifier.price)),
+          qty: incomingModifier?.qty ?? 1,
+        };
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
@@ -355,23 +362,21 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
-      (line) => ({
-        id: crypto.randomUUID(),
-        productName: line.productName,
-        qty: line.qty,
-        station: line.station,
-        assignedUserId: line.assignedBaristaId,
-        assignedUserName: line.assignedBaristaName,
-        modifiers: line.modifiers,
-      }),
-    );
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
+      id: crypto.randomUUID(),
+      productName: line.productName,
+      qty: line.qty,
+      station: line.station,
+      assignedUserId: line.assignedBaristaId,
+      assignedUserName: line.assignedBaristaName,
+      modifiers: line.modifiers,
+    }));
 
     const result = await prisma.$transaction(
       async (tx) => {
         const order = await tx.order.create({
           data: {
-            type: "DINE_IN",
+            type: orderType,
             status: "PAID",
             notes: body.notes?.trim() || null,
             total: toDecimal(calculatedTotal),
@@ -447,31 +452,27 @@ export async function POST(request: Request) {
       { timeout: 15000, maxWait: 5000 },
     );
 
-    await runOrderPostCommitEffect(
-      "Order inventory alert delivery failed:",
-      () => sendInventoryAlerts(result.inventoryAlerts),
+    await runOrderPostCommitEffect("Order inventory alert delivery failed:", () =>
+      sendInventoryAlerts(result.inventoryAlerts),
     );
 
-    await runOrderPostCommitEffect(
-      "Order analytics delivery failed:",
-      async () => {
-        const posthog = getPostHogClient();
-        if (posthog) {
-          posthog.capture({
-            distinctId: currentUser.id,
-            event: "sale_completed",
-            properties: {
-              payment_method: paymentMethod,
-              item_count: preparedLines.length,
-              total: calculatedTotal,
-              order_id: result.order.id,
-              cashier_role: currentUser.role,
-            },
-          });
-          await posthog.flush();
-        }
-      },
-    );
+    await runOrderPostCommitEffect("Order analytics delivery failed:", async () => {
+      const posthog = getPostHogClient();
+      if (posthog) {
+        posthog.capture({
+          distinctId: currentUser.id,
+          event: "sale_completed",
+          properties: {
+            payment_method: paymentMethod,
+            item_count: preparedLines.length,
+            total: calculatedTotal,
+            order_id: result.order.id,
+            cashier_role: currentUser.role,
+          },
+        });
+        await posthog.flush();
+      }
+    });
 
     return NextResponse.json({
       success: true,
@@ -502,12 +503,15 @@ export async function POST(request: Request) {
     if (error instanceof OrderInputError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Complete sale error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to complete sale.",
+        error: error instanceof Error ? error.message : "Failed to complete sale.",
       },
       { status: 500 },
     );

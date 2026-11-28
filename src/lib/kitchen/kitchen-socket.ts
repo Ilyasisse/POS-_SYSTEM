@@ -1,18 +1,10 @@
-export const KITCHEN_STATIONS = [
-  "CUNTO_SOOMAALI",
-  "FAST_FOOD",
-  "CABITAAN",
-  "BARISTA",
-] as const;
+export const KITCHEN_STATIONS = ["CUNTO_SOOMAALI", "FAST_FOOD", "CABITAAN", "BARISTA"] as const;
 
 export type KitchenStation = (typeof KITCHEN_STATIONS)[number];
 
 export type KitchenTicketStatus = "new" | "in_progress" | "done";
-export type KitchenTicketPickupStatus =
-  "preparing" | "ready" | "claimed" | "delivered";
-export type KitchenTicketStationStatuses = Partial<
-  Record<KitchenStation, KitchenTicketStatus>
->;
+export type KitchenTicketPickupStatus = "preparing" | "ready" | "claimed" | "delivered";
+export type KitchenTicketStationStatuses = Partial<Record<KitchenStation, KitchenTicketStatus>>;
 export type KitchenTicketStationMetric = {
   startedAt: string | null;
   completedAt: string | null;
@@ -88,9 +80,7 @@ function normalizeStationMetrics(
     Object.entries(value).flatMap(([stationName, metric]) => {
       const station = normalizeKitchenStation(stationName);
       if (!station || !metric || typeof metric !== "object") return [];
-      const coverage = ["COMPLETE", "IN_PROGRESS", "UNAVAILABLE"].includes(
-        metric.coverage,
-      )
+      const coverage = ["COMPLETE", "IN_PROGRESS", "UNAVAILABLE"].includes(metric.coverage)
         ? metric.coverage
         : "UNAVAILABLE";
       return [
@@ -125,11 +115,7 @@ function resolveFilter(
   userId?: string | null,
   role?: KitchenViewerRole | null,
 ): KitchenTicketFilter {
-  if (
-    stationOrFilter &&
-    typeof stationOrFilter === "object" &&
-    !Array.isArray(stationOrFilter)
-  ) {
+  if (stationOrFilter && typeof stationOrFilter === "object" && !Array.isArray(stationOrFilter)) {
     return {
       station: stationOrFilter.station ?? null,
       userId: stationOrFilter.userId ?? null,
@@ -165,15 +151,8 @@ function isKitchenTicketStatus(value: unknown): value is KitchenTicketStatus {
   return value === "new" || value === "in_progress" || value === "done";
 }
 
-function isKitchenTicketPickupStatus(
-  value: unknown,
-): value is KitchenTicketPickupStatus {
-  return (
-    value === "preparing" ||
-    value === "ready" ||
-    value === "claimed" ||
-    value === "delivered"
-  );
+function isKitchenTicketPickupStatus(value: unknown): value is KitchenTicketPickupStatus {
+  return value === "preparing" || value === "ready" || value === "claimed" || value === "delivered";
 }
 
 function getUniqueStations(items: KitchenTicketItem[]): KitchenStation[] {
@@ -187,25 +166,17 @@ function getUniqueStations(items: KitchenTicketItem[]): KitchenStation[] {
 }
 
 function normalizeKitchenTicketStationStatuses(
-  stationStatuses:
-    Partial<Record<string, KitchenTicketStatus>> | null | undefined,
+  stationStatuses: Partial<Record<string, KitchenTicketStatus>> | null | undefined,
   items: KitchenTicketItem[],
   fallbackStatus?: unknown,
 ): KitchenTicketStationStatuses {
-  const resolvedFallback = isKitchenTicketStatus(fallbackStatus)
-    ? fallbackStatus
-    : "new";
+  const resolvedFallback = isKitchenTicketStatus(fallbackStatus) ? fallbackStatus : "new";
 
-  return getUniqueStations(items).reduce<KitchenTicketStationStatuses>(
-    (accumulator, station) => {
-      const candidate = stationStatuses?.[station];
-      accumulator[station] = isKitchenTicketStatus(candidate)
-        ? candidate
-        : resolvedFallback;
-      return accumulator;
-    },
-    {},
-  );
+  return getUniqueStations(items).reduce<KitchenTicketStationStatuses>((accumulator, station) => {
+    const candidate = stationStatuses?.[station];
+    accumulator[station] = isKitchenTicketStatus(candidate) ? candidate : resolvedFallback;
+    return accumulator;
+  }, {});
 }
 
 export function getKitchenTicketStatusForItems(
@@ -256,8 +227,7 @@ export function setKitchenTicketStationStatus(
   };
   const nextStatus = getKitchenTicketStatusForItems(nextTicket);
   const reopened =
-    nextStatus !== "done" &&
-    (ticket.pickupStatus === "ready" || ticket.pickupStatus === "claimed");
+    nextStatus !== "done" && (ticket.pickupStatus === "ready" || ticket.pickupStatus === "claimed");
 
   return {
     ...nextTicket,
@@ -282,16 +252,12 @@ export function setKitchenTicketPickupStatus(
   return {
     ...ticket,
     pickupStatus,
-    claimedByWaiterId:
-      pickupStatus === "claimed" ? (claimedByWaiterId ?? null) : null,
-    claimedByWaiterName:
-      pickupStatus === "claimed" ? (claimedByWaiterName ?? null) : null,
+    claimedByWaiterId: pickupStatus === "claimed" ? (claimedByWaiterId ?? null) : null,
+    claimedByWaiterName: pickupStatus === "claimed" ? (claimedByWaiterName ?? null) : null,
   };
 }
 
-export function normalizeKitchenStation(
-  station?: string | null,
-): KitchenStation | undefined {
+export function normalizeKitchenStation(station?: string | null): KitchenStation | undefined {
   if (!station) {
     return undefined;
   }
@@ -330,8 +296,7 @@ function normalizeKitchenTicketItem(
     return null;
   }
 
-  const station =
-    item.station == null ? null : normalizeKitchenStation(item.station);
+  const station = item.station == null ? null : normalizeKitchenStation(item.station);
 
   if (station === undefined || !item.id || !item.name) {
     return null;
@@ -340,9 +305,7 @@ function normalizeKitchenTicketItem(
   const modifiers = Array.isArray(item.modifiers)
     ? item.modifiers
         .map((modifier) => normalizeTicketModifier(modifier))
-        .filter(
-          (modifier): modifier is KitchenTicketModifier => modifier !== null,
-        )
+        .filter((modifier): modifier is KitchenTicketModifier => modifier !== null)
     : [];
 
   return {
@@ -351,16 +314,12 @@ function normalizeKitchenTicketItem(
     quantity: Math.max(1, Number(item.quantity) || 1),
     station,
     assignedUserId: item.assignedUserId ? String(item.assignedUserId) : null,
-    assignedUserName: item.assignedUserName
-      ? String(item.assignedUserName)
-      : null,
+    assignedUserName: item.assignedUserName ? String(item.assignedUserName) : null,
     modifiers,
   };
 }
 
-export function normalizeKitchenTicket(
-  ticket: KitchenTicketLike,
-): KitchenTicket | null {
+export function normalizeKitchenTicket(ticket: KitchenTicketLike): KitchenTicket | null {
   if (!ticket || typeof ticket !== "object") {
     return null;
   }
@@ -413,12 +372,8 @@ export function normalizeKitchenTicket(
     tableName: ticket.tableName ? String(ticket.tableName) : null,
     cashierId: ticket.cashierId ? String(ticket.cashierId) : null,
     cashierName: ticket.cashierName ? String(ticket.cashierName) : null,
-    claimedByWaiterId: ticket.claimedByWaiterId
-      ? String(ticket.claimedByWaiterId)
-      : null,
-    claimedByWaiterName: ticket.claimedByWaiterName
-      ? String(ticket.claimedByWaiterName)
-      : null,
+    claimedByWaiterId: ticket.claimedByWaiterId ? String(ticket.claimedByWaiterId) : null,
+    claimedByWaiterName: ticket.claimedByWaiterName ? String(ticket.claimedByWaiterName) : null,
     note: ticket.note ? String(ticket.note) : null,
     waiterId: ticket.waiterId ? String(ticket.waiterId) : null,
     waiterName: ticket.waiterName ? String(ticket.waiterName) : null,
@@ -460,19 +415,13 @@ export function filterKitchenTicketByStation(
     return null;
   }
 
-  let items = Array.isArray(normalizedTicket.items)
-    ? normalizedTicket.items
-    : [];
+  let items = Array.isArray(normalizedTicket.items) ? normalizedTicket.items : [];
 
   if (normalizedStation) {
     items = items.filter((item) => item.station === normalizedStation);
   }
 
-  if (
-    normalizedStation === "BARISTA" &&
-    filter.role === "BARISTA" &&
-    filter.userId
-  ) {
+  if (normalizedStation === "BARISTA" && filter.role === "BARISTA" && filter.userId) {
     items = items.filter((item) => item.assignedUserId === filter.userId);
   }
 
@@ -493,9 +442,7 @@ export function filterKitchenTicketByStation(
   };
 }
 
-export function stationFromPathSegment(
-  station?: string | null,
-): KitchenStation | undefined {
+export function stationFromPathSegment(station?: string | null): KitchenStation | undefined {
   if (!station) {
     return undefined;
   }

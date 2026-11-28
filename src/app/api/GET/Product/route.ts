@@ -1,3 +1,4 @@
+import { getPublicProductImageUrl } from "@/lib/products/product-images";
 import { NextResponse } from "next/server";
 import { getPublicProducts } from "@/lib/products/public-catalog";
 
@@ -6,9 +7,6 @@ export async function GET() {
     return NextResponse.json(await getPublicProducts(true));
   } catch (error) {
     console.error("GET /api/GET/Product error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch active products" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch active products" }, { status: 500 });
   }
 }

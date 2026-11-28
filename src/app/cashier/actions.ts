@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { transferOpenTableService } from "@/lib/cashier/table-transfer";
 import { getPostHogClient } from "@/lib/posthog-server";
 import {
   lockTableForSettlement,
@@ -14,12 +15,7 @@ import {
 } from "@/lib/payments/order-settlement";
 
 function isPaymentMethod(value: string): value is PaymentMethod {
-  return (
-    value === "MYCASH" ||
-    value === "GOLIS" ||
-    value === "Dahabshiil" ||
-    value === "OTHER"
-  );
+  return value === "MYCASH" || value === "GOLIS" || value === "Dahabshiil" || value === "OTHER";
 }
 
 function toDecimal(value: number) {
@@ -127,4 +123,21 @@ export async function payOpenTableOrdersFromCashier(formData: FormData) {
   }
 
   redirect(`/cashier?paymentStatus=${paymentStatus}`);
+}
+
+export async function transferOpenTableServiceFromCashier(formData: FormData) {
+  await requirePermission(PERMISSIONS.ORDER_MANAGE);
+  const sourceTableId = String(formData.get("sourceTableId") ?? "").trim();
+  const targetTableId = String(formData.get("targetTableId") ?? "").trim();
+  let transferStatus = "table_moved";
+
+  try {
+    await transferOpenTableService({ sourceTableId, targetTableId });
+    refreshCashierTableViews();
+  } catch (error) {
+    console.error("Failed to transfer open table service:", error);
+    transferStatus = "table_move_failed";
+  }
+
+  redirect(`/cashier?transferStatus=${transferStatus}`);
 }
