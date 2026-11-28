@@ -7,6 +7,7 @@ type Order = {
   orderNumber: number;
   customerName: string;
   destination: string;
+  deliveryPhone: string | null;
   stage: string;
 };
 export default function CustomerFulfillmentBoard() {
@@ -51,15 +52,13 @@ export default function CustomerFulfillmentBoard() {
         body: JSON.stringify({ orderId: order.id, status }),
       });
       const data = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new Error(data.error || "Could not update order.");
+      if (!response.ok) throw new Error(data.error || "Could not update order.");
       toast({ tone: "success", description: "Order status updated." });
       await refresh();
     } catch (cause) {
       toast({
         tone: "error",
-        description:
-          cause instanceof Error ? cause.message : "Could not update order.",
+        description: cause instanceof Error ? cause.message : "Could not update order.",
       });
     } finally {
       setBusy(false);
@@ -75,13 +74,17 @@ export default function CustomerFulfillmentBoard() {
           <p className="font-semibold">
             #{order.orderNumber} · {order.customerName} · {order.destination}
           </p>
+          {order.deliveryPhone ? (
+            <p className="mt-1 text-sm">
+              Delivery contact:{" "}
+              <a href={`tel:${order.deliveryPhone}`} className="underline">
+                {order.deliveryPhone}
+              </a>
+            </p>
+          ) : null}
           <p className="text-sm">{order.stage.replaceAll("_", " ")}</p>
           {order.stage === "READY" ? (
-            <Button
-              className="mt-2"
-              disabled={busy}
-              onClick={() => void update(order, "claimed")}
-            >
+            <Button className="mt-2" disabled={busy} onClick={() => void update(order, "claimed")}>
               Pick up order
             </Button>
           ) : null}

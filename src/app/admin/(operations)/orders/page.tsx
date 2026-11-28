@@ -250,31 +250,31 @@ export default async function AdminOrdersPage({
               from {recentOrders.length} matching tickets. All rounds included.
             </span>
             <span className="hidden md:inline">
-              Showing 1 to {recentOrders.length} orders
+            Showing 1 to {recentOrders.length} orders
             </span>
           </p>
         }
       >
         <div className="max-md:[&_form]:grid max-md:[&_form]:grid-cols-2 max-md:[&_label]:col-span-2">
-          <SearchToolbar
-            placeholder="Search orders..."
-            defaultValue={q}
+        <SearchToolbar
+          placeholder="Search orders..."
+          defaultValue={q}
             hasActiveFilters={Boolean(
               q || status !== "all" || date !== "today",
             )}
-            clearHref="/admin/orders"
-          >
-            <AutoSubmitSelect name="status" defaultValue={status}>
-              <option value="all">Status All</option>
-              <option value="OPEN">Preparing</option>
-              <option value="PAID">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </AutoSubmitSelect>
-            <AutoSubmitSelect name="date" defaultValue={date}>
-              <option value="today">Date Today</option>
-              <option value="all">All Time</option>
-            </AutoSubmitSelect>
-          </SearchToolbar>
+          clearHref="/admin/orders"
+        >
+          <AutoSubmitSelect name="status" defaultValue={status}>
+            <option value="all">Status All</option>
+            <option value="OPEN">Preparing</option>
+            <option value="PAID">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </AutoSubmitSelect>
+          <AutoSubmitSelect name="date" defaultValue={date}>
+            <option value="today">Date Today</option>
+            <option value="all">All Time</option>
+          </AutoSubmitSelect>
+        </SearchToolbar>
         </div>
 
         <section
@@ -339,64 +339,74 @@ export default async function AdminOrdersPage({
           )}
         </section>
         <div className="hidden md:block">
-          <Table>
-            <thead>
-              <tr>
-                <TableHead>#</TableHead>
-                <TableHead>Order No.</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Items</TableHead>
+        <Table>
+          <thead>
+            <tr>
+              <TableHead>#</TableHead>
+              <TableHead>Order No.</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Items</TableHead>
                 <TableHead>Actions</TableHead>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.length === 0 ? (
-                <tr>
+            </tr>
+          </thead>
+          <tbody>
+            {recentOrders.length === 0 ? (
+              <tr>
                   <TableCell colSpan={9} className="py-10 text-center">
-                    No orders found.
+                  No orders found.
+                </TableCell>
+              </tr>
+            ) : (
+              recentOrders.map((order, index) => (
+                <tr key={order.id} className="border-b border-border">
+                  <TableCell className="font-bold text-muted-foreground">
+                    {index + 1}
                   </TableCell>
-                </tr>
-              ) : (
-                recentOrders.map((order, index) => (
-                  <tr key={order.id} className="border-b border-border">
-                    <TableCell className="font-bold text-muted-foreground">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell className="font-black text-foreground">
-                      #{order.orderNumber}
-                    </TableCell>
-                    <TableCell>
-                      {order.waiter?.fullName ??
-                        order.cashier?.fullName ??
-                        "Walk-in"}
-                    </TableCell>
-                    <TableCell>{order.type.replace("_", "-")}</TableCell>
-                    <TableCell>{formatMoney(Number(order.total))}</TableCell>
-                    <TableCell>
-                      <ToneBadge tone={getStatusTone(order.status)}>
-                        {order.status === "PAID"
-                          ? "Completed"
-                          : order.status === "OPEN"
-                            ? "Preparing"
-                            : "Cancelled"}
-                      </ToneBadge>
-                    </TableCell>
-                    <TableCell>{formatDateTime(order.createdAt)}</TableCell>
-                    <TableCell>{order._count.orderItems}</TableCell>
+                  <TableCell className="font-black text-foreground">
+                    #{order.orderNumber}
+                  </TableCell>
+                  <TableCell>
+                    {order.waiter?.fullName ??
+                      order.cashier?.fullName ??
+                      "Walk-in"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold">
+                      {order.type.replace("_", "-")}
+                    </span>
+                    {order.type === "DELIVERY" ? (
+                      <span className="mt-1 block max-w-64 text-xs text-slate-500">
+                        {order.deliveryAddress ?? "Address unavailable"}
+                        {order.deliveryPhone ? ` · ${order.deliveryPhone}` : ""}
+                      </span>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{formatMoney(Number(order.total))}</TableCell>
+                  <TableCell>
+                    <ToneBadge tone={getStatusTone(order.status)}>
+                      {order.status === "PAID"
+                        ? "Completed"
+                        : order.status === "OPEN"
+                          ? "Preparing"
+                          : "Cancelled"}
+                    </ToneBadge>
+                  </TableCell>
+                  <TableCell>{formatDateTime(order.createdAt)}</TableCell>
+                  <TableCell>{order._count.orderItems}</TableCell>
                     <TableCell>
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/admin/orders/${order.id}`}>Review</Link>
                       </Button>
                     </TableCell>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </Table>
         </div>
       </DataTableCard>
     </AdminPage>

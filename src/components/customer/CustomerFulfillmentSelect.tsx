@@ -1,15 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 type Props = {
-  orderType: "DINE_IN" | "TAKEOUT";
+  orderType: CustomerFulfillmentType;
   tableId: string;
-  onChange: (type: "DINE_IN" | "TAKEOUT", tableId: string) => void;
+  onChange: (type: CustomerFulfillmentType, tableId: string) => void;
 };
-export default function CustomerFulfillmentSelect({
-  orderType,
-  tableId,
-  onChange,
-}: Props) {
+export default function CustomerFulfillmentSelect({ orderType, tableId, onChange }: Props) {
   const [tables, setTables] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -19,8 +16,7 @@ export default function CustomerFulfillmentSelect({
       cache: "no-store",
     })
       .then(async (response) => {
-        if (!response.ok)
-          throw new Error("Could not load tables. Reopen the cart to retry.");
+        if (!response.ok) throw new Error("Could not load tables. Reopen the cart to retry.");
         return response.json() as Promise<{
           tables: { id: string; name: string }[];
         }>;
@@ -52,6 +48,15 @@ export default function CustomerFulfillmentSelect({
         />
         Dine in
       </label>
+      <label className="ml-4 inline-flex gap-2">
+        <input
+          type="radio"
+          name="fulfillment"
+          checked={orderType === "DELIVERY"}
+          onChange={() => onChange("DELIVERY", "")}
+        />
+        Delivery
+      </label>
       {orderType === "DINE_IN" ? (
         <div>
           <label htmlFor="customer-table" className="block text-sm">
@@ -62,7 +67,7 @@ export default function CustomerFulfillmentSelect({
             required
             value={tableId}
             onChange={(event) => onChange("DINE_IN", event.target.value)}
-            className="mt-1 w-full rounded-lg border bg-background p-3"
+            className="bg-background mt-1 w-full rounded-lg border p-3"
           >
             <option value="">Select your table</option>
             {tables.map((table) => (

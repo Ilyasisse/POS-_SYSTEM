@@ -7,46 +7,28 @@ import {
   CUSTOMER_ORDER_STAGES,
   type CustomerOrderStage,
 } from "@/lib/customer/customer-order-progress";
-import {
-  CheckCircle2,
-  CircleAlert,
-  Copy,
-  LoaderCircle,
-  PhoneCall,
-} from "lucide-react";
+import { CheckCircle2, CircleAlert, Copy, LoaderCircle, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { clearCustomerOrderDraft } from "@/lib/customer/customer-order-draft";
-import {
-  androidDialerHref,
-  customerUssdCode,
-  isAndroidDevice,
-} from "@/lib/payments/customer-ussd";
+import { androidDialerHref, customerUssdCode, isAndroidDevice } from "@/lib/payments/customer-ussd";
 
 type Checkout = {
   id: string;
   amount: number;
   payerPhone: string;
-  status:
-    | "PENDING"
-    | "REVIEW"
-    | "PAYMENT_RECEIVED"
-    | "PAID"
-    | "EXPIRED"
-    | "NEEDS_HELP";
+  status: "PENDING" | "REVIEW" | "PAYMENT_RECEIVED" | "PAID" | "EXPIRED" | "NEEDS_HELP";
   expiresAt: string;
   orderNumber: number | null;
   paymentReceived: boolean;
-  orderType: "DINE_IN" | "TAKEOUT";
+  orderType: "DINE_IN" | "TAKEOUT" | "DELIVERY";
   tableName: string | null;
+  deliveryAddress: string | null;
+  deliveryPhone: string | null;
   stage: CustomerOrderStage;
 };
 
-export default function CustomerCheckoutPageClient({
-  checkoutId,
-}: {
-  checkoutId: string;
-}) {
+export default function CustomerCheckoutPageClient({ checkoutId }: { checkoutId: string }) {
   const { toast } = useToast();
   const router = useRouter();
   const [checkout, setCheckout] = useState<Checkout | null>(null);
@@ -59,12 +41,9 @@ export default function CustomerCheckoutPageClient({
   const refresh = useCallback(async () => {
     const sequence = ++requestSequence.current;
     try {
-      const response = await fetch(
-        `/api/customer/checkouts/${encodeURIComponent(checkoutId)}`,
-        {
-          cache: "no-store",
-        },
-      );
+      const response = await fetch(`/api/customer/checkouts/${encodeURIComponent(checkoutId)}`, {
+        cache: "no-store",
+      });
       const data = (await response.json()) as {
         checkout?: Checkout;
         error?: string;
@@ -77,11 +56,7 @@ export default function CustomerCheckoutPageClient({
       setError("");
     } catch (cause) {
       if (sequence !== requestSequence.current) return;
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Could not check payment status.",
-      );
+      setError(cause instanceof Error ? cause.message : "Could not check payment status.");
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
@@ -122,10 +97,7 @@ export default function CustomerCheckoutPageClient({
     return () => window.clearTimeout(timeout);
   }, [checkout?.stage, router]);
 
-  const code = useMemo(
-    () => (checkout ? customerUssdCode(checkout.amount) : ""),
-    [checkout],
-  );
+  const code = useMemo(() => (checkout ? customerUssdCode(checkout.amount) : ""), [checkout]);
 
   async function copyCode() {
     try {
@@ -134,8 +106,7 @@ export default function CustomerCheckoutPageClient({
     } catch {
       toast({
         tone: "error",
-        description:
-          "Copy failed. Select the code on this page and copy it manually.",
+        description: "Copy failed. Select the code on this page and copy it manually.",
       });
     }
   }
@@ -158,8 +129,7 @@ export default function CustomerCheckoutPageClient({
     } catch (cause) {
       toast({
         tone: "error",
-        description:
-          cause instanceof Error ? cause.message : "Could not request review.",
+        description: cause instanceof Error ? cause.message : "Could not request review.",
       });
     }
   }
@@ -167,10 +137,7 @@ export default function CustomerCheckoutPageClient({
   if (loading) {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl items-center justify-center p-6">
-        <LoaderCircle
-          className="size-8 animate-spin"
-          aria-label="Loading checkout"
-        />
+        <LoaderCircle className="size-8 animate-spin" aria-label="Loading checkout" />
       </main>
     );
   }
@@ -207,10 +174,10 @@ export default function CustomerCheckoutPageClient({
               : "This payment window expired. If you paid, ask staff to review your receipt.";
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:py-14">
-      <div className="mx-auto max-w-xl space-y-6 rounded-3xl border border-border bg-card p-5 shadow-xl sm:p-8">
+    <main className="bg-background text-foreground min-h-screen px-4 py-8 sm:py-14">
+      <div className="border-border bg-card mx-auto max-w-xl space-y-6 rounded-3xl border p-5 shadow-xl sm:p-8">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800 dark:text-amber-300">
+          <p className="text-xs font-bold tracking-[0.22em] text-amber-800 uppercase dark:text-amber-300">
             Mobile money checkout
           </p>
           <h1 className="mt-2 text-3xl font-bold">
@@ -219,24 +186,29 @@ export default function CustomerCheckoutPageClient({
           <p className="mt-2 font-semibold">
             {checkout.orderType === "DINE_IN"
               ? `Dine in · ${checkout.tableName ?? "Your table"}`
-              : "To-go order"}
+              : checkout.orderType === "DELIVERY"
+                ? "Delivery order"
+                : "To-go order"}
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
+          {checkout.orderType === "DELIVERY" ? (
+            <div className="text-muted-foreground mt-2 text-sm">
+              <p>Deliver to: {checkout.deliveryAddress}</p>
+              <p>Contact: {checkout.deliveryPhone}</p>
+            </div>
+          ) : null}
+          <p className="text-muted-foreground mt-2 text-sm">
             Use the phone number {checkout.payerPhone} to send the full amount.
           </p>
         </div>
         {checkout.status === "PENDING" || checkout.status === "REVIEW" ? (
-          <section className="space-y-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 p-5">
-            <p className="text-sm font-semibold text-muted-foreground">
-              Amount due
-            </p>
+          <section className="space-y-4 rounded-2xl bg-amber-50 p-5 dark:bg-amber-950/40">
+            <p className="text-muted-foreground text-sm font-semibold">Amount due</p>
             <p className="text-4xl font-bold">${checkout.amount.toFixed(2)}</p>
-            <p className="text-sm text-foreground">
-              Copy this code into your phone app. Enter your PIN there to
-              authorize payment.
+            <p className="text-foreground text-sm">
+              Copy this code into your phone app. Enter your PIN there to authorize payment.
             </p>
             <div
-              className="select-all break-all rounded-xl border border-amber-300 dark:border-amber-800 bg-card px-4 py-3 font-mono text-lg font-semibold"
+              className="bg-card rounded-xl border border-amber-300 px-4 py-3 font-mono text-lg font-semibold break-all select-all dark:border-amber-800"
               aria-label="Mobile money payment code"
             >
               {code}
@@ -256,18 +228,13 @@ export default function CustomerCheckoutPageClient({
               ) : null}
             </div>
             {android ? (
-              <p className="text-xs text-muted-foreground">
-                Check the dialer code before calling. If it does not prefill,
-                use Copy code.
+              <p className="text-muted-foreground text-xs">
+                Check the dialer code before calling. If it does not prefill, use Copy code.
               </p>
             ) : null}
           </section>
         ) : null}
-        <div
-          className="rounded-2xl border border-border p-5"
-          role="status"
-          aria-live="polite"
-        >
+        <div className="border-border rounded-2xl border p-5" role="status" aria-live="polite">
           <div className="flex items-start gap-3">
             {waiting ? (
               <LoaderCircle className="mt-0.5 size-6 shrink-0 animate-spin text-amber-700 dark:text-amber-300" />
@@ -279,9 +246,9 @@ export default function CustomerCheckoutPageClient({
             <div>
               <p className="font-semibold">{statusText}</p>
               {waiting ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Keep this page open or return after making the payment. We
-                  check again when you come back.
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Keep this page open or return after making the payment. We check again when you
+                  come back.
                 </p>
               ) : null}
             </div>
@@ -296,14 +263,10 @@ export default function CustomerCheckoutPageClient({
               aria-valuemax={5}
               aria-valuenow={Math.max(
                 0,
-                CUSTOMER_ORDER_STAGES.findIndex(
-                  (stage) => stage.key === checkout.stage,
-                ),
+                CUSTOMER_ORDER_STAGES.findIndex((stage) => stage.key === checkout.stage),
               )}
               aria-valuetext={
-                CUSTOMER_ORDER_STAGES.find(
-                  (stage) => stage.key === checkout.stage,
-                )?.label
+                CUSTOMER_ORDER_STAGES.find((stage) => stage.key === checkout.stage)?.label
               }
               className="h-3 overflow-hidden rounded-full bg-stone-200"
             >
@@ -313,9 +276,7 @@ export default function CustomerCheckoutPageClient({
                   width: `${
                     Math.max(
                       0,
-                      CUSTOMER_ORDER_STAGES.findIndex(
-                        (stage) => stage.key === checkout.stage,
-                      ),
+                      CUSTOMER_ORDER_STAGES.findIndex((stage) => stage.key === checkout.stage),
                     ) * 20
                   }%`,
                 }}
@@ -325,14 +286,10 @@ export default function CustomerCheckoutPageClient({
               {CUSTOMER_ORDER_STAGES.map((stage, index) => (
                 <li
                   key={stage.key}
-                  aria-current={
-                    stage.key === checkout.stage ? "step" : undefined
-                  }
+                  aria-current={stage.key === checkout.stage ? "step" : undefined}
                   className={
                     index <=
-                    CUSTOMER_ORDER_STAGES.findIndex(
-                      (value) => value.key === checkout.stage,
-                    )
+                    CUSTOMER_ORDER_STAGES.findIndex((value) => value.key === checkout.stage)
                       ? "font-semibold text-emerald-800"
                       : "text-stone-500"
                   }
@@ -343,8 +300,8 @@ export default function CustomerCheckoutPageClient({
             </ol>
             {checkout.stage !== "DELIVERED" ? (
               <p className="text-sm text-stone-600">
-                Keep this page open to follow your order. It updates
-                automatically and checks again when you return.
+                Keep this page open to follow your order. It updates automatically and checks again
+                when you return.
               </p>
             ) : null}
           </section>
@@ -377,9 +334,8 @@ export default function CustomerCheckoutPageClient({
           </Button>
         ) : null}
         {checkout.status === "EXPIRED" || checkout.status === "NEEDS_HELP" ? (
-          <p className="text-sm text-muted-foreground">
-            Show this checkout to the cashier:{" "}
-            <span className="font-mono">{checkout.id}</span>
+          <p className="text-muted-foreground text-sm">
+            Show this checkout to the cashier: <span className="font-mono">{checkout.id}</span>
           </p>
         ) : null}
       </div>

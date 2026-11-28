@@ -42,10 +42,14 @@ import { CustomerOrderState } from "@/types/customer-order.types";
 import CustomerOrderOverlays from "./UI/CustomerOrderOverlays";
 import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
+import {
+  validateCustomerFulfillment,
+  type CustomerFulfillmentType,
+} from "@/lib/customer/customer-order-fulfillment";
+import { useToast } from "@/components/ui/toast";
 
 const posthogConfigured = Boolean(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {
@@ -57,9 +61,7 @@ function scrollToTop() {
 }
 
 function useBackToTopVisibility(offset: number) {
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(offset),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(() => isPastScrollOffset(offset));
 
   useEffect(() => {
     function handleScroll() {
@@ -112,9 +114,13 @@ type CustomerOrderAction =
   | { type: "orderNoteChanged"; orderNote: string }
   | {
       type: "fulfillmentChanged";
-      orderType: "DINE_IN" | "TAKEOUT";
+      orderType: CustomerFulfillmentType;
       tableId: string;
+      deliveryAddress?: string;
+      deliveryPhone?: string;
     }
+  | { type: "deliveryAddressChanged"; deliveryAddress: string }
+  | { type: "deliveryPhoneChanged"; deliveryPhone: string }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -145,6 +151,8 @@ const initialCustomerOrderState: CustomerOrderState = {
   orderNote: "",
   orderType: "TAKEOUT",
   tableId: "",
+  deliveryAddress: "",
+  deliveryPhone: "",
   selectedProduct: null,
   modifierModalOpen: false,
   cartOpen: false,
@@ -170,7 +178,18 @@ function customerOrderReducer(
     case "customerPhoneChanged":
       return { ...state, customerPhone: action.customerPhone };
     case "fulfillmentChanged":
-      return { ...state, orderType: action.orderType, tableId: action.tableId };
+      return {
+        ...state,
+        orderType: action.orderType,
+        tableId: action.orderType === "DINE_IN" ? action.tableId : "",
+        deliveryAddress: action.deliveryAddress ?? state.deliveryAddress,
+        deliveryPhone: action.deliveryPhone ?? state.deliveryPhone,
+        submitError: "",
+      };
+    case "deliveryAddressChanged":
+      return { ...state, deliveryAddress: action.deliveryAddress };
+    case "deliveryPhoneChanged":
+      return { ...state, deliveryPhone: action.deliveryPhone };
     case "orderNoteChanged":
       return { ...state, orderNote: action.orderNote };
     case "cartOpened":
@@ -178,7 +197,14 @@ function customerOrderReducer(
     case "cartClosed":
       return { ...state, cartOpen: false };
     case "cartCleared":
-      return { ...state, orderNote: "", submitError: "", submitMessage: "" };
+      return {
+        ...state,
+        orderNote: "",
+        deliveryAddress: "",
+        deliveryPhone: "",
+        submitError: "",
+        submitMessage: "",
+      };
     case "cartItemAdded":
       return { ...state, cartOpen: true, submitError: "", submitMessage: "" };
     case "baristaUnavailable":
@@ -229,7 +255,7 @@ function customerOrderReducer(
     case "checkoutFailed":
       return {
         ...state,
-        submitError: action.error,
+        submitError: "",
         submitMessage: "",
         cartOpen: true,
       };
@@ -255,10 +281,8 @@ type CustomerOrderPageProps = {
   accountName?: string;
 };
 
-export default function CustomerOrderPage({
-  authState,
-  accountName = "",
-}: CustomerOrderPageProps) {
+export default function CustomerOrderPage({ authState, accountName = "" }: CustomerOrderPageProps) {
+  const { toast } = useToast();
   const {
     productsAll,
     categories,
@@ -294,6 +318,8 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    orderState.deliveryAddress,
+    orderState.deliveryPhone,
   ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
@@ -322,18 +348,14 @@ export default function CustomerOrderPage({
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: kioskProducts.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [kioskCategories, kioskProducts],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
-    categoryChips.some(
-      (category) => category.id === orderState.selectedCategoryValue,
-    )
+    categoryChips.some((category) => category.id === orderState.selectedCategoryValue)
       ? orderState.selectedCategoryValue
       : "all";
 
@@ -353,8 +375,7 @@ export default function CustomerOrderPage({
   }, [deferredSearch, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ??
-    "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All";
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
@@ -385,8 +406,7 @@ export default function CustomerOrderPage({
       });
     }
     const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment)
-      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
   }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
 
@@ -396,7 +416,12 @@ export default function CustomerOrderPage({
       clearCustomerOrderDraft();
       return;
     }
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    saveCustomerFulfillment(
+      orderState.orderType,
+      orderState.tableId,
+      orderState.deliveryAddress,
+      orderState.deliveryPhone,
+    );
     saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -411,6 +436,8 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    orderState.deliveryAddress,
+    orderState.deliveryPhone,
   ]);
 
   useAos(
@@ -443,10 +470,7 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (
-      getProductModifierGroups(product).length > 0 ||
-      product.category?.station === "BARISTA"
-    ) {
+    if (getProductModifierGroups(product).length > 0 || product.category?.station === "BARISTA") {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -523,15 +547,21 @@ export default function CustomerOrderPage({
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error:
-          "Enter 90 followed by seven digits for the phone sending payment.",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
-    if (!orderState.customerName.trim()) {
+    const fulfillment = validateCustomerFulfillment({
+      orderType: orderState.orderType,
+      customerName: orderState.customerName,
+      tableId: orderState.tableId,
+      deliveryAddress: orderState.deliveryAddress,
+      deliveryPhone: orderState.deliveryPhone,
+    });
+    if (!fulfillment.ok) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Enter your name before checkout.",
+        error: fulfillment.error,
       });
       return;
     }
@@ -558,6 +588,8 @@ export default function CustomerOrderPage({
           idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
           orderType: orderState.orderType,
           tableId: orderState.tableId || null,
+          deliveryAddress: fulfillment.value.deliveryAddress,
+          deliveryPhone: fulfillment.value.deliveryPhone,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -586,28 +618,33 @@ export default function CustomerOrderPage({
       if (!response.ok || !data.checkout?.id) {
         throw new Error(data.error || "Could not start mobile money checkout.");
       }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not start checkout.";
       dispatchOrderState({
         type: "checkoutFailed",
-        error: error instanceof Error ? error.message : "Something went wrong.",
+        error: message,
       });
+      toast({ tone: "error", description: message });
     } finally {
       dispatchOrderState({ type: "checkoutFinished" });
     }
   }
 
   function handleContinueWithGoogle() {
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    const fulfillmentSaved = saveCustomerFulfillment(
+      orderState.orderType,
+      orderState.tableId,
+      orderState.deliveryAddress,
+      orderState.deliveryPhone,
+    );
     const saved = saveCustomerOrderDraft(
       cart,
       orderState.customerName,
       orderState.customerPhone,
       orderState.orderNote,
     );
-    if (!saved) {
+    if (!saved || !fulfillmentSaved) {
       setSignInError(
         "Your browser could not save this order. Please allow session storage and try again.",
       );
@@ -618,7 +655,7 @@ export default function CustomerOrderPage({
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -634,7 +671,7 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -644,9 +681,7 @@ export default function CustomerOrderPage({
           searchTerm={orderState.searchTerm}
           categoryChips={categoryChips}
           selectedCategory={selectedCategory}
-          onSearchChange={(searchTerm) =>
-            dispatchOrderState({ type: "searchChanged", searchTerm })
-          }
+          onSearchChange={(searchTerm) => dispatchOrderState({ type: "searchChanged", searchTerm })}
           onCategorySelect={(category) =>
             startFiltering(() => {
               dispatchOrderState({ type: "categorySelected", category });
@@ -665,9 +700,7 @@ export default function CustomerOrderPage({
       </div>
 
       <BackToTopButton
-        show={
-          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
-        }
+        show={showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen}
         onClick={scrollToTop}
       />
 
@@ -689,6 +722,12 @@ export default function CustomerOrderPage({
         onFulfillmentChange={(orderType, tableId) =>
           dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })
         }
+        onDeliveryAddressChange={(deliveryAddress) =>
+          dispatchOrderState({ type: "deliveryAddressChanged", deliveryAddress })
+        }
+        onDeliveryPhoneChange={(deliveryPhone) =>
+          dispatchOrderState({ type: "deliveryPhoneChanged", deliveryPhone })
+        }
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
@@ -706,23 +745,16 @@ export default function CustomerOrderPage({
           <DialogHeader>
             <DialogTitle>Sign in to place your order</DialogTitle>
             <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
+              Continue with Google. We will bring you back to this cart so you can review it before
+              placing your order.
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
+            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
               {signInError}
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
+          <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
             Continue with Google
           </Button>
           <Button

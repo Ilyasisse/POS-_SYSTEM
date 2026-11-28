@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { customerOrderStage } from "@/lib/customer/customer-order-progress";
+import { customerFulfillmentDestination } from "@/lib/customer/customer-order-fulfillment";
 import {
   KitchenTicketMutationError,
   updateKitchenTicketPickup,
@@ -30,7 +31,12 @@ export async function GET() {
         id: order.id,
         orderNumber: order.orderNumber,
         customerName: order.customerCheckout?.customerName,
-        destination: order.table?.name ?? "To go",
+        destination: customerFulfillmentDestination({
+          orderType: order.type,
+          tableName: order.table?.name,
+          deliveryAddress: order.deliveryAddress,
+        }),
+        deliveryPhone: order.type === "DELIVERY" ? order.deliveryPhone : null,
         stage: customerOrderStage("PAID", order.kitchenTicketState),
       })),
     },
@@ -58,10 +64,7 @@ export async function PATCH(request: Request) {
     select: { id: true },
   });
   if (!order)
-    return NextResponse.json(
-      { error: "Paid customer order not found." },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Paid customer order not found." }, { status: 404 });
   try {
     await updateKitchenTicketPickup({
       orderId: order.id,
@@ -72,12 +75,10 @@ export async function PATCH(request: Request) {
   } catch (cause) {
     return NextResponse.json(
       {
-        error:
-          cause instanceof Error ? cause.message : "Could not update pickup.",
+        error: cause instanceof Error ? cause.message : "Could not update pickup.",
       },
       {
-        status:
-          cause instanceof KitchenTicketMutationError ? cause.status : 500,
+        status: cause instanceof KitchenTicketMutationError ? cause.status : 500,
       },
     );
   }
