@@ -179,7 +179,7 @@ export default function StaffLoginPageClient() {
               className="h-14 w-14 object-contain"
             />
           </div>
-          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45]">
+          <p className="mt-5 text-xs font-semibold uppercase tracking-[0.28em] text-[#b07b45] dark:text-primary">
             Staff access
           </p>
           <h1 className="mt-3 text-3xl font-bold text-foreground">
@@ -209,7 +209,7 @@ export default function StaffLoginPageClient() {
                   value: e.target.value,
                 })
               }
-              className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm text-[#2f180d] outline-none transition placeholder:text-[#9b8575] focus:border-[#d09a59] focus:ring-4 focus:ring-[#d09a59]/15"
+              className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm text-[#2f180d] outline-none transition placeholder:text-[#9b8575] focus:border-[#d09a59] focus:ring-4 focus:ring-ring/15"
               placeholder="admin@pos.com"
               autoComplete="email"
               required
@@ -234,7 +234,7 @@ export default function StaffLoginPageClient() {
                   value: e.target.value,
                 })
               }
-              className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm text-[#2f180d] outline-none transition placeholder:text-[#9b8575] focus:border-[#d09a59] focus:ring-4 focus:ring-[#d09a59]/15"
+              className="w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm text-[#2f180d] outline-none transition placeholder:text-[#9b8575] focus:border-[#d09a59] focus:ring-4 focus:ring-ring/15"
               placeholder="Enter password"
               autoComplete="current-password"
               required
@@ -252,7 +252,7 @@ export default function StaffLoginPageClient() {
             disabled={loading}
             data-aos="fade-up"
             data-aos-delay="160"
-            className="flex w-full items-center justify-center rounded-2xl bg-[#2f180d] px-5 py-3.5 text-sm font-semibold text-white shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-[#442719] focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+            className="flex w-full items-center justify-center rounded-2xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-[0_18px_36px_rgba(47,24,13,0.22)] transition hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
           >
             {loading ? "Signing in..." : "Sign in to staff"}
           </Button>
@@ -264,7 +264,7 @@ export default function StaffLoginPageClient() {
             href="/login"
             data-aos="fade-up"
             data-aos-delay="220"
-            className="flex w-full items-center justify-center rounded-2xl border border-border bg-card px-5 py-3.5 text-sm font-semibold text-foreground transition hover:-translate-y-0.5 hover:border-[#d09a59] hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-[#d09a59] focus:ring-offset-2"
+            className="flex w-full items-center justify-center rounded-2xl border border-border bg-card px-5 py-3.5 text-sm font-semibold text-foreground transition hover:-translate-y-0.5 hover:border-[#d09a59] hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             Customer login
           </Link>
@@ -280,7 +280,7 @@ function StaffLoginShell({ children }: { children: React.ReactNode }) {
       <div className="absolute right-4 top-4 z-20">
         <ModeToggle />
       </div>
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,#1d120d_0%,#2c1b12_48%,#15100d_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fff8ef_0%,#f2dfc7_48%,#e8c18f_100%)] dark:bg-[linear-gradient(135deg,var(--background)_0%,var(--card)_48%,var(--background)_100%)]" />
       <div className="absolute inset-x-0 top-0 h-48 bg-[linear-gradient(180deg,rgba(47,24,13,0.16),transparent)]" />
       <div className="relative z-10 flex w-full justify-center">{children}</div>
     </main>
