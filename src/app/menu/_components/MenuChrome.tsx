@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { CustomerLanguageSelect } from "@/components/customer/i18n/CustomerLanguageProvider";
+import { useCustomerTranslations } from "@/components/customer/i18n/CustomerLanguageProvider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -48,11 +50,12 @@ function MenuHeader({
   onCloseMobileNav: () => void;
   onToggleMobileNav: () => void;
 }) {
+  const t = useCustomerTranslations();
   return (
     <div className="dark:bg-background/90 fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#120906]/74 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <header className="py-3">
-          <div className="flex items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 md:px-6">
+          <div className="flex items-center justify-between gap-2 rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 md:px-6">
             <div className="flex min-w-0 items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[18px]">
                 <Image
@@ -78,14 +81,14 @@ function MenuHeader({
                 href="/"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
-                Home
+                {t("home")}
               </Link>
               <Link
                 prefetch={false}
                 href="/menu"
                 className="rounded-full border border-[#d7aa6a]/60 bg-[#d7aa6a]/12 px-4 py-2 text-white"
               >
-                Menu
+                {t("menu")}
               </Link>
 
               <Link
@@ -93,25 +96,33 @@ function MenuHeader({
                 href="#contact"
                 className="rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white"
               >
-                Contact
+                {t("contact")}
               </Link>
             </nav>
 
             <div className="flex items-center gap-3">
-              <ModeToggle />
+              <CustomerLanguageSelect />
+              <ModeToggle
+                labels={{
+                  changeTheme: t("changeTheme"),
+                  light: t("lightTheme"),
+                  dark: t("darkTheme"),
+                  system: t("systemTheme"),
+                }}
+              />
               <Link
                 prefetch={false}
                 href="/customer"
                 className="hidden items-center justify-center rounded-full bg-[#d09a59] px-5 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition hover:bg-[#deab6d] lg:inline-flex"
               >
-                Order Now
+                {t("orderNow")}
               </Link>
 
               <Button
                 type="button"
                 onClick={onToggleMobileNav}
                 aria-expanded={mobileNavOpen}
-                aria-label="Toggle navigation"
+                aria-label={t("toggleNavigation")}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/8 text-white transition hover:bg-white/12 lg:hidden"
               >
                 <span className="flex flex-col gap-1.5">
@@ -138,7 +149,7 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                 >
-                  Home
+                  {t("home")}
                 </Link>
                 <Link
                   prefetch={false}
@@ -146,7 +157,7 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] border border-[#d7aa6a]/30 bg-[#d7aa6a]/12 px-4 py-3 text-sm font-medium text-white"
                 >
-                  Menu
+                  {t("menu")}
                 </Link>
 
                 <Link
@@ -155,7 +166,7 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="rounded-[18px] px-4 py-3 text-sm font-medium transition"
                 >
-                  Contact
+                  {t("contact")}
                 </Link>
                 <Link
                   prefetch={false}
@@ -163,7 +174,7 @@ function MenuHeader({
                   onClick={onCloseMobileNav}
                   className="mt-1 inline-flex items-center justify-center rounded-[18px] bg-[#d09a59] px-4 py-3 text-sm font-semibold text-[#231208] shadow-[0_14px_30px_rgba(208,154,89,0.25)] transition"
                 >
-                  Order Now
+                  {t("orderNow")}
                 </Link>
               </div>
             </div>

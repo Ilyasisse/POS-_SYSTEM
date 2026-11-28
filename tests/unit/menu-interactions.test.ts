@@ -1,3 +1,4 @@
+import { createCustomerTranslator } from "../../src/i18n/customer";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -32,6 +33,9 @@ function mount(categories: MenuCategory[]) {
     },
   }).outputText;
   const dependencies: Record<string, unknown> = {
+    "@/components/customer/i18n/CustomerLanguageProvider": {
+      useCustomerTranslations: () => createCustomerTranslator("en"),
+    },
     react: {
       useReducer: (
         reducer: (state: unknown, action: unknown) => unknown,

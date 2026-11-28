@@ -1,4 +1,6 @@
-﻿"use client";
+"use client";
+
+import { useCustomerTranslations } from "@/components/customer/i18n/CustomerLanguageProvider";
 
 import { Button } from "@/components/ui/button";
 
@@ -26,9 +28,12 @@ function ProductCard({
   unavailable: boolean;
   onProductClick: (product: Product) => void;
 }) {
+  const t = useCustomerTranslations();
   const modifierGroups = getProductModifierGroups(product);
   const ctaLabel =
-    modifierGroups.length > 0 || product.category?.station === "BARISTA" ? "Customize" : "Add";
+    modifierGroups.length > 0 || product.category?.station === "BARISTA"
+      ? t("customize")
+      : t("add");
 
   return (
     <Card
@@ -44,11 +49,11 @@ function ProductCard({
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
         <div className="absolute top-3 right-3 flex max-w-[70%] flex-wrap justify-end gap-2 sm:top-4 sm:right-4">
           <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-white uppercase">
-            {product.category?.name ?? "Menu"}
+            {product.category?.name ?? t("menu")}
           </span>
           {product.isPopular ? (
             <span className="rounded-full border border-amber-200 bg-amber-300/20 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-amber-50 uppercase dark:border-amber-800/30">
-              Popular
+              {t("popular")}
             </span>
           ) : null}
         </div>
@@ -71,20 +76,18 @@ function ProductCard({
 
       <div className="space-y-3 p-4 sm:p-5">
         <p className="text-muted-foreground min-h-0 text-sm leading-6 sm:min-h-12">
-          {product.description?.trim() ||
-            "Freshly prepared with a warm cafe finish and ready to customize."}
+          {product.description?.trim() || t("productFallback")}
         </p>
 
         <div className="flex flex-wrap gap-2">
           {modifierGroups.length > 0 ? (
             <span className="bg-muted text-foreground rounded-full px-3 py-1 text-xs font-semibold">
-              {modifierGroups.length} option group
-              {modifierGroups.length > 1 ? "s" : ""}
+              {t("optionGroups", { count: modifierGroups.length })}
             </span>
           ) : null}
           {unavailable ? (
             <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-              Temporarily unavailable
+              {t("unavailable")}
             </span>
           ) : null}
         </div>
@@ -126,6 +129,7 @@ export default function CustomerProductGrid({
   isFiltering = false,
   onProductClick,
 }: CustomerProductGridProps) {
+  const t = useCustomerTranslations();
   if (loading || isFiltering) {
     return <ProductGridSkeleton />;
   }
@@ -136,7 +140,7 @@ export default function CustomerProductGrid({
         data-aos="fade-up"
         className="border-border bg-card/75 text-muted-foreground flex min-h-[24rem] items-center justify-center rounded-[2rem] border border-dashed p-8 text-center text-sm"
       >
-        No items match your search in {selectedCategoryName}.
+        {t("noSearchResults", { category: selectedCategoryName })}
       </div>
     );
   }

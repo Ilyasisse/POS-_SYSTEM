@@ -1,3 +1,4 @@
+import type { CustomerMessage } from "@/i18n/customer";
 import { Product } from "./product.types";
 
 export type CategoryChip = {
@@ -18,7 +19,7 @@ export type CustomerOrderState = {
   modifierModalOpen: boolean;
   cartOpen: boolean;
   isSubmitting: boolean;
-  submitMessage: string;
-  submitError: string;
+  submitMessage: CustomerMessage;
+  submitError: CustomerMessage;
   lastOrderNumber: number | null;
 };

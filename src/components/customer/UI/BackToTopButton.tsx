@@ -1,13 +1,14 @@
-﻿import { Button } from "@/components/ui/button";
+"use client";
+
+import { useCustomerTranslations } from "@/components/customer/i18n/CustomerLanguageProvider";
+import { Button } from "@/components/ui/button";
 type BackToTopButtonProps = {
   show: boolean;
   onClick: () => void;
 };
 
-export default function BackToTopButton({
-  show,
-  onClick,
-}: BackToTopButtonProps) {
+export default function BackToTopButton({ show, onClick }: BackToTopButtonProps) {
+  const t = useCustomerTranslations();
   if (!show) {
     return null;
   }
@@ -15,9 +16,9 @@ export default function BackToTopButton({
   return (
     <Button
       type="button"
-      aria-label="Back to top"
+      aria-label={t("backToTop")}
       onClick={onClick}
-      className="fixed bottom-5 right-5 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-primary text-primary-foreground shadow-[0_18px_45px_rgba(44,28,17,0.28)] transition hover:-translate-y-0.5 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background sm:bottom-7 sm:right-7 sm:h-14 sm:w-14"
+      className="bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-ring focus:ring-offset-background fixed right-5 bottom-5 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-white/70 shadow-[0_18px_45px_rgba(44,28,17,0.28)] transition hover:-translate-y-0.5 focus:ring-2 focus:ring-offset-2 focus:outline-none sm:right-7 sm:bottom-7 sm:h-14 sm:w-14"
     >
       <svg
         aria-hidden="true"

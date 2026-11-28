@@ -1,5 +1,8 @@
-﻿"use client";
+"use client";
 
+import { useCustomerTranslations } from "@/components/customer/i18n/CustomerLanguageProvider";
+
+import { formatCustomerMessage, type CustomerMessage } from "@/i18n/customer";
 import { Button } from "@/components/ui/button";
 
 import { NativeSelect } from "@/components/ui/native-select";
@@ -34,7 +37,7 @@ type CustomerModifierModalProps = {
   ) => void;
 };
 
-type ModifierErrors = Record<string, string>;
+type ModifierErrors = Record<string, CustomerMessage>;
 
 type CustomerModifierHeroProps = {
   product: Product;
@@ -95,9 +98,11 @@ function getModifierSelectionErrors(
     const max = getMaxSelect(group);
 
     if (count < min) {
-      accumulator[group.id] = min === 1 ? "Choose 1 option." : `Choose at least ${min}.`;
+      accumulator[group.id] =
+        min === 1 ? { key: "chooseOne" } : { key: "chooseMin", values: { count: min } };
     } else if (count > max) {
-      accumulator[group.id] = max === 1 ? "Only 1 option allowed." : `Choose up to ${max}.`;
+      accumulator[group.id] =
+        max === 1 ? { key: "onlyOne" } : { key: "chooseMax", values: { count: max } };
     }
 
     return accumulator;
@@ -105,6 +110,7 @@ function getModifierSelectionErrors(
 }
 
 function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
+  const t = useCustomerTranslations();
   return (
     <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white md:min-h-[22rem] lg:h-full lg:min-h-[32rem] lg:self-stretch">
       <ProductImage
@@ -118,7 +124,9 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
       <div className="relative flex h-full flex-col justify-between">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-7">
           <div>
-            <p className="text-xs tracking-[0.32em] text-amber-200/90 uppercase">Customize Item</p>
+            <p className="text-xs tracking-[0.32em] text-amber-200/90 uppercase">
+              {t("customizeItem")}
+            </p>
             <h2
               className="mt-3 max-w-md text-3xl leading-tight break-words sm:text-4xl lg:text-5xl"
               style={{
@@ -135,17 +143,18 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
             onClick={onClose}
             className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/15 hover:text-white sm:px-4 dark:bg-white/10 dark:hover:bg-white/15"
           >
-            Close
+            {t("close")}
           </Button>
         </div>
 
         <div className="pt-30 pr-0.5 pl-5 text-right lg:mt-auto lg:flex lg:justify-end lg:p-7 lg:pt-32">
           <div className="rounded-[25px] border-white/10 bg-transparent p-4 sm:w-full sm:max-w-md sm:border sm:bg-black/20 sm:backdrop-blur-sm">
             <p className="hidden text-sm leading-6 break-words text-stone-100/80 sm:block">
-              {product.description?.trim() ||
-                "Choose the details that make this item exactly how you want it."}
+              {product.description?.trim() || t("customizeFallback")}
             </p>
-            <p className="mt-4 text-sm tracking-[0.22em] text-amber-100/70 uppercase">Base price</p>
+            <p className="mt-4 text-sm tracking-[0.22em] text-amber-100/70 uppercase">
+              {t("basePrice")}
+            </p>
             <p className="mt-1 text-3xl font-semibold text-amber-100">
               {formatCurrency(Number(product.price))}
             </p>
@@ -162,6 +171,7 @@ function ModifierGroupList({
   errors,
   onToggleOption,
 }: ModifierGroupListProps) {
+  const t = useCustomerTranslations();
   return (
     <>
       {modifierGroups.map((group, groupIndex) => {
@@ -188,7 +198,7 @@ function ModifierGroupList({
                   id={`modifier-guidance-${group.id}`}
                   className="text-muted-foreground mt-1 text-xs tracking-[0.2em] uppercase"
                 >
-                  Choose {getMinSelect(group)} to {getMaxSelect(group)}
+                  {t("chooseRange", { min: getMinSelect(group), max: getMaxSelect(group) })}
                 </p>
               </div>
               {errors[group.id] ? (
@@ -196,7 +206,7 @@ function ModifierGroupList({
                   role="alert"
                   className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
                 >
-                  {errors[group.id]}
+                  {formatCustomerMessage(errors[group.id], t)}
                 </span>
               ) : null}
             </div>
@@ -224,7 +234,7 @@ function ModifierGroupList({
                         <p className="text-muted-foreground mt-1 text-sm">
                           {Number(option.price) > 0
                             ? `+${formatCurrency(Number(option.price))}`
-                            : "Included"}
+                            : t("included")}
                         </p>
                       </div>
                       <span
@@ -253,23 +263,22 @@ function BaristaAssignment({
   selectedBaristaId,
   onSelectedBaristaIdChange,
 }: BaristaAssignmentProps) {
+  const t = useCustomerTranslations();
   return (
     <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-amber-950 dark:text-amber-300">
-            Barista assignment
+            {t("baristaAssignment")}
           </p>
-          <p className="mt-1 text-sm text-amber-900 dark:text-amber-300/80">
-            Choose who will prepare this drink.
-          </p>
+          <p className="mt-1 text-sm text-amber-900 dark:text-amber-300/80">{t("chooseBarista")}</p>
         </div>
         <NativeSelect
           value={selectedBaristaId}
           onChange={(event) => onSelectedBaristaIdChange(event.target.value)}
           className="bg-card text-foreground w-full rounded-full border border-amber-300 px-4 py-2 text-sm font-medium outline-none sm:w-auto dark:border-amber-800"
         >
-          <option value="">Select barista</option>
+          <option value="">{t("selectBarista")}</option>
           {baristas.map((barista) => (
             <option key={barista.id} value={barista.id}>
               {barista.fullName}
@@ -287,21 +296,24 @@ function ModifierModalFooter({
   disabled,
   onAddToCart,
 }: ModifierModalFooterProps) {
+  const t = useCustomerTranslations();
   return (
     <div className="border-border bg-card sticky bottom-0 z-10 border-t px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">
-            Selected add-ons
+            {t("selectedAddons")}
           </p>
           <p className="text-muted-foreground mt-2 max-h-16 overflow-y-auto text-sm break-words">
             {selectedLines.length === 0
-              ? "No extra selections yet."
+              ? t("noSelections")
               : selectedLines.map((modifier) => modifier.optionName).join(", ")}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">Item total</p>
+          <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">
+            {t("itemTotal")}
+          </p>
           <p className="text-foreground mt-2 text-3xl font-semibold">
             {formatCurrency(previewTotal)}
           </p>
@@ -314,7 +326,7 @@ function ModifierModalFooter({
         disabled={disabled}
         className="bg-primary text-primary-foreground hover:bg-primary/90 mt-5 w-full rounded-full px-6 py-4 text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Add to cart
+        {t("addToCart")}
       </Button>
     </div>
   );
@@ -331,6 +343,7 @@ function CustomerModifierContent({
   onClose,
   onConfirm,
 }: CustomerModifierContentProps) {
+  const t = useCustomerTranslations();
   const [selected, setSelected] = useState<SelectedModifiersMap>({});
   const [selectedBaristaId, setSelectedBaristaId] = useState(defaultBaristaId);
 
@@ -407,13 +420,10 @@ function CustomerModifierContent({
         <div className="border-border hidden border-b px-4 py-4 sm:block sm:px-6">
           <div className="flex flex-wrap items-center gap-3">
             <span className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.24em] uppercase">
-              {modifierGroups.length} groups
+              {t("groups", { count: modifierGroups.length })}
             </span>
           </div>
-          <p className="text-muted-foreground mt-3 text-sm leading-6">
-            Pick your size, extras, and finishing touches. Your total updates instantly as you
-            select options.
-          </p>
+          <p className="text-muted-foreground mt-3 text-sm leading-6">{t("customizeHelp")}</p>
         </div>
 
         <div className="flex-1 space-y-4 px-4 py-4 sm:px-6 sm:py-5 lg:min-h-0 lg:overflow-y-auto">
@@ -451,6 +461,7 @@ export default function CustomerModifierModal({
   onClose,
   onConfirm,
 }: CustomerModifierModalProps) {
+  const t = useCustomerTranslations();
   if (!product) {
     return null;
   }
@@ -464,10 +475,8 @@ export default function CustomerModifierModal({
         className="bg-card text-foreground dark:bg-card dark:text-foreground max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 p-0 sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Customize {product.name}</DialogTitle>
-          <DialogDescription>
-            Choose modifiers and an optional barista before adding the item.
-          </DialogDescription>
+          <DialogTitle>{t("customizeName", { name: product.name })}</DialogTitle>
+          <DialogDescription>{t("customizeDescription")}</DialogDescription>
         </DialogHeader>
         <CustomerModifierContent
           key={`${product.id}:${defaultBaristaId}`}

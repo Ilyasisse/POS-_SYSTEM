@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import { useReducer } from "react";
 
+import { useCustomerTranslations } from "@/components/customer/i18n/CustomerLanguageProvider";
 import type { MenuData, MenuProduct } from "@/types/menu/menu-types";
 
 type MenuShowcaseProps = {
@@ -137,8 +138,9 @@ function MenuCategoryTabs({
 }: {
   categories: MenuData["categories"];
   selectedCategory: string;
-  onOpenCategory: (categoryId: string) => void;
+  onOpenCategory: (slug: string) => void;
 }) {
+  const t = useCustomerTranslations();
   return (
     <section className="relative z-10 mx-auto -mt-10 max-w-7xl px-4 sm:px-6 lg:px-8">
       <div className="border-border bg-card rounded-[32px] border px-4 py-5 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-6">
@@ -166,7 +168,7 @@ function MenuCategoryTabs({
             })
           ) : (
             <p className="text-muted-foreground px-2 py-3 text-sm font-medium">
-              Menu items will appear here when active products are available.
+              {t("menuWillAppear")}
             </p>
           )}
         </div>
@@ -184,11 +186,12 @@ function MenuProductSection({
   remainingProductCount: number;
   onLoadMore: () => void;
 }) {
+  const t = useCustomerTranslations();
   return (
     <section id="menu-grid" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
       <div className="text-center">
         <p className="text-muted-foreground text-sm font-semibold tracking-[0.3em] uppercase">
-          Explore our menu
+          {t("exploreOurMenu")}
         </p>
         <h2
           className="text-foreground mt-4 text-4xl sm:text-5xl"
@@ -196,11 +199,10 @@ function MenuProductSection({
             fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
           }}
         >
-          What We Serve
+          {t("whatWeServe")}
         </h2>
         <p className="text-muted-foreground mx-auto mt-4 max-w-2xl text-base leading-7 sm:text-lg">
-          From warm drinks to fresh meals and sweet treats, explore something delicious made just
-          for you.
+          {t("serveDescription")}
         </p>
       </div>
 
@@ -215,18 +217,17 @@ function MenuProductSection({
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
-              Menu updating
+              {t("menuUpdating")}
             </p>
             <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm leading-7 sm:text-base">
-              No active menu products are available right now. Please check back soon or place an
-              order from the customer screen.
+              {t("menuEmpty")}
             </p>
             <Link
               prefetch={false}
               href="/customer"
               className="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 inline-flex rounded-full px-5 py-3 text-sm font-semibold transition"
             >
-              Order Now
+              {t("orderNow")}
             </Link>
           </div>
         )}
@@ -238,7 +239,7 @@ function MenuProductSection({
             onClick={onLoadMore}
             className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8 py-5 text-sm font-bold shadow-[0_16px_34px_rgba(42,23,13,0.16)] transition"
           >
-            Load More
+            {t("loadMore")}
           </Button>
         </div>
       ) : null}
@@ -247,13 +248,14 @@ function MenuProductSection({
 }
 
 function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
+  const t = useCustomerTranslations();
   return (
     <section id="featured" className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8 lg:pb-20">
       <div className="border-border dark:bg-card rounded-[36px] border bg-[linear-gradient(135deg,#f3e3d0_0%,#f9f2e9_52%,#efe0cb_100%)] px-6 py-8 shadow-[0_24px_70px_rgba(61,35,17,0.08)] sm:px-8 lg:px-10 lg:py-10 dark:bg-none">
         <div className="grid gap-8 xl:grid-cols-[290px_minmax(0,1fr)] xl:items-center">
           <div>
             <p className="text-muted-foreground text-center text-lg font-semibold tracking-[0.3em] uppercase">
-              Our favorites
+              {t("ourFavorites")}
             </p>
             <h2
               className="text-foreground mt-4 text-center text-5xl"
@@ -261,15 +263,15 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
                 fontFamily: '"Iowan Old Style", "Palatino Linotype", serif',
               }}
             >
-              Customer Favorites
+              {t("customerFavorites")}
             </h2>
             <p className="text-md text-muted-foreground mt-6 text-center leading-7">
-              Discover the dishes, drinks, and cafe classics our customers love the most.
+              {t("favoritesDescription")}
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {items.map((item) => (
+            {items.map((item, index) => (
               <FeaturedCard key={item.id} item={item} />
             ))}
           </div>
@@ -278,7 +280,7 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
             href="/customer"
             className="bg-primary text-primary-foreground hover:bg-primary/90 mt-2 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition"
           >
-            Order Now
+            {t("orderNow")}
           </Link>
         </div>
       </div>
