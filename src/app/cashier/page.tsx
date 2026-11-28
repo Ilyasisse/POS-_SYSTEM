@@ -118,40 +118,44 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
   const [tables, availableTables] = await Promise.all([
     prisma.table.findMany({
-      where: {
-        isActive: true,
-        orders: {
-          some: {
-            status: "OPEN",
-            type: "DINE_IN",
-          },
+    where: {
+      isActive: true,
+      orders: {
+        some: {
+          status: "OPEN",
+          type: "DINE_IN",
         },
       },
-      orderBy: { name: "asc" },
-      include: {
-        orders: {
-          where: {
-            status: "OPEN",
-            type: "DINE_IN",
-          },
-          orderBy: { createdAt: "desc" },
-          include: {
-            cashier: { select: { fullName: true } },
-            tableCheck: { select: { checkNumber: true } },
-            orderItems: {
-              select: {
-                id: true,
-                productName: true,
-                qty: true,
+    },
+    orderBy: { name: "asc" },
+    include: {
+      orders: {
+        where: {
+          status: "OPEN",
+          type: "DINE_IN",
+        },
+        orderBy: { createdAt: "desc" },
+        include: {
+          cashier: { select: { fullName: true } },
+          tableCheck: { select: { checkNumber: true } },
+          orderItems: {
+            select: {
+              id: true,
+              productName: true,
+              qty: true,
+              lineTotal: true,
+              modifiers: {
+                select: { modifierName: true, qty: true },
               },
-              orderBy: { createdAt: "asc" },
             },
-            payments: {
-              select: { amountPaid: true },
-            },
+            orderBy: { createdAt: "asc" },
+          },
+          payments: {
+            select: { amountPaid: true },
           },
         },
       },
+    },
     }),
     prisma.table.findMany({
       where: {
@@ -188,7 +192,13 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           ),
           createdAt: order.createdAt,
           cashierName: order.cashier?.fullName ?? null,
-          items: order.orderItems,
+          items: order.orderItems.map((item) => ({
+            id: item.id,
+            productName: item.productName,
+            qty: item.qty,
+            lineTotal: Number(item.lineTotal),
+            modifiers: item.modifiers,
+          })),
         })),
       ),
     ]),
@@ -209,7 +219,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Link
+        <Link
             prefetch={false}
             href="/cashier/receipts"
             className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
@@ -218,12 +228,12 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
           </Link>
           <Link
             prefetch={false}
-            href="/cashier/order"
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-          >
-            New table order
-          </Link>
-          <Link
+          href="/cashier/order"
+          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          New table order
+        </Link>
+        <Link
             prefetch={false}
             href="/cashier/takeaway"
             className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted"
@@ -341,16 +351,43 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
                                 ? ` by ${round.cashierName}`
                                 : ""}
                             </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {round.items
-                                .map(
-                                  (item) => `${item.qty}x ${item.productName}`,
-                                )
-                                .join(", ")}
-                            </p>
+                            <ul
+                              className="mt-2 space-y-2"
+                              aria-label={`Items in round ${round.tableCheckRound ?? 1}`}
+                            >
+                              {round.items.map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="flex justify-between gap-3 text-sm"
+                                >
+                                  <span>
+                                    {item.qty}× {item.productName}
+                                    {item.modifiers?.length ? (
+                                      <span className="block pl-5 text-xs text-muted-foreground">
+                                        {item.modifiers
+                                          .map(
+                                            (modifier) =>
+                                              `${modifier.qty}× ${modifier.modifierName}`,
+                                          )
+                                          .join(", ")}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  {item.lineTotal !== undefined ? (
+                                    <span className="shrink-0 font-medium">
+                                      {formatMoney(item.lineTotal)}
+                                    </span>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         ))}
                       </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Item prices show the original sale. The balance above
+                        includes later payments and adjustments.
+                      </p>
                     </div>
                   ))}
                 </div>
