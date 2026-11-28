@@ -2,11 +2,7 @@ import { Prisma } from "@prisma/client";
 
 export const money = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value);
 
-export function attendanceMinutes(
-  clockIn: Date | null,
-  clockOut: Date | null,
-  breakMinutes = 0,
-) {
+export function attendanceMinutes(clockIn: Date | null, clockOut: Date | null, breakMinutes = 0) {
   return clockIn && clockOut && clockOut > clockIn
     ? Math.max(
         0,
@@ -24,26 +20,18 @@ export function attendanceOutcome(input: {
   graceMinutes: number;
   overtimeThresholdMinutes: number;
 }) {
-  const workedMinutes = attendanceMinutes(
-    input.clockIn,
-    input.clockOut,
-    input.breakMinutes,
-  );
+  const workedMinutes = attendanceMinutes(input.clockIn, input.clockOut, input.breakMinutes);
   const lateMinutes = input.clockIn
     ? Math.max(
         0,
-        Math.floor(
-          (input.clockIn.getTime() - input.scheduledStart.getTime()) / 60_000,
-        ) - input.graceMinutes,
+        Math.floor((input.clockIn.getTime() - input.scheduledStart.getTime()) / 60_000) -
+          input.graceMinutes,
       )
     : 0;
   return {
     workedMinutes,
     lateMinutes,
-    overtimeMinutes: Math.max(
-      0,
-      workedMinutes - input.overtimeThresholdMinutes,
-    ),
+    overtimeMinutes: Math.max(0, workedMinutes - input.overtimeThresholdMinutes),
   };
 }
 

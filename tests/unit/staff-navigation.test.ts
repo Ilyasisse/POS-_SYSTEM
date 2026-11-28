@@ -23,14 +23,7 @@ test("admin navigation is grouped in the intended order", () => {
 
   assert.deepEqual(
     nodes.map((node) => (node.type === "link" ? node.item.key : node.key)),
-    [
-      "dashboard",
-      "catalog",
-      "admin-operations",
-      "suppliers",
-      "reports",
-      "administration",
-    ],
+    ["dashboard", "catalog", "admin-operations", "suppliers", "reports", "administration"],
   );
 });
 
@@ -50,6 +43,19 @@ test("supplier routes stay together and include invoices and bills", () => {
       "supplier-invoices",
       "supplier-bills",
     ],
+  );
+});
+
+test("customer profiles are grouped with reporting", () => {
+  const items = getVisibleStaffNavigationItems(user("ADMIN"), "admin");
+  const reports = getStaffNavigationNodesFromItems(items).find(
+    (node) => node.type === "group" && node.key === "reports",
+  );
+
+  assert.ok(reports && reports.type === "group");
+  assert.deepEqual(
+    reports.items.map((item) => item.key),
+    ["reports", "business-intelligence", "customers"],
   );
 });
 
@@ -96,35 +102,17 @@ test("nested pages activate their parent navigation item", () => {
   assert.equal(isStaffNavActive("/admin", dashboard), true);
   assert.equal(isStaffNavActive("/admin/categories", dashboard), false);
   assert.ok(invoices);
+  assert.equal(isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices), true);
   assert.equal(
-    isStaffNavActive("/admin/supplier-invoices/invoice-123", invoices),
-    true,
-  );
-  assert.equal(
-    getActiveStaffNavigationGroupKey(
-      "/admin/supplier-invoices/invoice-123",
-      nodes,
-    ),
+    getActiveStaffNavigationGroupKey("/admin/supplier-invoices/invoice-123", nodes),
     "suppliers",
   );
-  assert.equal(
-    getActiveStaffNavigationGroupKey("/admin/categories", nodes),
-    "catalog",
-  );
+  assert.equal(getActiveStaffNavigationGroupKey("/admin/categories", nodes), "catalog");
   assert.equal(getActiveStaffNavigationGroupKey("/admin", nodes), null);
 });
 
 test("selecting a group closes the previous group and toggles itself", () => {
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey("catalog", "suppliers"),
-    "suppliers",
-  );
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey("suppliers", "suppliers"),
-    null,
-  );
-  assert.equal(
-    getNextOpenStaffNavigationGroupKey(null, "administration"),
-    "administration",
-  );
+  assert.equal(getNextOpenStaffNavigationGroupKey("catalog", "suppliers"), "suppliers");
+  assert.equal(getNextOpenStaffNavigationGroupKey("suppliers", "suppliers"), null);
+  assert.equal(getNextOpenStaffNavigationGroupKey(null, "administration"), "administration");
 });
