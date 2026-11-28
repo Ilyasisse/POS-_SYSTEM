@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { summarizeWeekdaySales } from "@/lib/reports/weekday-sales";
 import {
   averageOrderValue,
   grossProfit,
@@ -32,9 +33,7 @@ function orderFilters(query: ReportQuery): Prisma.OrderWhereInput {
     cashierId: query.cashierId,
     tableId: query.tableId,
     customerId: query.customerId,
-    payments: query.paymentMethod
-      ? { some: { method: query.paymentMethod as never } }
-      : undefined,
+    payments: query.paymentMethod ? { some: { method: query.paymentMethod as never } } : undefined,
     orderItems:
       query.productId || query.categoryId || query.station
         ? {
@@ -125,6 +124,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   const productRows = new Map<string, SalesRow>();
   const categoryRows = new Map<string, SalesRow>();
   const hourly = new Map<string, Prisma.Decimal>();
+  const weekdayOrders: { closedAt: Date; netSales: string }[] = [];
 
   for (const order of orders) {
     for (const payment of order.payments)
@@ -165,32 +165,26 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
         gross: item.lineTotal,
         cost: item.unitCostSnapshot,
       });
-      addRow(
-        categoryRows,
-        item.product.category.id,
-        item.product.category.name,
-        { qty: item.qty, gross: item.lineTotal, cost: item.unitCostSnapshot },
-      );
+      addRow(categoryRows, item.product.category.id, item.product.category.name, {
+        qty: item.qty,
+        gross: item.lineTotal,
+        cost: item.unitCostSnapshot,
+      });
     }
 
     const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
+    weekdayOrders.push({
+      closedAt: order.closedAt ?? order.createdAt,
+      netSales: netSales(orderGross, orderDiscounts, orderRefunds).toFixed(2),
+    });
     hourly.set(
       hour,
-      (hourly.get(hour) ?? zero()).plus(
-        netSales(orderGross, orderDiscounts, orderRefunds),
-      ),
+      (hourly.get(hour) ?? zero()).plus(netSales(orderGross, orderDiscounts, orderRefunds)),
     );
   }
 
-  const net = netSales(
-    gross,
-    discounts.plus(complimentary).plus(staffMeals),
-    refunds,
-  );
-  const profit =
-    totalLines > 0 && costCoveredLines === totalLines
-      ? grossProfit(net, cogs)
-      : null;
+  const net = netSales(gross, discounts.plus(complimentary).plus(staffMeals), refunds);
+  const profit = totalLines > 0 && costCoveredLines === totalLines ? grossProfit(net, cogs) : null;
   const mapRows = (rows: Map<string, SalesRow>) =>
     [...rows.entries()]
       .map(([id, row]) => ({
@@ -199,10 +193,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
         quantity: row.quantity,
         grossSales: row.grossSales.toFixed(2),
         cogs: row.missingCostLines === 0 ? row.cogs.toFixed(2) : null,
-        grossProfit:
-          row.missingCostLines === 0
-            ? row.grossSales.minus(row.cogs).toFixed(2)
-            : null,
+        grossProfit: row.missingCostLines === 0 ? row.grossSales.minus(row.cogs).toFixed(2) : null,
         missingCostLines: row.missingCostLines,
       }))
       .sort((a, b) => Number(b.grossSales) - Number(a.grossSales));
@@ -214,6 +205,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       timezone: "Africa/Nairobi" as const,
       currency: "USD" as const,
     },
+    weekdaySales: summarizeWeekdaySales(weekdayOrders),
     summary: {
       grossSales: gross.toFixed(2),
       netSales: net.toFixed(2),
@@ -228,9 +220,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       cogs: costCoveredLines > 0 ? cogs.toFixed(2) : null,
       grossProfit: serialize(profit),
       grossMargin: profit ? serialize(ratioPercent(profit, net)) : null,
-      costCoveragePercent: serialize(
-        ratioPercent(costCoveredLines, totalLines),
-      ),
+      costCoveragePercent: serialize(ratioPercent(costCoveredLines, totalLines)),
       costCoveredLines,
       totalLines,
     },

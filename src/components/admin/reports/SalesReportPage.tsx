@@ -1,4 +1,5 @@
 import Link from "next/link";
+import WeekdaySalesTable from "@/components/admin/reports/WeekdaySalesTable";
 import { AdminPage, Card, MetricCard } from "@/components/admin/shared";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -32,8 +33,7 @@ type Props = {
   focus?: "overview" | "products" | "orders";
 };
 
-const money = (value: string | null) =>
-  value == null ? "Unavailable" : `$${value}`;
+const money = (value: string | null) => (value == null ? "Unavailable" : `$${value}`);
 const links = [
   ["Daily", "/admin/reports/daily"],
   ["Weekly", "/admin/reports/weekly"],
@@ -53,10 +53,7 @@ export async function SalesReportPage({
   const user = await requirePermission(permission);
   const raw = (await searchParams) ?? {};
   const normalized = Object.fromEntries(
-    Object.entries(raw).map(([key, value]) => [
-      key,
-      Array.isArray(value) ? value[0] : value,
-    ]),
+    Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
   );
   const parsed = reportQuerySchema.parse({
     ...normalized,
@@ -99,15 +96,11 @@ export async function SalesReportPage({
       <Card className="p-4">
         <form className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
           <label>
-            <span className="mb-1 block text-sm font-bold">
-              From business date
-            </span>
+            <span className="mb-1 block text-sm font-bold">From business date</span>
             <Input type="date" name="from" defaultValue={parsed.from} />
           </label>
           <label>
-            <span className="mb-1 block text-sm font-bold">
-              To business date
-            </span>
+            <span className="mb-1 block text-sm font-bold">To business date</span>
             <Input type="date" name="to" defaultValue={parsed.to} />
           </label>
           <input type="hidden" name="preset" value="custom" />
@@ -115,7 +108,7 @@ export async function SalesReportPage({
             Apply
           </Button>
         </form>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="text-muted-foreground mt-3 text-xs">
           {new Date(report.period.start).toLocaleString("en-US", {
             timeZone: report.period.timezone,
           })}{" "}
@@ -129,10 +122,7 @@ export async function SalesReportPage({
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Net Sales" value={money(report.summary.netSales)} />
         <MetricCard label="Paid Orders" value={report.summary.paidOrders} />
-        <MetricCard
-          label="Average Order Value"
-          value={money(report.summary.averageOrderValue)}
-        />
+        <MetricCard label="Average Order Value" value={money(report.summary.averageOrderValue)} />
         <MetricCard label="Open / Unpaid" value={report.summary.unpaidOrders} />
         <MetricCard label="Discounts" value={money(report.summary.discounts)} />
         <MetricCard label="Refunds" value={money(report.summary.refunds)} />
@@ -151,9 +141,7 @@ export async function SalesReportPage({
           <h2 className="text-lg font-black">Mobile-money sales</h2>
           <div className="mt-4 space-y-3">
             {report.paymentMethods.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No paid orders in this period.
-              </p>
+              <p className="text-muted-foreground text-sm">No paid orders in this period.</p>
             ) : (
               report.paymentMethods.map((item) => (
                 <div key={item.method} className="flex justify-between">
@@ -166,23 +154,20 @@ export async function SalesReportPage({
         </Card>
         <Card className="p-5">
           <h2 className="text-lg font-black">Data coverage</h2>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {report.summary.costCoveredLines} of {report.summary.totalLines}{" "}
-            sold lines have a historical cost snapshot. Profit remains
-            unavailable until coverage is complete.
+          <p className="text-muted-foreground mt-3 text-sm">
+            {report.summary.costCoveredLines} of {report.summary.totalLines} sold lines have a
+            historical cost snapshot. Profit remains unavailable until coverage is complete.
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Cash and card are not shown because the POS currently captures
-            mobile-money providers only.
+          <p className="text-muted-foreground mt-2 text-sm">
+            Cash and card are not shown because the POS currently captures mobile-money providers
+            only.
           </p>
         </Card>
       </section>
 
       <Card className="p-5">
         <h2 className="mb-4 text-lg font-black">
-          {focus === "products"
-            ? "Product performance"
-            : "Category performance"}
+          {focus === "products" ? "Product performance" : "Category performance"}
         </h2>
         <Table>
           <TableHeader>
@@ -190,9 +175,7 @@ export async function SalesReportPage({
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
               <TableHead className="text-right">Gross sales</TableHead>
-              {canSeeFinancials ? (
-                <TableHead className="text-right">Gross profit</TableHead>
-              ) : null}
+              {canSeeFinancials ? <TableHead className="text-right">Gross profit</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -200,7 +183,7 @@ export async function SalesReportPage({
               <TableRow>
                 <TableCell
                   colSpan={canSeeFinancials ? 4 : 3}
-                  className="py-8 text-center text-muted-foreground"
+                  className="text-muted-foreground py-8 text-center"
                 >
                   No sales found for this period.
                 </TableCell>
@@ -210,13 +193,9 @@ export async function SalesReportPage({
                 <TableRow key={row.id}>
                   <TableCell className="font-bold">{row.name}</TableCell>
                   <TableCell className="text-right">{row.quantity}</TableCell>
-                  <TableCell className="text-right">
-                    {money(row.grossSales)}
-                  </TableCell>
+                  <TableCell className="text-right">{money(row.grossSales)}</TableCell>
                   {canSeeFinancials ? (
-                    <TableCell className="text-right">
-                      {money(row.grossProfit)}
-                    </TableCell>
+                    <TableCell className="text-right">{money(row.grossProfit)}</TableCell>
                   ) : null}
                 </TableRow>
               ))
@@ -242,23 +221,20 @@ export async function SalesReportPage({
                 <TableRow key={order.id}>
                   <TableCell>#{order.orderNumber}</TableCell>
                   <TableCell>
-                    {order.closedAt
-                      ? new Date(order.closedAt).toLocaleString()
-                      : "—"}
+                    {order.closedAt ? new Date(order.closedAt).toLocaleString() : "—"}
                   </TableCell>
                   <TableCell>{order.waiter ?? "—"}</TableCell>
-                  <TableCell className="text-right">
-                    {money(order.total)}
-                  </TableCell>
+                  <TableCell className="text-right">{money(order.total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </Card>
       ) : null}
-      <p className="text-xs text-muted-foreground">
-        Recognized revenue uses fully paid orders and their closed time.
-        Archived products remain visible through order-line snapshot names.
+      {focus === "overview" ? <WeekdaySalesTable rows={report.weekdaySales} /> : null}
+      <p className="text-muted-foreground text-xs">
+        Recognized revenue uses fully paid orders and their closed time. Archived products remain
+        visible through order-line snapshot names.
       </p>
     </AdminPage>
   );
