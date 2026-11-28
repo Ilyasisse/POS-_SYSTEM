@@ -122,7 +122,7 @@ function getSelectionHint(group: ModifierGroup) {
 
 function ModifierModalHeader({ product, onClose }: ModifierModalHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border bg-linear-to-r from-slate-50 via-white to-blue-50 p-6">
+    <div className="flex items-start justify-between gap-4 border-b border-border bg-card p-6">
       <div className="space-y-3">
         <div>
           <h2 className="text-2xl font-black leading-tight text-foreground">
@@ -133,6 +133,7 @@ function ModifierModalHeader({ product, onClose }: ModifierModalHeaderProps) {
       </div>
 
       <Button
+        variant="outline"
         type="button"
         onClick={onClose}
         className="rounded-lg border border-border px-3 py-1 text-sm hover:bg-muted"
@@ -166,8 +167,8 @@ function SelectedModifierSummary({
 
       <div className="mt-3 space-y-2">
         {selectedBaristaId ? (
-          <div className="rounded-xl border border-amber-200 bg-card px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-card px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
               Barista
             </p>
             <p className="text-sm font-semibold text-foreground">
@@ -195,7 +196,7 @@ function SelectedModifierSummary({
                   {item.groupName}
                 </p>
               </div>
-              <span className="shrink-0 text-xs font-semibold text-emerald-700">
+              <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                 +${item.price.toFixed(2)}
               </span>
             </div>
@@ -213,7 +214,7 @@ function BaristaAssignmentSection({
   onSelectBarista,
 }: BaristaAssignmentSectionProps) {
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+    <section className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
       <div className="mb-3">
         <h3 className="text-base font-semibold text-foreground">
           Dooro barista-ka
@@ -221,7 +222,7 @@ function BaristaAssignmentSection({
       </div>
 
       {baristas.length === 0 ? (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-red-600 dark:text-red-300">
           No active barista was found. Add an active BARISTA user before sending
           this item.
         </p>
@@ -232,13 +233,14 @@ function BaristaAssignmentSection({
 
             return (
               <Button
+                variant="outline"
                 key={barista.id}
                 type="button"
                 onClick={() => onSelectBarista(barista.id)}
                 className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
                   checked
-                    ? "border-amber-500 bg-card shadow-sm"
-                    : "border-amber-200 hover:bg-card"
+                    ? "border-amber-500 dark:border-amber-800 bg-card shadow-sm"
+                    : "border-amber-200 dark:border-amber-800 hover:bg-card"
                 }`}
               >
                 <div>
@@ -249,7 +251,9 @@ function BaristaAssignmentSection({
 
                 <div
                   className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                    checked ? "border-amber-500" : "border-slate-400"
+                    checked
+                      ? "border-amber-500 dark:border-amber-800"
+                      : "border-border"
                   }`}
                 >
                   {checked ? (
@@ -262,7 +266,9 @@ function BaristaAssignmentSection({
         </div>
       )}
 
-      {error ? <p className="mt-2 text-sm text-red-500">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-sm text-red-500 dark:text-red-300">{error}</p>
+      ) : null}
     </section>
   );
 }
@@ -310,7 +316,7 @@ function ModifierGroupCard({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-lg font-bold text-foreground">{group.name}</h3>
         {getMinSelect(group) > 0 ? (
-          <span className="text-sm text-red-500">*</span>
+          <span className="text-sm text-red-500 dark:text-red-300">*</span>
         ) : null}
         <span className="text-xs font-medium text-muted-foreground">
           {getSelectionHint(group)}
@@ -329,11 +335,12 @@ function ModifierGroupCard({
               key={option.id}
               className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition ${
                 checked
-                  ? "border-blue-600 bg-blue-50 shadow-sm"
+                  ? "border-primary bg-primary/10 shadow-sm"
                   : "border-border hover:bg-muted"
               }`}
             >
               <Button
+                variant="outline"
                 type="button"
                 onClick={() => onToggleOption(group, option.id)}
                 className="flex flex-1 items-center justify-between gap-3 text-left"
@@ -349,21 +356,24 @@ function ModifierGroupCard({
 
                 <div
                   className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                    checked ? "border-blue-600" : "border-slate-400"
+                    checked
+                      ? "border-blue-600 dark:border-blue-800"
+                      : "border-border"
                   }`}
                 >
                   {checked ? (
-                    <div className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-primary" />
                   ) : null}
                 </div>
               </Button>
 
               <Button
+                variant="outline"
                 type="button"
                 onClick={() => onPlayModifier(option)}
                 aria-label={`Play pronunciation for ${option.name}`}
                 title={`Play pronunciation for ${option.name}`}
-                className="ml-3 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                className="ml-3 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 text-sm font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100 dark:hover:bg-blue-900/30"
               >
                 <svg
                   aria-hidden="true"
@@ -379,7 +389,9 @@ function ModifierGroupCard({
       </div>
 
       {groupError ? (
-        <p className="mt-2 text-sm text-red-500">{groupError}</p>
+        <p className="mt-2 text-sm text-red-500 dark:text-red-300">
+          {groupError}
+        </p>
       ) : null}
     </div>
   );
@@ -389,6 +401,7 @@ function ModifierModalFooter({ onClose, onConfirm }: ModifierModalFooterProps) {
   return (
     <div className="flex justify-end gap-3 border-t border-border p-6">
       <Button
+        variant="outline"
         type="button"
         onClick={onClose}
         className="rounded-lg border border-border px-4 py-2 hover:bg-muted"
@@ -399,7 +412,7 @@ function ModifierModalFooter({ onClose, onConfirm }: ModifierModalFooterProps) {
       <Button
         type="button"
         onClick={onConfirm}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+        className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
       >
         Ku dar dalab
       </Button>
@@ -574,7 +587,7 @@ export default function ModifierModal({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
             {pronunciationStatus ? (
-              <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+              <p className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
                 {pronunciationStatus}
               </p>
             ) : null}
