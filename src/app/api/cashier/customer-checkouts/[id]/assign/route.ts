@@ -15,7 +15,10 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
   const { id } = await params;
-  const body = (await request.json()) as { receiptId?: string; reason?: string };
+  const body = (await request.json()) as {
+    receiptId?: string;
+    reason?: string;
+  };
   if (typeof body.receiptId !== "string" || !body.receiptId.trim()) {
     return NextResponse.json({ error: "Select a receipt." }, { status: 400 });
   }
