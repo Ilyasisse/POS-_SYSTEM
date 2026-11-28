@@ -12,12 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TableCell, TableHead } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export { Button, Card, NativeSelect, Table, TableCell, TableHead };
+export { Button, Card, Table, TableCell, TableHead };
 
 export function AdminPage({
   title,
