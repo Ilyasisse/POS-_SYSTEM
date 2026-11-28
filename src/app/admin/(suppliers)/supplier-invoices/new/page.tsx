@@ -69,7 +69,9 @@ export default async function NewSupplierInvoicePage({
       description="Record a supplier invoice directly from its active catalog items."
       action={
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/admin/supplier-invoices">Back to invoices</Link>
+          <Link prefetch={false} href="/admin/supplier-invoices">
+            Back to invoices
+          </Link>
         </Button>
       }
     >
