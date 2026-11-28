@@ -4,6 +4,8 @@ import type { CartLine, Product, StaffSummary } from "@/lib/types";
 import { customerReturnPath } from "@/lib/auth/customer-return-path";
 import {
   clearCustomerOrderDraft,
+  saveCustomerFulfillment,
+  restoreCustomerFulfillment,
   restoreCustomerOrderDraft,
   saveCustomerOrderDraft,
 } from "@/lib/customer/customer-order-draft";
@@ -66,11 +68,15 @@ const cart: CartLine[] = [
   },
 ];
 
-test("OAuth return accepts only the customer order route", () => {
+test("OAuth return accepts only the customer menu and history routes", () => {
   assert.equal(customerReturnPath("/customer"), "/customer");
+  assert.equal(customerReturnPath("/customer/orders"), "/customer/orders");
   for (const value of [
     "//example.com",
     "/customer/../admin",
+    "/customer/orders/../admin",
+    "/customer/orders?next=https://example.com",
+    "/customer/orders/",
     "/admin",
     "https://example.com",
     null,
@@ -119,4 +125,20 @@ test("draft flags changed prices and drops unavailable choices", () => {
   assert.equal(missingModifier.skipped, 1);
   clearCustomerOrderDraft();
   assert.equal(restoreCustomerOrderDraft([product], baristas), null);
+});
+
+test("dine-in selection survives OAuth navigation and is cleared with the cart", () => {
+  storage.clear();
+  saveCustomerFulfillment("DINE_IN", "table-one");
+  assert.deepEqual(restoreCustomerFulfillment(), {
+    orderType: "DINE_IN",
+    tableId: "table-one",
+  });
+  clearCustomerOrderDraft();
+  assert.equal(restoreCustomerFulfillment(), null);
+  storage.set(
+    "customer-fulfillment-v1",
+    '{"orderType":"DELIVERY","tableId":"table-one"}',
+  );
+  assert.equal(restoreCustomerFulfillment(), null);
 });
