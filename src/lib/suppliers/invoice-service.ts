@@ -121,10 +121,7 @@ function concurrentTransaction(error: unknown) {
 }
 
 type PurchaseOrderInvoiceFailure =
-  | "not_found"
-  | "not_open"
-  | "not_completed"
-  | "concurrent_change";
+  "not_found" | "not_open" | "not_completed" | "concurrent_change";
 
 export class SupplierPurchaseOrderInvoiceError extends Error {
   constructor(readonly code: PurchaseOrderInvoiceFailure) {
@@ -185,8 +182,7 @@ export async function createSupplierInvoiceDraft(
 ) {
   const metadata = validateSupplierInvoiceDraftCreationMetadata(input);
   const draft = validateSupplierInvoiceDraftInput(input.draft, {
-    allowCustomLines:
-      input.source !== "MANUAL" && input.source !== "RECURRING",
+    allowCustomLines: input.source !== "MANUAL" && input.source !== "RECURRING",
   });
 
   try {
@@ -509,11 +505,11 @@ export async function finalizeSupplierInvoice(
         where: { invoiceId: id },
       });
       const billDueDate = draft.installments?.length
-        ? draft.installments.reduce((earliest, installment) =>
-            installment.dueDate < earliest
-              ? installment.dueDate
-              : earliest,
-          draft.installments[0].dueDate)
+        ? draft.installments.reduce(
+            (earliest, installment) =>
+              installment.dueDate < earliest ? installment.dueDate : earliest,
+            draft.installments[0].dueDate,
+          )
         : draft.dueDate;
       const bill = await tx.supplierBill.create({
         data: {

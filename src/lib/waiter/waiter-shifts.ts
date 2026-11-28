@@ -91,9 +91,7 @@ export function buildWaiterShiftSummary(
       ? null
       : roundCurrency(Number(shift.closingAmount));
   const totalSales = roundCurrency(
-    shift.reportedSales == null
-      ? roundedPosSales
-      : Number(shift.reportedSales),
+    shift.reportedSales == null ? roundedPosSales : Number(shift.reportedSales),
   );
 
   if (isLedgerShift(shift)) {
@@ -240,7 +238,7 @@ export async function openWaiterBusinessDayShift(
   requestedOpeningAmount: number,
   now: Date = new Date(),
 ) {
-  const waiter = await prisma.user.findFirst({
+  const waiter = await prisma.staff.findFirst({
     where: { id: waiterId, role: "WAITER", isActive: true },
     select: { id: true },
   });
@@ -391,9 +389,7 @@ export async function reopenWaiterBusinessDayShift(
     data: {
       closingAmount: null,
       closedAt: null,
-      ...(ledgerActive
-        ? { reportedSales: null, settledByUserId: null }
-        : {}),
+      ...(ledgerActive ? { reportedSales: null, settledByUserId: null } : {}),
     },
   });
 

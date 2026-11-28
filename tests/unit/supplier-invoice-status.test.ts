@@ -161,15 +161,18 @@ test("builds database filters for every display status", () => {
       },
     },
   });
-  assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("PARTIALLY_PAID", now), {
-    status: "FINALIZED",
-    bill: {
-      is: {
-        status: "PARTIAL",
-        dueDate: { gte: dueDate("2026-07-24") },
+  assert.deepEqual(
+    getSupplierInvoiceDisplayStatusWhere("PARTIALLY_PAID", now),
+    {
+      status: "FINALIZED",
+      bill: {
+        is: {
+          status: "PARTIAL",
+          dueDate: { gte: dueDate("2026-07-24") },
+        },
       },
     },
-  });
+  );
   assert.deepEqual(getSupplierInvoiceDisplayStatusWhere("PENDING", now), {
     status: "FINALIZED",
     OR: [

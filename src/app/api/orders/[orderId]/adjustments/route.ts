@@ -42,10 +42,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const type = body.type as SalesAdjustmentType;
     if (
-      !hasPermission(
-        authorization.user,
-        requiredAdjustmentPermission(type),
-      )
+      !hasPermission(authorization.user, requiredAdjustmentPermission(type))
     ) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
