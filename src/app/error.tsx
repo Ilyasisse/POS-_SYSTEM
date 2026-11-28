@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { Button } from "@/components/ui/button";
+import * as Sentry from "@sentry/nextjs";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -16,6 +17,9 @@ type ErrorPageProps = {
 export default function Error({ error, reset }: ErrorPageProps) {
   useEffect(() => {
     console.error("Root app error boundary caught an error:", error);
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      Sentry.captureException(error);
+    }
   }, [error]);
 
   return (
