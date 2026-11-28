@@ -25,8 +25,7 @@ type TablePageProps = {
 
 function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
   if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
-  if (table.orders.length > 0)
-    return { label: "Occupied", tone: "red" as const };
+  if (table.orders.length > 0) return { label: "Occupied", tone: "red" as const };
   return { label: "Available", tone: "green" as const };
 }
 
@@ -54,8 +53,7 @@ function getTableStatusMessage(tableStatus?: string) {
     case "occupied_table":
       return {
         tone: "warning" as const,
-        message:
-          "An occupied table cannot be hidden. Settle or transfer its open orders first.",
+        message: "An occupied table cannot be hidden. Settle or transfer its open orders first.",
       };
     case "table_not_found":
       return { tone: "error" as const, message: "The table no longer exists." };
@@ -95,22 +93,12 @@ export default async function TablePage({ searchParams }: TablePageProps) {
   ).filter((table) => !q || table.name.toLowerCase().includes(q));
 
   const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter(
-    (table) => table.orders.length > 0,
-  ).length;
-  const openOrders = tables.reduce(
-    (sum, table) => sum + table.orders.length,
-    0,
-  );
+  const occupiedTables = tables.filter((table) => table.orders.length > 0).length;
+  const openOrders = tables.reduce((sum, table) => sum + table.orders.length, 0);
 
   return (
-    <AdminPage
-      title="Tables"
-      description="Manage dine-in tables and their status"
-    >
-      {notice ? (
-        <ToastOnMount tone={notice.tone} description={notice.message} />
-      ) : null}
+    <AdminPage title="Tables" description="Manage dine-in tables and their status">
+      {notice ? <ToastOnMount tone={notice.tone} description={notice.message} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Total Tables" value={tables.length} />
@@ -120,13 +108,13 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <form
         action={createActiveTableFromAdmin}
-        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_9rem_1fr_auto]"
+        className="border-border bg-card grid gap-3 rounded-2xl border p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_9rem_1fr_auto]"
       >
         <Input
           aria-label="Table name or number"
           name="tableName"
           type="text"
-          className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="border-border h-11 rounded-lg border px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 dark:focus:border-blue-800 dark:focus:ring-blue-800"
           placeholder="Table name or number"
           required
         />
@@ -153,7 +141,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <DataTableCard
           footer={
-            <p className="text-sm font-medium text-slate-500">
+            <p className="text-muted-foreground text-sm font-medium">
               Showing 1 to {tables.length} of {tables.length} tables
             </p>
           }
@@ -187,20 +175,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 tables.map((table, index) => {
                   const status = getTableStatus(table);
                   return (
-                    <tr key={table.id} className="border-b border-slate-50">
-                      <TableCell className="font-bold text-slate-400">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-black text-slate-950">
-                        {table.name}
-                      </TableCell>
+                    <tr key={table.id} className="border-border border-b">
+                      <TableCell className="text-muted-foreground font-bold">{index + 1}</TableCell>
+                      <TableCell className="text-foreground font-black">{table.name}</TableCell>
                       <TableCell>{table.capacity}</TableCell>
                       <TableCell>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                       </TableCell>
-                      <TableCell>
-                        {table.section}
-                      </TableCell>
+                      <TableCell>{table.section}</TableCell>
                       <TableCell>{table.orders.length}</TableCell>
                       <TableCell>
                         <RowActions editHref={`/admin/tables/${table.id}`} />
@@ -214,14 +196,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
         </DataTableCard>
 
         <Card className="p-5">
-          <h2 className="text-lg font-black text-slate-950">Floor Plan</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">
+          <h2 className="text-foreground text-lg font-black">Floor Plan</h2>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">
             Visual status map based on live table availability.
           </p>
           {/* REVIEW: This floor plan uses generated positions until editable table layout data is added. */}
-          <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-            <div className="absolute inset-x-8 top-8 h-20 rounded-xl border border-slate-200 bg-white" />
-            <div className="absolute bottom-8 right-8 h-32 w-20 rounded-xl border border-slate-200 bg-white" />
+          <div className="border-border bg-card relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border">
+            <div className="border-border bg-card absolute inset-x-8 top-8 h-20 rounded-xl border" />
+            <div className="border-border bg-card absolute right-8 bottom-8 h-32 w-20 rounded-xl border" />
             {tables.slice(0, 8).map((table, index) => {
               const status = getTableStatus(table);
               const positions = [
@@ -239,7 +221,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                   ? "bg-emerald-500"
                   : status.tone === "red"
                     ? "bg-red-500"
-                    : "bg-slate-400";
+                    : "bg-muted";
 
               return (
                 <div
@@ -251,7 +233,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               );
             })}
           </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-slate-500">
+          <div className="text-muted-foreground mt-4 flex flex-wrap gap-4 text-xs font-bold">
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-500" />
               Available
@@ -261,7 +243,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               Occupied
             </span>
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-slate-400" />
+              <span className="bg-muted size-2 rounded-full" />
               Hidden
             </span>
           </div>
