@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Sheet,
   SheetContent,
@@ -42,6 +43,9 @@ type CustomerCartSheetProps = {
   onCheckout: () => void;
   mode?: "customer" | "cashier";
   tableName?: string;
+  paymentMethod?: string;
+  checkoutLabel?: string;
+  onPaymentMethodChange?: (value: string) => void;
 };
 
 type CustomerCartContentProps = Omit<CustomerCartSheetProps, "open"> & {
@@ -237,26 +241,69 @@ function CartBody({
           {!isCashier ? (
             <>
               <div>
-                <label htmlFor="customer-name" className="text-sm font-semibold">Name (required)</label>
-                <Input id="customer-name" required value={customerName}
+                <label
+                  htmlFor="customer-name"
+                  className="text-sm font-semibold"
+                >
+                  Name (required)
+                </label>
+                <Input
+                  id="customer-name"
+                  required
+                  value={customerName}
                   onChange={(event) => onCustomerNameChange(event.target.value)}
                   placeholder="Your Google account name"
-                  className="mt-1 rounded-full" />
-                {!customerName.trim() ? <p className="mt-1 text-xs text-muted-foreground">Sign in at checkout to use your account name.</p> : null}
+                  className="mt-1 rounded-full"
+                />
+                {!customerName.trim() ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Sign in at checkout to use your account name.
+                  </p>
+                ) : null}
               </div>
               <div>
-                <label htmlFor="customer-phone" className="text-sm font-semibold">Payment phone (required)</label>
-                <Input id="customer-phone" type="tel" inputMode="numeric" required pattern="90[0-9]{7}" maxLength={9}
-                  value={customerPhone} onChange={(event) => onCustomerPhoneChange(event.target.value)}
-                  placeholder="901234567" aria-describedby="customer-phone-help"
-                  aria-invalid={Boolean(customerPhone && !normalizeCustomerPaymentPhone(customerPhone))}
-                  className="mt-1 rounded-full" />
-                <p id="customer-phone-help" className="mt-1 text-xs text-muted-foreground">90 followed by seven digits. Leave out +252.</p>
-                {customerPhone && !normalizeCustomerPaymentPhone(customerPhone) ? <p role="alert" className="text-xs text-rose-700">Use exactly nine digits starting with 90.</p> : null}
+                <label
+                  htmlFor="customer-phone"
+                  className="text-sm font-semibold"
+                >
+                  Payment phone (required)
+                </label>
+                <Input
+                  id="customer-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  required
+                  pattern="90[0-9]{7}"
+                  maxLength={9}
+                  value={customerPhone}
+                  onChange={(event) =>
+                    onCustomerPhoneChange(event.target.value)
+                  }
+                  placeholder="901234567"
+                  aria-describedby="customer-phone-help"
+                  aria-invalid={Boolean(
+                    customerPhone &&
+                    !normalizeCustomerPaymentPhone(customerPhone),
+                  )}
+                  className="mt-1 rounded-full"
+                />
+                <p
+                  id="customer-phone-help"
+                  className="mt-1 text-xs text-muted-foreground"
+                >
+                  90 followed by seven digits. Leave out +252.
+                </p>
+                {customerPhone &&
+                !normalizeCustomerPaymentPhone(customerPhone) ? (
+                  <p role="alert" className="text-xs text-rose-700">
+                    Use exactly nine digits starting with 90.
+                  </p>
+                ) : null}
               </div>
             </>
           ) : null}
-          {isCashier ? <div className="md:col-span-2">
+          {isCashier ? (
+            <div className="md:col-span-2">
             <Textarea
               aria-label="Special requests or notes"
               value={orderNote}
@@ -265,9 +312,16 @@ function CartBody({
               rows={4}
               className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
             />
-          </div> : null}
         </div>
-        {!isCashier && onFulfillmentChange ? <CustomerFulfillmentSelect orderType={orderType} tableId={selectedTableId} onChange={onFulfillmentChange} /> : null}
+          ) : null}
+        </div>
+        {!isCashier && onFulfillmentChange ? (
+          <CustomerFulfillmentSelect
+            orderType={orderType}
+            tableId={selectedTableId}
+            onChange={onFulfillmentChange}
+          />
+        ) : null}
         <CartLineItems
           cart={cart}
           onChangeQuantity={onChangeQuantity}
@@ -308,17 +362,24 @@ function CartFooter({
   isCashier,
   onCheckout,
   onClearCart,
+  paymentMethod,
+  checkoutLabel: customCheckoutLabel,
+  onPaymentMethodChange,
 }: Pick<
   CustomerCartSheetProps,
-  "cartSubtotal" | "isSubmitting" | "onCheckout" | "onClearCart"
+  | "cartSubtotal"
+  | "isSubmitting"
+  | "onCheckout"
+  | "onClearCart"
+  | "paymentMethod"
+  | "checkoutLabel"
+  | "onPaymentMethodChange"
 > & { cartIsEmpty: boolean; isCashier: boolean }) {
   const checkoutLabel = isSubmitting
     ? isCashier
       ? "Sending to kitchen…"
       : "Preparing payment…"
-    : isCashier
-      ? "Send to kitchen"
-      : "Checkout";
+    : (customCheckoutLabel ?? (isCashier ? "Send to kitchen" : "Checkout"));
 
   return (
     <div className="shrink-0 border-t border-border bg-card px-4 py-4 sm:px-6 sm:py-5">
@@ -326,6 +387,21 @@ function CartFooter({
         <span>Total</span>
         <span>{formatCurrency(cartSubtotal)}</span>
       </div>
+      {isCashier && onPaymentMethodChange ? (
+        <label className="mt-4 grid gap-1.5 text-sm font-medium">
+          Payment method
+          <NativeSelect
+            value={paymentMethod ?? ""}
+            onChange={(event) => onPaymentMethodChange(event.target.value)}
+          >
+            <option value="">Select payment method</option>
+            <option value="GOLIS">GOLIS</option>
+            <option value="MYCASH">MYCASH</option>
+            <option value="Dahabshiil">Dahabshiil</option>
+            <option value="OTHER">OTHER</option>
+          </NativeSelect>
+        </label>
+      ) : null}
       <div className="mt-5 grid gap-3">
         <Button
           type="button"
@@ -373,6 +449,9 @@ function CustomerCartContent({
         isCashier={isCashier}
         onCheckout={props.onCheckout}
         onClearCart={props.onClearCart}
+        paymentMethod={props.paymentMethod}
+        checkoutLabel={props.checkoutLabel}
+        onPaymentMethodChange={props.onPaymentMethodChange}
       />
     </div>
   );

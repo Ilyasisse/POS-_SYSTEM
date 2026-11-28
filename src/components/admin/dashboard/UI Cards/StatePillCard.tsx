@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Tone } from "@/types/admin.types";
+import { Tone } from "@/types/admin/admin.types";
 import { getToneClasses } from "@/lib/admin/helper/getToneClasses";
 
 export default function StatePillCard({

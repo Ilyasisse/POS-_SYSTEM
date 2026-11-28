@@ -71,9 +71,13 @@ const cart: CartLine[] = [
 test("OAuth return accepts only customer ordering routes", () => {
   assert.equal(customerReturnPath("/customer"), "/customer");
   assert.equal(customerReturnPath("/table/c2lnbmVk.c2lnbmF0dXJl"), "/table/c2lnbmVk.c2lnbmF0dXJl");
+  assert.equal(customerReturnPath("/customer/orders"), "/customer/orders");
   for (const value of [
     "//example.com",
     "/customer/../admin",
+    "/customer/orders/../admin",
+    "/customer/orders?next=https://example.com",
+    "/customer/orders/",
     "/admin",
     "https://example.com",
     "/table/code/../admin",
@@ -104,10 +108,7 @@ test("draft restores configured items and customer fields", () => {
 test("draft flags changed prices and drops unavailable choices", () => {
   storage.clear();
   saveCustomerOrderDraft(cart, "Alex", "", "");
-  const repriced = restoreCustomerOrderDraft(
-    [{ ...product, price: 7 }],
-    baristas,
-  );
+  const repriced = restoreCustomerOrderDraft([{ ...product, price: 7 }], baristas);
   assert.ok(repriced);
   assert.equal(repriced.cart[0].finalPrice, 8);
   assert.equal(repriced.repriced, 1);
@@ -117,10 +118,7 @@ test("draft flags changed prices and drops unavailable choices", () => {
   assert.equal(missingBarista.cart.length, 0);
   assert.equal(missingBarista.skipped, 1);
 
-  const missingModifier = restoreCustomerOrderDraft(
-    [{ ...product, modifierGroups: [] }],
-    baristas,
-  );
+  const missingModifier = restoreCustomerOrderDraft([{ ...product, modifierGroups: [] }], baristas);
   assert.ok(missingModifier);
   assert.equal(missingModifier.skipped, 1);
   clearCustomerOrderDraft();
@@ -130,7 +128,10 @@ test("draft flags changed prices and drops unavailable choices", () => {
 test("dine-in selection survives OAuth navigation and is cleared with the cart", () => {
   storage.clear();
   saveCustomerFulfillment("DINE_IN", "table-one");
-  assert.deepEqual(restoreCustomerFulfillment(), { orderType: "DINE_IN", tableId: "table-one" });
+  assert.deepEqual(restoreCustomerFulfillment(), {
+    orderType: "DINE_IN",
+    tableId: "table-one",
+  });
   clearCustomerOrderDraft();
   assert.equal(restoreCustomerFulfillment(), null);
   storage.set("customer-fulfillment-v1", '{"orderType":"DELIVERY","tableId":"table-one"}');

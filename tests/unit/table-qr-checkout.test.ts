@@ -1,3 +1,7 @@
+import {
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "../../src/lib/orders/modifier-selection-validation";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -19,10 +23,7 @@ type Server = {
   finalizeCustomerCheckout(id: string): Promise<Row | null>;
 };
 
-function loadServer(
-  path: string,
-  dependencies: Record<string, unknown>,
-): Server {
+function loadServer(path: string, dependencies: Record<string, unknown>): Server {
   const output = ts.transpileModule(readFileSync(path, "utf8"), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -32,7 +33,11 @@ function loadServer(
   const exports = {};
   vm.runInNewContext(output, {
     exports,
-    require: (name: string) => dependencies[name] ?? {},
+    require: (name: string) =>
+      dependencies[name] ??
+      (name === "@/lib/orders/modifier-selection-validation"
+        ? { ModifierSelectionError, validateModifierSelections }
+        : {}),
     Date,
     crypto: { randomUUID },
     console: { error() {} },
@@ -49,14 +54,10 @@ class Decimal {
 const prismaTypes = {
   Prisma: { Decimal, PrismaClientKnownRequestError: class extends Error {} },
   CustomerCheckoutStatus: Object.fromEntries(
-    [
-      "PENDING",
-      "REVIEW",
-      "EXPIRED",
-      "PAYMENT_RECEIVED",
-      "NEEDS_HELP",
-      "PAID",
-    ].map((status) => [status, status]),
+    ["PENDING", "REVIEW", "EXPIRED", "PAYMENT_RECEIVED", "NEEDS_HELP", "PAID"].map((status) => [
+      status,
+      status,
+    ]),
   ),
   MobileMoneyReceiptStatus: { ASSIGNED: "ASSIGNED" },
 };
@@ -92,8 +93,7 @@ function checkoutFixture(
         return where.id === table.id &&
           table.isActive &&
           (where.qrTokenVersion === undefined ||
-            (table.qrOrderingEnabled &&
-              where.qrTokenVersion === table.qrTokenVersion))
+            (table.qrOrderingEnabled && where.qrTokenVersion === table.qrTokenVersion))
           ? table
           : null;
       },
@@ -108,6 +108,7 @@ function checkoutFixture(
           price: 2,
           cost: null,
           recipeVersions: [],
+          modifierLinks: [],
           category: { station: options.station ?? "KITCHEN" },
         },
       ],
@@ -134,8 +135,7 @@ function checkoutFixture(
     "@/lib/prisma": {
       prisma: {
         ...db,
-        $transaction: async (run: (tx: typeof db) => Promise<unknown>) =>
-          run(db),
+        $transaction: async (run: (tx: typeof db) => Promise<unknown>) => run(db),
       },
     },
     "@/lib/auth/api-authorization": {
@@ -213,18 +213,12 @@ test("tampered, disabled, rotated, inactive and concurrently revoked codes creat
 test("QR orders use active Staff baristas and retain customer sign-in and payer validation", async () => {
   const drink = checkoutFixture({ station: "BARISTA" });
   assert.equal((await drink.post()).status, 201);
-  assert.equal(
-    (drink.writes[0].snapshot as Row[])[0].assignedBaristaId,
-    "barista-1",
-  );
+  assert.equal((drink.writes[0].snapshot as Row[])[0].assignedBaristaId, "barista-1");
   const staff = checkoutFixture({ role: "WAITER" });
   assert.equal((await staff.post()).status, 403);
   assert.equal(staff.writes.length, 0);
   const badPhone = checkoutFixture();
-  assert.equal(
-    (await badPhone.post({ paymentPhone: "+252901234567" })).status,
-    400,
-  );
+  assert.equal((await badPhone.post({ paymentPhone: "+252901234567" })).status, 400);
   assert.equal(badPhone.writes.length, 0);
 });
 
@@ -336,8 +330,7 @@ function settlementFixture(amount = 4) {
     "@/lib/prisma": {
       prisma: {
         ...db,
-        $transaction: async (run: (tx: typeof db) => Promise<unknown>) =>
-          run(db),
+        $transaction: async (run: (tx: typeof db) => Promise<unknown>) => run(db),
       },
     },
     "@/lib/customer-orders/table-qr-token": {

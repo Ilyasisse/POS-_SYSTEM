@@ -44,8 +44,7 @@ import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 
 const posthogConfigured = Boolean(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {
@@ -57,9 +56,7 @@ function scrollToTop() {
 }
 
 function useBackToTopVisibility(offset: number) {
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(offset),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(() => isPastScrollOffset(offset));
 
   useEffect(() => {
     function handleScroll() {
@@ -110,7 +107,11 @@ type CustomerOrderAction =
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
   | { type: "orderNoteChanged"; orderNote: string }
-  | { type: "fulfillmentChanged"; orderType: "DINE_IN" | "TAKEOUT"; tableId: string }
+  | {
+      type: "fulfillmentChanged";
+      orderType: "DINE_IN" | "TAKEOUT";
+      tableId: string;
+    }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -274,14 +275,11 @@ export default function CustomerOrderPage({
     calculateCartTotal,
   } = useWaiterCart();
 
-  const [orderState, dispatchOrderState] = useReducer(
-    customerOrderReducer,
-    {
-      ...initialCustomerOrderState,
-      customerName: accountName,
-      orderType: tableOrderContext ? "DINE_IN" : "TAKEOUT",
-    },
-  );
+  const [orderState, dispatchOrderState] = useReducer(customerOrderReducer, {
+    ...initialCustomerOrderState,
+    customerName: accountName,
+    orderType: tableOrderContext ? "DINE_IN" : "TAKEOUT",
+  });
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
@@ -325,18 +323,14 @@ export default function CustomerOrderPage({
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: kioskProducts.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [kioskCategories, kioskProducts],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
-    categoryChips.some(
-      (category) => category.id === orderState.selectedCategoryValue,
-    )
+    categoryChips.some((category) => category.id === orderState.selectedCategoryValue)
       ? orderState.selectedCategoryValue
       : "all";
 
@@ -356,8 +350,7 @@ export default function CustomerOrderPage({
   }, [deferredSearch, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ??
-    "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All";
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
@@ -446,10 +439,7 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (
-      getProductModifierGroups(product).length > 0 ||
-      product.category?.station === "BARISTA"
-    ) {
+    if (getProductModifierGroups(product).length > 0 || product.category?.station === "BARISTA") {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -586,9 +576,7 @@ export default function CustomerOrderPage({
       if (!response.ok || !data.checkout?.id) {
         throw new Error(data.error || "Could not start mobile money checkout.");
       }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",
@@ -613,15 +601,13 @@ export default function CustomerOrderPage({
       );
       return;
     }
-    const next = tableOrderContext
-      ? `/table/${tableOrderContext.token}`
-      : "/customer";
+    const next = tableOrderContext ? `/table/${tableOrderContext.token}` : "/customer";
     window.location.assign(`/auth/google/start?next=${encodeURIComponent(next)}`);
   }
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
@@ -629,11 +615,12 @@ export default function CustomerOrderPage({
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         {tableOrderContext ? (
           <p className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-900">
-            Ordering for {tableOrderContext.tableName}. Sign in and pay at checkout
-            to send your order to the kitchen.
+            Ordering for {tableOrderContext.tableName}. Sign in and pay at checkout to send your
+            order to the kitchen.
           </p>
         ) : null}
         <CustomerOrderHeader
+          historyHref="/customer/orders"
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
           onReset={resetKiosk}
@@ -642,7 +629,7 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -652,9 +639,7 @@ export default function CustomerOrderPage({
           searchTerm={orderState.searchTerm}
           categoryChips={categoryChips}
           selectedCategory={selectedCategory}
-          onSearchChange={(searchTerm) =>
-            dispatchOrderState({ type: "searchChanged", searchTerm })
-          }
+          onSearchChange={(searchTerm) => dispatchOrderState({ type: "searchChanged", searchTerm })}
           onCategorySelect={(category) =>
             startFiltering(() => {
               dispatchOrderState({ type: "categorySelected", category });
@@ -673,9 +658,7 @@ export default function CustomerOrderPage({
       </div>
 
       <BackToTopButton
-        show={
-          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
-        }
+        show={showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen}
         onClick={scrollToTop}
       />
 
@@ -694,7 +677,9 @@ export default function CustomerOrderPage({
         onCustomerPhoneChange={(customerPhone) =>
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
         }
-        onFulfillmentChange={(orderType, tableId) => dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })}
+        onFulfillmentChange={(orderType, tableId) =>
+          dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })
+        }
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
@@ -713,23 +698,16 @@ export default function CustomerOrderPage({
           <DialogHeader>
             <DialogTitle>Sign in to place your order</DialogTitle>
             <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
+              Continue with Google. We will bring you back to this cart so you can review it before
+              placing your order.
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
+            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
               {signInError}
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
+          <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
             Continue with Google
           </Button>
           <Button

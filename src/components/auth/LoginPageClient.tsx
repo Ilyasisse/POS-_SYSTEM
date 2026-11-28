@@ -41,7 +41,9 @@ export default function LoginPageClient() {
 
     try {
       window.location.assign(
-        next ? "/auth/google/start?next=%2Fcustomer" : "/auth/google/start",
+        next
+          ? `/auth/google/start?next=${encodeURIComponent(next)}`
+          : "/auth/google/start",
       );
     } catch (err) {
       setGoogleLoading(false);
