@@ -6,8 +6,10 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { recordedPrice } from "@/lib/products/price-history";
 import { deleteProduct, updateProduct } from "../actions";
+import { DeleteCatalogItemSection } from "../../DeleteCatalogItemSection";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 import PriceChangeFields from "./PriceChangeFields";
+import { ProductMenuFields } from "../ProductMenuFields";
 
 type ProductDetailsPageProps = {
   params: Promise<{
@@ -15,9 +17,7 @@ type ProductDetailsPageProps = {
   }>;
 };
 
-export default async function ProductDetailsPage({
-  params,
-}: ProductDetailsPageProps) {
+export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
   const { id } = await params;
 
   const [product, categories, priceChanges] = await Promise.all([
@@ -57,41 +57,36 @@ export default async function ProductDetailsPage({
 
   return (
     <div
-      className="min-h-screen bg-linear-to-br from-slate-100 via-slate-50 to-blue-50 px-4 py-6 text-slate-900 md:px-6"
+      className="bg-background text-foreground min-h-screen px-4 py-6 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
+        <header className="border-border bg-card flex items-center justify-between rounded-2xl border p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Product Details</h1>
-            <p className="text-sm text-slate-500">{product.name}</p>
+            <p className="text-muted-foreground text-sm">{product.name}</p>
           </div>
 
           <Link
             prefetch={false}
             href="/admin/products"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="border-border hover:bg-card rounded-lg border px-4 py-2 text-sm"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-slate-800">
-            Edit Product
-          </h2>
+        <section className="border-border bg-card rounded-2xl border p-6 shadow-lg">
+          <h2 className="text-foreground mb-4 text-lg font-bold">Edit Product</h2>
 
           <form action={updateProduct} className="space-y-4">
             <Input type="hidden" name="id" value={product.id} />
 
             <div>
-              <label
-                htmlFor="product-name"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="product-name" className="mb-1 block text-sm font-medium">
                 Name
               </label>
               <Input
@@ -99,25 +94,23 @@ export default async function ProductDetailsPage({
                 name="name"
                 type="text"
                 defaultValue={product.name}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
               />
             </div>
 
             <PriceChangeFields initialPrice={Number(product.price)} />
+            <ProductMenuFields description={product.description} imageUrl={product.imageUrl} />
 
             <div>
-              <label
-                htmlFor="product-category"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="product-category" className="mb-1 block text-sm font-medium">
                 Category
               </label>
               <NativeSelect
                 id="product-category"
                 name="categoryId"
                 defaultValue={product.categoryId}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
               >
                 {categories.map((category) => (
@@ -128,10 +121,7 @@ export default async function ProductDetailsPage({
               </NativeSelect>
             </div>
 
-            <label
-              htmlFor="product-track-stock"
-              className="flex items-center gap-2 text-md"
-            >
+            <label htmlFor="product-track-stock" className="text-md flex items-center gap-2">
               <Input
                 id="product-track-stock"
                 name="trackStock"
@@ -152,7 +142,7 @@ export default async function ProductDetailsPage({
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2"
               >
                 Save Changes
               </Button>
@@ -161,20 +151,15 @@ export default async function ProductDetailsPage({
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg">
-          <h2 className="text-lg font-bold text-slate-800">
-            Recent price changes
-          </h2>
+          <h2 className="text-lg font-bold text-slate-800">Recent price changes</h2>
           {priceChanges.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">
-              No audited price changes yet.
-            </p>
+            <p className="mt-3 text-sm text-slate-500">No audited price changes yet.</p>
           ) : (
             <ol className="mt-4 divide-y divide-slate-100">
               {priceChanges.map((change) => (
                 <li key={change.id} className="py-3 text-sm">
                   <p className="font-semibold text-slate-900">
-                    {recordedPrice(change.previousValue)} →{" "}
-                    {recordedPrice(change.newValue)}
+                    {recordedPrice(change.previousValue)} → {recordedPrice(change.newValue)}
                   </p>
                   <p className="text-slate-600">{change.reason}</p>
                   <p className="text-xs text-slate-500">
@@ -189,26 +174,12 @@ export default async function ProductDetailsPage({
           )}
         </section>
 
-        <section className="rounded-2xl border border-red-200 bg-white p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600">
-            Delete Product
-          </h2>
-
-          <p className="mb-4 text-sm text-slate-600">
-            This will permanently delete{" "}
-            <span className="font-semibold">{product.name}</span>.
-          </p>
-
-          <form action={deleteProduct}>
-            <Input type="hidden" name="id" value={product.id} />
-            <Button
-              type="submit"
-              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Delete Product
-            </Button>
-          </form>
-        </section>
+        <DeleteCatalogItemSection
+          id={product.id}
+          name={product.name}
+          label="Delete Product"
+          action={deleteProduct}
+        />
       </div>
     </div>
   );
