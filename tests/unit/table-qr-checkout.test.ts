@@ -109,6 +109,7 @@ function checkoutFixture(
           cost: null,
           recipeVersions: [],
           modifierLinks: [],
+          modifiers: [],
           category: { station: options.station ?? "KITCHEN" },
         },
       ],
