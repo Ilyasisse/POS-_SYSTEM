@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 import { NativeSelect } from "@/components/ui/native-select";
 
-import Image from "next/image";
+import ProductImage from "@/components/products/ProductImage";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -13,12 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type {
-  ModifierGroup,
-  Product,
-  SelectedModifierLine,
-  StaffSummary,
-} from "@/lib/types";
+import type { ModifierGroup, Product, SelectedModifierLine, StaffSummary } from "@/lib/types";
 import {
   buildModifierLines,
   formatCurrency,
@@ -100,11 +95,9 @@ function getModifierSelectionErrors(
     const max = getMaxSelect(group);
 
     if (count < min) {
-      accumulator[group.id] =
-        min === 1 ? "Choose 1 option." : `Choose at least ${min}.`;
+      accumulator[group.id] = min === 1 ? "Choose 1 option." : `Choose at least ${min}.`;
     } else if (count > max) {
-      accumulator[group.id] =
-        max === 1 ? "Only 1 option allowed." : `Choose up to ${max}.`;
+      accumulator[group.id] = max === 1 ? "Only 1 option allowed." : `Choose up to ${max}.`;
     }
 
     return accumulator;
@@ -114,12 +107,10 @@ function getModifierSelectionErrors(
 function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
   return (
     <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white md:min-h-[22rem] lg:h-full lg:min-h-[32rem] lg:self-stretch">
-      <Image
+      <ProductImage
         src={getProductImage(product)}
         alt={product.name}
-        fill
         sizes="(min-width: 1024px) 45vw, 100vw"
-        unoptimized
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,12,8,0.25)_0%,rgba(20,12,8,0.42)_28%,rgba(20,12,8,0.78)_70%,rgba(20,12,8,0.92)_100%)]" />
@@ -127,14 +118,11 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
       <div className="relative flex h-full flex-col justify-between">
         <div className="flex items-start justify-between gap-4 p-5 sm:p-7">
           <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-amber-200/90">
-              Customize Item
-            </p>
+            <p className="text-xs tracking-[0.32em] text-amber-200/90 uppercase">Customize Item</p>
             <h2
-              className="mt-3 max-w-md break-words text-3xl leading-tight sm:text-4xl lg:text-5xl"
+              className="mt-3 max-w-md text-3xl leading-tight break-words sm:text-4xl lg:text-5xl"
               style={{
-                fontFamily:
-                  '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
+                fontFamily: '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
               }}
             >
               {product.name}
@@ -142,23 +130,22 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
           </div>
 
           <Button
+            variant="outline"
             type="button"
             onClick={onClose}
-            className="rounded-full border border-white/15 bg-card/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-card/15 sm:px-4"
+            className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/15 hover:text-white sm:px-4 dark:bg-white/10 dark:hover:bg-white/15"
           >
             Close
           </Button>
         </div>
 
-        <div className="pl-5 pt-30 pr-0.5 text-right lg:mt-auto lg:flex lg:justify-end lg:p-7 lg:pt-32">
+        <div className="pt-30 pr-0.5 pl-5 text-right lg:mt-auto lg:flex lg:justify-end lg:p-7 lg:pt-32">
           <div className="rounded-[25px] border-white/10 bg-transparent p-4 sm:w-full sm:max-w-md sm:border sm:bg-black/20 sm:backdrop-blur-sm">
-            <p className="hidden break-words text-sm leading-6 text-stone-100/80 sm:block">
+            <p className="hidden text-sm leading-6 break-words text-stone-100/80 sm:block">
               {product.description?.trim() ||
                 "Choose the details that make this item exactly how you want it."}
             </p>
-            <p className="mt-4 text-sm uppercase tracking-[0.22em] text-amber-100/70 ">
-              Base price
-            </p>
+            <p className="mt-4 text-sm tracking-[0.22em] text-amber-100/70 uppercase">Base price</p>
             <p className="mt-1 text-3xl font-semibold text-amber-100">
               {formatCurrency(Number(product.price))}
             </p>
@@ -187,19 +174,19 @@ function ModifierGroupList({
             aria-describedby={`modifier-guidance-${group.id}`}
             data-aos="fade-up"
             data-aos-delay={String(groupIndex * 50)}
-            className="min-w-0 rounded-[1.5rem] border border-border bg-card p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
+            className="border-border bg-card min-w-0 rounded-[1.5rem] border p-4 shadow-[0_18px_45px_rgba(50,35,24,0.06)]"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3
                   id={`modifier-group-${group.id}`}
-                  className="break-words text-lg font-semibold text-foreground"
+                  className="text-foreground text-lg font-semibold break-words"
                 >
                   {group.name}
                 </h3>
                 <p
                   id={`modifier-guidance-${group.id}`}
-                  className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground"
+                  className="text-muted-foreground mt-1 text-xs tracking-[0.2em] uppercase"
                 >
                   Choose {getMinSelect(group)} to {getMaxSelect(group)}
                 </p>
@@ -207,7 +194,7 @@ function ModifierGroupList({
               {errors[group.id] ? (
                 <span
                   role="alert"
-                  className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700"
+                  className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
                 >
                   {errors[group.id]}
                 </span>
@@ -220,27 +207,26 @@ function ModifierGroupList({
 
                 return (
                   <Button
+                    variant="outline"
                     key={option.id}
                     type="button"
                     aria-pressed={checked}
                     onClick={() => onToggleOption(group, option.id)}
                     className={`min-w-0 rounded-[1.25rem] border px-4 py-4 text-left transition ${
                       checked
-                        ? "border-[#7c5c37] bg-[#f5ebde] shadow-[0_16px_32px_rgba(124,92,55,0.15)]"
+                        ? "border-primary bg-primary/10 shadow-sm"
                         : "border-border bg-muted/50 hover:border-border hover:bg-card"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="break-words font-semibold text-foreground">
-                          {option.name}
-                        </p>
-                        <p className="mt-1 text-xs font-semibold leading-5 text-amber-800">
+                        <p className="text-foreground font-semibold break-words">{option.name}</p>
+                        <p className="mt-1 text-xs leading-5 font-semibold text-amber-800">
                           {option.allergenInfo
                             ? `Allergen information: ${option.allergenInfo}`
                             : "Allergen details not provided. Ask staff if needed."}
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="text-muted-foreground mt-1 text-sm">
                           {Number(option.price) > 0
                             ? `+${formatCurrency(Number(option.price))}`
                             : "Included"}
@@ -249,7 +235,7 @@ function ModifierGroupList({
                       <span
                         className={`mt-1 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-semibold uppercase ${
                           checked
-                            ? "border-[#7c5c37] bg-[#7c5c37] text-white"
+                            ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-card text-transparent"
                         }`}
                       >
@@ -273,20 +259,20 @@ function BaristaAssignment({
   onSelectedBaristaIdChange,
 }: BaristaAssignmentProps) {
   return (
-    <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4">
+    <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-amber-950">
+          <p className="text-sm font-semibold text-amber-950 dark:text-amber-300">
             Barista assignment
           </p>
-          <p className="mt-1 text-sm text-amber-900/80">
+          <p className="mt-1 text-sm text-amber-900 dark:text-amber-300/80">
             Choose who will prepare this drink.
           </p>
         </div>
         <NativeSelect
           value={selectedBaristaId}
           onChange={(event) => onSelectedBaristaIdChange(event.target.value)}
-          className="w-full rounded-full border border-amber-300 bg-card px-4 py-2 text-sm font-medium text-foreground outline-none sm:w-auto"
+          className="bg-card text-foreground w-full rounded-full border border-amber-300 px-4 py-2 text-sm font-medium outline-none sm:w-auto dark:border-amber-800"
         >
           <option value="">Select barista</option>
           {baristas.map((barista) => (
@@ -307,23 +293,21 @@ function ModifierModalFooter({
   onAddToCart,
 }: ModifierModalFooterProps) {
   return (
-    <div className="sticky bottom-0 z-10 border-t border-border bg-card px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
+    <div className="border-border bg-card sticky bottom-0 z-10 border-t px-4 py-4 shadow-[0_-18px_45px_rgba(50,35,24,0.08)] sm:px-6 sm:py-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+          <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">
             Selected add-ons
           </p>
-          <p className="mt-2 max-h-16 overflow-y-auto break-words text-sm text-muted-foreground">
+          <p className="text-muted-foreground mt-2 max-h-16 overflow-y-auto text-sm break-words">
             {selectedLines.length === 0
               ? "No extra selections yet."
               : selectedLines.map((modifier) => modifier.optionName).join(", ")}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-            Item total
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-foreground">
+          <p className="text-muted-foreground text-xs tracking-[0.24em] uppercase">Item total</p>
+          <p className="text-foreground mt-2 text-3xl font-semibold">
             {formatCurrency(previewTotal)}
           </p>
         </div>
@@ -333,7 +317,7 @@ function ModifierModalFooter({
         type="button"
         onClick={onAddToCart}
         disabled={disabled}
-        className="mt-5 w-full rounded-full bg-stone-950 px-6 py-4 text-base font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+        className="bg-primary text-primary-foreground hover:bg-primary/90 mt-5 w-full rounded-full px-6 py-4 text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
       >
         Add to cart
       </Button>
@@ -355,22 +339,13 @@ function CustomerModifierContent({
   const [selected, setSelected] = useState<SelectedModifiersMap>({});
   const [selectedBaristaId, setSelectedBaristaId] = useState(defaultBaristaId);
 
-  const modifierGroups = useMemo(
-    () => getProductModifierGroups(product),
-    [product],
-  );
+  const modifierGroups = useMemo(() => getProductModifierGroups(product), [product]);
 
-  const selectedLines = useMemo(
-    () => buildModifierLines(product, selected),
-    [product, selected],
-  );
+  const selectedLines = useMemo(() => buildModifierLines(product, selected), [product, selected]);
   const previewTotal = useMemo(() => {
     return (
       Number(product.price) +
-      selectedLines.reduce(
-        (sum, modifier) => sum + modifier.price * modifier.qty,
-        0,
-      )
+      selectedLines.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0)
     );
   }, [product, selectedLines]);
 
@@ -379,8 +354,7 @@ function CustomerModifierContent({
     [modifierGroups, selected],
   );
 
-  const hasBaristaRequirement =
-    product.category?.station === "BARISTA" && !selectedBaristaId;
+  const hasBaristaRequirement = product.category?.station === "BARISTA" && !selectedBaristaId;
   const disabled = Object.keys(errors).length > 0 || hasBaristaRequirement;
 
   function toggleOption(group: ModifierGroup, optionId: string) {
@@ -434,16 +408,16 @@ function CustomerModifierContent({
     <div className="grid flex-1 items-start lg:h-[min(90dvh,54rem)] lg:grid-cols-[minmax(0,0.9fr)_minmax(28rem,1.1fr)] lg:items-stretch lg:overflow-hidden">
       <CustomerModifierHero product={product} onClose={onClose} />
 
-      <div className="min-h-0 min-w-0 flex flex-col bg-[#f9f4ee]">
-        <div className="border-b border-border px-4 py-4 sm:px-6 hidden sm:block">
+      <div className="bg-muted/50 flex min-h-0 min-w-0 flex-col">
+        <div className="border-border hidden border-b px-4 py-4 sm:block sm:px-6">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-stone-950 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-white">
+            <span className="bg-primary text-primary-foreground rounded-full px-3 py-1 text-[11px] font-semibold tracking-[0.24em] uppercase">
               {modifierGroups.length} groups
             </span>
           </div>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Pick your size, extras, and finishing touches. Your total updates
-            instantly as you select options.
+          <p className="text-muted-foreground mt-3 text-sm leading-6">
+            Pick your size, extras, and finishing touches. Your total updates instantly as you
+            select options.
           </p>
         </div>
 
@@ -468,9 +442,7 @@ function CustomerModifierContent({
           selectedLines={selectedLines}
           previewTotal={previewTotal}
           disabled={disabled}
-          onAddToCart={() =>
-            onConfirm(product, selected, selectedBaristaId || null)
-          }
+          onAddToCart={() => onConfirm(product, selected, selectedBaristaId || null)}
         />
       </div>
     </div>
@@ -494,7 +466,7 @@ export default function CustomerModifierModal({
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <DialogContent
         showCloseButton={false}
-        className="max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 bg-[#f6efe6] p-0 text-foreground dark:bg-card dark:text-foreground sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
+        className="bg-card text-foreground dark:bg-card dark:text-foreground max-h-[95dvh] w-[calc(100%-1.5rem)] max-w-6xl gap-0 overflow-y-auto rounded-[1.75rem] border-white/10 p-0 sm:rounded-[2rem] lg:max-w-6xl lg:overflow-hidden"
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Customize {product.name}</DialogTitle>
