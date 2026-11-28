@@ -3,17 +3,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import {
-  expireCustomerCheckout,
-  finalizeCustomerCheckout,
-} from "@/lib/payments/customer-checkout";
+import { expireCustomerCheckout, finalizeCustomerCheckout } from "@/lib/payments/customer-checkout";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const authorization = await authorizeApi(PERMISSIONS.CUSTOMER_ORDER);
   if (!authorization.ok) return authorization.response;
   if (authorization.user.role !== "CUSTOMER") {
@@ -24,11 +18,15 @@ export async function GET(
     where: { id, customerId: authorization.user.id },
     include: {
       table: { select: { name: true } },
-      order: { select: { orderNumber: true, kitchenTicketState: { include: { stationStates: true } } } },
+      order: {
+        select: {
+          orderNumber: true,
+          kitchenTicketState: { include: { stationStates: true } },
+        },
+      },
     },
   });
-  if (!checkout)
-    return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
+  if (!checkout) return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
   await expireCustomerCheckout(checkout.id);
   if (checkout.status === "PAYMENT_RECEIVED") {
     await finalizeCustomerCheckout(checkout.id);
@@ -37,11 +35,15 @@ export async function GET(
     where: { id, customerId: authorization.user.id },
     include: {
       table: { select: { name: true } },
-      order: { select: { orderNumber: true, kitchenTicketState: { include: { stationStates: true } } } },
+      order: {
+        select: {
+          orderNumber: true,
+          kitchenTicketState: { include: { stationStates: true } },
+        },
+      },
     },
   });
-  if (!checkout)
-    return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
+  if (!checkout) return NextResponse.json({ error: "Checkout not found." }, { status: 404 });
   return NextResponse.json(
     {
       checkout: {

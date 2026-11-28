@@ -17,6 +17,7 @@ type SupplyStatus =
   | "created"
   | "updated"
   | "deleted"
+  | "closed_day"
   | "invalid_date"
   | "invalid_entry"
   | "not_found";
@@ -50,14 +51,13 @@ export async function createSupplyPurchase(formData: FormData) {
   const item = await activeCatalogItem(parsed.value.catalogItemId);
   if (!item) redirectToSupply(returnDate, "invalid_entry");
 
-  await prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const day = await tx.supplyDay.upsert({
       where: { purchaseDate },
       create: { purchaseDate },
       update: {},
     });
-    if (day.closedAt)
-      throw new Error("Reopen this supply day before adding items.");
+    if (day.closedAt) return false;
     await tx.supplyPurchase.create({
       data: {
         catalogItemId: item.id,
@@ -69,7 +69,9 @@ export async function createSupplyPurchase(formData: FormData) {
         createdByUserId: user.id,
       },
     });
+    return true;
   });
+  if (!created) redirectToSupply(parsed.value.purchaseDateKey, "closed_day");
 
   revalidatePath("/admin/supplies");
   redirectToSupply(parsed.value.purchaseDateKey, "created");

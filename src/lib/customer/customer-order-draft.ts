@@ -1,9 +1,4 @@
-import type {
-  CartLine,
-  Product,
-  SelectedModifierLine,
-  StaffSummary,
-} from "@/lib/types";
+import type { CartLine, Product, SelectedModifierLine, StaffSummary } from "@/lib/types";
 import type { CustomerFulfillmentType } from "@/lib/customer/customer-order-fulfillment";
 
 const DRAFT_KEY = "customer-order-draft-v1";
@@ -80,8 +75,7 @@ function validItem(value: unknown): value is DraftItem {
         modifier.qty > 0 &&
         modifier.qty <= 99,
     ) &&
-    (item.assignedBaristaId === null ||
-      typeof item.assignedBaristaId === "string")
+    (item.assignedBaristaId === null || typeof item.assignedBaristaId === "string")
   );
 }
 
@@ -98,9 +92,7 @@ function restoreLine(
     const group = product.modifierGroups?.find((candidate) =>
       candidate.options.some((option) => option.id === requested.optionId),
     );
-    const option = group?.options.find(
-      (candidate) => candidate.id === requested.optionId,
-    );
+    const option = group?.options.find((candidate) => candidate.id === requested.optionId);
     if (!group || !option) return null;
     selectedModifiers.push({
       groupId: group.id,
@@ -114,31 +106,20 @@ function restoreLine(
   }
 
   for (const group of product.modifierGroups ?? []) {
-    const count = selectedModifiers.filter(
-      (modifier) => modifier.groupId === group.id,
-    ).length;
+    const count = selectedModifiers.filter((modifier) => modifier.groupId === group.id).length;
     const minimum = group.minSelect ?? (group.required ? 1 : 0);
-    const maximum =
-      group.maxSelect ?? (group.multiple ? group.options.length : 1);
+    const maximum = group.maxSelect ?? (group.multiple ? group.options.length : 1);
     if (count < minimum || count > maximum) return null;
   }
 
   const station = product.category?.station ?? null;
-  const selectedBarista = item.assignedBaristaId
-    ? baristas.get(item.assignedBaristaId)
-    : null;
+  const selectedBarista = item.assignedBaristaId ? baristas.get(item.assignedBaristaId) : null;
   if (station === "BARISTA" && !selectedBarista) return null;
-  const assignedUserId =
-    station === "BARISTA" ? (selectedBarista?.id ?? null) : null;
-  const assignedUserName =
-    station === "BARISTA" ? (selectedBarista?.fullName ?? null) : null;
+  const assignedUserId = station === "BARISTA" ? (selectedBarista?.id ?? null) : null;
+  const assignedUserName = station === "BARISTA" ? (selectedBarista?.fullName ?? null) : null;
   const price = Number(product.price);
   const finalPrice =
-    price +
-    selectedModifiers.reduce(
-      (sum, modifier) => sum + modifier.price * modifier.qty,
-      0,
-    );
+    price + selectedModifiers.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0);
   const cartKey = [
     product.id,
     station ?? "NO_STATION",
@@ -168,10 +149,7 @@ function restoreLine(
   };
 }
 
-export function restoreCustomerOrderDraft(
-  products: Product[],
-  baristas: StaffSummary[],
-) {
+export function restoreCustomerOrderDraft(products: Product[], baristas: StaffSummary[]) {
   let parsed: unknown;
   try {
     const stored = sessionStorage.getItem(DRAFT_KEY);
@@ -190,9 +168,7 @@ export function restoreCustomerOrderDraft(
   let skipped = 0;
   let repriced = 0;
   for (const value of draft.items) {
-    const restored = validItem(value)
-      ? restoreLine(value, productMap, baristaMap)
-      : null;
+    const restored = validItem(value) ? restoreLine(value, productMap, baristaMap) : null;
     if (restored) {
       cart.push(restored.line);
       if (restored.repriced) repriced++;
@@ -200,10 +176,8 @@ export function restoreCustomerOrderDraft(
   }
   return {
     cart,
-    customerName:
-      typeof draft.customerName === "string" ? draft.customerName : "",
-    customerPhone:
-      typeof draft.customerPhone === "string" ? draft.customerPhone : "",
+    customerName: typeof draft.customerName === "string" ? draft.customerName : "",
+    customerPhone: typeof draft.customerPhone === "string" ? draft.customerPhone : "",
     orderNote: typeof draft.orderNote === "string" ? draft.orderNote : "",
     skipped,
     repriced,
@@ -224,12 +198,15 @@ export function saveCustomerFulfillment(
   deliveryPhone = "",
 ): boolean {
   try {
-    sessionStorage.setItem("customer-fulfillment-v1", JSON.stringify({
-      orderType,
-      tableId: orderType === "DINE_IN" ? tableId : "",
-      deliveryAddress: orderType === "DELIVERY" ? deliveryAddress : "",
-      deliveryPhone: orderType === "DELIVERY" ? deliveryPhone : "",
-    }));
+    sessionStorage.setItem(
+      "customer-fulfillment-v1",
+      JSON.stringify({
+        orderType,
+        tableId: orderType === "DINE_IN" ? tableId : "",
+        deliveryAddress: orderType === "DELIVERY" ? deliveryAddress : "",
+        deliveryPhone: orderType === "DELIVERY" ? deliveryPhone : "",
+      }),
+    );
     return true;
   } catch {
     return false;
@@ -241,14 +218,25 @@ export function restoreCustomerFulfillment(): CustomerFulfillmentDraft | null {
     const value: unknown = JSON.parse(sessionStorage.getItem("customer-fulfillment-v1") || "null");
     if (!value || typeof value !== "object") return null;
     const draft = value as Partial<CustomerFulfillmentDraft>;
-    if ((draft.orderType !== "DINE_IN" && draft.orderType !== "TAKEOUT" && draft.orderType !== "DELIVERY") || typeof draft.tableId !== "string") return null;
-    if ((draft.deliveryAddress !== undefined && (typeof draft.deliveryAddress !== "string" || draft.deliveryAddress.length > 500)) ||
-      (draft.deliveryPhone !== undefined && (typeof draft.deliveryPhone !== "string" || draft.deliveryPhone.length > 30))) return null;
+    if (
+      (draft.orderType !== "DINE_IN" &&
+        draft.orderType !== "TAKEOUT" &&
+        draft.orderType !== "DELIVERY") ||
+      typeof draft.tableId !== "string"
+    )
+      return null;
+    if (
+      (draft.deliveryAddress !== undefined &&
+        (typeof draft.deliveryAddress !== "string" || draft.deliveryAddress.length > 500)) ||
+      (draft.deliveryPhone !== undefined &&
+        (typeof draft.deliveryPhone !== "string" || draft.deliveryPhone.length > 30))
+    )
+      return null;
     return {
       orderType: draft.orderType,
       tableId: draft.orderType === "DINE_IN" ? draft.tableId : "",
-      deliveryAddress: draft.orderType === "DELIVERY" ? draft.deliveryAddress ?? "" : "",
-      deliveryPhone: draft.orderType === "DELIVERY" ? draft.deliveryPhone ?? "" : "",
+      deliveryAddress: draft.orderType === "DELIVERY" ? (draft.deliveryAddress ?? "") : "",
+      deliveryPhone: draft.orderType === "DELIVERY" ? (draft.deliveryPhone ?? "") : "",
     };
   } catch {
     return null;

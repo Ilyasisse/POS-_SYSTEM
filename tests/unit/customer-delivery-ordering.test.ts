@@ -1,3 +1,7 @@
+import {
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "../../src/lib/orders/modifier-selection-validation";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -36,7 +40,11 @@ function loadModule(path: string, dependencies: Record<string, unknown>): Server
   const exports = {};
   vm.runInNewContext(output, {
     exports,
-    require: (name: string) => dependencies[name] ?? {},
+    require: (name: string) =>
+      dependencies[name] ??
+      (name === "@/lib/orders/modifier-selection-validation"
+        ? { ModifierSelectionError, validateModifierSelections }
+        : {}),
     Date,
     crypto: { randomUUID },
     console: { error() {} },
@@ -58,17 +66,25 @@ const nextResponseDependency = {
   },
 };
 const authDependency = {
-  authorizeApi: async () => ({ ok: true, user: { id: "customer-1", role: "CUSTOMER", fullName: "Amina" } }),
+  authorizeApi: async () => ({
+    ok: true,
+    user: { id: "customer-1", role: "CUSTOMER", fullName: "Amina" },
+  }),
 };
 class Decimal {
   constructor(private value: number) {}
-  valueOf() { return this.value; }
+  valueOf() {
+    return this.value;
+  }
 }
 const prismaDependency = {
   Prisma: { Decimal },
-  CustomerCheckoutStatus: Object.fromEntries([
-    "PENDING", "REVIEW", "EXPIRED", "PAYMENT_RECEIVED", "NEEDS_HELP", "PAID",
-  ].map(status => [status, status])),
+  CustomerCheckoutStatus: Object.fromEntries(
+    ["PENDING", "REVIEW", "EXPIRED", "PAYMENT_RECEIVED", "NEEDS_HELP", "PAID"].map((status) => [
+      status,
+      status,
+    ]),
+  ),
   MobileMoneyReceiptStatus: { ASSIGNED: "ASSIGNED" },
 };
 
@@ -83,48 +99,95 @@ function checkoutRouteFixture(activeTable = true) {
     "@/lib/payments/customer-ussd": { normalizeCustomerPaymentPhone },
     "@/lib/inventory/inventory-domain": {
       selectEffectiveRecipe: () => null,
-      snapshotInventoryCost: () => ({ unitCostSnapshot: null, costSnapshotSource: null, recipeVersionId: null }),
+      snapshotInventoryCost: () => ({
+        unitCostSnapshot: null,
+        costSnapshotSource: null,
+        recipeVersionId: null,
+      }),
     },
-    "@/lib/prisma": { prisma: {
-      table: { findFirst: async () => activeTable ? { id: "table-1" } : null },
-      product: { findMany: async () => [{
-        id: "product-1", name: "Tea", price: 2, cost: 1, recipeVersions: [], category: { station: "KITCHEN" },
-      }] },
-      customerCheckout: {
-        findUnique: async () => null,
-        create: async ({ data }: { data: Record<string, unknown> }) => {
-          created.push(data);
-          return { id: "checkout-1", status: "PENDING", ...data };
+    "@/lib/prisma": {
+      prisma: {
+        table: { findFirst: async () => (activeTable ? { id: "table-1" } : null) },
+        product: {
+          findMany: async () => [
+            {
+              id: "product-1",
+              name: "Tea",
+              price: 2,
+              cost: 1,
+              recipeVersions: [],
+              modifierLinks: [],
+              modifiers: [],
+              category: { station: "KITCHEN" },
+            },
+          ],
+        },
+        customerCheckout: {
+          findUnique: async () => null,
+          create: async ({ data }: { data: Record<string, unknown> }) => {
+            created.push(data);
+            return { id: "checkout-1", status: "PENDING", ...data };
+          },
         },
       },
-    } },
+    },
   });
-  const post = (overrides: Record<string, unknown> = {}) => route.POST(new Request("https://example.test/api/customer/checkouts", {
-    method: "POST",
-    body: JSON.stringify({
-      customerName: "  Amina  ", paymentPhone: "901234567", idempotencyKey: randomUUID(),
-      orderType: "DELIVERY", tableId: "table-1", deliveryPhone: "+252 (61) 234-5678",
-      deliveryAddress: "  Hodan, near the mosque  ", items: [{ productId: "product-1", qty: 2 }],
-      ...overrides,
-    }),
-  }));
+  const post = (overrides: Record<string, unknown> = {}) =>
+    route.POST(
+      new Request("https://example.test/api/customer/checkouts", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: "  Amina  ",
+          paymentPhone: "901234567",
+          idempotencyKey: randomUUID(),
+          orderType: "DELIVERY",
+          tableId: "table-1",
+          deliveryPhone: "+252 (61) 234-5678",
+          deliveryAddress: "  Hodan, near the mosque  ",
+          items: [{ productId: "product-1", qty: 2 }],
+          ...overrides,
+        }),
+      }),
+    );
   return { post, created };
 }
 
 function finalizationFixture(orderType: CustomerFulfillmentType = "DELIVERY") {
   const checkout = {
-    id: "checkout-1", customerId: "customer-1", customerName: "Amina",
-    orderType, tableId: orderType === "DINE_IN" ? "table-1" : null,
+    id: "checkout-1",
+    customerId: "customer-1",
+    customerName: "Amina",
+    orderType,
+    tableId: orderType === "DINE_IN" ? "table-1" : null,
     deliveryPhone: orderType === "DELIVERY" ? "+252 (61) 234-5678" : null,
     deliveryAddress: orderType === "DELIVERY" ? "Hodan, near the mosque" : null,
-    payerPhone: "252901234567", amount: 4, status: "PAYMENT_RECEIVED", receiptId: "receipt-1",
-    snapshot: [{
-      productId: "product-1", productName: "Tea", qty: 2, station: "KITCHEN",
-      assignedBaristaId: null, assignedBaristaName: null, unitPrice: 2, lineTotal: 4,
-      costSnapshot: { unitCostSnapshot: null, costSnapshotSource: null, recipeVersionId: null }, modifiers: [],
-    }],
+    payerPhone: "252901234567",
+    amount: 4,
+    status: "PAYMENT_RECEIVED",
+    receiptId: "receipt-1",
+    snapshot: [
+      {
+        productId: "product-1",
+        productName: "Tea",
+        qty: 2,
+        station: "KITCHEN",
+        assignedBaristaId: null,
+        assignedBaristaName: null,
+        unitPrice: 2,
+        lineTotal: 4,
+        costSnapshot: { unitCostSnapshot: null, costSnapshotSource: null, recipeVersionId: null },
+        modifiers: [],
+      },
+    ],
   };
-  const receipt = { id: "receipt-1", status: "ASSIGNED", amount: 4, providerReference: "receipt-ref", transactionAt: new Date(), assignedByUserId: null };
+  const receipt = {
+    id: "receipt-1",
+    status: "ASSIGNED",
+    amount: 4,
+    providerReference: "receipt-ref",
+    transactionAt: new Date(),
+    assignedByUserId: null,
+  };
   const orders: Record<string, unknown>[] = [];
   const payments: Record<string, unknown>[] = [];
   const dispatches: Record<string, unknown>[] = [];
@@ -132,42 +195,96 @@ function finalizationFixture(orderType: CustomerFulfillmentType = "DELIVERY") {
   let tickets = 0;
   let inventoryDeductions = 0;
   const database = {
-    $queryRaw: async (parts: TemplateStringsArray) => { locks.push(parts.join("?")); return []; },
+    $queryRaw: async (parts: TemplateStringsArray) => {
+      locks.push(parts.join("?"));
+      return [];
+    },
     customerCheckout: {
       findUnique: async () => checkout,
-      update: async ({ data }: { data: Record<string, unknown> }) => { Object.assign(checkout, data); return checkout; },
-      updateMany: async ({ data }: { data: Record<string, unknown> }) => { Object.assign(checkout, data); return { count: 1 }; },
+      update: async ({ data }: { data: Record<string, unknown> }) => {
+        Object.assign(checkout, data);
+        return checkout;
+      },
+      updateMany: async ({ data }: { data: Record<string, unknown> }) => {
+        Object.assign(checkout, data);
+        return { count: 1 };
+      },
     },
     mobileMoneyReceipt: { findUnique: async () => receipt },
-    order: { create: async ({ data }: { data: Record<string, unknown> }) => { const order = { id: "order-1", orderNumber: 17, ...data }; orders.push(order); return order; } },
+    order: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        const order = { id: "order-1", orderNumber: 17, ...data };
+        orders.push(order);
+        return order;
+      },
+    },
     table: { findUnique: async () => ({ name: "Table One" }) },
     orderItem: { createMany: async () => ({ count: 1 }) },
-    payment: { create: async ({ data }: { data: Record<string, unknown> }) => { payments.push(data); return data; } },
+    payment: {
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        payments.push(data);
+        return data;
+      },
+    },
   };
-  const prisma = { ...database, $transaction: async (run: (tx: typeof database) => Promise<unknown>) => run(database) };
+  const prisma = {
+    ...database,
+    $transaction: async (run: (tx: typeof database) => Promise<unknown>) => run(database),
+  };
   const server = loadModule("src/lib/payments/customer-checkout.ts", {
     "@prisma/client": prismaDependency,
     "@/lib/prisma": { prisma },
     "@/lib/customer/customer-order-fulfillment": fulfillmentDependency,
-    "@/lib/kitchen/kitchen-tickets": { createKitchenTicketState: async () => { tickets++; } },
+    "@/lib/kitchen/kitchen-tickets": {
+      createKitchenTicketState: async () => {
+        tickets++;
+      },
+    },
     "@/lib/inventory/inventory": {
-      deductProductInventoryForSale: async () => { inventoryDeductions++; return []; },
+      deductProductInventoryForSale: async () => {
+        inventoryDeductions++;
+        return [];
+      },
       sendInventoryAlerts: async () => {},
     },
-    "@/lib/staff/customer-order-dispatch": { dispatchCustomerOrder: async (_tx: unknown, input: Record<string, unknown>) => { dispatches.push(input); } },
+    "@/lib/staff/customer-order-dispatch": {
+      dispatchCustomerOrder: async (_tx: unknown, input: Record<string, unknown>) => {
+        dispatches.push(input);
+      },
+    },
     "@/lib/posthog-server": { getPostHogClient: () => null },
   });
   return {
-    checkout, receipt, orders, payments, dispatches, locks,
+    checkout,
+    receipt,
+    orders,
+    payments,
+    dispatches,
+    locks,
     finalize: () => server.finalizeCustomerCheckout(checkout.id),
     sideEffects: () => ({ tickets, inventoryDeductions }),
   };
 }
 
 test("pickup is the default and discards unused delivery and table details", () => {
-  assert.deepEqual(validateCustomerFulfillment({
-    customerName: "A", tableId: "table-1", deliveryPhone: "123456", deliveryAddress: "Unused address",
-  }), { ok: true, value: { orderType: "TAKEOUT", customerName: "A", tableId: null, deliveryPhone: null, deliveryAddress: null } });
+  assert.deepEqual(
+    validateCustomerFulfillment({
+      customerName: "A",
+      tableId: "table-1",
+      deliveryPhone: "123456",
+      deliveryAddress: "Unused address",
+    }),
+    {
+      ok: true,
+      value: {
+        orderType: "TAKEOUT",
+        customerName: "A",
+        tableId: null,
+        deliveryPhone: null,
+        deliveryAddress: null,
+      },
+    },
+  );
 });
 
 test("fulfillment validation returns the field to correct and accepts formatted delivery phones", () => {
@@ -176,28 +293,64 @@ test("fulfillment validation returns the field to correct and accepts formatted 
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.field, "orderType");
   }
-  for (const deliveryPhone of ["", "1234", "hello", "() --", "12-34", "1".repeat(31), {} as never]) {
-    const result = validateCustomerFulfillment({ orderType: "DELIVERY", customerName: "Amina", deliveryPhone, deliveryAddress: "Hodan, near the mosque" });
+  for (const deliveryPhone of [
+    "",
+    "1234",
+    "hello",
+    "() --",
+    "12-34",
+    "1".repeat(31),
+    {} as never,
+  ]) {
+    const result = validateCustomerFulfillment({
+      orderType: "DELIVERY",
+      customerName: "Amina",
+      deliveryPhone,
+      deliveryAddress: "Hodan, near the mosque",
+    });
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.field, "deliveryPhone");
   }
   for (const deliveryAddress of ["", "Road", "x".repeat(501), {} as never]) {
-    const result = validateCustomerFulfillment({ orderType: "DELIVERY", customerName: "Amina", deliveryPhone: "+252 (61) 234-5678", deliveryAddress });
+    const result = validateCustomerFulfillment({
+      orderType: "DELIVERY",
+      customerName: "Amina",
+      deliveryPhone: "+252 (61) 234-5678",
+      deliveryAddress,
+    });
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.field, "deliveryAddress");
   }
-  assert.equal(validateCustomerFulfillment({ orderType: "DELIVERY", customerName: "Amina", deliveryPhone: "+252 (61) 234-5678", deliveryAddress: "Hodan, near the mosque" }).ok, true);
+  assert.equal(
+    validateCustomerFulfillment({
+      orderType: "DELIVERY",
+      customerName: "Amina",
+      deliveryPhone: "+252 (61) 234-5678",
+      deliveryAddress: "Hodan, near the mosque",
+    }).ok,
+    true,
+  );
 });
 
 test("dine-in retains its table while delivery ignores table state", () => {
   const missing = validateCustomerFulfillment({ orderType: "DINE_IN", customerName: "Amina" });
   assert.equal(missing.ok, false);
   if (!missing.ok) assert.equal(missing.field, "tableId");
-  const dineIn = validateCustomerFulfillment({ orderType: "DINE_IN", customerName: "Amina", tableId: " table-1 " });
+  const dineIn = validateCustomerFulfillment({
+    orderType: "DINE_IN",
+    customerName: "Amina",
+    tableId: " table-1 ",
+  });
   assert.equal(dineIn.ok, true);
   if (dineIn.ok) assert.equal(dineIn.value.tableId, "table-1");
-  assert.equal(customerFulfillmentDestination({ orderType: "DINE_IN", tableName: "Table One" }), "Table One");
-  assert.equal(customerFulfillmentDestination({ orderType: "DELIVERY", deliveryAddress: "Hodan" }), "Delivery · Hodan");
+  assert.equal(
+    customerFulfillmentDestination({ orderType: "DINE_IN", tableName: "Table One" }),
+    "Table One",
+  );
+  assert.equal(
+    customerFulfillmentDestination({ orderType: "DELIVERY", deliveryAddress: "Hodan" }),
+    "Delivery · Hodan",
+  );
 });
 
 test("checkout validates and stores delivery separately from the strict payer phone", async () => {
@@ -210,7 +363,11 @@ test("checkout validates and stores delivery separately from the strict payer ph
   assert.equal(fixture.created[0].deliveryAddress, "Hodan, near the mosque");
   assert.equal(fixture.created[0].tableId, null);
   assert.equal(fixture.created[0].orderType, "DELIVERY");
-  for (const overrides of [{ deliveryAddress: "" }, { deliveryPhone: "hello" }, { paymentPhone: "+252901234567" }]) {
+  for (const overrides of [
+    { deliveryAddress: "" },
+    { deliveryPhone: "hello" },
+    { paymentPhone: "+252901234567" },
+  ]) {
     const rejected = checkoutRouteFixture();
     assert.equal((await rejected.post(overrides)).status, 400);
     assert.equal(rejected.created.length, 0);
@@ -294,9 +451,17 @@ test("previously created dine-in and pickup checkouts can settle with saved long
 
 test("customer checkout status and staff fulfillment expose the saved delivery destination/contact", async () => {
   const row = {
-    id: "checkout-1", amount: 4, payerPhone: "252901234567", status: "PENDING",
-    expiresAt: new Date(), receiptId: null, order: null, orderType: "DELIVERY",
-    table: null, deliveryPhone: "+252 (61) 234-5678", deliveryAddress: "Hodan, near the mosque",
+    id: "checkout-1",
+    amount: 4,
+    payerPhone: "252901234567",
+    status: "PENDING",
+    expiresAt: new Date(),
+    receiptId: null,
+    order: null,
+    orderType: "DELIVERY",
+    table: null,
+    deliveryPhone: "+252 (61) 234-5678",
+    deliveryAddress: "Hodan, near the mosque",
   };
   const customerRoute = loadModule("src/app/api/customer/checkouts/[id]/route.ts", {
     "next/server": nextResponseDependency,
@@ -315,11 +480,24 @@ test("customer checkout status and staff fulfillment expose the saved delivery d
     "@/lib/auth/permissions": { PERMISSIONS: {} },
     "@/lib/customer/customer-order-fulfillment": fulfillmentDependency,
     "@/lib/customer/customer-order-progress": { customerOrderStage: () => "READY" },
-    "@/lib/prisma": { prisma: { order: { findMany: async () => [{
-      id: "order-1", orderNumber: 17, type: "DELIVERY", table: null,
-      deliveryPhone: row.deliveryPhone, deliveryAddress: row.deliveryAddress,
-      customerCheckout: { customerName: "Amina" }, kitchenTicketState: {},
-    }] } } },
+    "@/lib/prisma": {
+      prisma: {
+        order: {
+          findMany: async () => [
+            {
+              id: "order-1",
+              orderNumber: 17,
+              type: "DELIVERY",
+              table: null,
+              deliveryPhone: row.deliveryPhone,
+              deliveryAddress: row.deliveryAddress,
+              customerCheckout: { customerName: "Amina" },
+              kitchenTicketState: {},
+            },
+          ],
+        },
+      },
+    },
   });
   const staffResponse = await staffRoute.GET();
   assert.equal(staffResponse.body.orders?.[0].destination, "Delivery · Hodan, near the mosque");

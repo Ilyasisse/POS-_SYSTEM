@@ -10,9 +10,10 @@ import {
 } from "@/lib/customer/customer-order-fulfillment";
 import type { SelectedModifierLine } from "@/lib/types";
 import {
-  selectEffectiveRecipe,
-  snapshotInventoryCost,
-} from "@/lib/inventory/inventory-domain";
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "@/lib/orders/modifier-selection-validation";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 
 type CustomerOrderItemModifierInput = {
   modifierId: string;
@@ -63,13 +64,9 @@ function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function isPlaceholderModifier(
-  modifier: CustomerOrderItemModifierInput | SelectedModifierLine,
-) {
-  const modifierId =
-    "modifierId" in modifier ? modifier.modifierId : modifier.optionId;
-  const explicitPlaceholder =
-    "isPlaceholder" in modifier ? modifier.isPlaceholder === true : false;
+function isPlaceholderModifier(modifier: CustomerOrderItemModifierInput | SelectedModifierLine) {
+  const modifierId = "modifierId" in modifier ? modifier.modifierId : modifier.optionId;
+  const explicitPlaceholder = "isPlaceholder" in modifier ? modifier.isPlaceholder === true : false;
 
   return modifierId.startsWith("placeholder__") || explicitPlaceholder;
 }
@@ -84,26 +81,18 @@ export async function POST(request: Request) {
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
 
     if (authorization.user.role !== "CUSTOMER") {
-      return NextResponse.json(
-        { error: "Customer sign-in is required." },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Customer sign-in is required." }, { status: 403 });
     }
     if (!payerPhone) {
       return NextResponse.json(
-        { error: "Enter 90 followed by seven digits for the phone sending payment." },
+        {
+          error: "Enter 90 followed by seven digits for the phone sending payment.",
+        },
         { status: 400 },
       );
     }
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        idempotencyKey,
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Invalid checkout key." },
-        { status: 400 },
-      );
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+      return NextResponse.json({ error: "Invalid checkout key." }, { status: 400 });
     }
 
     const fulfillment = validateCustomerFulfillment({
@@ -117,15 +106,22 @@ export async function POST(request: Request) {
       );
     }
     const { customerName, orderType, tableId, deliveryPhone, deliveryAddress } = fulfillment.value;
-    if (orderType === "DINE_IN" && (!tableId || !await prisma.table.findFirst({ where: { id: tableId, isActive: true }, select: { id: true } }))) {
-      return NextResponse.json({ error: "Select an active table.", field: "tableId" }, { status: 400 });
+    if (
+      orderType === "DINE_IN" &&
+      (!tableId ||
+        !(await prisma.table.findFirst({
+          where: { id: tableId, isActive: true },
+          select: { id: true },
+        })))
+    ) {
+      return NextResponse.json(
+        { error: "Select an active table.", field: "tableId" },
+        { status: 400 },
+      );
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        { error: "No items provided." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No items provided." }, { status: 400 });
     }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
@@ -168,6 +164,23 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -180,12 +193,12 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
               name: true,
               price: true,
-              productId: true,
               modifierGroup: {
                 select: {
                   id: true,
@@ -210,15 +223,9 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(
-      products.map((product) => [product.id, product]),
-    );
-    const modifierMap = new Map(
-      modifierRecords.map((modifier) => [modifier.id, modifier]),
-    );
-    const baristaMap = new Map(
-      baristas.map((barista) => [barista.id, barista]),
-    );
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
+    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -235,17 +242,13 @@ export async function POST(request: Request) {
 
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
-      const incomingModifiers = Array.isArray(item.modifiers)
-        ? item.modifiers
-        : [];
+      const incomingModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
       const selectedModifiers: SelectedModifierLine[] = [];
       const handledModifierIds = new Set<string>();
+      const validatedModifierIds = new Set<string>();
 
       for (const incomingModifier of incomingModifiers) {
-        if (
-          !incomingModifier?.modifierId ||
-          handledModifierIds.has(incomingModifier.modifierId)
-        ) {
+        if (!incomingModifier?.modifierId || handledModifierIds.has(incomingModifier.modifierId)) {
           continue;
         }
 
@@ -256,11 +259,8 @@ export async function POST(request: Request) {
             groupId: `placeholder-group-${incomingModifier.groupName ?? "custom"}`,
             groupName: incomingModifier.groupName?.trim() || "Custom",
             optionId: incomingModifier.modifierId,
-            optionName:
-              incomingModifier.modifierName?.trim() || "Custom option",
-            price: roundCurrency(
-              Math.max(0, Number(incomingModifier.price) || 0),
-            ),
+            optionName: incomingModifier.modifierName?.trim() || "Custom option",
+            price: roundCurrency(Math.max(0, Number(incomingModifier.price) || 0)),
             qty: Math.max(1, Number(incomingModifier.qty) || 1),
           });
           continue;
@@ -268,12 +268,16 @@ export async function POST(request: Request) {
 
         const modifier = modifierMap.get(incomingModifier.modifierId);
 
-        if (!modifier || modifier.productId !== product.id) {
-          throw new Error(
+        if (
+          !modifier ||
+          !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
+        ) {
+          throw new ModifierSelectionError(
             `Modifier ${incomingModifier.modifierId} is invalid for product ${product.name}.`,
           );
         }
 
+        validatedModifierIds.add(modifier.id);
         selectedModifiers.push({
           groupId: modifier.modifierGroup.id,
           groupName: modifier.modifierGroup.name,
@@ -283,6 +287,12 @@ export async function POST(request: Request) {
           qty: Math.max(1, Number(incomingModifier.qty) || 1),
         });
       }
+
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: [...validatedModifierIds],
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
@@ -337,10 +347,7 @@ export async function POST(request: Request) {
     calculatedTotal = roundCurrency(calculatedTotal);
 
     if (calculatedTotal <= 0) {
-      return NextResponse.json(
-        { error: "The checkout amount must be positive." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "The checkout amount must be positive." }, { status: 400 });
     }
 
     const existing = await prisma.customerCheckout.findUnique({
@@ -348,10 +355,7 @@ export async function POST(request: Request) {
     });
     if (existing) {
       if (existing.customerId !== authorization.user.id) {
-        return NextResponse.json(
-          { error: "Checkout key is already in use." },
-          { status: 409 },
-        );
+        return NextResponse.json({ error: "Checkout key is already in use." }, { status: 409 });
       }
       return NextResponse.json({
         checkout: {
@@ -363,9 +367,7 @@ export async function POST(request: Request) {
     }
 
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const snapshot = JSON.parse(
-      JSON.stringify(preparedLines),
-    ) as Prisma.InputJsonValue;
+    const snapshot = JSON.parse(JSON.stringify(preparedLines)) as Prisma.InputJsonValue;
     try {
       const checkout = await prisma.customerCheckout.create({
         data: {
@@ -393,10 +395,7 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         const checkout = await prisma.customerCheckout.findUnique({
           where: { idempotencyKey },
         });
@@ -413,11 +412,14 @@ export async function POST(request: Request) {
       throw error;
     }
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Customer checkout error:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Could not start checkout.",
+        error: error instanceof Error ? error.message : "Could not start checkout.",
       },
       { status: 500 },
     );
