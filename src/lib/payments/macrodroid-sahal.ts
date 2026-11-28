@@ -24,7 +24,7 @@ export type ParsedSahalMessage =
 
 const MONEY = "([0-9][0-9,]*(?:\\.[0-9]{1,2})?)";
 const MESSAGE_TAIL = new RegExp(
-  `^(.*?)\\s+Tar\\s+(\\d{2}\\/\\d{2}\\/\\d{2})\\s+(\\d{2}:\\d{2}:\\d{2})\\s*,?\\s*Haraagaagu\\s+waa\\s+\\$\\s*${MONEY}\\s*\\.?$`,
+  `^(.*?)\\s+Tar:?\\s+(\\d{2}\\/\\d{2}\\/\\d{2})\\s+(\\d{2}:\\d{2}:\\d{2})\\s*,?\\s*Haraagaagu\\s+waa\\s+\\$\\s*${MONEY}\\s*\\.?$`,
   "i",
 );
 const INCOMING = new RegExp(
@@ -74,7 +74,7 @@ function nairobiDate(dateValue: string, timeValue: string) {
     : null;
 }
 
-export function normalizeSmsMessage(rawMessage: string) {
+function normalizeSmsMessage(rawMessage: string) {
   return rawMessage.replace(/\s+/g, " ").trim();
 }
 
