@@ -83,7 +83,9 @@ export default async function SupplierPurchaseOrdersPage({
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link prefetch={false} href="/admin/supplier-invoices">View invoices</Link>
+            <Link prefetch={false} href="/admin/supplier-invoices">
+              View invoices
+            </Link>
           </Button>
           <Button asChild variant="outline">
             <Link prefetch={false} href="/admin/supplier-order-schedules">

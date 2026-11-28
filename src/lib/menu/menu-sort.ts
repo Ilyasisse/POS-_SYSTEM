@@ -1,4 +1,4 @@
-import type { MenuProduct } from "./menu-data";
+import type { MenuProduct } from "@/types/menu/menu-types";
 
 export type MenuSort = "menu" | "price-low" | "price-high" | "name";
 
