@@ -20,11 +20,19 @@ export function getPostHogClient(): PostHog | null {
   }
 
   if (!_client) {
+    // Vercel's runtime region distinguishes deployed code from local builds.
+    const reportExceptions =
+      process.env.NODE_ENV === "production" &&
+      process.env.VERCEL_TARGET_ENV === "production" &&
+      Boolean(process.env.VERCEL_REGION);
+
     _client = new PostHog(projectToken, {
       host,
       flushAt: 1,
       flushInterval: 0,
-      enableExceptionAutocapture: true,
+      enableExceptionAutocapture: reportExceptions,
+      before_send: (event) =>
+        !reportExceptions && event?.event === "$exception" ? null : event,
     });
   }
 
