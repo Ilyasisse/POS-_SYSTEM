@@ -23,12 +23,14 @@ type Line = {
   payerName: string;
   payerPhone: string;
   amount: string;
+  method: string;
 };
 type RequestLine = {
   id: string;
   payerName: string;
   payerPhone: string;
   amount: number;
+  method: string;
   paidAmount: number;
   remainingAmount: number;
   status: string;
@@ -83,7 +85,6 @@ export default function CashierPaymentDialog({
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState("");
   const [equalSplitCount, setEqualSplitCount] = useState("2");
   const [lines, setLines] = useState<Line[]>([
     {
@@ -91,6 +92,7 @@ export default function CashierPaymentDialog({
       payerName: "",
       payerPhone: "",
       amount: amountDue.toFixed(2),
+      method: "",
     },
   ]);
   const [payLater, setPayLater] = useState(false);
@@ -189,6 +191,7 @@ export default function CashierPaymentDialog({
           payerName: "",
           payerPhone: "",
           amount: amount.toFixed(2),
+          method: "",
         })),
       );
       setPayLater(false);
@@ -202,7 +205,9 @@ export default function CashierPaymentDialog({
 
   async function startChecks() {
     setError("");
-    if (!method) return setError("Select a payment method first.");
+    if (lines.some((line) => !line.method)) {
+      return setError("Select a payment method for every payer.");
+    }
     const key = crypto.randomUUID();
     setSubmitting(true);
     try {
@@ -212,12 +217,12 @@ export default function CashierPaymentDialog({
         body: JSON.stringify({
           batchKey: key,
           tableId,
-          method,
           payLater,
           lines: lines.map((line) => ({
             payerName: line.payerName,
             payerPhone: line.payerPhone,
             amount: Number(line.amount),
+            method: line.method,
           })),
         }),
       });
@@ -326,7 +331,7 @@ export default function CashierPaymentDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="min-h-11 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+        <Button className="min-h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
           Take payment · {money(amountDue)}
         </Button>
       </DialogTrigger>
@@ -336,28 +341,11 @@ export default function CashierPaymentDialog({
             Payment for {tableName}
           </DialogTitle>
           <DialogDescription>
-            Create a row for each payer, then attach one or more incoming SAHAL
-            receipts.
+            Choose a provider for each payer, then attach incoming receipts.
           </DialogDescription>
         </DialogHeader>
         {!batchKey ? (
           <div className="space-y-5">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">
-                Payment method
-              </span>
-              <NativeSelect
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="w-full rounded-xl"
-              >
-                <option value="">Select payment method</option>
-                <option value="GOLIS">GOLIS / SAHAL</option>
-                <option value="MYCASH">MYCASH</option>
-                <option value="Dahabshiil">Dahabshiil</option>
-                <option value="OTHER">OTHER</option>
-              </NativeSelect>
-            </label>
             {showEqualSplit ? (
               <div className="rounded-2xl border bg-muted/30 p-4">
                 <p className="font-semibold">Split equally</p>
@@ -388,8 +376,21 @@ export default function CashierPaymentDialog({
               {lines.map((line, index) => (
                 <div
                   key={line.id}
-                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[1fr_1fr_7rem_auto]"
+                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"
                 >
+                  <NativeSelect
+                    aria-label={`Payer ${index + 1} payment method`}
+                    value={line.method}
+                    onChange={(event) =>
+                      updateLine(line.id, "method", event.target.value)
+                    }
+                  >
+                    <option value="">Method</option>
+                    <option value="GOLIS">GOLIS / SAHAL</option>
+                    <option value="MYCASH">MYCASH</option>
+                    <option value="Dahabshiil">Dahabshiil</option>
+                    <option value="OTHER">OTHER</option>
+                  </NativeSelect>
                   <Input
                     aria-label={`Payer ${index + 1} name`}
                     placeholder="Name"
@@ -442,6 +443,7 @@ export default function CashierPaymentDialog({
                     payerName: "",
                     payerPhone: "",
                     amount: remaining ? remaining.toFixed(2) : "",
+                    method: current.at(-1)?.method ?? "",
                   },
                 ])
               }
@@ -449,7 +451,7 @@ export default function CashierPaymentDialog({
               + Add another payer
             </Button>
             <div
-              className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}
+              className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40" : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40"}`}
             >
               <div className="flex justify-between">
                 <span>Table balance</span>
@@ -465,7 +467,7 @@ export default function CashierPaymentDialog({
               </div>
             </div>
             {remaining > 0.001 ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
                 <input
                   type="checkbox"
                   checked={payLater}
@@ -474,14 +476,14 @@ export default function CashierPaymentDialog({
                 />
                 <span>
                   <strong>Pay later</strong>
-                  <span className="block text-sm text-amber-900">
+                  <span className="block text-sm text-amber-900 dark:text-amber-300">
                     Create a manager alert for the {money(remaining)} balance.
                   </span>
                 </span>
               </label>
             ) : null}
             {error ? (
-              <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">
+              <p className="rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-sm font-semibold text-red-700 dark:text-red-300">
                 {error}
               </p>
             ) : null}
@@ -494,14 +496,14 @@ export default function CashierPaymentDialog({
                 entered > amountDue ||
                 (remaining > 0.001 && !payLater)
               }
-              className="w-full rounded-full bg-stone-950 py-4 text-white"
+              className="w-full rounded-full bg-primary py-4 text-primary-foreground"
             >
               {submitting ? "Starting…" : "Start payment check"}
             </Button>
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-900 dark:text-blue-300">
               Incoming SMS messages from 898 appear below automatically. Select
               the payer first, then assign a receipt.
             </div>
@@ -511,17 +513,17 @@ export default function CashierPaymentDialog({
                   key={request.id}
                   type="button"
                   onClick={() => setSelectedRequestId(request.id)}
-                  className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "hover:bg-muted/40"}`}
+                  className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-100 dark:ring-blue-800" : "hover:bg-muted/40"}`}
                 >
                   <span className="font-semibold">
                     {request.payerName} · {request.payerPhone}
                   </span>
                   <span className="mt-2 block text-sm">
-                    Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
+                    {request.method} · Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
                     · Remaining {money(request.remainingAmount)}
                   </span>
                   <span
-                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}
+                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"}`}
                   >
                     {request.status.replaceAll("_", " ")}
                   </span>
@@ -617,7 +619,7 @@ export default function CashierPaymentDialog({
                           ) : null}
                           {receipt.parseError ? (
                             <>
-                              <p className="mt-2 text-sm font-semibold text-red-700">
+                              <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
                                 {receipt.parseError}
                               </p>
                               <p className="mt-2 break-words rounded-lg bg-muted p-2 text-xs">
@@ -645,7 +647,7 @@ export default function CashierPaymentDialog({
                                   : "Select a payer"}
                             </Button>
                             {over ? (
-                              <p className="mt-2 max-w-52 text-xs font-semibold text-red-700">
+                              <p className="mt-2 max-w-52 text-xs font-semibold text-red-700 dark:text-red-300">
                                 Receipt is larger than this payer&apos;s
                                 remaining amount.
                               </p>
@@ -685,7 +687,7 @@ export default function CashierPaymentDialog({
               <Button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="w-full rounded-full bg-emerald-700 py-4 text-white"
+                className="w-full rounded-full bg-emerald-700 hover:bg-emerald-700/90 py-4 text-white"
               >
                 Payment confirmed · return to cashier
               </Button>
