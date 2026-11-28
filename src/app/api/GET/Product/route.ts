@@ -39,6 +39,7 @@ export async function GET() {
         options: Array<{
           id: string;
           name: string;
+          allergenInfo: string | null;
           price: number;
         }>;
       };
@@ -68,6 +69,7 @@ export async function GET() {
         existingGroup.options.push({
           id: modifier.id,
           name: modifier.name,
+          allergenInfo: modifier.allergenInfo,
           price: Number(modifier.price),
         });
       }

@@ -38,6 +38,7 @@ export async function GET() {
           select: {
             id: true,
             name: true,
+            allergenInfo: true,
             price: true,
             pronunciationAudioUrl: true,
             modifierGroup: {
@@ -68,6 +69,7 @@ export async function GET() {
         options: Array<{
           id: string;
           name: string;
+          allergenInfo: string | null;
           price: (typeof product.modifiers)[number]["price"];
           pronunciationAudioUrl: string | null;
         }>;
@@ -100,6 +102,7 @@ export async function GET() {
         existingGroup.options.push({
           id: modifier.id,
           name: modifier.name,
+          allergenInfo: modifier.allergenInfo,
           price: modifier.price ?? 0,
           pronunciationAudioUrl: modifier.pronunciationAudioUrl ?? null,
         });

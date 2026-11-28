@@ -221,6 +221,11 @@ function ModifierGroupList({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-foreground font-semibold break-words">{option.name}</p>
+                        <p className="mt-1 text-xs leading-5 font-semibold text-amber-800">
+                          {option.allergenInfo
+                            ? `Allergen information: ${option.allergenInfo}`
+                            : "Allergen details not provided. Ask staff if needed."}
+                        </p>
                         <p className="text-muted-foreground mt-1 text-sm">
                           {Number(option.price) > 0
                             ? `+${formatCurrency(Number(option.price))}`
