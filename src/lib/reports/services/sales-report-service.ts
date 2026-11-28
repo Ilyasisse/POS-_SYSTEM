@@ -10,6 +10,7 @@ import {
 } from "@/lib/reports/financial-formulas";
 import type { ReportRange } from "@/lib/reports/reporting-calendar";
 import type { ReportQuery } from "@/lib/reports/validation";
+import { countDineInCovers } from "@/lib/reports/cover-metrics";
 
 type SalesRow = {
   name: string;
@@ -84,6 +85,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
         waiter: { select: { id: true, fullName: true } },
         cashier: { select: { id: true, fullName: true } },
         table: { select: { id: true, name: true } },
+        tableCheck: { select: { id: true, guestCount: true } },
         orderItems: {
           include: {
             product: {
@@ -125,6 +127,15 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
   const productRows = new Map<string, SalesRow>();
   const categoryRows = new Map<string, SalesRow>();
   const hourly = new Map<string, Prisma.Decimal>();
+  const dineInCovers = countDineInCovers(
+    orders.map((order) => ({
+      id: order.id,
+      type: order.type,
+      tableCheckId: order.tableCheck?.id ?? null,
+      guestCount: order.tableCheck?.guestCount ?? null,
+    })),
+  );
+  let dineInNetSales = zero();
 
   for (const order of orders) {
     for (const payment of order.payments)
@@ -173,12 +184,15 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       );
     }
 
+    const orderNet = netSales(orderGross, orderDiscounts, orderRefunds);
+    if (order.type === "DINE_IN") {
+      dineInNetSales = dineInNetSales.plus(orderNet);
+    }
+
     const hour = hourFormatter.format(order.closedAt ?? order.createdAt);
     hourly.set(
       hour,
-      (hourly.get(hour) ?? zero()).plus(
-        netSales(orderGross, orderDiscounts, orderRefunds),
-      ),
+      (hourly.get(hour) ?? zero()).plus(orderNet),
     );
   }
 
@@ -225,6 +239,8 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       unpaidOrders,
       voidedOrders,
       averageOrderValue: serialize(averageOrderValue(net, orders.length)),
+      dineInCovers,
+      salesPerCover: serialize(averageOrderValue(dineInNetSales, dineInCovers)),
       cogs: costCoveredLines > 0 ? cogs.toFixed(2) : null,
       grossProfit: serialize(profit),
       grossMargin: profit ? serialize(ratioPercent(profit, net)) : null,
@@ -251,6 +267,7 @@ export async function getSalesReport(range: ReportRange, query: ReportQuery) {
       waiter: order.waiter?.fullName ?? null,
       cashier: order.cashier?.fullName ?? null,
       table: order.table?.name ?? null,
+      guestCount: order.tableCheck?.guestCount ?? (order.type === "DINE_IN" ? 1 : null),
     })),
   };
 }

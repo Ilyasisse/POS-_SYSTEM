@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useReducer,
-  useState,
-  useTransition,
-} from "react";
+import { useDeferredValue, useEffect, useMemo, useReducer, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -25,20 +19,15 @@ import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
 import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet, {
-  CustomerCartPanel,
-} from "@/components/customer/CustomerCartSheet";
-import {
-  bodyFont,
-  displayFont,
-} from "@/components/customer/customer-order-styles";
+import CustomerCartSheet, { CustomerCartPanel } from "@/components/customer/CustomerCartSheet";
+import { bodyFont, displayFont } from "@/components/customer/customer-order-styles";
 import {
   buildModifierLines,
   getProductModifierGroups,
   type SelectedModifiersMap,
 } from "@/components/customer/customer-order-utils";
 
-type TableOption = { id: string; name: string };
+type TableOption = { id: string; name: string; guestCount: number };
 type Props = {
   tables: TableOption[];
   initialTableId?: string;
@@ -46,6 +35,7 @@ type Props = {
 };
 type State = {
   tableId: string;
+  guestCount: number;
   categoryId: string;
   searchTerm: string;
   orderNote: string;
@@ -58,7 +48,8 @@ type State = {
   error: string;
 };
 type Action =
-  | { type: "table"; value: string }
+  | { type: "table"; value: string; guestCount: number }
+  | { type: "guestCount"; value: number }
   | { type: "category"; value: string }
   | { type: "search"; value: string }
   | { type: "note"; value: string }
@@ -76,7 +67,14 @@ type Action =
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "table":
-      return { ...state, tableId: action.value, error: "" };
+      return {
+        ...state,
+        tableId: action.value,
+        guestCount: action.guestCount,
+        error: "",
+      };
+    case "guestCount":
+      return { ...state, guestCount: action.value, error: "" };
     case "category":
       return { ...state, categoryId: action.value };
     case "search":
@@ -163,11 +161,11 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-border bg-card p-6 sm:p-8"
+        className="border-border bg-card max-w-2xl rounded-[2rem] border p-6 sm:p-8"
       >
         <DialogHeader>
           <DialogTitle
-            className="text-center text-3xl text-foreground sm:text-4xl"
+            className="text-foreground text-center text-3xl sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
             Select an available table
@@ -184,14 +182,14 @@ function TablePicker({
                 type="button"
                 variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-border bg-card text-xl font-semibold text-foreground shadow-sm hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent"
+                className="border-border bg-card text-foreground hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent min-h-24 rounded-[1.5rem] border text-xl font-semibold shadow-sm"
               >
                 {table.name}
               </Button>
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-border p-8 text-center text-muted-foreground">
+          <div className="border-border text-muted-foreground mt-4 rounded-[1.5rem] border border-dashed p-8 text-center">
             Every active table is currently occupied.
           </div>
         )}
@@ -209,9 +207,8 @@ export default function CashierOrderExperience({
   const router = useRouter();
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
-    tableId: tables.some((table) => table.id === initialTableId)
-      ? initialTableId
-      : "",
+    tableId: tables.some((table) => table.id === initialTableId) ? initialTableId : "",
+    guestCount: tables.find((table) => table.id === initialTableId)?.guestCount ?? 1,
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
@@ -224,14 +221,8 @@ export default function CashierOrderExperience({
     error: "",
   });
   const { productsAll, categories, baristas, loading } = useWaiterData();
-  const {
-    cart,
-    addToCart,
-    changeQuantity,
-    removeFromCart,
-    clearCart,
-    calculateCartTotal,
-  } = useWaiterCart();
+  const { cart, addToCart, changeQuantity, removeFromCart, clearCart, calculateCartTotal } =
+    useWaiterCart();
   const deferredSearch = useDeferredValue(state.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const products = useMemo(
@@ -242,41 +233,32 @@ export default function CashierOrderExperience({
       })),
     [productsAll],
   );
-  const menuCategories = useMemo(
-    () => getCategories(categories, products),
-    [categories, products],
-  );
+  const menuCategories = useMemo(() => getCategories(categories, products), [categories, products]);
   const categoryChips = useMemo(
     () => [
       { id: "all", name: "All", count: products.length },
       ...menuCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: products.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: products.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [menuCategories, products],
   );
-  const selectedCategory = categoryChips.some(
-    (category) => category.id === state.categoryId,
-  )
+  const selectedCategory = categoryChips.some((category) => category.id === state.categoryId)
     ? state.categoryId
     : "all";
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
     return products.filter(
       (product) =>
-        (selectedCategory === "all" ||
-          product.category?.id === selectedCategory) &&
+        (selectedCategory === "all" || product.category?.id === selectedCategory) &&
         (!term ||
           product.name.toLowerCase().includes(term) ||
           (product.description ?? "").toLowerCase().includes(term)),
     );
   }, [deferredSearch, products, selectedCategory]);
-  const tableName =
-    tables.find((table) => table.id === state.tableId)?.name ?? "";
+  const tableName = tables.find((table) => table.id === state.tableId)?.name ?? "";
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
   useAos(
@@ -315,19 +297,14 @@ export default function CashierOrderExperience({
     baristaId: string | null,
   ) {
     const modifiers = buildModifierLines(product, selected);
-    const barista = baristaId
-      ? baristas.find((item) => item.id === baristaId)
-      : null;
+    const barista = baristaId ? baristas.find((item) => item.id === baristaId) : null;
     addToCart({
       ...product,
       station: product.category?.station ?? null,
       selectedModifiers: modifiers,
       finalPrice:
         (Number(product.price) || 0) +
-        modifiers.reduce(
-          (sum, modifier) => sum + modifier.price * modifier.qty,
-          0,
-        ),
+        modifiers.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0),
       assignedUserId: barista?.id ?? null,
       assignedUserName: barista?.fullName ?? null,
     });
@@ -362,7 +339,7 @@ export default function CashierOrderExperience({
         body: JSON.stringify({
           ...(isTakeaway
             ? { orderType, paymentMethod: state.paymentMethod }
-            : { tableId: state.tableId }),
+            : { tableId: state.tableId, guestCount: state.guestCount }),
           notes: state.orderNote,
           items: cart.map((item) => ({
             productId: item.id,
@@ -376,8 +353,7 @@ export default function CashierOrderExperience({
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "The order could not be sent.");
+      if (!response.ok) throw new Error(data?.error || "The order could not be sent.");
       clearCart();
       router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
       router.refresh();
@@ -393,13 +369,20 @@ export default function CashierOrderExperience({
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <TablePicker
         open={!isTakeaway && !state.tableId}
         tables={tables}
-        onSelect={(value) => dispatch({ type: "table", value })}
+        onSelect={(value) => {
+          const selectedTable = tables.find((table) => table.id === value);
+          dispatch({
+            type: "table",
+            value,
+            guestCount: selectedTable?.guestCount ?? 1,
+          });
+        }}
       />
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <CustomerOrderHeader
@@ -422,6 +405,32 @@ export default function CashierOrderExperience({
           }}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
         />
+        <div className="bg-card/90 mb-4 rounded-2xl border border-amber-200 p-4 shadow-sm">
+          <label htmlFor="cashier-guest-count" className="block max-w-xs">
+            <span className="mb-1 block text-sm font-semibold">Guests at this table</span>
+            <Input
+              id="cashier-guest-count"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value={state.guestCount}
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+                if (Number.isInteger(value) && value >= 1 && value <= 100) {
+                  dispatch({ type: "guestCount", value });
+                }
+              }}
+              aria-describedby="cashier-guest-count-help"
+            />
+            <span
+              id="cashier-guest-count-help"
+              className="text-muted-foreground mt-1 block text-xs"
+            >
+              Used for covers and sales-per-customer reporting.
+            </span>
+          </label>
+        </div>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
             <MenuBrowserPanel
@@ -438,9 +447,7 @@ export default function CashierOrderExperience({
               filteredProducts={filteredProducts}
               baristas={baristas}
               selectedCategoryName={
-                categoryChips.find(
-                  (category) => category.id === selectedCategory,
-                )?.name ?? "All"
+                categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All"
               }
               isFiltering={isFiltering}
               onProductClick={addProduct}
@@ -465,9 +472,7 @@ export default function CashierOrderExperience({
             paymentMethod={isTakeaway ? state.paymentMethod : undefined}
             checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
             onPaymentMethodChange={
-              isTakeaway
-                ? (value) => dispatch({ type: "paymentMethod", value })
-                : undefined
+              isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
             }
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
@@ -506,9 +511,7 @@ export default function CashierOrderExperience({
         paymentMethod={isTakeaway ? state.paymentMethod : undefined}
         checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
         onPaymentMethodChange={
-          isTakeaway
-            ? (value) => dispatch({ type: "paymentMethod", value })
-            : undefined
+          isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
         }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
