@@ -4,9 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { findAppUser } from "@/lib/auth/app-user";
 import type { CustomerReturnPath } from "@/lib/auth/customer-return-path";
 
-export async function redirectAuthenticatedUser(
-  next: CustomerReturnPath | null = null,
-) {
+export async function redirectAuthenticatedUser(next: CustomerReturnPath | null = null) {
   const supabase = await createClient();
 
   const {

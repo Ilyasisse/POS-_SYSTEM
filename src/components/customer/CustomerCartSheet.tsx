@@ -156,7 +156,7 @@ function CartHeader({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.3em] text-amber-200/90">
-            {isCashier ? "Kitchen order" : "Your order"}
+            {isCashier ? "Kitchen order" : tableName ? "Table order" : "Your order"}
           </p>
           <h2
             className="mt-3 break-words text-3xl sm:text-4xl"
@@ -165,7 +165,7 @@ function CartHeader({
                 '"Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif',
             }}
           >
-            {isCashier ? tableName || "Selected table" : "Cart"}
+            {isCashier ? tableName || "Selected table" : tableName || "Cart"}
           </h2>
           <p className="mt-1 text-sm text-white/70">
             {cartCount} item{cartCount === 1 ? "" : "s"}
@@ -304,15 +304,15 @@ function CartBody({
           ) : null}
           {isCashier ? (
             <div className="md:col-span-2">
-              <Textarea
-                aria-label="Special requests or notes"
-                value={orderNote}
-                onChange={(event) => onOrderNoteChange(event.target.value)}
-                placeholder="Special requests or notes"
-                rows={4}
-                className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
-              />
-            </div>
+            <Textarea
+              aria-label="Special requests or notes"
+              value={orderNote}
+              onChange={(event) => onOrderNoteChange(event.target.value)}
+              placeholder="Special requests or notes"
+              rows={4}
+              className="w-full rounded-[1.25rem] border border-border bg-muted/50 px-4 py-3 text-sm outline-none focus:border-ring"
+            />
+        </div>
           ) : null}
         </div>
         {!isCashier && onFulfillmentChange ? (

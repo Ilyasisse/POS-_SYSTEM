@@ -24,7 +24,7 @@ jobs:
       - run: npx prisma validate
       - run: npm run prisma:generate
       - name: Customer checkout unit tests
-        run: node --import tsx --test tests/unit/customer-mobile-money-checkout.test.ts tests/unit/customer-checkout-review.test.ts tests/unit/customer-order-draft.test.ts tests/unit/customer-order-progress.test.ts tests/unit/macrodroid-payment-inbox.test.ts tests/unit/payment-webhook.test.ts
+        run: node --import tsx --test tests/unit/customer-mobile-money-checkout.test.ts tests/unit/customer-checkout-review.test.ts tests/unit/customer-order-draft.test.ts tests/unit/customer-order-progress.test.ts tests/unit/macrodroid-payment-inbox.test.ts tests/unit/payment-webhook.test.ts tests/unit/table-qr-ordering.test.ts tests/unit/table-qr-checkout.test.ts
       - name: Customer checkout modifier API regression
         run: node --test tests/integration/customer-checkout-modifier-validation.test.mjs
       - name: Database migration tests

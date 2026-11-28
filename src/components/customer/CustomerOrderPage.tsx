@@ -44,8 +44,7 @@ import { bodyFont } from "./customer-order-styles";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
 
 const posthogConfigured = Boolean(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN &&
-  process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && process.env.NEXT_PUBLIC_POSTHOG_HOST,
 );
 
 function isPastScrollOffset(offset: number) {
@@ -57,9 +56,7 @@ function scrollToTop() {
 }
 
 function useBackToTopVisibility(offset: number) {
-  const [showBackToTop, setShowBackToTop] = useState(() =>
-    isPastScrollOffset(offset),
-  );
+  const [showBackToTop, setShowBackToTop] = useState(() => isPastScrollOffset(offset));
 
   useEffect(() => {
     function handleScroll() {
@@ -253,11 +250,13 @@ function customerOrderReducer(
 type CustomerOrderPageProps = {
   authState: "guest" | "customer" | "blocked";
   accountName?: string;
+  tableOrderContext?: { token: string; tableName: string };
 };
 
 export default function CustomerOrderPage({
   authState,
   accountName = "",
+  tableOrderContext,
 }: CustomerOrderPageProps) {
   const {
     productsAll,
@@ -279,6 +278,7 @@ export default function CustomerOrderPage({
   const [orderState, dispatchOrderState] = useReducer(customerOrderReducer, {
     ...initialCustomerOrderState,
     customerName: accountName,
+    orderType: tableOrderContext ? "DINE_IN" : "TAKEOUT",
   });
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
@@ -294,6 +294,7 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    tableOrderContext?.token,
   ]);
   const deferredSearch = useDeferredValue(orderState.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
@@ -322,18 +323,14 @@ export default function CustomerOrderPage({
       ...kioskCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: kioskProducts.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: kioskProducts.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [kioskCategories, kioskProducts],
   );
   const selectedCategory =
     orderState.selectedCategoryValue === "all" ||
-    categoryChips.some(
-      (category) => category.id === orderState.selectedCategoryValue,
-    )
+    categoryChips.some((category) => category.id === orderState.selectedCategoryValue)
       ? orderState.selectedCategoryValue
       : "all";
 
@@ -353,8 +350,7 @@ export default function CustomerOrderPage({
   }, [deferredSearch, kioskProducts, selectedCategory]);
 
   const selectedCategoryName =
-    categoryChips.find((category) => category.id === selectedCategory)?.name ??
-    "All";
+    categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All";
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
@@ -384,11 +380,10 @@ export default function CustomerOrderPage({
         error: issues.join(" "),
       });
     }
-    const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment)
-      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    const fulfillment = tableOrderContext ? null : restoreCustomerFulfillment();
+    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
-  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
+  }, [loading, catalogError, productsAll, baristas, replaceCart, accountName, tableOrderContext]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -396,7 +391,7 @@ export default function CustomerOrderPage({
       clearCustomerOrderDraft();
       return;
     }
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    if (!tableOrderContext) saveCustomerFulfillment(orderState.orderType, orderState.tableId);
     saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -411,6 +406,7 @@ export default function CustomerOrderPage({
     orderState.orderNote,
     orderState.orderType,
     orderState.tableId,
+    tableOrderContext,
   ]);
 
   useAos(
@@ -426,10 +422,10 @@ export default function CustomerOrderPage({
     clearCustomerOrderDraft();
     clearCart();
     dispatchOrderState({ type: "reset" });
-    dispatchOrderState({
-      type: "customerNameChanged",
-      customerName: accountName,
-    });
+    dispatchOrderState({ type: "customerNameChanged", customerName: accountName });
+    if (tableOrderContext) {
+      dispatchOrderState({ type: "fulfillmentChanged", orderType: "DINE_IN", tableId: "" });
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -443,10 +439,7 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (
-      getProductModifierGroups(product).length > 0 ||
-      product.category?.station === "BARISTA"
-    ) {
+    if (getProductModifierGroups(product).length > 0 || product.category?.station === "BARISTA") {
       dispatchOrderState({ type: "modifierOpened", product });
       return;
     }
@@ -523,8 +516,7 @@ export default function CustomerOrderPage({
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error:
-          "Enter 90 followed by seven digits for the phone sending payment.",
+        error: "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
@@ -536,11 +528,8 @@ export default function CustomerOrderPage({
       return;
     }
 
-    if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
-      dispatchOrderState({
-        type: "checkoutBlocked",
-        error: "Select your table before checkout.",
-      });
+    if (!tableOrderContext && orderState.orderType === "DINE_IN" && !orderState.tableId) {
+      dispatchOrderState({ type: "checkoutBlocked", error: "Select your table before checkout." });
       return;
     }
 
@@ -556,8 +545,9 @@ export default function CustomerOrderPage({
           customerName: orderState.customerName,
           paymentPhone: orderState.customerPhone,
           idempotencyKey: (checkoutKeyRef.current ??= crypto.randomUUID()),
-          orderType: orderState.orderType,
-          tableId: orderState.tableId || null,
+          orderType: tableOrderContext ? "DINE_IN" : orderState.orderType,
+          tableId: tableOrderContext ? undefined : orderState.tableId || null,
+          tableToken: tableOrderContext?.token,
           items: cart.map((item) => ({
             productId: item.id,
             qty: item.quantity,
@@ -586,9 +576,7 @@ export default function CustomerOrderPage({
       if (!response.ok || !data.checkout?.id) {
         throw new Error(data.error || "Could not start mobile money checkout.");
       }
-      window.location.assign(
-        `/customer/checkout/${encodeURIComponent(data.checkout.id)}`,
-      );
+      window.location.assign(`/customer/checkout/${encodeURIComponent(data.checkout.id)}`);
     } catch (error) {
       dispatchOrderState({
         type: "checkoutFailed",
@@ -600,7 +588,7 @@ export default function CustomerOrderPage({
   }
 
   function handleContinueWithGoogle() {
-    saveCustomerFulfillment(orderState.orderType, orderState.tableId);
+    if (!tableOrderContext) saveCustomerFulfillment(orderState.orderType, orderState.tableId);
     const saved = saveCustomerOrderDraft(
       cart,
       orderState.customerName,
@@ -613,17 +601,24 @@ export default function CustomerOrderPage({
       );
       return;
     }
-    window.location.assign("/auth/google/start?next=%2Fcustomer");
+    const next = tableOrderContext ? `/table/${tableOrderContext.token}` : "/customer";
+    window.location.assign(`/auth/google/start?next=${encodeURIComponent(next)}`);
   }
 
   return (
     <main
-      className="relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-screen overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(255,255,255,0))]" />
 
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
+        {tableOrderContext ? (
+          <p className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-900">
+            Ordering for {tableOrderContext.tableName}. Sign in and pay at checkout to send your
+            order to the kitchen.
+          </p>
+        ) : null}
         <CustomerOrderHeader
           historyHref="/customer/orders"
           cartSubtotal={cartSubtotal}
@@ -634,7 +629,7 @@ export default function CustomerOrderPage({
         {catalogError ? (
           <div
             role="alert"
-            className="mt-4 rounded-2xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-rose-800 dark:text-rose-300"
+            className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
           >
             {catalogError}
           </div>
@@ -644,9 +639,7 @@ export default function CustomerOrderPage({
           searchTerm={orderState.searchTerm}
           categoryChips={categoryChips}
           selectedCategory={selectedCategory}
-          onSearchChange={(searchTerm) =>
-            dispatchOrderState({ type: "searchChanged", searchTerm })
-          }
+          onSearchChange={(searchTerm) => dispatchOrderState({ type: "searchChanged", searchTerm })}
           onCategorySelect={(category) =>
             startFiltering(() => {
               dispatchOrderState({ type: "categorySelected", category });
@@ -665,9 +658,7 @@ export default function CustomerOrderPage({
       </div>
 
       <BackToTopButton
-        show={
-          showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen
-        }
+        show={showBackToTop && !orderState.cartOpen && !orderState.modifierModalOpen}
         onClick={scrollToTop}
       />
 
@@ -700,29 +691,23 @@ export default function CustomerOrderPage({
           dispatchOrderState({ type: "cartCleared" });
         }}
         onCheckout={handlePlaceOrder}
+        tableName={tableOrderContext?.tableName}
       />
       <Dialog open={signInOpen} onOpenChange={setSignInOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle>Sign in to place your order</DialogTitle>
             <DialogDescription>
-              Continue with Google. We will bring you back to this cart so you
-              can review it before placing your order.
+              Continue with Google. We will bring you back to this cart so you can review it before
+              placing your order.
             </DialogDescription>
           </DialogHeader>
           {signInError ? (
-            <p
-              role="alert"
-              className="text-sm text-rose-700 dark:text-rose-300"
-            >
+            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
               {signInError}
             </p>
           ) : null}
-          <Button
-            type="button"
-            onClick={handleContinueWithGoogle}
-            className="w-full rounded-full"
-          >
+          <Button type="button" onClick={handleContinueWithGoogle} className="w-full rounded-full">
             Continue with Google
           </Button>
           <Button
