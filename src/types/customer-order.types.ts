@@ -12,6 +12,8 @@ export type CustomerOrderState = {
   customerName: string;
   customerPhone: string;
   orderNote: string;
+  orderType: "DINE_IN" | "TAKEOUT";
+  tableId: string;
   selectedProduct: Product | null;
   modifierModalOpen: boolean;
   cartOpen: boolean;
