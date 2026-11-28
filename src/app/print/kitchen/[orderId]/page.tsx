@@ -2,13 +2,8 @@ import { notFound } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { kitchenStationLabel } from "@/lib/kitchen/kitchen-print";
-import {
-  getPrintableKitchenTicket,
-} from "@/lib/kitchen/kitchen-tickets";
-import {
-  normalizeKitchenStation,
-  type KitchenStation,
-} from "@/lib/kitchen/kitchen-socket";
+import { getPrintableKitchenTicket } from "@/lib/kitchen/kitchen-tickets";
+import { normalizeKitchenStation, type KitchenStation } from "@/lib/kitchen/kitchen-socket";
 import PrintButton from "./PrintButton";
 
 const dateTime = new Intl.DateTimeFormat("en-US", {
@@ -25,40 +20,27 @@ export default async function PrintableKitchenTicketPage({
   searchParams: Promise<{ station?: string }>;
 }) {
   const [{ orderId }, query] = await Promise.all([params, searchParams]);
-  const requestedStation = query.station
-    ? normalizeKitchenStation(query.station)
-    : undefined;
+  const requestedStation = query.station ? normalizeKitchenStation(query.station) : undefined;
   if (query.station && !requestedStation) notFound();
 
   const currentUser = await requirePermission(
     PERMISSIONS.KITCHEN_TICKET_VIEW,
     requestedStation ? { stations: [requestedStation] } : undefined,
   );
-  const ticket = await getPrintableKitchenTicket(
-    currentUser,
-    orderId,
-    requestedStation,
-  );
+  const ticket = await getPrintableKitchenTicket(currentUser, orderId, requestedStation);
   if (!ticket) notFound();
 
-  const stations = [
-    ...new Set(ticket.items.map((item) => item.station)),
-  ] as KitchenStation[];
-  const title =
-    stations.length === 1
-      ? kitchenStationLabel(stations[0])
-      : "All kitchen stations";
+  const stations = [...new Set(ticket.items.map((item) => item.station))] as KitchenStation[];
+  const title = stations.length === 1 ? kitchenStationLabel(stations[0]) : "All kitchen stations";
 
   return (
-    <main className="min-h-dvh bg-muted/30 p-4 text-black print:bg-white print:p-0">
+    <main className="bg-muted/30 min-h-dvh p-4 text-black print:bg-white print:p-0">
       <div className="mx-auto mb-4 flex max-w-sm justify-end print:hidden">
         <PrintButton />
       </div>
       <article className="mx-auto max-w-sm bg-white p-6 shadow-sm print:max-w-none print:p-0 print:shadow-none">
         <header className="border-b-2 border-black pb-3 text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.25em]">
-            Kitchen ticket
-          </p>
+          <p className="text-xs font-bold tracking-[0.25em] uppercase">Kitchen ticket</p>
           <h1 className="mt-1 text-2xl font-black">{title}</h1>
           <p className="mt-2 text-lg font-bold">
             Order #{ticket.orderNumber} · Round {ticket.roundNumber}
@@ -92,12 +74,12 @@ export default async function PrintableKitchenTicketPage({
                 <span>{item.name}</span>
               </div>
               {stations.length > 1 ? (
-                <p className="ml-10 mt-1 text-xs font-bold uppercase">
-                  {kitchenStationLabel(item.station)}
+                <p className="mt-1 ml-10 text-xs font-bold uppercase">
+                  {item.station ? kitchenStationLabel(item.station) : "Unassigned station"}
                 </p>
               ) : null}
               {item.modifiers.length ? (
-                <ul className="ml-10 mt-2 list-disc space-y-1 text-sm font-semibold">
+                <ul className="mt-2 ml-10 list-disc space-y-1 text-sm font-semibold">
                   {item.modifiers.map((modifier) => (
                     <li key={modifier.id}>
                       {modifier.qty}× {modifier.name}
@@ -106,7 +88,7 @@ export default async function PrintableKitchenTicketPage({
                 </ul>
               ) : null}
               {item.assignedUserName ? (
-                <p className="ml-10 mt-2 text-xs">
+                <p className="mt-2 ml-10 text-xs">
                   Assigned: <strong>{item.assignedUserName}</strong>
                 </p>
               ) : null}

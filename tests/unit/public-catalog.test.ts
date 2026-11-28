@@ -1,3 +1,4 @@
+import * as productImages from "../../src/lib/products/product-images";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -35,10 +36,7 @@ for (const popular of [false, true]) {
           assert.equal(input.where.category.isActive, true);
           assert.equal(input.where.isPopular, popular ? true : undefined);
           assert.equal(input.select.cost, undefined);
-          assert.equal(
-            input.select.modifiers.where.modifierGroup.isActive,
-            true,
-          );
+          assert.equal(input.select.modifiers.where.modifierGroup.isActive, true);
           return [
             {
               id: "tea",
@@ -67,6 +65,7 @@ for (const popular of [false, true]) {
     };
     const dependencies = {
       "@/lib/prisma": { prisma },
+      "@/lib/products/product-images": productImages,
       "@/lib/products/availability": { availableForSaleWhere: () => ({}) },
       "next/server": { NextResponse: { json: (body: unknown) => body } },
     };
@@ -74,9 +73,7 @@ for (const popular of [false, true]) {
       getPublicProducts: (popular?: boolean) => Promise<unknown>;
     }>("src/lib/products/public-catalog.ts", dependencies);
     const route = load<{
-      GET: () => Promise<
-        { price: number; modifierGroups: { options: { price: number }[] }[] }[]
-      >;
+      GET: () => Promise<{ price: number; modifierGroups: { options: { price: number }[] }[] }[]>;
     }>(`src/app/api/GET/Product/${popular ? "" : "all/"}route.ts`, {
       ...dependencies,
       "@/lib/products/public-catalog": catalog,

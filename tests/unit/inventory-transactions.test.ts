@@ -48,14 +48,14 @@ test("concurrent supply takes preserve both deductions and sequential ledger bal
     quantityDelta: Prisma.Decimal;
   }> = [];
 
-  database.$transaction = async (
-    callback: (tx: unknown) => Promise<unknown>,
-  ) => {
+  database.$transaction = async (callback: (tx: unknown) => Promise<unknown>) => {
     const transactionId = ++nextTransaction;
     let releaseLock: (() => void) | undefined;
     let reads = 0;
     const tx = {
-      $queryRaw: async () => {
+      $queryRaw: async (query: unknown) => {
+        if (Array.isArray(query) && query.join(" ").includes("actorCafeteria"))
+          return [{ actorCafeteria: null, supplyCafeteria: null }];
         if (lockOwner === transactionId) return [{ id: "supply-1" }];
         const previousLock = pendingLock;
         pendingLock = new Promise<void>((resolve) => {
@@ -70,16 +70,13 @@ test("concurrent supply takes preserve both deductions and sequential ledger bal
           const snapshot = stock;
           // Reproduce a stale first read completing after the other take has written.
           // Taking the row lock before reading prevents this interleaving.
-          if (
-            transactionId === 2 &&
-            ++reads === 1 &&
-            lockOwner !== transactionId
-          ) {
+          if (transactionId === 2 && ++reads === 1 && lockOwner !== transactionId) {
             await firstMovement;
           }
           return {
             id: "supply-1",
             name: "Sugar",
+            isActive: true,
             unit: "g",
             stockQty: snapshot,
             lowStockThreshold: new Prisma.Decimal(1),
@@ -90,13 +87,8 @@ test("concurrent supply takes preserve both deductions and sequential ledger bal
           };
         },
         update: async () => ({}),
-        updateMany: async ({
-          data,
-        }: {
-          data: { stockQty: { increment: Prisma.Decimal } };
-        }) => {
-          if (stock.add(data.stockQty.increment).isNegative())
-            return { count: 0 };
+        updateMany: async ({ data }: { data: { stockQty: { increment: Prisma.Decimal } } }) => {
+          if (stock.add(data.stockQty.increment).isNegative()) return { count: 0 };
           stock = stock.add(data.stockQty.increment);
           return { count: 1 };
         },
@@ -136,12 +128,8 @@ test("concurrent supply takes preserve both deductions and sequential ledger bal
   };
   const results = await Promise.allSettled([take("2"), take("3")]);
   for (const result of results) {
-    assert.equal(result.status, "rejected");
-    if (result.status === "rejected")
-      assert.match(
-        String(result.reason),
-        /redirect:\/inventory\?inventoryEmail=none/,
-      );
+    assert.equal(result.status, "fulfilled");
+    if (result.status === "fulfilled") assert.deepEqual(result.value, { ok: true, email: "none" });
   }
   assert.equal(stock.toString(), "5");
   assert.deepEqual(

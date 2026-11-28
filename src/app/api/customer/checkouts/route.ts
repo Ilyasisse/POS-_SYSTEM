@@ -260,6 +260,7 @@ export async function POST(request: Request) {
       const selectedModifiers: SelectedModifierLine[] = [];
       const handledModifierIds = new Set<string>();
       const validatedModifierIds = new Set<string>();
+      let invalidCustomModifier = false;
 
       for (const incomingModifier of incomingModifiers) {
         if (!incomingModifier?.modifierId || handledModifierIds.has(incomingModifier.modifierId)) {
@@ -269,6 +270,10 @@ export async function POST(request: Request) {
         handledModifierIds.add(incomingModifier.modifierId);
 
         if (isPlaceholderModifier(incomingModifier)) {
+          if (!incomingModifier.modifierId.startsWith("placeholder__")) {
+            invalidCustomModifier = true;
+            continue;
+          }
           selectedModifiers.push({
             groupId: `placeholder-group-${incomingModifier.groupName ?? "custom"}`,
             groupName: incomingModifier.groupName?.trim() || "Custom",
@@ -307,6 +312,8 @@ export async function POST(request: Request) {
         availableOptions: product.modifiers,
         selectedModifierIds: [...validatedModifierIds],
       });
+      if (invalidCustomModifier)
+        throw new ModifierSelectionError("Catalog modifiers cannot be marked as custom options.");
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;

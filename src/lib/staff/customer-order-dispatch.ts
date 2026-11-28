@@ -12,7 +12,6 @@ export async function dispatchCustomerOrder(
   },
 ) {
   const now = new Date();
-  const { start, end } = getCashierBusinessDayRange(now);
   const [waiter, cashier] = await Promise.all([
     tx.staff.findFirst({
       where: {
