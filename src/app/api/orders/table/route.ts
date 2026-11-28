@@ -14,6 +14,10 @@ import {
   validateModifierSelections,
 } from "@/lib/orders/modifier-selection-validation";
 import { getPostHogClient } from "@/lib/posthog-server";
+import {
+  resolveTableOrderAttribution,
+  TableOrderOwnershipError,
+} from "@/lib/orders/table-order-access";
 
 type TableOrderItemModifierInput = {
   modifierId: string;
@@ -89,7 +93,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Staff account not found." }, { status: 403 });
     }
 
-    if (!hasPermission(currentUser, PERMISSIONS.ORDER_MANAGE)) {
+    if (
+      !hasPermission(currentUser, PERMISSIONS.ORDER_CREATE) &&
+      !hasPermission(currentUser, PERMISSIONS.ORDER_MANAGE)
+    ) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
@@ -267,27 +274,27 @@ export async function POST(request: Request) {
       });
 
       const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map((modifierId) => {
-        const modifier = modifierMap.get(modifierId);
+          const modifier = modifierMap.get(modifierId);
 
         if (
           !modifier ||
           !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
         ) {
           throw new ModifierSelectionError(
-            `Modifier ${modifierId} is invalid for product ${product.name}.`,
-          );
-        }
+              `Modifier ${modifierId} is invalid for product ${product.name}.`,
+            );
+          }
 
-        const incomingModifier = incomingModifierMap.get(modifierId);
+          const incomingModifier = incomingModifierMap.get(modifierId);
 
-        return {
-          groupId: modifier.modifierGroup.id,
-          groupName: modifier.modifierGroup.name,
-          optionId: modifier.id,
-          optionName: modifier.name,
-          price: roundCurrency(Number(modifier.price)),
-          qty: Math.max(1, Number(incomingModifier?.qty) || 1),
-        };
+          return {
+            groupId: modifier.modifierGroup.id,
+            groupName: modifier.modifierGroup.name,
+            optionId: modifier.id,
+            optionName: modifier.name,
+            price: roundCurrency(Number(modifier.price)),
+            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+          };
       });
 
       let assignedBaristaId: string | null = null;
@@ -370,6 +377,7 @@ export async function POST(request: Request) {
             orderNumber: true,
             tableCheckId: true,
             tableCheckRound: true,
+            waiterId: true,
             tableCheck: {
               select: {
                 id: true,
@@ -378,6 +386,10 @@ export async function POST(request: Request) {
             },
           },
         });
+        const attribution = resolveTableOrderAttribution(
+          currentUser,
+          latestOpenOrder,
+        );
 
         let tableCheckId = latestOpenOrder?.tableCheck?.id ?? null;
         let roundNumber = 1;
@@ -419,7 +431,7 @@ export async function POST(request: Request) {
               tableId: table.id,
               tableCheckId,
               tableCheckRound: roundNumber,
-              cashierId: currentUser.id,
+              ...attribution,
             },
             include: {
               tableCheck: { select: { checkNumber: true } },
@@ -433,7 +445,7 @@ export async function POST(request: Request) {
               notes: body.notes?.trim() || null,
               total: toDecimal(calculatedTotal),
               tableId: table.id,
-              cashierId: currentUser.id,
+              ...attribution,
             },
           });
           const tableCheck = await tx.tableCheck.create({
@@ -565,7 +577,7 @@ export async function POST(request: Request) {
       {
         error: error instanceof Error ? error.message : "Failed to create table order.",
       },
-      { status: 500 },
+      { status: error instanceof TableOrderOwnershipError ? 409 : 500 },
     );
   }
 }
