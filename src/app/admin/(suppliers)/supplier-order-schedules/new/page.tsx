@@ -27,7 +27,9 @@ export default async function NewSupplierOrderSchedulePage() {
       description="Invite employees to select supplier items, then automatically combine and send one purchase order."
       action={
         <Button asChild variant="outline">
-          <Link prefetch={false} href="/admin/supplier-order-schedules">Back to schedules</Link>
+          <Link prefetch={false} href="/admin/supplier-order-schedules">
+            Back to schedules
+          </Link>
         </Button>
       }
     >

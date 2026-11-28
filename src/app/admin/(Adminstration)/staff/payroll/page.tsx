@@ -26,7 +26,7 @@ import {
   transitionPayrollRunAction,
 } from "../actions";
 
-const label = "grid gap-1 text-sm font-semibold text-slate-700";
+const label = "grid gap-1 text-sm font-semibold text-foreground";
 const usd = (value: { toFixed(digits: number): string }) =>
   `$${value.toFixed(2)}`;
 
@@ -163,7 +163,7 @@ export default async function PayrollPage({
             </label>
             <Button type="submit">Create draft run</Button>
           </form>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-muted-foreground">
             Only approved attendance and approved adjustments are snapshotted.
             Finalized periods cannot overlap.
           </p>
@@ -329,7 +329,7 @@ export default async function PayrollPage({
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-slate-500">
+                  <tr className="text-left text-muted-foreground">
                     <th>Worker</th>
                     <th>Base</th>
                     <th>Overtime</th>
