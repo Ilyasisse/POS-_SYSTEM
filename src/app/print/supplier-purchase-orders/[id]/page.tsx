@@ -32,11 +32,11 @@ export default async function PrintableSupplierPurchaseOrderPage({
   if (!order) notFound();
 
   return (
-    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:p-0">
+    <main className="min-h-dvh bg-muted/30 p-4 text-foreground print:bg-white print:text-black print:p-0">
       <div className="mx-auto mb-4 flex max-w-4xl justify-end print:hidden">
         <PrintButton />
       </div>
-      <article className="mx-auto max-w-4xl rounded-2xl border bg-background p-6 shadow-sm print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
+      <article className="mx-auto max-w-4xl rounded-2xl border bg-background p-6 shadow-sm print:bg-white print:max-w-none print:rounded-none print:border-0 print:p-0 print:shadow-none">
         <header className="flex items-start justify-between gap-6 border-b pb-6">
           <div className="flex items-center gap-4">
             <Image
@@ -55,7 +55,9 @@ export default async function PrintableSupplierPurchaseOrderPage({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-semibold">PO #{order.orderNumber}</div>
+            <div className="text-2xl font-semibold">
+              PO #{order.orderNumber}
+            </div>
             <div className="text-sm text-muted-foreground">{order.status}</div>
           </div>
         </header>
@@ -67,16 +69,22 @@ export default async function PrintableSupplierPurchaseOrderPage({
             </h2>
             <p className="mt-1 text-xl font-semibold">{order.supplier.name}</p>
             <p className="text-sm">{order.supplier.contactName || ""}</p>
-            <p className="text-sm">{order.supplier.phone || order.supplier.email || ""}</p>
+            <p className="text-sm">
+              {order.supplier.phone || order.supplier.email || ""}
+            </p>
           </div>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <dt className="text-muted-foreground">Created</dt>
-              <dd className="font-medium">{DATE_FORMATTER.format(order.createdAt)}</dd>
+              <dd className="font-medium">
+                {DATE_FORMATTER.format(order.createdAt)}
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Expected delivery</dt>
-              <dd className="font-medium">{DATE_FORMATTER.format(order.expectedDeliveryDate)}</dd>
+              <dd className="font-medium">
+                {DATE_FORMATTER.format(order.expectedDeliveryDate)}
+              </dd>
             </div>
             <div className="col-span-2">
               <dt className="text-muted-foreground">Prepared by</dt>

@@ -64,7 +64,7 @@ function revalidateCashierViews() {
   revalidatePath("/manager/waiter-orders");
 }
 
-export async function deleteWaiterOrderItem(formData: FormData) {
+async function deleteWaiterOrderItem(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const orderId = String(formData.get("orderId") ?? "").trim();
@@ -320,7 +320,7 @@ export async function deleteWaiterOrderItem(formData: FormData) {
   redirect(returnPath);
 }
 
-export async function restoreDeletedWaiterOrderItem(formData: FormData) {
+async function restoreDeletedWaiterOrderItem(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const undoId = String(formData.get("undoId") ?? "").trim();
@@ -408,11 +408,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
-            | "CUNTO_SOOMAALI"
-            | "FAST_FOOD"
-            | "CABITAAN"
-            | "BARISTA"
-            | null,
+            "CUNTO_SOOMAALI" | "FAST_FOOD" | "CABITAAN" | "BARISTA" | null,
         },
       });
 
@@ -436,7 +432,8 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
             orderId: snapshot.order.id,
             cashierId: payment.cashierId,
             cashierName: payment.cashierName,
-            method: payment.method as "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
+            method: payment.method as
+              "MYCASH" | "GOLIS" | "Dahabshiil" | "OTHER",
             amountPaid: toDecimal(payment.amountPaid),
             reference: payment.reference,
             createdAt: new Date(payment.createdAt),
@@ -459,7 +456,8 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
         data: {
           qty: existingOrderItem.qty + snapshot.item.qty,
           lineTotal: toDecimal(
-            Number(existingOrderItem.lineTotal) + Number(snapshot.item.lineTotal),
+            Number(existingOrderItem.lineTotal) +
+              Number(snapshot.item.lineTotal),
           ),
         },
       });
@@ -482,11 +480,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
           createdAt: new Date(snapshot.item.createdAt),
           assignedUserId: snapshot.item.assignedUserId,
           station: snapshot.item.station as
-            | "CUNTO_SOOMAALI"
-            | "FAST_FOOD"
-            | "CABITAAN"
-            | "BARISTA"
-            | null,
+            "CUNTO_SOOMAALI" | "FAST_FOOD" | "CABITAAN" | "BARISTA" | null,
         },
       });
 
@@ -550,7 +544,7 @@ export async function restoreDeletedWaiterOrderItem(formData: FormData) {
   redirect(getReturnPath(snapshot.waiterId));
 }
 
-export async function discardDeletedWaiterOrderItem(formData: FormData) {
+async function discardDeletedWaiterOrderItem(formData: FormData) {
   await requirePermission(PERMISSIONS.ORDER_MANAGE);
 
   const undoId = String(formData.get("undoId") ?? "").trim();

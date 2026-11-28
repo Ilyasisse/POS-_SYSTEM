@@ -42,7 +42,10 @@ export async function createSupplierInvoiceRecurrenceInTransaction(
   input: CreateRecurrenceInput,
 ) {
   const now = input.now ?? new Date();
-  const schedule = validateSupplierInvoiceRecurrenceInput(input.recurrence, now);
+  const schedule = validateSupplierInvoiceRecurrenceInput(
+    input.recurrence,
+    now,
+  );
   const invoice = await tx.supplierInvoice.findUnique({
     where: { id: input.invoiceId.trim() },
     include: {
@@ -61,7 +64,10 @@ export async function createSupplierInvoiceRecurrenceInTransaction(
   if (!invoice.supplier.isActive) {
     throw new Error("The invoice supplier must be active.");
   }
-  if (!invoice.items.length || invoice.items.some((item) => !item.supplierCatalogItemId)) {
+  if (
+    !invoice.items.length ||
+    invoice.items.some((item) => !item.supplierCatalogItemId)
+  ) {
     throw new Error("Recurring invoices require supplier catalog items.");
   }
 
@@ -81,7 +87,9 @@ export async function createSupplierInvoiceRecurrenceInTransaction(
     activeItems.length !== catalogItemIds.length ||
     activeItems.some((item) => !activeCatalogName(item))
   ) {
-    throw new Error("Every recurring item must be active in the supplier catalog.");
+    throw new Error(
+      "Every recurring item must be active in the supplier catalog.",
+    );
   }
 
   const dueOffsetDays = supplierInvoiceDueOffsetDays(
@@ -89,7 +97,9 @@ export async function createSupplierInvoiceRecurrenceInTransaction(
     invoice.dueDate,
   );
   if (schedule.nextRunDate.getTime() <= invoice.invoiceDate.getTime()) {
-    throw new Error("The next invoice date must be after the source invoice date.");
+    throw new Error(
+      "The next invoice date must be after the source invoice date.",
+    );
   }
   return tx.supplierInvoiceRecurrence.create({
     data: {
@@ -119,7 +129,8 @@ export async function createSupplierInvoiceRecurrence(
   input: CreateRecurrenceInput,
 ) {
   if (!input.invoiceId.trim()) throw new Error("Supplier invoice not found.");
-  if (!input.createdByUserId.trim()) throw new Error("Schedule creator is required.");
+  if (!input.createdByUserId.trim())
+    throw new Error("Schedule creator is required.");
   return prisma.$transaction(
     (tx) => createSupplierInvoiceRecurrenceInTransaction(tx, input),
     { isolationLevel: SERIALIZABLE },
@@ -162,7 +173,8 @@ export async function pauseSupplierInvoiceRecurrence(input: {
       pausedByUserId: input.pausedByUserId.trim(),
     },
   });
-  if (result.count !== 1) throw new Error("This recurring schedule is already paused.");
+  if (result.count !== 1)
+    throw new Error("This recurring schedule is already paused.");
 }
 
 export async function resumeSupplierInvoiceRecurrence(input: {
@@ -189,11 +201,13 @@ export async function resumeSupplierInvoiceRecurrence(input: {
       lastErrorAt: null,
     },
   });
-  if (result.count !== 1) throw new Error("This recurring schedule is already active.");
+  if (result.count !== 1)
+    throw new Error("This recurring schedule is already active.");
 }
 
 function recurrenceFailureMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : "Unknown generation error.";
+  const message =
+    error instanceof Error ? error.message : "Unknown generation error.";
   return message.slice(0, 1000);
 }
 
@@ -242,13 +256,17 @@ async function generateOneRecurringSupplierInvoice(
         return false;
       }
       if (!recurrence.supplier.isActive) {
-        throw new Error("The supplier is inactive. Reactivate it or pause this schedule.");
+        throw new Error(
+          "The supplier is inactive. Reactivate it or pause this schedule.",
+        );
       }
       if (
         recurrence.sourceInvoice.source !== "MANUAL" ||
         recurrence.sourceInvoice.status === "VOID"
       ) {
-        throw new Error("The source invoice is no longer eligible for recurrence.");
+        throw new Error(
+          "The source invoice is no longer eligible for recurrence.",
+        );
       }
       if (!recurrence.items.length) {
         throw new Error("The recurring template has no invoice items.");
@@ -257,10 +275,7 @@ async function generateOneRecurringSupplierInvoice(
       const lines = recurrence.items.map((item) => {
         const catalogItem = item.supplierCatalogItem;
         const itemName = activeCatalogName(catalogItem);
-        if (
-          catalogItem.supplierId !== recurrence.supplierId ||
-          !itemName
-        ) {
+        if (catalogItem.supplierId !== recurrence.supplierId || !itemName) {
           throw new Error(
             "A recurring catalog item is inactive or no longer belongs to this supplier.",
           );
@@ -353,7 +368,8 @@ export async function generateDueSupplierInvoiceDrafts(
   const today = supplierPurchaseDateKeyToDatabaseDate(
     getSupplierPurchaseTodayDateKey(now),
   );
-  if (!today) throw new Error("Unable to calculate today's recurring invoice date.");
+  if (!today)
+    throw new Error("Unable to calculate today's recurring invoice date.");
   const generationLimit = Math.max(1, Math.min(Math.trunc(limit), 100));
   const failedScheduleIds = new Set<string>();
   let generated = 0;

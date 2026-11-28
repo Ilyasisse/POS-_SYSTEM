@@ -44,7 +44,7 @@ export type DeletedOrderItemSnapshot = {
   };
   payments: Array<{
     id: string;
-    cashierId: string;
+    cashierId: string | null;
     cashierName: string;
     method: string;
     amountPaid: number;
@@ -62,8 +62,7 @@ export function parseDeletedOrderItemSnapshots(
 
   try {
     const parsed = JSON.parse(rawValue) as
-      | DeletedOrderItemSnapshot
-      | DeletedOrderItemSnapshot[];
+      DeletedOrderItemSnapshot | DeletedOrderItemSnapshot[];
 
     if (Array.isArray(parsed)) {
       return parsed;

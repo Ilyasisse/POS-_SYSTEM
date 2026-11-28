@@ -3,7 +3,9 @@ export function roundMoney(value: number) {
 }
 
 export function fundingFor(amount: number, availableRevenue: number) {
-  const revenueFunded = roundMoney(Math.min(Math.max(availableRevenue, 0), amount));
+  const revenueFunded = roundMoney(
+    Math.min(Math.max(availableRevenue, 0), amount),
+  );
   return { revenueFunded, savingsFunded: roundMoney(amount - revenueFunded) };
 }
 
@@ -22,8 +24,12 @@ export function calculateDailyCashSummary(input: {
   );
   return {
     cashAvailableNow,
-    projectedRemaining: roundMoney(Math.max(0, cashAvailableNow - input.unpaidRequired)),
-    additionalSavingsRequired: roundMoney(Math.max(0, input.unpaidRequired - cashAvailableNow)),
+    projectedRemaining: roundMoney(
+      Math.max(0, cashAvailableNow - input.unpaidRequired),
+    ),
+    additionalSavingsRequired: roundMoney(
+      Math.max(0, input.unpaidRequired - cashAvailableNow),
+    ),
     savingsUsed: roundMoney(input.paidSavingsFunded),
   };
 }
@@ -38,7 +44,9 @@ export function validateSavingsDepositAmount(
     roundedAmount <= 0 ||
     Math.abs(amount - roundedAmount) > Number.EPSILON
   ) {
-    throw new Error("Enter a savings amount greater than zero with no more than two decimal places.");
+    throw new Error(
+      "Enter a savings amount greater than zero with no more than two decimal places.",
+    );
   }
   if (roundedAmount > roundMoney(projectedRemaining)) {
     throw new Error("Savings cannot exceed the projected remaining cash.");

@@ -145,7 +145,9 @@ export function validateSupplierInvoiceDraftCreationMetadata(
   switch (input.source) {
     case "PURCHASE_ORDER":
       if (!purchaseOrderId) {
-        throw new Error("Purchase-order invoices must reference a purchase order.");
+        throw new Error(
+          "Purchase-order invoices must reference a purchase order.",
+        );
       }
       if (!createdByUserId) {
         throw new Error("Purchase-order invoices require a creator.");
@@ -153,7 +155,9 @@ export function validateSupplierInvoiceDraftCreationMetadata(
       break;
     case "MANUAL":
       if (purchaseOrderId) {
-        throw new Error("Manual supplier invoices cannot reference a purchase order.");
+        throw new Error(
+          "Manual supplier invoices cannot reference a purchase order.",
+        );
       }
       if (!createdByUserId) {
         throw new Error("Manual supplier invoices require a creator.");
@@ -161,7 +165,9 @@ export function validateSupplierInvoiceDraftCreationMetadata(
       break;
     case "RECURRING":
       if (purchaseOrderId) {
-        throw new Error("Recurring supplier invoices cannot reference a purchase order.");
+        throw new Error(
+          "Recurring supplier invoices cannot reference a purchase order.",
+        );
       }
       if (!createdByUserId) {
         throw new Error("Recurring supplier invoices require a creator.");
@@ -275,7 +281,9 @@ function validateInstallments(
     throw new Error("Add at least one installment or use a single due date.");
   }
   if (installments.length > MAX_INSTALLMENTS) {
-    throw new Error(`An invoice can have at most ${MAX_INSTALLMENTS} installments.`);
+    throw new Error(
+      `An invoice can have at most ${MAX_INSTALLMENTS} installments.`,
+    );
   }
 
   let scheduledAmount = new Prisma.Decimal(0);
@@ -376,7 +384,10 @@ export function validateSupplierInvoiceDraftInput(
     }
   }
 
-  const roundedTotal = totalAmount.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const roundedTotal = totalAmount.toDecimalPlaces(
+    2,
+    Prisma.Decimal.ROUND_HALF_UP,
+  );
   return {
     supplierReference: optionalTrimmedText(
       input.supplierReference,

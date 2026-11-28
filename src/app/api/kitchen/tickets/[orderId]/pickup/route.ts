@@ -49,10 +49,16 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof KitchenTicketMutationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
 
     console.error("Kitchen pickup update failed:", error);
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request body." },
+      { status: 400 },
+    );
   }
 }
