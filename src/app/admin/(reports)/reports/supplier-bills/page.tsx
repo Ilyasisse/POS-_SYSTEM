@@ -1,11 +1,6 @@
+import SupplierLayout from "@/app/admin/(suppliers)/layout";
 import Link from "next/link";
-import {
-  AdminPage,
-  Button,
-  Card,
-  ClearFiltersLink,
-  MetricCard,
-} from "@/components/admin/shared";
+import { AdminPage, Button, Card, ClearFiltersLink, MetricCard } from "@/components/admin/shared";
 import AutoSubmitInput from "@/components/AutoSubmitInput";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { Input } from "@/components/ui/input";
@@ -31,11 +26,7 @@ function money(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-function dateInput(
-  value: string | undefined,
-  fallback: Date,
-  endOfDay = false,
-) {
+function dateInput(value: string | undefined, fallback: Date, endOfDay = false) {
   if (!isValidDateKey(value)) return fallback;
   const parsed = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00"}`);
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
@@ -43,8 +34,7 @@ function dateInput(
 
 const SUPPLIER_BILL_PAYMENT_STATUSES = ["UNPAID", "PARTIAL", "PAID"] as const;
 
-type SupplierBillPaymentStatus =
-  (typeof SUPPLIER_BILL_PAYMENT_STATUSES)[number];
+type SupplierBillPaymentStatus = (typeof SUPPLIER_BILL_PAYMENT_STATUSES)[number];
 
 type SupplierBillsSearchParams = {
   from?: string;
@@ -55,9 +45,7 @@ type SupplierBillsSearchParams = {
 };
 
 function paymentStatus(value: string | undefined) {
-  return SUPPLIER_BILL_PAYMENT_STATUSES.includes(
-    value as SupplierBillPaymentStatus,
-  )
+  return SUPPLIER_BILL_PAYMENT_STATUSES.includes(value as SupplierBillPaymentStatus)
     ? (value as SupplierBillPaymentStatus)
     : undefined;
 }
@@ -80,7 +68,7 @@ function SupplierBillsFilters({
   return (
     <form
       method="get"
-      className={`grid gap-3 rounded-2xl border border-border bg-card p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}
+      className={`border-border bg-card grid gap-3 rounded-2xl border p-4 ${showingDueThroughTomorrow ? "sm:grid-cols-3" : "sm:grid-cols-5"}`}
     >
       {showingDueThroughTomorrow ? (
         <Input type="hidden" name="scope" value="due-through-tomorrow" />
@@ -89,7 +77,7 @@ function SupplierBillsFilters({
         name="supplier"
         defaultValue={params.supplier || ""}
         aria-label="Supplier"
-        className="h-10 w-full rounded-lg border border-border px-2"
+        className="border-border h-10 w-full rounded-lg border px-2"
       >
         <option value="">All suppliers</option>
         {suppliers.map((row) => (
@@ -102,12 +90,10 @@ function SupplierBillsFilters({
         name="status"
         defaultValue={selectedPaymentStatus || ""}
         aria-label="Payment status"
-        className="h-10 w-full rounded-lg border border-border px-2"
+        className="border-border h-10 w-full rounded-lg border px-2"
       >
         <option value="">
-          {showingDueThroughTomorrow
-            ? "All outstanding"
-            : "All payment statuses"}
+          {showingDueThroughTomorrow ? "All outstanding" : "All payment statuses"}
         </option>
         <option value="UNPAID">Unpaid</option>
         <option value="PARTIAL">Partially paid</option>
@@ -131,13 +117,7 @@ function SupplierBillsFilters({
       )}
       <ClearFiltersLink
         href="/admin/reports/supplier-bills"
-        show={Boolean(
-          params.supplier ||
-          params.status ||
-          params.from ||
-          params.to ||
-          params.scope,
-        )}
+        show={Boolean(params.supplier || params.status || params.from || params.to || params.scope)}
       />
     </form>
   );
@@ -177,10 +157,7 @@ function SupplierBillsSummary({
         <MetricCard label="Unpaid balance" value={money(unpaid)} />
         <MetricCard label="Applied to invoices" value={money(paid)} />
         <MetricCard label="Supplier credit" value={money(supplierCredit)} />
-        <MetricCard
-          label="All-time cash paid"
-          value={money(supplierCashPaid)}
-        />
+        <MetricCard label="All-time cash paid" value={money(supplierCashPaid)} />
         <MetricCard label="Draft invoice value" value={money(draftValue)} />
         <MetricCard label="Void invoices" value={voidCount} />
       </section>
@@ -193,18 +170,12 @@ function SupplierBillsSummary({
         <h2 className="font-black">Supplier totals</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {supplierAccounts.map((supplier) => (
-            <div
-              key={supplier.id}
-              className="rounded-xl bg-card px-3 py-2 text-sm"
-            >
+            <div key={supplier.id} className="bg-card rounded-xl px-3 py-2 text-sm">
               <div className="flex justify-between gap-3 font-semibold">
                 <span>{supplier.name}</span>
-                <span>
-                  {money(Math.max(0, supplier.outstanding - supplier.credit))}{" "}
-                  net owed
-                </span>
+                <span>{money(Math.max(0, supplier.outstanding - supplier.credit))} net owed</span>
               </div>
-              <div className="mt-1 flex justify-between gap-3 text-xs text-muted-foreground">
+              <div className="text-muted-foreground mt-1 flex justify-between gap-3 text-xs">
                 <span>Outstanding {money(supplier.outstanding)}</span>
                 <span>Credit {money(supplier.credit)}</span>
               </div>
@@ -333,9 +304,7 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
     prisma.supplierInvoice.findMany({
       where: {
         supplierId: params.supplier || undefined,
-        submittedAt: showingDueThroughTomorrow
-          ? undefined
-          : { gte: from, lte: to },
+        submittedAt: showingDueThroughTomorrow ? undefined : { gte: from, lte: to },
         status: { in: ["DRAFT", "VOID"] },
       },
       select: { status: true, totalAmount: true },
@@ -373,9 +342,7 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
                   return grouped;
                 }
                 const dailyCashBusinessDate = payment.dailyCashPayment
-                  ? formatBusinessDateKey(
-                      payment.dailyCashPayment.dailyCashDay.businessDate,
-                    )
+                  ? formatBusinessDateKey(payment.dailyCashPayment.dailyCashDay.businessDate)
                   : null;
                 grouped.set(payment.id, {
                   id: payment.id,
@@ -394,10 +361,7 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
                     dailyCashLocked: dailyCashBusinessDate
                       ? isDailyCashLocked(dailyCashBusinessDate, now)
                       : false,
-                    canManageDailyCash: hasPermission(
-                      currentUser,
-                      PERMISSIONS.DAILY_CASH_MANAGE,
-                    ),
+                    canManageDailyCash: hasPermission(currentUser, PERMISSIONS.DAILY_CASH_MANAGE),
                   }),
                 });
                 return grouped;
@@ -425,10 +389,7 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
 
   const unpaid = bills
     .filter((bill) => bill.status !== "PAID")
-    .reduce(
-      (sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount),
-      0,
-    );
+    .reduce((sum, bill) => sum + Number(bill.totalAmount) - Number(bill.paidAmount), 0);
   const paid = bills.reduce((sum, bill) => sum + Number(bill.paidAmount), 0);
   const supplierCredit = suppliers.reduce(
     (sum, supplier) =>
@@ -438,8 +399,7 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
           paymentSum +
           Number(payment.amount) -
           payment.allocations.reduce(
-            (allocationSum, allocation) =>
-              allocationSum + Number(allocation.amount),
+            (allocationSum, allocation) => allocationSum + Number(allocation.amount),
             0,
           ),
         0,
@@ -449,25 +409,16 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
   const supplierCashPaid = suppliers.reduce(
     (sum, supplier) =>
       sum +
-      supplier.payments.reduce(
-        (paymentSum, payment) => paymentSum + Number(payment.amount),
-        0,
-      ),
+      supplier.payments.reduce((paymentSum, payment) => paymentSum + Number(payment.amount), 0),
     0,
   );
   const draftValue = nonFinalInvoices
     .filter((invoice) => invoice.status === "DRAFT")
     .reduce((sum, invoice) => sum + Number(invoice.totalAmount), 0);
-  const voidCount = nonFinalInvoices.filter(
-    (invoice) => invoice.status === "VOID",
-  ).length;
+  const voidCount = nonFinalInvoices.filter((invoice) => invoice.status === "VOID").length;
   const dayStart = startOfDay(now);
   const weekStart = startOfDay(
-    new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - ((now.getDay() + 6) % 7),
-    ),
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)),
   );
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const totalSince = (date: Date) =>
@@ -484,8 +435,7 @@ async function getSupplierBillsReportData(params: SupplierBillsSearchParams) {
         sum +
         Number(payment.amount) -
         payment.allocations.reduce(
-          (allocationSum, allocation) =>
-            allocationSum + Number(allocation.amount),
+          (allocationSum, allocation) => allocationSum + Number(allocation.amount),
           0,
         ),
       0,
@@ -523,46 +473,48 @@ export default async function SupplierBillsReportPage({
   const report = await getSupplierBillsReportData((await searchParams) || {});
 
   return (
-    <AdminPage
-      title="Supplier bills"
-      description="Audit approved supplier invoices, balances, due dates, and every payment."
-    >
-      <SupplierBillsFilters
-        params={report.params}
-        suppliers={report.suppliers}
-        showingDueThroughTomorrow={report.showingDueThroughTomorrow}
-        selectedPaymentStatus={report.selectedPaymentStatus}
-        from={report.from}
-        to={report.to}
-      />
+    <SupplierLayout>
+      <AdminPage
+        title="Supplier bills"
+        description="Audit approved supplier invoices, balances, due dates, and every payment."
+      >
+        <SupplierBillsFilters
+          params={report.params}
+          suppliers={report.suppliers}
+          showingDueThroughTomorrow={report.showingDueThroughTomorrow}
+          selectedPaymentStatus={report.selectedPaymentStatus}
+          from={report.from}
+          to={report.to}
+        />
 
-      {report.showingDueThroughTomorrow ? (
-        <Card className="flex flex-col gap-3 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-semibold text-amber-900 dark:text-amber-300">
-            Showing every unpaid or partially paid invoice bill due through
-            tomorrow, regardless of invoice date.
-          </p>
-          <Button asChild variant="outline" size="sm">
-            <Link prefetch={false} href="/admin/reports/supplier-bills">
-              View date-range report
-            </Link>
-          </Button>
-        </Card>
-      ) : null}
+        {report.showingDueThroughTomorrow ? (
+          <Card className="flex flex-col gap-3 border-amber-200 bg-amber-50 p-4 text-sm sm:flex-row sm:items-center sm:justify-between dark:border-amber-800 dark:bg-amber-950/40">
+            <p className="font-semibold text-amber-900 dark:text-amber-300">
+              Showing every unpaid or partially paid invoice bill due through tomorrow, regardless
+              of invoice date.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link prefetch={false} href="/admin/reports/supplier-bills">
+                View date-range report
+              </Link>
+            </Button>
+          </Card>
+        ) : null}
 
-      <SupplierBillsSummary
-        unpaid={report.unpaid}
-        paid={report.paid}
-        supplierCredit={report.supplierCredit}
-        supplierCashPaid={report.supplierCashPaid}
-        draftValue={report.draftValue}
-        voidCount={report.voidCount}
-        today={report.today}
-        thisWeek={report.thisWeek}
-        thisMonth={report.thisMonth}
-        supplierAccounts={report.supplierAccounts}
-      />
-      <SupplierBillsTable rows={report.rows} now={report.now} />
-    </AdminPage>
+        <SupplierBillsSummary
+          unpaid={report.unpaid}
+          paid={report.paid}
+          supplierCredit={report.supplierCredit}
+          supplierCashPaid={report.supplierCashPaid}
+          draftValue={report.draftValue}
+          voidCount={report.voidCount}
+          today={report.today}
+          thisWeek={report.thisWeek}
+          thisMonth={report.thisMonth}
+          supplierAccounts={report.supplierAccounts}
+        />
+        <SupplierBillsTable rows={report.rows} now={report.now} />
+      </AdminPage>
+    </SupplierLayout>
   );
 }
