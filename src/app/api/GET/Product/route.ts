@@ -3,12 +3,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { availableForSaleWhere } from "@/lib/products/availability";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: {
         isPopular: true,
         isActive: true,
+        category: { isActive: true },
         ...availableForSaleWhere(),
       },
       include: {
@@ -81,7 +84,9 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(formattedProducts);
+    return NextResponse.json(formattedProducts, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     console.error("GET /api/GET/Product error:", error);
 

@@ -3,7 +3,7 @@ import {
   getPublicProductImageUrl,
   PRODUCT_FALLBACK_IMAGE_URL,
 } from "@/lib/products/product-images";
-import type { MenuData, MenuProduct } from "@/types/menu/menu-types";
+import type { MenuData, MenuProduct, MenuCategory } from "@/types/menu/menu-types";
 import { MENU_CAFE_NAME, MENU_HERO_IMAGE } from "./menu-config";
 
 function slugify(value: string) {
@@ -33,7 +33,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
         isActive: true,
         products: { some: { isActive: true, ...availability } },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: {
         id: true,
         name: true,
@@ -116,3 +116,39 @@ export async function getMenuData(): Promise<MenuData> {
         hasLiveData: false,
       };
 }
+
+export function groupMenuCategories(products: MenuProduct[], categoryOrder: readonly string[]) {
+  const groups = new Map<string, MenuCategory>();
+  const positions = new Map(categoryOrder.map((slug, index) => [slug, index]));
+
+  for (const product of products) {
+    const key = product.categorySlug;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.products.push(product);
+      continue;
+    }
+
+    groups.set(key, {
+      id: key,
+      name: product.categoryName,
+      slug: key,
+      products: [product],
+    });
+  }
+
+  return Array.from(groups.values()).sort((left, right) => {
+    const rankDiff =
+      (positions.get(left.slug) ?? categoryOrder.length) -
+      (positions.get(right.slug) ?? categoryOrder.length);
+
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+export type { MenuData, MenuProduct, MenuCategory } from "@/types/menu/menu-types";

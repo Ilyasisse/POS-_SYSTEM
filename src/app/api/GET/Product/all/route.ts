@@ -3,13 +3,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { availableForSaleWhere } from "@/lib/products/availability";
 
-export const revalidate = 300; // cache for 5 minutes
+// Timed pauses must expire on the next request, without waiting for an ISR cache.
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
+        category: { isActive: true },
         ...availableForSaleWhere(),
       },
       select: {
@@ -124,7 +126,9 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(formattedProducts);
+    return NextResponse.json(formattedProducts, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("GET /api/products error:", error);

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  productModifierRulesSelect,
+  validateProductModifierSelection,
+} from "@/lib/products/modifier-selection";
 import { isProductAvailableForSale } from "@/lib/products/availability";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
@@ -161,6 +165,7 @@ export async function POST(request: Request) {
             in: productIds,
           },
           isActive: true,
+          category: { isActive: true },
         },
         select: {
           id: true,
@@ -169,6 +174,7 @@ export async function POST(request: Request) {
           cost: true,
           availableForSale: true,
           availabilityRestoresAt: true,
+          modifiers: productModifierRulesSelect,
           recipeVersions: {
             where: { isActive: true },
             select: {
@@ -178,23 +184,6 @@ export async function POST(request: Request) {
               effectiveFrom: true,
               effectiveTo: true,
               isActive: true,
-            },
-          },
-          modifiers: {
-            where: { modifierGroup: { isActive: true } },
-            select: {
-              id: true,
-              isActive: true,
-              modifierGroup: {
-                select: {
-                  id: true,
-                  name: true,
-                  isRequired: true,
-                  minSelect: true,
-                  maxSelect: true,
-                  isActive: true,
-                },
-              },
             },
           },
           category: {
@@ -282,6 +271,17 @@ export async function POST(request: Request) {
         availableOptions: product.modifiers,
         selectedModifierIds: uniqueModifierIds,
       });
+
+      const modifierError = validateProductModifierSelection(
+        product.name,
+        product.modifiers,
+        (Array.isArray(item.modifiers) ? item.modifiers : []).filter(
+          (choice) => !choice.modifierId.startsWith("placeholder__"),
+        ),
+      );
+      if (modifierError) {
+        return NextResponse.json({ error: modifierError }, { status: 400 });
+      }
 
       const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map((modifierId) => {
         const modifier = modifierMap.get(modifierId);

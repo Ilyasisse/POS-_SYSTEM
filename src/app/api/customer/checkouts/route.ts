@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isProductAvailableForSale } from "@/lib/products/availability";
+import {
+  productModifierRulesSelect,
+  validateProductModifierSelection,
+} from "@/lib/products/modifier-selection";
 import { authorizeApi } from "@/lib/auth/api-authorization";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { normalizeCustomerPaymentPhone } from "@/lib/payments/customer-ussd";
@@ -123,7 +128,7 @@ export async function POST(request: Request) {
             : [],
         ),
       ),
-    ].filter((modifierId) => !modifierId.startsWith("placeholder__"));
+    ];
     const assignedBaristaIds = [
       ...new Set(
         body.items
@@ -137,12 +142,16 @@ export async function POST(request: Request) {
         where: {
           id: { in: productIds },
           isActive: true,
+          category: { isActive: true },
         },
         select: {
           id: true,
           name: true,
           price: true,
           cost: true,
+          availableForSale: true,
+          availabilityRestoresAt: true,
+          modifiers: productModifierRulesSelect,
           recipeVersions: {
             where: { isActive: true },
             select: {
@@ -152,23 +161,6 @@ export async function POST(request: Request) {
               effectiveFrom: true,
               effectiveTo: true,
               isActive: true,
-            },
-          },
-          modifiers: {
-            where: { modifierGroup: { isActive: true } },
-            select: {
-              id: true,
-              isActive: true,
-              modifierGroup: {
-                select: {
-                  id: true,
-                  name: true,
-                  isRequired: true,
-                  minSelect: true,
-                  maxSelect: true,
-                  isActive: true,
-                },
-              },
             },
           },
           category: {
@@ -230,6 +222,13 @@ export async function POST(request: Request) {
         );
       }
 
+      if (!isProductAvailableForSale(product)) {
+        return NextResponse.json(
+          { error: `${product.name} is temporarily unavailable.` },
+          { status: 409 },
+        );
+      }
+
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
       const incomingModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
@@ -283,6 +282,17 @@ export async function POST(request: Request) {
         availableOptions: product.modifiers,
         selectedModifierIds: [...validatedModifierIds],
       });
+
+      const modifierError = validateProductModifierSelection(
+        product.name,
+        product.modifiers,
+        (Array.isArray(item.modifiers) ? item.modifiers : []).filter(
+          (choice) => !choice.modifierId.startsWith("placeholder__"),
+        ),
+      );
+      if (modifierError) {
+        return NextResponse.json({ error: modifierError }, { status: 400 });
+      }
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
