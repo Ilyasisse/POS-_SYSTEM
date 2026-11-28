@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type {
   KitchenStation,
   KitchenTicket,
@@ -9,6 +10,7 @@ import KitchenHeader from "./KitchenHeader";
 import KitchenStatusBanner from "./KitchenStatusBanner";
 import KitchenTicketList from "./KitchenTicketList";
 import { useKitchenTickets } from "@/hooks/kitchen/useKitchenTickets";
+import { sortKitchenQueueOldestFirst } from "@/lib/kitchen/kitchen-queue-order";
 
 type KitchenClientProps = {
   station?: KitchenStation;
@@ -35,7 +37,10 @@ export default function KitchenClient({
     currentUserRole,
   });
 
-  const visibleTickets: KitchenTicket[] = activeTickets;
+  const visibleTickets: KitchenTicket[] = useMemo(
+    () => sortKitchenQueueOldestFirst(activeTickets),
+    [activeTickets],
+  );
   const canUpdateStatus = Boolean(station);
 
   return (
