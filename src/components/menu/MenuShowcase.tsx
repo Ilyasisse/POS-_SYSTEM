@@ -272,7 +272,7 @@ function FeaturedSection({ items }: { items: MenuData["featuredItems"] }) {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {items.map((item, index) => (
-              <FeaturedCard key={item.id} item={item} index={index} />
+              <FeaturedCard key={item.id} item={item} />
             ))}
           </div>
           <Link
