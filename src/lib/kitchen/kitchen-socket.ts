@@ -352,7 +352,7 @@ function normalizeKitchenTicketItem(
   };
 }
 
-export function normalizeKitchenTicket(
+function normalizeKitchenTicket(
   ticket: KitchenTicketLike,
 ): KitchenTicket | null {
   if (!ticket || typeof ticket !== "object") {

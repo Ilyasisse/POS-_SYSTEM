@@ -110,7 +110,11 @@ type CustomerOrderAction =
   | { type: "customerNameChanged"; customerName: string }
   | { type: "customerPhoneChanged"; customerPhone: string }
   | { type: "orderNoteChanged"; orderNote: string }
-  | { type: "fulfillmentChanged"; orderType: "DINE_IN" | "TAKEOUT"; tableId: string }
+  | {
+      type: "fulfillmentChanged";
+      orderType: "DINE_IN" | "TAKEOUT";
+      tableId: string;
+    }
   | { type: "cartOpened" }
   | { type: "cartClosed" }
   | { type: "cartCleared" }
@@ -273,10 +277,10 @@ export default function CustomerOrderPage({
     calculateCartTotal,
   } = useWaiterCart();
 
-  const [orderState, dispatchOrderState] = useReducer(
-    customerOrderReducer,
-    { ...initialCustomerOrderState, customerName: accountName },
-  );
+  const [orderState, dispatchOrderState] = useReducer(customerOrderReducer, {
+    ...initialCustomerOrderState,
+    customerName: accountName,
+  });
   const [signInOpen, setSignInOpen] = useState(false);
   const [signInError, setSignInError] = useState("");
   const [draftReady, setDraftReady] = useState(false);
@@ -382,7 +386,8 @@ export default function CustomerOrderPage({
       });
     }
     const fulfillment = restoreCustomerFulfillment();
-    if (fulfillment) dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
+    if (fulfillment)
+      dispatchOrderState({ type: "fulfillmentChanged", ...fulfillment });
     setDraftReady(true);
   }, [loading, catalogError, productsAll, baristas, replaceCart, accountName]);
 
@@ -422,7 +427,10 @@ export default function CustomerOrderPage({
     clearCustomerOrderDraft();
     clearCart();
     dispatchOrderState({ type: "reset" });
-    dispatchOrderState({ type: "customerNameChanged", customerName: accountName });
+    dispatchOrderState({
+      type: "customerNameChanged",
+      customerName: accountName,
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -516,7 +524,8 @@ export default function CustomerOrderPage({
     if (!normalizeCustomerPaymentPhone(orderState.customerPhone)) {
       dispatchOrderState({
         type: "checkoutBlocked",
-        error: "Enter 90 followed by seven digits for the phone sending payment.",
+        error:
+          "Enter 90 followed by seven digits for the phone sending payment.",
       });
       return;
     }
@@ -529,7 +538,10 @@ export default function CustomerOrderPage({
     }
 
     if (orderState.orderType === "DINE_IN" && !orderState.tableId) {
-      dispatchOrderState({ type: "checkoutBlocked", error: "Select your table before checkout." });
+      dispatchOrderState({
+        type: "checkoutBlocked",
+        error: "Select your table before checkout.",
+      });
       return;
     }
 
@@ -615,6 +627,7 @@ export default function CustomerOrderPage({
 
       <div className="relative mx-auto max-w-7xl px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6">
         <CustomerOrderHeader
+          historyHref="/customer/orders"
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
           onReset={resetKiosk}
@@ -675,7 +688,9 @@ export default function CustomerOrderPage({
         onCustomerPhoneChange={(customerPhone) =>
           dispatchOrderState({ type: "customerPhoneChanged", customerPhone })
         }
-        onFulfillmentChange={(orderType, tableId) => dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })}
+        onFulfillmentChange={(orderType, tableId) =>
+          dispatchOrderState({ type: "fulfillmentChanged", orderType, tableId })
+        }
         onOrderNoteChange={(orderNote) =>
           dispatchOrderState({ type: "orderNoteChanged", orderNote })
         }
