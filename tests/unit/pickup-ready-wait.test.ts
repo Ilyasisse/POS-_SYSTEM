@@ -13,10 +13,7 @@ test("the latest ready transition wins after kitchen work reopens", () => {
     { type: "PICKUP_REOPENED", occurredAt: new Date("2026-09-25T09:02:00Z") },
     { type: "PICKUP_READY", occurredAt: new Date("2026-09-25T09:04:00Z") },
   ];
-  assert.equal(
-    latestPickupReadyAt(events)?.toISOString(),
-    "2026-09-25T09:04:00.000Z",
-  );
+  assert.equal(latestPickupReadyAt(events)?.toISOString(), "2026-09-25T09:04:00.000Z");
   assert.equal(latestPickupReadyAt([]), null);
 });
 
@@ -51,11 +48,7 @@ test("unclaimed food waits longest first; claimed and unknown timestamps follow"
     sortWaiterPickupTickets(tickets).map((item) => item.id),
     ["older", "newer", "unknown", "claimed"],
   );
-  assert.equal(
-    tickets[0]?.id,
-    "claimed",
-    "sorting does not mutate the original queue",
-  );
+  assert.equal(tickets[0]?.id, "claimed", "sorting does not mutate the original queue");
 });
 
 test("ready age never guesses from order creation time", () => {
@@ -73,7 +66,7 @@ test("ready transition timestamp survives ticket normalization", () => {
     createdAt: "2026-09-25T08:00:00Z",
     readyAt: "2026-09-25T09:04:00Z",
     pickupStatus: "ready",
-    items: [{ id: "line", name: "Coffee", quantity: 1, station: "BARISTA" }],
+    items: [{ id: "line", name: "Coffee", quantity: 1, station: "BARISTA", modifiers: [] }],
   });
   assert.equal(ticket?.readyAt, "2026-09-25T09:04:00.000Z");
   assert.notEqual(ticket?.readyAt, ticket?.createdAt);
