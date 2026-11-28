@@ -1,3 +1,4 @@
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 import { availableForSaleWhere } from "@/lib/products/availability";
 import {
   getPublicProductImageUrl,
@@ -27,7 +28,8 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
 
   try {
     const { prisma } = await import("@/lib/prisma");
-    const availability = availableForSaleWhere(new Date());
+    const now = new Date();
+    const availability = availableForSaleWhere(now);
     const categoriesResult = await prisma.category.findMany({
       where: {
         isActive: true,
@@ -44,6 +46,8 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
             name: true,
             description: true,
             price: true,
+            availabilityStartMinute: true,
+            availabilityEndMinute: true,
             imageUrl: true,
             isPopular: true,
           },
@@ -64,6 +68,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
     const categories = categoriesResult.map((category) => {
       const slug = slugify(category.name);
       const products = category.products
+        .filter((product) => isProductAvailableAt(product, now))
         .map(
           (product) =>
             ({

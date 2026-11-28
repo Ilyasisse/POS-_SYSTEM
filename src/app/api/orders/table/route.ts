@@ -1,3 +1,4 @@
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 import { NextResponse } from "next/server";
 import { Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -151,6 +152,8 @@ export async function POST(request: Request) {
           name: true,
           price: true,
           cost: true,
+          availabilityStartMinute: true,
+          availabilityEndMinute: true,
           availableForSale: true,
           availabilityRestoresAt: true,
           recipeVersions: {
@@ -223,7 +226,12 @@ export async function POST(request: Request) {
         : Promise.resolve([]),
     ]);
 
-    const productMap = new Map(products.map((product) => [product.id, product]));
+    const now = new Date();
+    const productMap = new Map(
+      products
+        .filter((product) => isProductAvailableAt(product, now))
+        .map((product) => [product.id, product]),
+    );
     const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
     const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
@@ -235,7 +243,7 @@ export async function POST(request: Request) {
 
       if (!product) {
         return NextResponse.json(
-          { error: `Product not found or inactive: ${item.productId}` },
+          { error: `Product not found, inactive, or unavailable now: ${item.productId}` },
           { status: 400 },
         );
       }

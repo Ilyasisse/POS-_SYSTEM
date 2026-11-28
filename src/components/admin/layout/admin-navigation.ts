@@ -17,6 +17,7 @@ import {
   ShoppingCart,
   Wrench,
   MessageCircle,
+  Clock3,
   ContactRound,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permissions";
@@ -67,6 +68,13 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
     icon: Boxes,
     permission: PERMISSIONS.CATALOG_MANAGE,
     countKey: "products",
+  },
+  {
+    key: "menu-availability",
+    href: "/admin/menu-availability",
+    label: "Menu hours",
+    icon: Clock3,
+    permission: PERMISSIONS.CATALOG_MANAGE,
   },
   {
     key: "inventory",
