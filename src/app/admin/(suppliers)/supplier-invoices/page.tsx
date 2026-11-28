@@ -111,10 +111,14 @@ export default async function SupplierInvoicesPage({
       action={
         <>
           <Button asChild>
-            <Link href="/admin/supplier-invoices/new">Create invoice</Link>
+            <Link prefetch={false} href="/admin/supplier-invoices/new">
+              Create invoice
+            </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/admin/supplier-purchase-orders">Purchase orders</Link>
+            <Link prefetch={false} href="/admin/supplier-purchase-orders">
+              Purchase orders
+            </Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/admin/supplier-price-history">Price history</Link>
@@ -192,6 +196,7 @@ export default async function SupplierInvoicesPage({
                 <tr key={invoice.id} className="border-t">
                   <TableCell>
                     <Link
+                      prefetch={false}
                       href={`/admin/supplier-invoices/${invoice.id}`}
                       className="font-semibold text-primary hover:underline"
                     >
@@ -214,6 +219,7 @@ export default async function SupplierInvoicesPage({
                       `PO #${invoice.purchaseOrder.orderNumber}`
                     ) : invoice.generatedByRecurrence ? (
                       <Link
+                        prefetch={false}
                         href={`/admin/supplier-invoices/${invoice.generatedByRecurrence.sourceInvoice.id}`}
                         className="text-primary hover:underline"
                       >

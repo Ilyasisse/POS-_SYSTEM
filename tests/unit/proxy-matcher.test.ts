@@ -35,7 +35,7 @@ test("does not match public, static, or API requests", () => {
     "/menu",
     "/customer",
     "/file.svg",
-    "/menu-hero-bg.svg",
+    "/menu-hero-bg.webp",
     "/logo.png",
     "/newer_logo.png",
     "/favicon.ico",
