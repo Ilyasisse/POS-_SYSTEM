@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useReducer,
-  useState,
-  useTransition,
-} from "react";
+import { useDeferredValue, useEffect, useMemo, useReducer, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,18 +18,15 @@ import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
 import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet, {
-  CustomerCartPanel,
-} from "@/components/customer/CustomerCartSheet";
-import {
-  bodyFont,
-  displayFont,
-} from "@/components/customer/customer-order-styles";
+import CustomerCartSheet, { CustomerCartPanel } from "@/components/customer/CustomerCartSheet";
+import { bodyFont, displayFont } from "@/components/customer/customer-order-styles";
 import {
   buildModifierLines,
   getProductModifierGroups,
   type SelectedModifiersMap,
 } from "@/components/customer/customer-order-utils";
+import { HeldOrderDrafts, removeHeldOrderDraft } from "@/components/cashier/HeldOrderDrafts";
+import { restoreHeldOrderDraft, type HeldOrderDraft } from "@/lib/cashier/held-order-drafts";
 
 type TableOption = { id: string; name: string };
 type Props = {
@@ -69,6 +59,8 @@ type Action =
   | { type: "cartClose" }
   | { type: "cleared" }
   | { type: "added" }
+  | { type: "held"; label: string }
+  | { type: "resumed"; tableId: string; orderNote: string; message: string }
   | { type: "submitting" }
   | { type: "failed"; error: string }
   | { type: "finished" };
@@ -97,6 +89,24 @@ function reducer(state: State, action: Action): State {
       return { ...state, orderNote: "", message: "", error: "" };
     case "added":
       return { ...state, cartOpen: true, message: "", error: "" };
+    case "held":
+      return {
+        ...state,
+        tableId: "",
+        orderNote: "",
+        cartOpen: false,
+        message: `Held ${action.label}.`,
+        error: "",
+      };
+    case "resumed":
+      return {
+        ...state,
+        tableId: action.tableId,
+        orderNote: action.orderNote,
+        cartOpen: true,
+        message: action.message,
+        error: "",
+      };
     case "submitting":
       return {
         ...state,
@@ -163,11 +173,11 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-border bg-card p-6 sm:p-8"
+        className="border-border bg-card max-w-2xl rounded-[2rem] border p-6 sm:p-8"
       >
         <DialogHeader>
           <DialogTitle
-            className="text-center text-3xl text-foreground sm:text-4xl"
+            className="text-foreground text-center text-3xl sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
             Select an available table
@@ -184,14 +194,14 @@ function TablePicker({
                 type="button"
                 variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-border bg-card text-xl font-semibold text-foreground shadow-sm hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent"
+                className="border-border bg-card text-foreground hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent min-h-24 rounded-[1.5rem] border text-xl font-semibold shadow-sm"
               >
                 {table.name}
               </Button>
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-border p-8 text-center text-muted-foreground">
+          <div className="border-border text-muted-foreground mt-4 rounded-[1.5rem] border border-dashed p-8 text-center">
             Every active table is currently occupied.
           </div>
         )}
@@ -209,9 +219,7 @@ export default function CashierOrderExperience({
   const router = useRouter();
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
-    tableId: tables.some((table) => table.id === initialTableId)
-      ? initialTableId
-      : "",
+    tableId: tables.some((table) => table.id === initialTableId) ? initialTableId : "",
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
@@ -230,8 +238,10 @@ export default function CashierOrderExperience({
     changeQuantity,
     removeFromCart,
     clearCart,
+    replaceCart,
     calculateCartTotal,
   } = useWaiterCart();
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(state.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const products = useMemo(
@@ -242,41 +252,32 @@ export default function CashierOrderExperience({
       })),
     [productsAll],
   );
-  const menuCategories = useMemo(
-    () => getCategories(categories, products),
-    [categories, products],
-  );
+  const menuCategories = useMemo(() => getCategories(categories, products), [categories, products]);
   const categoryChips = useMemo(
     () => [
       { id: "all", name: "All", count: products.length },
       ...menuCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: products.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: products.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [menuCategories, products],
   );
-  const selectedCategory = categoryChips.some(
-    (category) => category.id === state.categoryId,
-  )
+  const selectedCategory = categoryChips.some((category) => category.id === state.categoryId)
     ? state.categoryId
     : "all";
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
     return products.filter(
       (product) =>
-        (selectedCategory === "all" ||
-          product.category?.id === selectedCategory) &&
+        (selectedCategory === "all" || product.category?.id === selectedCategory) &&
         (!term ||
           product.name.toLowerCase().includes(term) ||
           (product.description ?? "").toLowerCase().includes(term)),
     );
   }, [deferredSearch, products, selectedCategory]);
-  const tableName =
-    tables.find((table) => table.id === state.tableId)?.name ?? "";
+  const tableName = tables.find((table) => table.id === state.tableId)?.name ?? "";
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
   useAos(
@@ -315,19 +316,14 @@ export default function CashierOrderExperience({
     baristaId: string | null,
   ) {
     const modifiers = buildModifierLines(product, selected);
-    const barista = baristaId
-      ? baristas.find((item) => item.id === baristaId)
-      : null;
+    const barista = baristaId ? baristas.find((item) => item.id === baristaId) : null;
     addToCart({
       ...product,
       station: product.category?.station ?? null,
       selectedModifiers: modifiers,
       finalPrice:
         (Number(product.price) || 0) +
-        modifiers.reduce(
-          (sum, modifier) => sum + modifier.price * modifier.qty,
-          0,
-        ),
+        modifiers.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0),
       assignedUserId: barista?.id ?? null,
       assignedUserName: barista?.fullName ?? null,
     });
@@ -376,9 +372,10 @@ export default function CashierOrderExperience({
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "The order could not be sent.");
+      if (!response.ok) throw new Error(data?.error || "The order could not be sent.");
       clearCart();
+      if (activeDraftId) removeHeldOrderDraft(activeDraftId);
+      setActiveDraftId(null);
       router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
       router.refresh();
     } catch (error) {
@@ -391,9 +388,46 @@ export default function CashierOrderExperience({
     }
   }
 
+  function holdCurrentOrder(label: string) {
+    if (activeDraftId) removeHeldOrderDraft(activeDraftId);
+    setActiveDraftId(null);
+    clearCart();
+    dispatch({ type: "held", label });
+  }
+
+  function clearCurrentOrder() {
+    clearCart();
+    setActiveDraftId(null);
+    dispatch({ type: "cleared" });
+  }
+
+  function resumeOrder(draft: HeldOrderDraft) {
+    const restored = restoreHeldOrderDraft(draft, products, baristas);
+    if (restored.cart.length === 0) {
+      dispatch({
+        type: "failed",
+        error:
+          "This held order has no items that are still available. Remove it and start a new order.",
+      });
+      return;
+    }
+    const tableAvailable = tables.some((table) => table.id === draft.tableId);
+    replaceCart(restored.cart);
+    setActiveDraftId(draft.id);
+    dispatch({
+      type: "resumed",
+      tableId: tableAvailable ? draft.tableId : "",
+      orderNote: draft.orderNote,
+      message:
+        restored.skippedItems > 0
+          ? `Reopened ${draft.label}; ${restored.skippedItems} unavailable item${restored.skippedItems === 1 ? " was" : "s were"} skipped.`
+          : `Reopened ${draft.label}. Prices were refreshed from the current menu.`,
+    });
+  }
+
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <TablePicker
@@ -416,11 +450,16 @@ export default function CashierOrderExperience({
           cartSubtotal={cartSubtotal}
           cartCount={cartCount}
           hideCartOnDesktop
-          onReset={() => {
-            clearCart();
-            dispatch({ type: "cleared" });
-          }}
+          onReset={clearCurrentOrder}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
+        />
+        <HeldOrderDrafts
+          cart={cart}
+          tableId={state.tableId}
+          tableName={tableName}
+          orderNote={state.orderNote}
+          onHeld={holdCurrentOrder}
+          onResume={resumeOrder}
         />
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
@@ -438,9 +477,7 @@ export default function CashierOrderExperience({
               filteredProducts={filteredProducts}
               baristas={baristas}
               selectedCategoryName={
-                categoryChips.find(
-                  (category) => category.id === selectedCategory,
-                )?.name ?? "All"
+                categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All"
               }
               isFiltering={isFiltering}
               onProductClick={addProduct}
@@ -465,16 +502,11 @@ export default function CashierOrderExperience({
             paymentMethod={isTakeaway ? state.paymentMethod : undefined}
             checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
             onPaymentMethodChange={
-              isTakeaway
-                ? (value) => dispatch({ type: "paymentMethod", value })
-                : undefined
+              isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
             }
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
-            onClearCart={() => {
-              clearCart();
-              dispatch({ type: "cleared" });
-            }}
+            onClearCart={clearCurrentOrder}
             onCheckout={sendOrder}
           />
         </div>
@@ -506,16 +538,11 @@ export default function CashierOrderExperience({
         paymentMethod={isTakeaway ? state.paymentMethod : undefined}
         checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
         onPaymentMethodChange={
-          isTakeaway
-            ? (value) => dispatch({ type: "paymentMethod", value })
-            : undefined
+          isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
         }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
-        onClearCart={() => {
-          clearCart();
-          dispatch({ type: "cleared" });
-        }}
+        onClearCart={clearCurrentOrder}
         onCheckout={sendOrder}
       />
     </main>

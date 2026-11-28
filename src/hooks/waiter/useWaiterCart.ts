@@ -1,12 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type {
-  CartLine,
-  Product,
-  SelectedModifierLine,
-  Station,
-} from "@/lib/types";
+import type { CartLine, Product, SelectedModifierLine, Station } from "@/lib/types";
 
 type ProductWithConfiguration = Product & {
   finalPrice?: number;
@@ -108,10 +103,7 @@ export function useWaiterCart() {
               {
                 ...item,
                 quantity: nextQuantity,
-                lineTotal: calculateLineTotal(
-                  Number(item.finalPrice ?? item.price),
-                  nextQuantity,
-                ),
+                lineTotal: calculateLineTotal(Number(item.finalPrice ?? item.price), nextQuantity),
               },
             ]
           : [];
@@ -133,8 +125,7 @@ export function useWaiterCart() {
 
   const calculateCartTotal = () => {
     return cart.reduce(
-      (total, item) =>
-        total + Number(item.finalPrice ?? item.price) * item.quantity,
+      (total, item) => total + Number(item.finalPrice ?? item.price) * item.quantity,
       0,
     );
   };
