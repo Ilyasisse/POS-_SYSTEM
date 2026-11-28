@@ -1,3 +1,4 @@
+import { isProductAvailableAt } from "@/lib/menu/product-availability";
 import { NextResponse } from "next/server";
 import { PaymentMethod, Prisma, type Station } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -6,15 +7,13 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
 import type { SelectedModifierLine } from "@/lib/types";
+import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
+import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import {
-  selectEffectiveRecipe,
-  snapshotInventoryCost,
-} from "@/lib/inventory/inventory-domain";
-import {
-  deductProductInventoryForSale,
-  sendInventoryAlerts,
-} from "@/lib/inventory/inventory";
-import { isProductAvailableAt } from "@/lib/menu/product-availability";
+  ModifierSelectionError,
+  validateModifierSelections,
+} from "@/lib/orders/modifier-selection-validation";
+import { parseCounterOrderType } from "@/lib/orders/counter-order-type";
 
 type CompleteSaleItemModifierInput = {
   modifierId: string;
@@ -31,6 +30,7 @@ type CompleteSaleItemInput = {
 type CompleteSaleBody = {
   items: CompleteSaleItemInput[];
   paymentMethod: PaymentMethod | string;
+  orderType?: string;
   notes?: string;
 };
 
@@ -59,12 +59,7 @@ type SavedOrderItemForTicket = {
   modifiers: PreparedModifier[];
 };
 
-const PAYMENT_METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+const PAYMENT_METHODS = new Set<PaymentMethod>(["MYCASH", "GOLIS", "Dahabshiil", "OTHER"]);
 
 function isPaymentMethod(value: string): value is PaymentMethod {
   return PAYMENT_METHODS.has(value as PaymentMethod);
@@ -100,10 +95,7 @@ export async function POST(request: Request) {
     });
 
     if (!currentUser || !currentUser.isActive) {
-      return NextResponse.json(
-        { error: "Staff account not found." },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "Staff account not found." }, { status: 403 });
     }
 
     if (!hasPermission(currentUser, PERMISSIONS.ORDER_CREATE)) {
@@ -113,23 +105,22 @@ export async function POST(request: Request) {
     const body = (await request.json()) as CompleteSaleBody;
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        { error: "No items provided." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No items provided." }, { status: 400 });
     }
 
-    if (
-      typeof body.paymentMethod !== "string" ||
-      !isPaymentMethod(body.paymentMethod)
-    ) {
-      return NextResponse.json(
-        { error: "Payment method is invalid." },
-        { status: 400 },
-      );
+    if (typeof body.paymentMethod !== "string" || !isPaymentMethod(body.paymentMethod)) {
+      return NextResponse.json({ error: "Payment method is invalid." }, { status: 400 });
     }
 
     const paymentMethod: PaymentMethod = body.paymentMethod;
+    const orderType = parseCounterOrderType(body.orderType);
+
+    if (!orderType) {
+      return NextResponse.json(
+        { error: "Counter orders must use the takeaway order type." },
+        { status: 400 },
+      );
+    }
 
     const productIds = [...new Set(body.items.map((item) => item.productId))];
     const modifierIds = [
@@ -177,6 +168,23 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
+          modifiers: {
+            where: { modifierGroup: { isActive: true } },
+            select: {
+              id: true,
+              isActive: true,
+              modifierGroup: {
+                select: {
+                  id: true,
+                  name: true,
+                  isRequired: true,
+                  minSelect: true,
+                  maxSelect: true,
+                  isActive: true,
+                },
+              },
+            },
+          },
           category: {
             select: {
               station: true,
@@ -189,12 +197,12 @@ export async function POST(request: Request) {
             where: {
               id: { in: modifierIds },
               isActive: true,
+              modifierGroup: { isActive: true },
             },
             select: {
               id: true,
               name: true,
               price: true,
-              productId: true,
               modifierGroup: {
                 select: {
                   id: true,
@@ -225,12 +233,8 @@ export async function POST(request: Request) {
         .filter((product) => isProductAvailableAt(product, now))
         .map((product) => [product.id, product]),
     );
-    const modifierMap = new Map(
-      modifierRecords.map((modifier) => [modifier.id, modifier]),
-    );
-    const baristaMap = new Map(
-      baristas.map((barista) => [barista.id, barista]),
-    );
+    const modifierMap = new Map(modifierRecords.map((modifier) => [modifier.id, modifier]));
+    const baristaMap = new Map(baristas.map((barista) => [barista.id, barista]));
 
     const preparedLines: PreparedLine[] = [];
     let calculatedTotal = 0;
@@ -256,10 +260,7 @@ export async function POST(request: Request) {
       const station = product.category?.station ?? null;
 
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
-      const incomingModifierMap = new Map<
-        string,
-        (typeof itemModifiers)[number]
-      >();
+      const incomingModifierMap = new Map<string, (typeof itemModifiers)[number]>();
 
       for (const modifier of itemModifiers) {
         if (!incomingModifierMap.has(modifier.modifierId)) {
@@ -269,28 +270,35 @@ export async function POST(request: Request) {
 
       const uniqueModifierIds = Array.from(incomingModifierMap.keys());
 
-      const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map(
-        (modifierId) => {
-          const modifier = modifierMap.get(modifierId);
+      validateModifierSelections({
+        productName: product.name,
+        availableOptions: product.modifiers,
+        selectedModifierIds: uniqueModifierIds,
+      });
 
-          if (!modifier || modifier.productId !== product.id) {
-            throw new Error(
-              `Modifier ${modifierId} is invalid for product ${product.name}.`,
-            );
-          }
+      const selectedModifiers: PreparedModifier[] = uniqueModifierIds.map((modifierId) => {
+        const modifier = modifierMap.get(modifierId);
 
-          const incomingModifier = incomingModifierMap.get(modifierId);
+        if (
+          !modifier ||
+          !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
+        ) {
+          throw new ModifierSelectionError(
+            `Modifier ${modifierId} is invalid for product ${product.name}.`,
+          );
+        }
 
-          return {
-            groupId: modifier.modifierGroup.id,
-            groupName: modifier.modifierGroup.name,
-            optionId: modifier.id,
-            optionName: modifier.name,
-            price: roundCurrency(Number(modifier.price)),
-            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
-          };
-        },
-      );
+        const incomingModifier = incomingModifierMap.get(modifierId);
+
+        return {
+          groupId: modifier.modifierGroup.id,
+          groupName: modifier.modifierGroup.name,
+          optionId: modifier.id,
+          optionName: modifier.name,
+          price: roundCurrency(Number(modifier.price)),
+          qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+        };
+      });
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;
@@ -345,23 +353,21 @@ export async function POST(request: Request) {
 
     calculatedTotal = roundCurrency(calculatedTotal);
 
-    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map(
-      (line) => ({
-        id: crypto.randomUUID(),
-        productName: line.productName,
-        qty: line.qty,
-        station: line.station,
-        assignedUserId: line.assignedBaristaId,
-        assignedUserName: line.assignedBaristaName,
-        modifiers: line.modifiers,
-      }),
-    );
+    const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
+      id: crypto.randomUUID(),
+      productName: line.productName,
+      qty: line.qty,
+      station: line.station,
+      assignedUserId: line.assignedBaristaId,
+      assignedUserName: line.assignedBaristaName,
+      modifiers: line.modifiers,
+    }));
 
     const result = await prisma.$transaction(
       async (tx) => {
         const order = await tx.order.create({
           data: {
-            type: "DINE_IN",
+            type: orderType,
             status: "PAID",
             notes: body.notes?.trim() || null,
             total: toDecimal(calculatedTotal),
@@ -462,12 +468,15 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof ModifierSelectionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     console.error("Complete sale error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to complete sale.",
+        error: error instanceof Error ? error.message : "Failed to complete sale.",
       },
       { status: 500 },
     );
