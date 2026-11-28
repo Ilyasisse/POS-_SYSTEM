@@ -8,7 +8,7 @@ export default function KitchenStatusBanner({
   if (!message) return null;
 
   return (
-    <p className="rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-2 text-sm text-slate-300">
+    <p className="rounded-xl border border-border bg-card/70 px-3 py-2 text-sm text-muted-foreground">
       {message}
     </p>
   );

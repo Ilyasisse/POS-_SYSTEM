@@ -21,7 +21,7 @@ import {
 } from "@/lib/staff/shift-browser-page";
 import { cancelScheduleAction, createScheduleAction } from "../actions";
 
-const label = "grid gap-1 text-sm font-semibold text-slate-700";
+const label = "grid gap-1 text-sm font-semibold text-foreground";
 
 export default async function StaffSchedulesPage({
   searchParams,
