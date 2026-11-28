@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useReducer,
-  useState,
-  useTransition,
-} from "react";
+import { useDeferredValue, useEffect, useMemo, useReducer, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +18,8 @@ import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
 import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet, {
-  CustomerCartPanel,
-} from "@/components/customer/CustomerCartSheet";
-import {
-  bodyFont,
-  displayFont,
-} from "@/components/customer/customer-order-styles";
+import CustomerCartSheet, { CustomerCartPanel } from "@/components/customer/CustomerCartSheet";
+import { bodyFont, displayFont } from "@/components/customer/customer-order-styles";
 import {
   buildModifierLines,
   getProductModifierGroups,
@@ -39,12 +27,17 @@ import {
 } from "@/components/customer/customer-order-utils";
 
 type TableOption = { id: string; name: string };
-type Props = { tables: TableOption[]; initialTableId?: string };
+type Props = {
+  tables: TableOption[];
+  initialTableId?: string;
+  orderType?: "DINE_IN" | "TAKEOUT";
+};
 type State = {
   tableId: string;
   categoryId: string;
   searchTerm: string;
   orderNote: string;
+  paymentMethod: string;
   selectedProduct: Product | null;
   modifierOpen: boolean;
   cartOpen: boolean;
@@ -57,6 +50,7 @@ type Action =
   | { type: "category"; value: string }
   | { type: "search"; value: string }
   | { type: "note"; value: string }
+  | { type: "paymentMethod"; value: string }
   | { type: "modifierOpen"; product: Product }
   | { type: "modifierClose" }
   | { type: "cartOpen" }
@@ -77,6 +71,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, searchTerm: action.value };
     case "note":
       return { ...state, orderNote: action.value };
+    case "paymentMethod":
+      return { ...state, paymentMethod: action.value, error: "" };
     case "modifierOpen":
       return { ...state, selectedProduct: action.product, modifierOpen: true };
     case "modifierClose":
@@ -155,11 +151,11 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-amber-100 bg-[#fffaf5] p-6 sm:p-8"
+        className="border-border bg-card max-w-2xl rounded-[2rem] border p-6 sm:p-8"
       >
         <DialogHeader>
           <DialogTitle
-            className="text-center text-3xl text-stone-950 sm:text-4xl"
+            className="text-foreground text-center text-3xl sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
             Select an available table
@@ -174,15 +170,16 @@ function TablePicker({
               <Button
                 key={table.id}
                 type="button"
+                variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-amber-200 bg-card text-xl font-semibold text-stone-950 shadow-sm hover:border-amber-400 hover:bg-amber-50"
+                className="border-border bg-card text-foreground hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent min-h-24 rounded-[1.5rem] border text-xl font-semibold shadow-sm"
               >
                 {table.name}
               </Button>
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-border p-8 text-center text-muted-foreground">
+          <div className="border-border text-muted-foreground mt-4 rounded-[1.5rem] border border-dashed p-8 text-center">
             Every active table is currently occupied.
           </div>
         )}
@@ -194,18 +191,19 @@ function TablePicker({
 export default function CashierOrderExperience({
   tables,
   initialTableId = "",
+  orderType = "DINE_IN",
 }: Props) {
+  const isTakeaway = orderType === "TAKEOUT";
   const router = useRouter();
   const [holdForCourse, setHoldForCourse] = useState(false);
   const [courseLabel, setCourseLabel] = useState("");
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
-    tableId: tables.some((table) => table.id === initialTableId)
-      ? initialTableId
-      : "",
+    tableId: tables.some((table) => table.id === initialTableId) ? initialTableId : "",
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
+    paymentMethod: "",
     selectedProduct: null,
     modifierOpen: false,
     cartOpen: false,
@@ -214,14 +212,8 @@ export default function CashierOrderExperience({
     error: "",
   });
   const { productsAll, categories, baristas, loading } = useWaiterData();
-  const {
-    cart,
-    addToCart,
-    changeQuantity,
-    removeFromCart,
-    clearCart,
-    calculateCartTotal,
-  } = useWaiterCart();
+  const { cart, addToCart, changeQuantity, removeFromCart, clearCart, calculateCartTotal } =
+    useWaiterCart();
   const deferredSearch = useDeferredValue(state.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const products = useMemo(
@@ -232,41 +224,32 @@ export default function CashierOrderExperience({
       })),
     [productsAll],
   );
-  const menuCategories = useMemo(
-    () => getCategories(categories, products),
-    [categories, products],
-  );
+  const menuCategories = useMemo(() => getCategories(categories, products), [categories, products]);
   const categoryChips = useMemo(
     () => [
       { id: "all", name: "All", count: products.length },
       ...menuCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: products.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: products.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [menuCategories, products],
   );
-  const selectedCategory = categoryChips.some(
-    (category) => category.id === state.categoryId,
-  )
+  const selectedCategory = categoryChips.some((category) => category.id === state.categoryId)
     ? state.categoryId
     : "all";
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
     return products.filter(
       (product) =>
-        (selectedCategory === "all" ||
-          product.category?.id === selectedCategory) &&
+        (selectedCategory === "all" || product.category?.id === selectedCategory) &&
         (!term ||
           product.name.toLowerCase().includes(term) ||
           (product.description ?? "").toLowerCase().includes(term)),
     );
   }, [deferredSearch, products, selectedCategory]);
-  const tableName =
-    tables.find((table) => table.id === state.tableId)?.name ?? "";
+  const tableName = tables.find((table) => table.id === state.tableId)?.name ?? "";
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
   useAos(
@@ -305,19 +288,14 @@ export default function CashierOrderExperience({
     baristaId: string | null,
   ) {
     const modifiers = buildModifierLines(product, selected);
-    const barista = baristaId
-      ? baristas.find((item) => item.id === baristaId)
-      : null;
+    const barista = baristaId ? baristas.find((item) => item.id === baristaId) : null;
     addToCart({
       ...product,
       station: product.category?.station ?? null,
       selectedModifiers: modifiers,
       finalPrice:
         (Number(product.price) || 0) +
-        modifiers.reduce(
-          (sum, modifier) => sum + modifier.price * modifier.qty,
-          0,
-        ),
+        modifiers.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0),
       assignedUserId: barista?.id ?? null,
       assignedUserName: barista?.fullName ?? null,
     });
@@ -326,11 +304,15 @@ export default function CashierOrderExperience({
   }
 
   async function sendOrder() {
-    if (!state.tableId) {
+    if (!isTakeaway && !state.tableId) {
       dispatch({
         type: "failed",
         error: "Select a table before sending the order.",
       });
+      return;
+    }
+    if (isTakeaway && !state.paymentMethod) {
+      dispatch({ type: "failed", error: "Select a payment method." });
       return;
     }
     if (!cart.length) {
@@ -349,11 +331,13 @@ export default function CashierOrderExperience({
     }
     try {
       dispatch({ type: "submitting" });
-      const response = await fetch("/api/orders/table", {
+      const response = await fetch(isTakeaway ? "/api/orders" : "/api/orders/table", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tableId: state.tableId,
+          ...(isTakeaway
+            ? { orderType, paymentMethod: state.paymentMethod }
+            : { tableId: state.tableId }),
           notes: state.orderNote,
           holdForCourse,
           courseLabel: holdForCourse ? courseLabel.trim() : undefined,
@@ -369,10 +353,11 @@ export default function CashierOrderExperience({
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "The table order could not be sent.");
+      if (!response.ok) throw new Error(data?.error || "The order could not be sent.");
       clearCart();
-      router.push(`/cashier?orderStatus=${holdForCourse ? "held" : "sent"}`);
+      router.push(
+        `/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : holdForCourse ? "held" : "sent"}`,
+      );
       router.refresh();
     } catch (error) {
       dispatch({
@@ -386,11 +371,11 @@ export default function CashierOrderExperience({
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,#1d120d_0%,#2a1c15_45%,#17100c_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <TablePicker
-        open={!state.tableId}
+        open={!isTakeaway && !state.tableId}
         tables={tables}
         onSelect={(value) => dispatch({ type: "table", value })}
       />
@@ -398,7 +383,11 @@ export default function CashierOrderExperience({
         <CustomerOrderHeader
           title="Cashier order"
           subtitle={
-            tableName ? `Ordering for ${tableName}` : "Select a table to begin"
+            isTakeaway
+              ? "Takeaway · paid at the counter"
+              : tableName
+                ? `Ordering for ${tableName}`
+                : "Select a table to begin"
           }
           resetLabel="Clear order"
           cartLabel="Order"
@@ -431,13 +420,12 @@ export default function CashierOrderExperience({
                 value={courseLabel}
                 onChange={(event) => setCourseLabel(event.target.value)}
                 placeholder="e.g. Desserts"
-                className="mt-1 w-full rounded-lg border border-amber-400 bg-white px-3 py-2 text-sm text-foreground"
+                className="text-foreground mt-1 w-full rounded-lg border border-amber-400 bg-white px-3 py-2 text-sm"
               />
             </label>
           ) : null}
           <p className="mt-1 text-xs">
-            Held rounds stay off kitchen screens until fired from the cashier
-            table view.
+            Held rounds stay off kitchen screens until fired from the cashier table view.
           </p>
         </div>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
@@ -456,9 +444,7 @@ export default function CashierOrderExperience({
               filteredProducts={filteredProducts}
               baristas={baristas}
               selectedCategoryName={
-                categoryChips.find(
-                  (category) => category.id === selectedCategory,
-                )?.name ?? "All"
+                categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All"
               }
               isFiltering={isFiltering}
               onProductClick={addProduct}
@@ -466,7 +452,7 @@ export default function CashierOrderExperience({
           </div>
           <CustomerCartPanel
             mode="cashier"
-            tableName={tableName}
+            tableName={isTakeaway ? "Takeaway order" : tableName}
             cart={cart}
             customerName=""
             customerPhone=""
@@ -480,6 +466,11 @@ export default function CashierOrderExperience({
             onCustomerNameChange={() => undefined}
             onCustomerPhoneChange={() => undefined}
             onOrderNoteChange={(value) => dispatch({ type: "note", value })}
+            paymentMethod={isTakeaway ? state.paymentMethod : undefined}
+            checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
+            onPaymentMethodChange={
+              isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
+            }
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
             onClearCart={() => {
@@ -499,7 +490,7 @@ export default function CashierOrderExperience({
       />
       <CustomerCartSheet
         mode="cashier"
-        tableName={tableName}
+        tableName={isTakeaway ? "Takeaway order" : tableName}
         open={state.cartOpen && !isDesktopCartPanel}
         cart={cart}
         customerName=""
@@ -514,6 +505,11 @@ export default function CashierOrderExperience({
         onCustomerNameChange={() => undefined}
         onCustomerPhoneChange={() => undefined}
         onOrderNoteChange={(value) => dispatch({ type: "note", value })}
+        paymentMethod={isTakeaway ? state.paymentMethod : undefined}
+        checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
+        onPaymentMethodChange={
+          isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
+        }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}
         onClearCart={() => {

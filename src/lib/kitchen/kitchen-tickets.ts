@@ -22,6 +22,7 @@ import {
 } from "@/lib/auth/permissions";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
 import { calculateKitchenPreparationMetric } from "@/lib/kitchen/kitchen-metrics";
+import { filterPrintableKitchenTicket } from "@/lib/kitchen/kitchen-print";
 
 type KitchenStateTransaction = Prisma.TransactionClient;
 
@@ -89,7 +90,7 @@ export async function createKitchenTicketState(
 ) {
   const stations = getStationSet(input.lines);
 
-  if (stations.length === 0) return null;
+  if (stations.length === 0 && !input.actorCustomerId) return null;
 
   const targets = await tx.kitchenPreparationTarget.findMany({
     where: { station: { in: stations } },
@@ -101,6 +102,7 @@ export async function createKitchenTicketState(
   return tx.kitchenTicketState.create({
     data: {
       orderId: input.orderId,
+      pickupStatus: stations.length ? "PREPARING" : "READY",
       customerName: input.customerName?.trim() || null,
       isHeld: input.isHeld ?? false,
       courseLabel: input.courseLabel ?? null,
@@ -316,6 +318,42 @@ export async function getKitchenTicketSnapshot(
     }
   }
   return tickets;
+}
+
+/** Loads one historical or active ticket and limits it to the viewer's station. */
+export async function getPrintableKitchenTicket(
+  viewer: PermissionUser,
+  orderId: string,
+  requestedStation?: string | null,
+) {
+  const filter = getViewerFilter(viewer, requestedStation);
+
+  if (viewer.role !== "ADMIN" && !filter.station) return null;
+
+  const state = await prisma.kitchenTicketState.findUnique({
+    where: { orderId },
+    include: {
+      stationStates: true,
+      transitions: true,
+      order: {
+        include: {
+          table: true,
+          tableCheck: true,
+          cashier: true,
+          waiter: true,
+          orderItems: {
+            include: {
+              assignedUser: true,
+              modifiers: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!state) return null;
+  return filterPrintableKitchenTicket(mapKitchenTicket(state), filter);
 }
 
 async function lockTicket(tx: KitchenStateTransaction, orderId: string) {
