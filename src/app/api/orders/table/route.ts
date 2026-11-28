@@ -5,6 +5,7 @@ import { isProductAvailableForSale } from "@/lib/products/availability";
 import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createKitchenTicketState } from "@/lib/kitchen/kitchen-tickets";
+import { parseCourseHoldInput } from "@/lib/kitchen/course-hold";
 import type { SelectedModifierLine } from "@/lib/types";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
@@ -31,6 +32,8 @@ type TableOrderBody = {
   tableId?: string;
   items: TableOrderItemInput[];
   notes?: string;
+  holdForCourse?: unknown;
+  courseLabel?: unknown;
 };
 
 type PreparedLine = {
@@ -94,6 +97,18 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as TableOrderBody;
+    let courseHold: ReturnType<typeof parseCourseHoldInput>;
+    try {
+      courseHold = parseCourseHoldInput(body);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error ? error.message : "Invalid course hold.",
+        },
+        { status: 400 },
+      );
+    }
     const tableId = String(body.tableId ?? "").trim();
 
     if (!tableId) {
@@ -267,27 +282,27 @@ export async function POST(request: Request) {
       });
 
       const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map((modifierId) => {
-        const modifier = modifierMap.get(modifierId);
+          const modifier = modifierMap.get(modifierId);
 
         if (
           !modifier ||
           !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
         ) {
           throw new ModifierSelectionError(
-            `Modifier ${modifierId} is invalid for product ${product.name}.`,
-          );
-        }
+              `Modifier ${modifierId} is invalid for product ${product.name}.`,
+            );
+          }
 
-        const incomingModifier = incomingModifierMap.get(modifierId);
+          const incomingModifier = incomingModifierMap.get(modifierId);
 
-        return {
-          groupId: modifier.modifierGroup.id,
-          groupName: modifier.modifierGroup.name,
-          optionId: modifier.id,
-          optionName: modifier.name,
-          price: roundCurrency(Number(modifier.price)),
-          qty: Math.max(1, Number(incomingModifier?.qty) || 1),
-        };
+          return {
+            groupId: modifier.modifierGroup.id,
+            groupName: modifier.modifierGroup.name,
+            optionId: modifier.id,
+            optionName: modifier.name,
+            price: roundCurrency(Number(modifier.price)),
+            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+          };
       });
 
       let assignedBaristaId: string | null = null;
@@ -341,15 +356,21 @@ export async function POST(request: Request) {
     }
 
     calculatedTotal = roundCurrency(calculatedTotal);
+    if (courseHold.isHeld && !preparedLines.some((line) => line.station)) {
+      return NextResponse.json(
+        { error: "A held round needs at least one kitchen item." },
+        { status: 400 },
+      );
+    }
 
     const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
-      id: crypto.randomUUID(),
-      productName: line.productName,
-      qty: line.qty,
-      station: line.station,
-      assignedUserId: line.assignedBaristaId,
-      assignedUserName: line.assignedBaristaName,
-      modifiers: line.modifiers,
+        id: crypto.randomUUID(),
+        productName: line.productName,
+        qty: line.qty,
+        station: line.station,
+        assignedUserId: line.assignedBaristaId,
+        assignedUserName: line.assignedBaristaName,
+        modifiers: line.modifiers,
     }));
 
     const result = await prisma.$transaction(
@@ -490,6 +511,7 @@ export async function POST(request: Request) {
           orderId: createdOrder.id,
           lines: preparedLines,
           actorUserId: currentUser.id,
+          ...courseHold,
         });
 
         const [inventoryAlerts, checkTotal] = await Promise.all([
