@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CUSTOMER_ORDER_STAGES, type CustomerOrderStage } from "@/lib/customer/customer-order-progress";
+import {
+  CUSTOMER_ORDER_STAGES,
+  type CustomerOrderStage,
+} from "@/lib/customer/customer-order-progress";
 import {
   CheckCircle2,
   CircleAlert,
@@ -196,7 +199,9 @@ export default function CustomerCheckoutPageClient({
         : checkout.status === "PAYMENT_RECEIVED"
           ? "Payment received. Confirming your order…"
           : checkout.status === "PAID"
-            ? checkout.stage === "DELIVERED" ? "Thank you! Your order has been delivered. Returning to the menu…" : `Paid. Order #${checkout.orderNumber}: ${CUSTOMER_ORDER_STAGES.find(stage => stage.key === checkout.stage)?.label ?? "Kitchen received"}.`
+            ? checkout.stage === "DELIVERED"
+              ? "Thank you! Your order has been delivered. Returning to the menu…"
+              : `Paid. Order #${checkout.orderNumber}: ${CUSTOMER_ORDER_STAGES.find((stage) => stage.key === checkout.stage)?.label ?? "Kitchen received"}.`
             : checkout.status === "NEEDS_HELP"
               ? "Payment received. Staff need to finish your order."
               : "This payment window expired. If you paid, ask staff to review your receipt.";
@@ -208,8 +213,14 @@ export default function CustomerCheckoutPageClient({
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800 dark:text-amber-300">
             Mobile money checkout
           </p>
-          <h1 className="mt-2 text-3xl font-bold">{checkout.status === "PAID" ? "Your order" : "Pay for your order"}</h1>
-          <p className="mt-2 font-semibold">{checkout.orderType === "DINE_IN" ? `Dine in · ${checkout.tableName ?? "Your table"}` : "To-go order"}</p>
+          <h1 className="mt-2 text-3xl font-bold">
+            {checkout.status === "PAID" ? "Your order" : "Pay for your order"}
+          </h1>
+          <p className="mt-2 font-semibold">
+            {checkout.orderType === "DINE_IN"
+              ? `Dine in · ${checkout.tableName ?? "Your table"}`
+              : "To-go order"}
+          </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Use the phone number {checkout.payerPhone} to send the full amount.
           </p>
@@ -276,22 +287,68 @@ export default function CustomerCheckoutPageClient({
             </div>
           </div>
         </div>
-        {checkout.status === "PAID" ? <section aria-label="Order progress" className="space-y-3">
-          <div role="progressbar" aria-label="Order progress" aria-valuemin={0} aria-valuemax={5}
-            aria-valuenow={Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage))}
-            aria-valuetext={CUSTOMER_ORDER_STAGES.find(stage => stage.key === checkout.stage)?.label}
-            className="h-3 overflow-hidden rounded-full bg-stone-200">
-            <div className="h-full bg-emerald-600 transition-[width]" style={{ width: `${Math.max(0, CUSTOMER_ORDER_STAGES.findIndex(stage => stage.key === checkout.stage)) * 20}%` }} />
-          </div>
-          <ol className="grid grid-cols-2 gap-2 text-sm">
-            {CUSTOMER_ORDER_STAGES.map((stage, index) => <li key={stage.key}
-              aria-current={stage.key === checkout.stage ? "step" : undefined}
-              className={index <= CUSTOMER_ORDER_STAGES.findIndex(value => value.key === checkout.stage) ? "font-semibold text-emerald-800" : "text-stone-500"}>
-              {index + 1}. {stage.label}
-            </li>)}
-          </ol>
-          {checkout.stage !== "DELIVERED" ? <p className="text-sm text-stone-600">Keep this page open to follow your order. It updates automatically and checks again when you return.</p> : null}
-        </section> : null}
+        {checkout.status === "PAID" ? (
+          <section aria-label="Order progress" className="space-y-3">
+            <div
+              role="progressbar"
+              aria-label="Order progress"
+              aria-valuemin={0}
+              aria-valuemax={5}
+              aria-valuenow={Math.max(
+                0,
+                CUSTOMER_ORDER_STAGES.findIndex(
+                  (stage) => stage.key === checkout.stage,
+                ),
+              )}
+              aria-valuetext={
+                CUSTOMER_ORDER_STAGES.find(
+                  (stage) => stage.key === checkout.stage,
+                )?.label
+              }
+              className="h-3 overflow-hidden rounded-full bg-stone-200"
+            >
+              <div
+                className="h-full bg-emerald-600 transition-[width]"
+                style={{
+                  width: `${
+                    Math.max(
+                      0,
+                      CUSTOMER_ORDER_STAGES.findIndex(
+                        (stage) => stage.key === checkout.stage,
+                      ),
+                    ) * 20
+                  }%`,
+                }}
+              />
+            </div>
+            <ol className="grid grid-cols-2 gap-2 text-sm">
+              {CUSTOMER_ORDER_STAGES.map((stage, index) => (
+                <li
+                  key={stage.key}
+                  aria-current={
+                    stage.key === checkout.stage ? "step" : undefined
+                  }
+                  className={
+                    index <=
+                    CUSTOMER_ORDER_STAGES.findIndex(
+                      (value) => value.key === checkout.stage,
+                    )
+                      ? "font-semibold text-emerald-800"
+                      : "text-stone-500"
+                  }
+                >
+                  {index + 1}. {stage.label}
+                </li>
+              ))}
+            </ol>
+            {checkout.stage !== "DELIVERED" ? (
+              <p className="text-sm text-stone-600">
+                Keep this page open to follow your order. It updates
+                automatically and checks again when you return.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
         {error ? (
           <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
             {error}{" "}
@@ -300,7 +357,9 @@ export default function CustomerCheckoutPageClient({
             </Button>
           </p>
         ) : null}
-        {checkout.status === "PENDING" || checkout.status === "REVIEW" || checkout.status === "EXPIRED" ? (
+        {checkout.status === "PENDING" ||
+        checkout.status === "REVIEW" ||
+        checkout.status === "EXPIRED" ? (
           <Button
             type="button"
             variant="outline"
