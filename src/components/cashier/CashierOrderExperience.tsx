@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useReducer,
-  useState,
-  useTransition,
-} from "react";
+import { useDeferredValue, useEffect, useMemo, useReducer, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,23 +18,25 @@ import CustomerOrderHeader from "@/components/customer/UI/CustomerOrderHeader";
 import MenuBrowserPanel from "@/components/customer/UI/MenuBrowserPanel";
 import ProductGridPanel from "@/components/customer/UI/ProductGridPanel";
 import CustomerModifierModal from "@/components/customer/CustomerModifierModal";
-import CustomerCartSheet, {
-  CustomerCartPanel,
-} from "@/components/customer/CustomerCartSheet";
-import {
-  bodyFont,
-  displayFont,
-} from "@/components/customer/customer-order-styles";
+import CustomerCartSheet, { CustomerCartPanel } from "@/components/customer/CustomerCartSheet";
+import { bodyFont, displayFont } from "@/components/customer/customer-order-styles";
 import {
   buildModifierLines,
   getProductModifierGroups,
   type SelectedModifiersMap,
 } from "@/components/customer/customer-order-utils";
+import { buildReorderLines, type PreviousOrderItem } from "@/lib/orders/reorder-items";
 
 type TableOption = { id: string; name: string };
 type Props = {
   tables: TableOption[];
   initialTableId?: string;
+  repeatOrder?: {
+    id: string;
+    orderNumber: number;
+    tableCheckRound: number | null;
+    orderItems: PreviousOrderItem[];
+  };
   orderType?: "DINE_IN" | "TAKEOUT";
 };
 type State = {
@@ -163,11 +158,11 @@ function TablePicker({
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-2xl rounded-[2rem] border border-border bg-card p-6 sm:p-8"
+        className="border-border bg-card max-w-2xl rounded-[2rem] border p-6 sm:p-8"
       >
         <DialogHeader>
           <DialogTitle
-            className="text-center text-3xl text-foreground sm:text-4xl"
+            className="text-foreground text-center text-3xl sm:text-4xl"
             style={{ fontFamily: displayFont }}
           >
             Select an available table
@@ -184,14 +179,14 @@ function TablePicker({
                 type="button"
                 variant="outline"
                 onClick={() => onSelect(table.id)}
-                className="min-h-24 rounded-[1.5rem] border border-border bg-card text-xl font-semibold text-foreground shadow-sm hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent"
+                className="border-border bg-card text-foreground hover:border-ring hover:bg-accent dark:bg-card dark:hover:bg-accent min-h-24 rounded-[1.5rem] border text-xl font-semibold shadow-sm"
               >
                 {table.name}
               </Button>
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-border p-8 text-center text-muted-foreground">
+          <div className="border-border text-muted-foreground mt-4 rounded-[1.5rem] border border-dashed p-8 text-center">
             Every active table is currently occupied.
           </div>
         )}
@@ -203,15 +198,14 @@ function TablePicker({
 export default function CashierOrderExperience({
   tables,
   initialTableId = "",
+  repeatOrder,
   orderType = "DINE_IN",
 }: Props) {
   const isTakeaway = orderType === "TAKEOUT";
   const router = useRouter();
   const isDesktopCartPanel = useDesktopCartPanel();
   const [state, dispatch] = useReducer(reducer, {
-    tableId: tables.some((table) => table.id === initialTableId)
-      ? initialTableId
-      : "",
+    tableId: tables.some((table) => table.id === initialTableId) ? initialTableId : "",
     categoryId: "all",
     searchTerm: "",
     orderNote: "",
@@ -224,14 +218,8 @@ export default function CashierOrderExperience({
     error: "",
   });
   const { productsAll, categories, baristas, loading } = useWaiterData();
-  const {
-    cart,
-    addToCart,
-    changeQuantity,
-    removeFromCart,
-    clearCart,
-    calculateCartTotal,
-  } = useWaiterCart();
+  const { cart, addToCart, changeQuantity, removeFromCart, clearCart, calculateCartTotal } =
+    useWaiterCart();
   const deferredSearch = useDeferredValue(state.searchTerm);
   const [isFiltering, startFiltering] = useTransition();
   const products = useMemo(
@@ -242,41 +230,32 @@ export default function CashierOrderExperience({
       })),
     [productsAll],
   );
-  const menuCategories = useMemo(
-    () => getCategories(categories, products),
-    [categories, products],
-  );
+  const menuCategories = useMemo(() => getCategories(categories, products), [categories, products]);
   const categoryChips = useMemo(
     () => [
       { id: "all", name: "All", count: products.length },
       ...menuCategories.map((category) => ({
         id: category.id,
         name: category.name,
-        count: products.filter(
-          (product) => product.category?.id === category.id,
-        ).length,
+        count: products.filter((product) => product.category?.id === category.id).length,
       })),
     ],
     [menuCategories, products],
   );
-  const selectedCategory = categoryChips.some(
-    (category) => category.id === state.categoryId,
-  )
+  const selectedCategory = categoryChips.some((category) => category.id === state.categoryId)
     ? state.categoryId
     : "all";
   const filteredProducts = useMemo(() => {
     const term = deferredSearch.trim().toLowerCase();
     return products.filter(
       (product) =>
-        (selectedCategory === "all" ||
-          product.category?.id === selectedCategory) &&
+        (selectedCategory === "all" || product.category?.id === selectedCategory) &&
         (!term ||
           product.name.toLowerCase().includes(term) ||
           (product.description ?? "").toLowerCase().includes(term)),
     );
   }, [deferredSearch, products, selectedCategory]);
-  const tableName =
-    tables.find((table) => table.id === state.tableId)?.name ?? "";
+  const tableName = tables.find((table) => table.id === state.tableId)?.name ?? "";
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
   const cartSubtotal = calculateCartTotal();
   useAos(
@@ -315,24 +294,50 @@ export default function CashierOrderExperience({
     baristaId: string | null,
   ) {
     const modifiers = buildModifierLines(product, selected);
-    const barista = baristaId
-      ? baristas.find((item) => item.id === baristaId)
-      : null;
+    const barista = baristaId ? baristas.find((item) => item.id === baristaId) : null;
     addToCart({
       ...product,
       station: product.category?.station ?? null,
       selectedModifiers: modifiers,
       finalPrice:
         (Number(product.price) || 0) +
-        modifiers.reduce(
-          (sum, modifier) => sum + modifier.price * modifier.qty,
-          0,
-        ),
+        modifiers.reduce((sum, modifier) => sum + modifier.price * modifier.qty, 0),
       assignedUserId: barista?.id ?? null,
       assignedUserName: barista?.fullName ?? null,
     });
     dispatch({ type: "modifierClose" });
     dispatch({ type: "added" });
+  }
+
+  function addPreviousOrder() {
+    if (!repeatOrder || loading) return;
+    const result = buildReorderLines(repeatOrder.orderItems, products, baristas);
+    for (const line of result.lines) {
+      for (let quantity = 0; quantity < line.quantity; quantity += 1) {
+        addToCart({
+          ...line.product,
+          station: line.product.category?.station ?? null,
+          selectedModifiers: line.selectedModifiers,
+          finalPrice: line.finalPrice,
+          assignedUserId: line.assignedUserId,
+          assignedUserName: line.assignedUserName,
+        });
+      }
+    }
+    if (!result.lines.length) {
+      dispatch({
+        type: "failed",
+        error: "Those previous items are no longer available on the active menu.",
+      });
+      return;
+    }
+    dispatch({ type: "added" });
+    if (result.unavailableItems) {
+      dispatch({
+        type: "failed",
+        error: `${result.unavailableItems} previous item(s) were skipped because a product or modifier is no longer available.`,
+      });
+    }
   }
 
   async function sendOrder() {
@@ -376,8 +381,7 @@ export default function CashierOrderExperience({
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.error || "The order could not be sent.");
+      if (!response.ok) throw new Error(data?.error || "The order could not be sent.");
       clearCart();
       router.push(`/cashier?orderStatus=${isTakeaway ? "takeaway_paid" : "sent"}`);
       router.refresh();
@@ -393,7 +397,7 @@ export default function CashierOrderExperience({
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] bg-size[28px_28px,auto] text-foreground dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
+      className="bg-size[28px_28px,auto] text-foreground relative min-h-dvh overflow-hidden bg-[linear-gradient(120deg,rgba(31,41,55,0.10)_0_1px,transparent_1px_100%),linear-gradient(180deg,#f4eadb_0%,#fffaf3_34%,#e7d1b1_100%)] dark:bg-[linear-gradient(120deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_100%),linear-gradient(180deg,var(--background)_0%,var(--card)_45%,var(--background)_100%)]"
       style={{ fontFamily: bodyFont }}
     >
       <TablePicker
@@ -422,6 +426,19 @@ export default function CashierOrderExperience({
           }}
           onOpenCart={() => dispatch({ type: "cartOpen" })}
         />
+        {repeatOrder ? (
+          <section className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div>
+              <p className="font-semibold">
+                Reorder order #{repeatOrder.orderNumber}, round {repeatOrder.tableCheckRound ?? 1}
+              </p>
+              <p className="text-sm">Current menu prices and availability will be used.</p>
+            </div>
+            <Button type="button" variant="outline" disabled={loading} onClick={addPreviousOrder}>
+              {loading ? "Loading menu…" : "Add previous items"}
+            </Button>
+          </section>
+        ) : null}
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start lg:gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
           <div className="min-w-0">
             <MenuBrowserPanel
@@ -438,9 +455,7 @@ export default function CashierOrderExperience({
               filteredProducts={filteredProducts}
               baristas={baristas}
               selectedCategoryName={
-                categoryChips.find(
-                  (category) => category.id === selectedCategory,
-                )?.name ?? "All"
+                categoryChips.find((category) => category.id === selectedCategory)?.name ?? "All"
               }
               isFiltering={isFiltering}
               onProductClick={addProduct}
@@ -465,9 +480,7 @@ export default function CashierOrderExperience({
             paymentMethod={isTakeaway ? state.paymentMethod : undefined}
             checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
             onPaymentMethodChange={
-              isTakeaway
-                ? (value) => dispatch({ type: "paymentMethod", value })
-                : undefined
+              isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
             }
             onChangeQuantity={changeQuantity}
             onRemove={removeFromCart}
@@ -506,9 +519,7 @@ export default function CashierOrderExperience({
         paymentMethod={isTakeaway ? state.paymentMethod : undefined}
         checkoutLabel={isTakeaway ? "Pay and send to kitchen" : undefined}
         onPaymentMethodChange={
-          isTakeaway
-            ? (value) => dispatch({ type: "paymentMethod", value })
-            : undefined
+          isTakeaway ? (value) => dispatch({ type: "paymentMethod", value }) : undefined
         }
         onChangeQuantity={changeQuantity}
         onRemove={removeFromCart}

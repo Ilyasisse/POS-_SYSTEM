@@ -6,15 +6,15 @@ import CashierOrderExperience from "@/components/cashier/CashierOrderExperience"
 type CashierOrderPageProps = {
   searchParams?: Promise<{
     tableId?: string;
+    repeatOrderId?: string;
   }>;
 };
 
-export default async function CashierOrderPage({
-  searchParams,
-}: CashierOrderPageProps) {
+export default async function CashierOrderPage({ searchParams }: CashierOrderPageProps) {
   const params = await searchParams;
   const requestedTableId = params?.tableId?.trim() ?? "";
-  const [, tables] = await Promise.all([
+  const repeatOrderId = params?.repeatOrderId?.trim() ?? "";
+  const [, tables, repeatOrder] = await Promise.all([
     requirePermission(PERMISSIONS.ORDER_CREATE),
     prisma.table.findMany({
       where: {
@@ -39,9 +39,38 @@ export default async function CashierOrderPage({
         name: "asc",
       },
     }),
+    requestedTableId && repeatOrderId
+      ? prisma.order.findFirst({
+          where: {
+            id: repeatOrderId,
+            tableId: requestedTableId,
+            type: "DINE_IN",
+          },
+          select: {
+            id: true,
+            orderNumber: true,
+            tableCheckRound: true,
+            orderItems: {
+              orderBy: { createdAt: "asc" },
+              select: {
+                productId: true,
+                qty: true,
+                assignedUserId: true,
+                modifiers: {
+                  select: { modifierId: true, qty: true },
+                },
+              },
+            },
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   return (
-    <CashierOrderExperience tables={tables} initialTableId={requestedTableId} />
+    <CashierOrderExperience
+      tables={tables}
+      initialTableId={requestedTableId}
+      repeatOrder={repeatOrder ?? undefined}
+    />
   );
 }
