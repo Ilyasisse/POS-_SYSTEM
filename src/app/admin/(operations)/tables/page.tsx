@@ -24,8 +24,7 @@ type TablePageProps = {
 
 function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
   if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
-  if (table.orders.length > 0)
-    return { label: "Occupied", tone: "red" as const };
+  if (table.orders.length > 0) return { label: "Occupied", tone: "red" as const };
   return { label: "Available", tone: "green" as const };
 }
 
@@ -85,22 +84,12 @@ export default async function TablePage({ searchParams }: TablePageProps) {
   ).filter((table) => !q || table.name.toLowerCase().includes(q));
 
   const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter(
-    (table) => table.orders.length > 0,
-  ).length;
-  const openOrders = tables.reduce(
-    (sum, table) => sum + table.orders.length,
-    0,
-  );
+  const occupiedTables = tables.filter((table) => table.orders.length > 0).length;
+  const openOrders = tables.reduce((sum, table) => sum + table.orders.length, 0);
 
   return (
-    <AdminPage
-      title="Tables"
-      description="Manage dine-in tables and their status"
-    >
-      {notice ? (
-        <ToastOnMount tone={notice.tone} description={notice.message} />
-      ) : null}
+    <AdminPage title="Tables" description="Manage dine-in tables and their status">
+      {notice ? <ToastOnMount tone={notice.tone} description={notice.message} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <MetricCard label="Total Tables" value={tables.length} />
@@ -110,13 +99,13 @@ export default async function TablePage({ searchParams }: TablePageProps) {
 
       <form
         action={createActiveTableFromAdmin}
-        className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 md:grid-cols-[1fr_auto]"
+        className="border-border bg-card grid gap-3 rounded-2xl border p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_auto]"
       >
         <Input
           aria-label="Table name or number"
           name="tableName"
           type="text"
-          className="h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50"
+          className="border-border h-11 rounded-lg border px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 dark:focus:border-blue-800 dark:focus:ring-blue-800"
           placeholder="Table name or number"
         />
         <Button type="submit">Add Table</Button>
@@ -125,7 +114,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <DataTableCard
           footer={
-            <p className="text-sm font-medium text-slate-500">
+            <p className="text-muted-foreground text-sm font-medium">
               Showing 1 to {tables.length} of {tables.length} tables
             </p>
           }
@@ -158,20 +147,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 tables.map((table, index) => {
                   const status = getTableStatus(table);
                   return (
-                    <tr key={table.id} className="border-b border-slate-50">
-                      <TableCell className="font-bold text-slate-400">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-black text-slate-950">
-                        {table.name}
-                      </TableCell>
+                    <tr key={table.id} className="border-border border-b">
+                      <TableCell className="text-muted-foreground font-bold">{index + 1}</TableCell>
+                      <TableCell className="text-foreground font-black">{table.name}</TableCell>
                       <TableCell>{4 + (index % 4)}</TableCell>
                       <TableCell>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                       </TableCell>
-                      <TableCell>
-                        {index % 2 === 0 ? "Main Floor" : "Outdoor"}
-                      </TableCell>
+                      <TableCell>{index % 2 === 0 ? "Main Floor" : "Outdoor"}</TableCell>
                       <TableCell>{table.orders.length}</TableCell>
                     </tr>
                   );
