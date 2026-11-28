@@ -13,10 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useToast } from "@/components/ui/toast";
-import {
-  MAX_EQUAL_SPLIT_PEOPLE,
-  splitBillEqually,
-} from "@/lib/payments/equal-bill-split";
+import { MAX_EQUAL_SPLIT_PEOPLE, splitBillEqually } from "@/lib/payments/equal-bill-split";
 
 type Line = {
   id: string;
@@ -24,6 +21,7 @@ type Line = {
   payerPhone: string;
   amount: string;
   method: string;
+  tipAmount?: string;
 };
 type RequestLine = {
   id: string;
@@ -31,6 +29,9 @@ type RequestLine = {
   payerPhone: string;
   amount: number;
   method: string;
+  tipAmount: number;
+  totalAmount: number;
+  tipRecipientName: string | null;
   paidAmount: number;
   remainingAmount: number;
   status: string;
@@ -59,6 +60,9 @@ type Receipt = {
     payerName: string;
     payerPhone: string;
     expectedAmount: number;
+    billAmount: number;
+    tipAmount: number;
+    tipRecipientName: string | null;
     table: { id: string; name: string };
   } | null;
 };
@@ -106,19 +110,19 @@ export default function CashierPaymentDialog({
   const [submitting, setSubmitting] = useState(false);
   const [busyReceiptId, setBusyReceiptId] = useState("");
   const [canManage, setCanManage] = useState(false);
-  const [reversalReasons, setReversalReasons] = useState<
-    Record<string, string>
-  >({});
+  const [reversalReasons, setReversalReasons] = useState<Record<string, string>>({});
 
   const entered = useMemo(
     () => lines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0),
     [lines],
   );
+  const tips = useMemo(
+    () => lines.reduce((sum, line) => sum + (Number(line.tipAmount) || 0), 0),
+    [lines],
+  );
   const remaining = Math.max(0, amountDue - entered);
-  const complete =
-    requests.length > 0 && requests.every((item) => item.status === "MATCHED");
-  const selectedRequest =
-    requests.find((item) => item.id === selectedRequestId) ?? null;
+  const complete = requests.length > 0 && requests.every((item) => item.status === "MATCHED");
+  const selectedRequest = requests.find((item) => item.id === selectedRequestId) ?? null;
 
   const refresh = useCallback(async () => {
     const calls: Promise<Response>[] = [
@@ -126,10 +130,9 @@ export default function CashierPaymentDialog({
     ];
     if (batchKey)
       calls.push(
-        fetch(
-          `/api/cashier/payment-requests?batchKey=${encodeURIComponent(batchKey)}`,
-          { cache: "no-store" },
-        ),
+        fetch(`/api/cashier/payment-requests?batchKey=${encodeURIComponent(batchKey)}`, {
+          cache: "no-store",
+        }),
       );
     const [receiptResponse, requestResponse] = await Promise.all(calls);
     if (receiptResponse.ok) {
@@ -169,15 +172,9 @@ export default function CashierPaymentDialog({
     );
   }, [receipts, search, tab]);
 
-  function updateLine(
-    id: string,
-    field: keyof Omit<Line, "id">,
-    value: string,
-  ) {
+  function updateLine(id: string, field: keyof Omit<Line, "id">, value: string) {
     setLines((current) =>
-      current.map((line) =>
-        line.id === id ? { ...line, [field]: value } : line,
-      ),
+      current.map((line) => (line.id === id ? { ...line, [field]: value } : line)),
     );
   }
 
@@ -197,9 +194,7 @@ export default function CashierPaymentDialog({
       setPayLater(false);
       setError("");
     } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Could not split the bill.",
-      );
+      setError(reason instanceof Error ? reason.message : "Could not split the bill.");
     }
   }
 
@@ -223,31 +218,27 @@ export default function CashierPaymentDialog({
             payerPhone: line.payerPhone,
             amount: Number(line.amount),
             method: line.method,
+            tipAmount: Number(line.tipAmount ?? 0),
           })),
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not start payment checks.");
+      if (!response.ok) throw new Error(data.error || "Could not start payment checks.");
       setBatchKey(key);
       setRequests(
         (data.requests ?? []).map((item: RequestLine) => ({
           ...item,
           paidAmount: 0,
-          remainingAmount: item.amount,
+          remainingAmount: item.totalAmount,
         })),
       );
       setSelectedRequestId(data.requests?.[0]?.id ?? "");
       toast({
         tone: "success",
-        description:
-          "Payment rows are ready. Choose an incoming SAHAL receipt.",
+        description: "Payment rows are ready. Choose an incoming SAHAL receipt.",
       });
     } catch (reason) {
-      const message =
-        reason instanceof Error
-          ? reason.message
-          : "Could not start payment checks.";
+      const message = reason instanceof Error ? reason.message : "Could not start payment checks.";
       setError(message);
       toast({ tone: "error", description: message });
     } finally {
@@ -259,17 +250,13 @@ export default function CashierPaymentDialog({
     if (!selectedRequest) return;
     setBusyReceiptId(receipt.id);
     try {
-      const response = await fetch(
-        `/api/cashier/payment-receipts/${receipt.id}/assign`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentRequestId: selectedRequest.id }),
-        },
-      );
+      const response = await fetch(`/api/cashier/payment-receipts/${receipt.id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentRequestId: selectedRequest.id }),
+      });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not assign this receipt.");
+      if (!response.ok) throw new Error(data.error || "Could not assign this receipt.");
       toast({
         tone: "success",
         description: `${money(receipt.amount ?? 0)} assigned to ${selectedRequest.payerName}.`,
@@ -278,10 +265,7 @@ export default function CashierPaymentDialog({
     } catch (reason) {
       toast({
         tone: "error",
-        description:
-          reason instanceof Error
-            ? reason.message
-            : "Could not assign this receipt.",
+        description: reason instanceof Error ? reason.message : "Could not assign this receipt.",
       });
     } finally {
       setBusyReceiptId("");
@@ -297,31 +281,24 @@ export default function CashierPaymentDialog({
       });
     setBusyReceiptId(receipt.id);
     try {
-      const response = await fetch(
-        `/api/manager/payment-receipts/${receipt.id}/reverse`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reason }),
-        },
-      );
+      const response = await fetch(`/api/manager/payment-receipts/${receipt.id}/reverse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.error || "Could not reverse this assignment.");
+      if (!response.ok) throw new Error(data.error || "Could not reverse this assignment.");
       setReversalReasons((current) => ({ ...current, [receipt.id]: "" }));
       toast({
         tone: "success",
-        description:
-          "Receipt assignment reversed and recorded in the audit log.",
+        description: "Receipt assignment reversed and recorded in the audit log.",
       });
       await refresh();
     } catch (reasonValue) {
       toast({
         tone: "error",
         description:
-          reasonValue instanceof Error
-            ? reasonValue.message
-            : "Could not reverse this assignment.",
+          reasonValue instanceof Error ? reasonValue.message : "Could not reverse this assignment.",
       });
     } finally {
       setBusyReceiptId("");
@@ -331,15 +308,13 @@ export default function CashierPaymentDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="min-h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-11 w-full rounded-xl">
           Take payment · {money(amountDue)}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto rounded-[2rem] p-6 sm:p-8">
         <DialogHeader>
-          <DialogTitle className="text-3xl">
-            Payment for {tableName}
-          </DialogTitle>
+          <DialogTitle className="text-3xl">Payment for {tableName}</DialogTitle>
           <DialogDescription>
             Choose a provider for each payer, then attach incoming receipts.
           </DialogDescription>
@@ -347,9 +322,9 @@ export default function CashierPaymentDialog({
         {!batchKey ? (
           <div className="space-y-5">
             {showEqualSplit ? (
-              <div className="rounded-2xl border bg-muted/30 p-4">
+              <div className="bg-muted/30 rounded-2xl border p-4">
                 <p className="font-semibold">Split equally</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="text-muted-foreground mt-1 text-sm">
                   Divide the full table balance exactly between each payer.
                 </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -362,11 +337,7 @@ export default function CashierPaymentDialog({
                     value={equalSplitCount}
                     onChange={(event) => setEqualSplitCount(event.target.value)}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={applyEqualSplit}
-                  >
+                  <Button type="button" variant="outline" onClick={applyEqualSplit}>
                     Create equal shares
                   </Button>
                 </div>
@@ -376,14 +347,12 @@ export default function CashierPaymentDialog({
               {lines.map((line, index) => (
                 <div
                   key={line.id}
-                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"
+                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_7rem_1fr_1fr_7rem_auto]"
                 >
                   <NativeSelect
                     aria-label={`Payer ${index + 1} payment method`}
                     value={line.method}
-                    onChange={(event) =>
-                      updateLine(line.id, "method", event.target.value)
-                    }
+                    onChange={(event) => updateLine(line.id, "method", event.target.value)}
                   >
                     <option value="">Method</option>
                     <option value="GOLIS">GOLIS / SAHAL</option>
@@ -392,20 +361,26 @@ export default function CashierPaymentDialog({
                     <option value="OTHER">OTHER</option>
                   </NativeSelect>
                   <Input
+                    aria-label={`Payer ${index + 1} tip amount`}
+                    title="Tip"
+                    placeholder="Tip"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={line.tipAmount ?? "0"}
+                    onChange={(event) => updateLine(line.id, "tipAmount", event.target.value)}
+                  />
+                  <Input
                     aria-label={`Payer ${index + 1} name`}
                     placeholder="Name"
                     value={line.payerName}
-                    onChange={(event) =>
-                      updateLine(line.id, "payerName", event.target.value)
-                    }
+                    onChange={(event) => updateLine(line.id, "payerName", event.target.value)}
                   />
                   <Input
                     aria-label={`Payer ${index + 1} phone`}
                     placeholder="Phone number"
                     value={line.payerPhone}
-                    onChange={(event) =>
-                      updateLine(line.id, "payerPhone", event.target.value)
-                    }
+                    onChange={(event) => updateLine(line.id, "payerPhone", event.target.value)}
                   />
                   <Input
                     aria-label={`Payer ${index + 1} amount`}
@@ -413,18 +388,14 @@ export default function CashierPaymentDialog({
                     min="0.01"
                     step="0.01"
                     value={line.amount}
-                    onChange={(event) =>
-                      updateLine(line.id, "amount", event.target.value)
-                    }
+                    onChange={(event) => updateLine(line.id, "amount", event.target.value)}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     disabled={lines.length === 1}
                     onClick={() =>
-                      setLines((current) =>
-                        current.filter((item) => item.id !== line.id),
-                      )
+                      setLines((current) => current.filter((item) => item.id !== line.id))
                     }
                   >
                     Remove
@@ -451,7 +422,7 @@ export default function CashierPaymentDialog({
               + Add another payer
             </Button>
             <div
-              className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40" : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40"}`}
+              className={`rounded-2xl border p-4 ${Math.abs(remaining) < 0.001 ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40" : "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40"}`}
             >
               <div className="flex justify-between">
                 <span>Table balance</span>
@@ -459,7 +430,9 @@ export default function CashierPaymentDialog({
               </div>
               <div className="mt-1 flex justify-between">
                 <span>Entered payments</span>
-                <strong>{money(entered)}</strong>
+                <strong>
+                  {money(entered)} + {money(tips)} tips
+                </strong>
               </div>
               <div className="mt-1 flex justify-between">
                 <span>Remaining</span>
@@ -467,7 +440,7 @@ export default function CashierPaymentDialog({
               </div>
             </div>
             {remaining > 0.001 ? (
-              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+              <label className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
                 <input
                   type="checkbox"
                   checked={payLater}
@@ -483,7 +456,7 @@ export default function CashierPaymentDialog({
               </label>
             ) : null}
             {error ? (
-              <p className="rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-sm font-semibold text-red-700 dark:text-red-300">
+              <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
                 {error}
               </p>
             ) : null}
@@ -496,16 +469,16 @@ export default function CashierPaymentDialog({
                 entered > amountDue ||
                 (remaining > 0.001 && !payLater)
               }
-              className="w-full rounded-full bg-primary py-4 text-primary-foreground"
+              className="bg-primary text-primary-foreground w-full rounded-full py-4"
             >
               {submitting ? "Starting…" : "Start payment check"}
             </Button>
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-4 text-sm text-blue-900 dark:text-blue-300">
-              Incoming SMS messages from 898 appear below automatically. Select
-              the payer first, then assign a receipt.
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+              Incoming SMS messages from 898 appear below automatically. Select the payer first,
+              then assign a receipt.
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               {requests.map((request) => (
@@ -513,28 +486,25 @@ export default function CashierPaymentDialog({
                   key={request.id}
                   type="button"
                   onClick={() => setSelectedRequestId(request.id)}
-                  className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-100 dark:ring-blue-800" : "hover:bg-muted/40"}`}
+                  className={`rounded-2xl border p-4 text-left ${request.id === selectedRequestId ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:ring-blue-800" : "hover:bg-muted/40"}`}
                 >
                   <span className="font-semibold">
                     {request.payerName} · {request.payerPhone}
                   </span>
                   <span className="mt-2 block text-sm">
-                    {request.method} · Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
-                    · Remaining {money(request.remainingAmount)}
+                    Bill {money(request.amount)} + tip {money(request.tipAmount)} · {request.method}{" "}
+                    · Paid {money(request.paidAmount)} of {money(request.amount)} · Remaining{" "}
+                    {money(request.remainingAmount)}
                   </span>
                   <span
-                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"}`}
+                    className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold ${request.status === "MATCHED" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"}`}
                   >
                     {request.status.replaceAll("_", " ")}
                   </span>
                 </button>
               ))}
             </div>
-            <div
-              className="flex flex-wrap gap-2"
-              role="tablist"
-              aria-label="Payment receipts"
-            >
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Payment receipts">
               {(Object.keys(tabLabels) as ReceiptTab[]).map((item) => (
                 <Button
                   key={item}
@@ -544,9 +514,7 @@ export default function CashierPaymentDialog({
                   role="tab"
                   aria-selected={tab === item}
                 >
-                  {tabLabels[item]} (
-                  {receipts.filter((receipt) => receipt.status === item).length}
-                  )
+                  {tabLabels[item]} ({receipts.filter((receipt) => receipt.status === item).length})
                 </Button>
               ))}
             </div>
@@ -558,7 +526,7 @@ export default function CashierPaymentDialog({
             />
             <div className="space-y-3">
               {visibleReceipts.length === 0 ? (
-                <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                <p className="text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
                   No {tabLabels[tab].toLowerCase()} receipts match.
                 </p>
               ) : (
@@ -569,33 +537,24 @@ export default function CashierPaymentDialog({
                     receipt.amount - selectedRequest.remainingAmount > 0.001,
                   );
                   return (
-                    <article
-                      key={receipt.id}
-                      className="rounded-2xl border p-4"
-                    >
+                    <article key={receipt.id} className="rounded-2xl border p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="font-semibold">
-                            {receipt.counterpartyLabel ??
-                              "Unrecognized SAHAL message"}
+                            {receipt.counterpartyLabel ?? "Unrecognized SAHAL message"}
                           </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
+                          <p className="text-muted-foreground mt-1 text-sm">
                             Tix {receipt.reference ?? "not found"} ·{" "}
-                            {receipt.amount == null
-                              ? "Amount not found"
-                              : money(receipt.amount)}
+                            {receipt.amount == null ? "Amount not found" : money(receipt.amount)}
                           </p>
                           <p className="mt-1 text-sm">
-                            Numbers:{" "}
-                            {receipt.counterpartyIdentifiers.join(", ") ||
-                              "none found"}
+                            Numbers: {receipt.counterpartyIdentifiers.join(", ") || "none found"}
                           </p>
                           <p className="mt-1 text-sm">
                             {receipt.transactionAt
-                              ? new Date(receipt.transactionAt).toLocaleString(
-                                  "en-GB",
-                                  { timeZone: "Africa/Nairobi" },
-                                )
+                              ? new Date(receipt.transactionAt).toLocaleString("en-GB", {
+                                  timeZone: "Africa/Nairobi",
+                                })
                               : "Time not found"}{" "}
                             · Balance{" "}
                             {receipt.providerBalance == null
@@ -603,18 +562,17 @@ export default function CashierPaymentDialog({
                               : money(receipt.providerBalance)}
                           </p>
                           {receipt.customerCheckout ? (
-                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
-                              Assigned to customer checkout{" "}
-                              {receipt.customerCheckout.customerName} (
-                              {receipt.customerCheckout.payerPhone}) ·{" "}
+                            <p className="bg-muted mt-2 rounded-lg p-2 text-sm">
+                              Assigned to customer checkout {receipt.customerCheckout.customerName}{" "}
+                              ({receipt.customerCheckout.payerPhone}) ·{" "}
                               {money(receipt.customerCheckout.amount)}.
                             </p>
                           ) : null}{" "}
                           {receipt.assignment ? (
-                            <p className="mt-2 rounded-lg bg-muted p-2 text-sm">
+                            <p className="bg-muted mt-2 rounded-lg p-2 text-sm">
                               Assigned to {receipt.assignment.payerName} at{" "}
-                              {receipt.assignment.table.name} by{" "}
-                              {receipt.assignedByName ?? "staff"}.
+                              {receipt.assignment.table.name} by {receipt.assignedByName ?? "staff"}
+                              .
                             </p>
                           ) : null}
                           {receipt.parseError ? (
@@ -622,7 +580,7 @@ export default function CashierPaymentDialog({
                               <p className="mt-2 text-sm font-semibold text-red-700 dark:text-red-300">
                                 {receipt.parseError}
                               </p>
-                              <p className="mt-2 break-words rounded-lg bg-muted p-2 text-xs">
+                              <p className="bg-muted mt-2 rounded-lg p-2 text-xs break-words">
                                 {receipt.rawMessage}
                               </p>
                             </>
@@ -648,8 +606,7 @@ export default function CashierPaymentDialog({
                             </Button>
                             {over ? (
                               <p className="mt-2 max-w-52 text-xs font-semibold text-red-700 dark:text-red-300">
-                                Receipt is larger than this payer&apos;s
-                                remaining amount.
+                                Receipt is larger than this payer&apos;s remaining amount.
                               </p>
                             ) : null}
                           </div>
@@ -687,7 +644,7 @@ export default function CashierPaymentDialog({
               <Button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="w-full rounded-full bg-emerald-700 hover:bg-emerald-700/90 py-4 text-white"
+                className="w-full rounded-full bg-emerald-700 py-4 text-white hover:bg-emerald-700/90"
               >
                 Payment confirmed · return to cashier
               </Button>

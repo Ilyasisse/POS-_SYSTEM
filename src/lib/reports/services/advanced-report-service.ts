@@ -41,8 +41,7 @@ export async function getInventoryReport(range: ReportRange) {
     }),
   ]);
   const valuation = supplies.reduce(
-    (sum, supply) =>
-      sum.plus(supply.standardUnitCost?.times(supply.stockQty) ?? 0),
+    (sum, supply) => sum.plus(supply.standardUnitCost?.times(supply.stockQty) ?? 0),
     zero(),
   );
   return {
@@ -82,9 +81,7 @@ export async function getKitchenReport(range: ReportRange) {
     const key = `${event.orderId}:${event.station ?? "pickup"}`;
     if (event.type === "STATION_STARTED") starts.set(key, event.occurredAt);
     if (event.type === "STATION_COMPLETED" && starts.has(key))
-      durations.push(
-        (event.occurredAt.getTime() - starts.get(key)!.getTime()) / 60_000,
-      );
+      durations.push((event.occurredAt.getTime() - starts.get(key)!.getTime()) / 60_000);
   }
   return {
     period: range,
@@ -105,7 +102,7 @@ export async function getKitchenReport(range: ReportRange) {
 }
 
 export async function getStaffReport(range: ReportRange) {
-  const [attendance, payroll, staff] = await Promise.all([
+  const [attendance, payroll, staff, tips] = await Promise.all([
     prisma.attendanceRecord.groupBy({
       by: ["status"],
       where: { businessDate: dateWhere(range) },
@@ -126,6 +123,12 @@ export async function getStaffReport(range: ReportRange) {
       where: { isActive: true },
       select: { id: true, fullName: true, role: true },
     }),
+    prisma.paymentRequest.groupBy({
+      by: ["tipRecipientId", "tipRecipientName"],
+      where: { status: "MATCHED", matchedAt: dateWhere(range), tipAmount: { gt: 0 } },
+      _sum: { tipAmount: true },
+      _count: true,
+    }),
   ]);
   return {
     period: range,
@@ -138,6 +141,15 @@ export async function getStaffReport(range: ReportRange) {
     })),
     staff,
     payrollCost: payroll._sum.netPay?.toFixed(2) ?? "0.00",
+    tips: {
+      total: tips.reduce((sum, row) => sum.plus(row._sum.tipAmount ?? 0), zero()).toFixed(2),
+      byRecipient: tips.map((row) => ({
+        recipientId: row.tipRecipientId,
+        recipientName: row.tipRecipientName ?? "Unassigned",
+        amount: row._sum.tipAmount?.toFixed(2) ?? "0.00",
+        payments: row._count,
+      })),
+    },
   };
 }
 
@@ -162,10 +174,7 @@ export async function getCustomerReport(range: ReportRange) {
       _count: true,
     }),
   ]);
-  const customers = new Map<
-    string,
-    { visits: number; spend: Prisma.Decimal }
-  >();
+  const customers = new Map<string, { visits: number; spend: Prisma.Decimal }>();
   for (const order of orders) {
     const key = order.customerId!;
     const row = customers.get(key) ?? { visits: 0, spend: zero() };
@@ -178,9 +187,7 @@ export async function getCustomerReport(range: ReportRange) {
     coverage: { identifiedOrdersOnly: true, ...coverage(null, range) },
     identifiedCustomers: customers.size,
     repeatCustomers: [...customers.values()].filter((x) => x.visits > 1).length,
-    lifetimeSpendInPeriod: orders
-      .reduce((sum, x) => sum.plus(x.total), zero())
-      .toFixed(2),
+    lifetimeSpendInPeriod: orders.reduce((sum, x) => sum.plus(x.total), zero()).toFixed(2),
     averageRating: feedback._avg.rating,
     ratings: feedback._count,
     complaints: complaints.map((x) => ({ status: x.status, count: x._count })),
@@ -241,14 +248,10 @@ export async function getFinanceReport(range: ReportRange, query: ReportQuery) {
     }),
   ]);
   const revenue = new Prisma.Decimal(sales.summary.netSales);
-  const cogs = sales.summary.cogs
-    ? new Prisma.Decimal(sales.summary.cogs)
-    : null;
+  const cogs = sales.summary.cogs ? new Prisma.Decimal(sales.summary.cogs) : null;
   const labour = payroll._sum.netPay ?? zero();
   const expense = expenses._sum.amount ?? zero();
-  const netProfit = cogs
-    ? revenue.minus(cogs).minus(labour).minus(expense)
-    : null;
+  const netProfit = cogs ? revenue.minus(cogs).minus(labour).minus(expense) : null;
   return {
     period: range,
     coverage: {

@@ -1,6 +1,7 @@
 import { Prisma, type PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { paymentLineCents } from "@/lib/payments/payment-tip-math";
 import {
   preparePaymentRequestLines,
   type PaymentRequestLineDraft,
@@ -9,12 +10,9 @@ import {
 const cents = (value: unknown) => Math.round(Number(value) * 100);
 const decimal = (value: number) => new Prisma.Decimal(value);
 
-export type PaymentRequestLineInput = PaymentRequestLineDraft;
+export type PaymentRequestLineInput = PaymentRequestLineDraft & { tipAmount?: number };
 
-async function getOpenTableBalance(
-  tx: Pick<Prisma.TransactionClient, "order">,
-  tableId: string,
-) {
+async function getOpenTableBalance(tx: Pick<Prisma.TransactionClient, "order">, tableId: string) {
   const orders = await tx.order.findMany({
     where: { tableId, type: "DINE_IN", status: "OPEN" },
     orderBy: { createdAt: "asc" },
@@ -26,10 +24,7 @@ async function getOpenTableBalance(
       Math.max(
         0,
         cents(order.total) -
-          order.payments.reduce(
-            (paid, payment) => paid + cents(payment.amountPaid),
-            0,
-          ),
+          order.payments.reduce((paid, payment) => paid + cents(payment.amountPaid), 0),
       ),
     0,
   );
@@ -59,17 +54,24 @@ export async function createPaymentRequestBatch(input: {
     });
     if (existingAfterLock.length) return existingAfterLock;
     const dueCents = await getOpenTableBalance(tx, input.tableId);
-    if (dueCents <= 0)
-      throw new Error("This table no longer has an unpaid balance.");
-    const lines = preparePaymentRequestLines(input.lines, input.method);
+    if (dueCents <= 0) throw new Error("This table no longer has an unpaid balance.");
+    const lines = preparePaymentRequestLines(input.lines, input.method).map((line, index) => ({
+      ...line,
+      ...paymentLineCents(line.amountCents / 100, input.lines[index]?.tipAmount ?? 0),
+    }));
     const requestedCents = lines.reduce((sum, line) => sum + line.amountCents, 0);
     if (requestedCents > dueCents)
       throw new Error("Split payments cannot exceed the table balance.");
     if (requestedCents < dueCents && !input.payLater)
-      throw new Error(
-        "Add another payer or choose Pay later for the remaining balance.",
-      );
+      throw new Error("Add another payer or choose Pay later for the remaining balance.");
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const waiterRows = await tx.order.findMany({
+      where: { tableId: input.tableId, type: "DINE_IN", status: "OPEN", waiterId: { not: null } },
+      distinct: ["waiterId"],
+      select: { waiter: { select: { id: true, fullName: true } } },
+      take: 2,
+    });
+    const tipRecipient = waiterRows.length === 1 ? waiterRows[0]?.waiter : null;
     const requests = await Promise.all(
       lines.map((line, lineIndex) =>
         tx.paymentRequest.create({
@@ -82,7 +84,11 @@ export async function createPaymentRequestBatch(input: {
             method: line.method,
             payerName: line.payerName,
             payerPhone: line.payerPhone,
-            expectedAmount: decimal(line.amountCents / 100),
+            billAmount: decimal(line.billCents / 100),
+            tipAmount: decimal(line.tipCents / 100),
+            expectedAmount: decimal(line.expectedCents / 100),
+            tipRecipientId: tipRecipient?.id,
+            tipRecipientName: tipRecipient?.fullName,
             expiresAt,
           },
         }),
@@ -115,12 +121,10 @@ async function matchPaymentRequest(input: {
   rawMessage: string;
   paidAt?: Date;
 }) {
-  if (!input.reference.trim())
-    throw new Error("Payment reference is required.");
+  if (!input.reference.trim()) throw new Error("Payment reference is required.");
   if (!Number.isFinite(input.amount) || input.amount <= 0)
     throw new Error("Payment amount must be greater than zero.");
-  const expectedSender =
-    process.env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "A98";
+  const expectedSender = process.env.MACRODROID_PAYMENT_SMS_SENDER?.trim() || "A98";
   if (input.sender.trim().toUpperCase() !== expectedSender.toUpperCase())
     throw new Error("The SMS sender is not allowed.");
   const paidAt = input.paidAt ?? new Date();
@@ -143,9 +147,7 @@ async function matchPaymentRequest(input: {
         take: 2,
       });
       if (candidates.length > 1)
-        throw new Error(
-          "Payment matches more than one pending request; send paymentRequestId.",
-        );
+        throw new Error("Payment matches more than one pending request; send paymentRequestId.");
       request = candidates[0] ?? null;
     }
     if (!request) throw new Error("Payment request not found.");
@@ -153,9 +155,7 @@ async function matchPaymentRequest(input: {
     if (request.status !== "PENDING" || request.expiresAt < paidAt)
       throw new Error("Payment request is no longer active.");
     if (cents(request.expectedAmount) !== cents(input.amount))
-      throw new Error(
-        "Payment amount does not match the selected payer amount.",
-      );
+      throw new Error("Payment amount does not match the selected payer amount.");
     const duplicate = await tx.paymentRequest.findFirst({
       where: { method: request.method, providerReference: input.reference },
     });
@@ -165,13 +165,10 @@ async function matchPaymentRequest(input: {
       orderBy: { createdAt: "asc" },
       include: { payments: { select: { amountPaid: true } } },
     });
-    let remainingCents = cents(input.amount);
+    let remainingCents = cents(request.billAmount);
     for (const order of orders) {
       if (remainingCents <= 0) break;
-      const paidCents = order.payments.reduce(
-        (sum, payment) => sum + cents(payment.amountPaid),
-        0,
-      );
+      const paidCents = order.payments.reduce((sum, payment) => sum + cents(payment.amountPaid), 0);
       const orderRemaining = Math.max(0, cents(order.total) - paidCents);
       const allocation = Math.min(orderRemaining, remainingCents);
       if (!allocation) continue;
@@ -196,8 +193,7 @@ async function matchPaymentRequest(input: {
           data: { status: "PAID", closedAt: paidAt },
         });
     }
-    if (remainingCents > 0)
-      throw new Error("Payment exceeds the remaining table balance.");
+    if (remainingCents > 0) throw new Error("Payment exceeds the remaining table balance.");
     const matched = await tx.paymentRequest.update({
       where: { id: request.id },
       data: {

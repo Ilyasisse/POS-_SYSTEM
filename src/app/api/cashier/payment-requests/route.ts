@@ -17,21 +17,16 @@ async function currentCashier() {
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });
-  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE)
-    ? cashier
-    : null;
+  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE) ? cashier : null;
 }
 
 export async function POST(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   try {
     const body = await request.json();
     const rawFallbackMethod = String(body.method ?? "");
-    const fallbackMethod = rawFallbackMethod
-      ? (rawFallbackMethod as PaymentMethod)
-      : undefined;
+    const fallbackMethod = rawFallbackMethod ? (rawFallbackMethod as PaymentMethod) : undefined;
     if (fallbackMethod && !isPaymentMethod(fallbackMethod))
       return NextResponse.json(
         { error: "The default payment method is invalid." },
@@ -48,6 +43,7 @@ export async function POST(request: Request) {
             payerName: String(line.payerName ?? ""),
             payerPhone: String(line.payerPhone ?? ""),
             amount: Number(line.amount),
+            tipAmount: Number(line.tipAmount ?? 0),
             method: String(line.method ?? ""),
           }))
         : [],
@@ -73,7 +69,10 @@ export async function POST(request: Request) {
         id: item.id,
         payerName: item.payerName,
         payerPhone: item.payerPhone,
-        amount: Number(item.expectedAmount),
+        amount: Number(item.billAmount),
+        tipAmount: Number(item.tipAmount),
+        totalAmount: Number(item.expectedAmount),
+        tipRecipientName: item.tipRecipientName,
         method: item.method,
         status: item.status,
       })),
@@ -81,10 +80,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not start payment checks.",
+        error: error instanceof Error ? error.message : "Could not start payment checks.",
       },
       { status: 400 },
     );
@@ -93,31 +89,37 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const batchKey = new URL(request.url).searchParams.get("batchKey")?.trim();
-  if (!batchKey)
-    return NextResponse.json(
-      { error: "batchKey is required." },
-      { status: 400 },
-    );
+  if (!batchKey) return NextResponse.json({ error: "batchKey is required." }, { status: 400 });
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },
-    include: { payments: { select: { amountPaid: true } } },
+    include: {
+      payments: { select: { amountPaid: true } },
+      mobileMoneyReceipts: { where: { status: "ASSIGNED" }, select: { amount: true } },
+    },
   });
   return NextResponse.json({
     ok: true,
     requests: requests.map((item) => {
-      const paidAmount = item.payments.reduce(
-        (sum, payment) => sum + Number(payment.amountPaid),
+      const receiptPaidAmount = item.mobileMoneyReceipts.reduce(
+        (sum, receipt) => sum + Number(receipt.amount ?? 0),
         0,
       );
+      const paidAmount =
+        receiptPaidAmount ||
+        (item.status === "MATCHED"
+          ? Number(item.expectedAmount)
+          : item.payments.reduce((sum, payment) => sum + Number(payment.amountPaid), 0));
       return {
         id: item.id,
         payerName: item.payerName,
         payerPhone: item.payerPhone,
-        amount: Number(item.expectedAmount),
+        amount: Number(item.billAmount),
+        tipAmount: Number(item.tipAmount),
+        totalAmount: Number(item.expectedAmount),
+        tipRecipientName: item.tipRecipientName,
         paidAmount,
         remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
         method: item.method,
