@@ -25,6 +25,7 @@ export const productModifierRulesSelect = {
       select: {
         id: true,
         name: true,
+        isActive: true,
         isRequired: true,
         minSelect: true,
         maxSelect: true,
@@ -39,9 +40,7 @@ export function validateProductModifierSelection(
   requested: readonly IncomingModifierChoice[],
 ): string | null {
   const optionsById = new Map(options.map((option) => [option.id, option]));
-  const rules = new Map(
-    options.map((option) => [option.modifierGroup.id, option.modifierGroup]),
-  );
+  const rules = new Map(options.map((option) => [option.modifierGroup.id, option.modifierGroup]));
   const selections = new Map<string, Set<string>>();
 
   for (const choice of requested) {
@@ -53,8 +52,7 @@ export function validateProductModifierSelection(
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000) {
       return `Invalid option quantity for ${productName}.`;
     }
-    const selected =
-      selections.get(option.modifierGroup.id) ?? new Set<string>();
+    const selected = selections.get(option.modifierGroup.id) ?? new Set<string>();
     selected.add(option.id);
     selections.set(option.modifierGroup.id, selected);
   }

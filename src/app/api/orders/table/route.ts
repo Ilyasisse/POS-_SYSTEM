@@ -170,23 +170,6 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
-          modifiers: {
-            where: { modifierGroup: { isActive: true } },
-            select: {
-              id: true,
-              isActive: true,
-              modifierGroup: {
-                select: {
-                  id: true,
-                  name: true,
-                  isRequired: true,
-                  minSelect: true,
-                  maxSelect: true,
-                  isActive: true,
-                },
-              },
-            },
-          },
           category: {
             select: {
               station: true,
@@ -253,15 +236,6 @@ export async function POST(request: Request) {
         );
       }
 
-      const modifierError = validateProductModifierSelection(
-        product.name,
-        product.modifiers,
-        Array.isArray(item.modifiers) ? item.modifiers : [],
-      );
-      if (modifierError) {
-        return NextResponse.json({ error: modifierError }, { status: 400 });
-      }
-
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
       const itemModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
@@ -281,28 +255,39 @@ export async function POST(request: Request) {
         selectedModifierIds: uniqueModifierIds,
       });
 
+      const modifierError = validateProductModifierSelection(
+        product.name,
+        product.modifiers,
+        (Array.isArray(item.modifiers) ? item.modifiers : []).filter(
+          (choice) => !choice.modifierId.startsWith("placeholder__"),
+        ),
+      );
+      if (modifierError) {
+        return NextResponse.json({ error: modifierError }, { status: 400 });
+      }
+
       const selectedModifiers: SelectedModifierLine[] = uniqueModifierIds.map((modifierId) => {
-          const modifier = modifierMap.get(modifierId);
+        const modifier = modifierMap.get(modifierId);
 
         if (
           !modifier ||
           !product.modifiers.some((option) => option.id === modifier.id && option.isActive)
         ) {
           throw new ModifierSelectionError(
-              `Modifier ${modifierId} is invalid for product ${product.name}.`,
-            );
-          }
+            `Modifier ${modifierId} is invalid for product ${product.name}.`,
+          );
+        }
 
-          const incomingModifier = incomingModifierMap.get(modifierId);
+        const incomingModifier = incomingModifierMap.get(modifierId);
 
-          return {
-            groupId: modifier.modifierGroup.id,
-            groupName: modifier.modifierGroup.name,
-            optionId: modifier.id,
-            optionName: modifier.name,
-            price: roundCurrency(Number(modifier.price)),
-            qty: Math.max(1, Number(incomingModifier?.qty) || 1),
-          };
+        return {
+          groupId: modifier.modifierGroup.id,
+          groupName: modifier.modifierGroup.name,
+          optionId: modifier.id,
+          optionName: modifier.name,
+          price: roundCurrency(Number(modifier.price)),
+          qty: Math.max(1, Number(incomingModifier?.qty) || 1),
+        };
       });
 
       let assignedBaristaId: string | null = null;
@@ -358,13 +343,13 @@ export async function POST(request: Request) {
     calculatedTotal = roundCurrency(calculatedTotal);
 
     const savedOrderItems: SavedOrderItemForTicket[] = preparedLines.map((line) => ({
-        id: crypto.randomUUID(),
-        productName: line.productName,
-        qty: line.qty,
-        station: line.station,
-        assignedUserId: line.assignedBaristaId,
-        assignedUserName: line.assignedBaristaName,
-        modifiers: line.modifiers,
+      id: crypto.randomUUID(),
+      productName: line.productName,
+      qty: line.qty,
+      station: line.station,
+      assignedUserId: line.assignedBaristaId,
+      assignedUserName: line.assignedBaristaName,
+      modifiers: line.modifiers,
     }));
 
     const result = await prisma.$transaction(

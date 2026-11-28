@@ -163,23 +163,6 @@ export async function POST(request: Request) {
               isActive: true,
             },
           },
-          modifiers: {
-            where: { modifierGroup: { isActive: true } },
-            select: {
-              id: true,
-              isActive: true,
-              modifierGroup: {
-                select: {
-                  id: true,
-                  name: true,
-                  isRequired: true,
-                  minSelect: true,
-                  maxSelect: true,
-                  isActive: true,
-                },
-              },
-            },
-          },
           category: {
             select: {
               station: true,
@@ -246,15 +229,6 @@ export async function POST(request: Request) {
         );
       }
 
-      const modifierError = validateProductModifierSelection(
-        product.name,
-        product.modifiers,
-        Array.isArray(item.modifiers) ? item.modifiers : [],
-      );
-      if (modifierError) {
-        return NextResponse.json({ error: modifierError }, { status: 400 });
-      }
-
       const qty = Math.max(1, Number(item.qty) || 1);
       const station = product.category?.station ?? null;
       const incomingModifiers = Array.isArray(item.modifiers) ? item.modifiers : [];
@@ -308,6 +282,17 @@ export async function POST(request: Request) {
         availableOptions: product.modifiers,
         selectedModifierIds: [...validatedModifierIds],
       });
+
+      const modifierError = validateProductModifierSelection(
+        product.name,
+        product.modifiers,
+        (Array.isArray(item.modifiers) ? item.modifiers : []).filter(
+          (choice) => !choice.modifierId.startsWith("placeholder__"),
+        ),
+      );
+      if (modifierError) {
+        return NextResponse.json({ error: modifierError }, { status: 400 });
+      }
 
       let assignedBaristaId: string | null = null;
       let assignedBaristaName: string | null = null;

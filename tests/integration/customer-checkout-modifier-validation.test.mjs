@@ -24,6 +24,8 @@ globalThis.__checkoutRegression = {
     id: "coffee",
     name: "Coffee",
     price: 5,
+    availableForSale: true,
+    availabilityRestoresAt: null,
     cost: null,
     recipeVersions: [],
     modifiers: [modifier],
