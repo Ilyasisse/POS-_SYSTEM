@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { prisma } from "@/lib/prisma";
+import { findAppUser } from "@/lib/auth/app-user";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -14,10 +14,7 @@ export async function GET() {
     return NextResponse.json({ authenticated: false });
   }
 
-  const profile = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { email: true, fullName: true, role: true },
-  });
+  const profile = await findAppUser(user.id);
 
   return NextResponse.json({
     authenticated: true,

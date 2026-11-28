@@ -5,13 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { createPaymentRequestBatch } from "@/lib/payments/cashier-payment-requests";
 import { getPostHogClient } from "@/lib/posthog-server";
-
-const METHODS = new Set<PaymentMethod>([
-  "MYCASH",
-  "GOLIS",
-  "Dahabshiil",
-  "OTHER",
-]);
+import { isPaymentMethod } from "@/lib/payments/payment-request-lines";
 
 async function currentCashier() {
   const supabase = await createClient();
@@ -19,32 +13,30 @@ async function currentCashier() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const cashier = await prisma.user.findUnique({
+  const cashier = await prisma.staff.findUnique({
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });
-  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE)
-    ? cashier
-    : null;
+  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE) ? cashier : null;
 }
 
 export async function POST(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   try {
     const body = await request.json();
-    const method = String(body.method ?? "") as PaymentMethod;
-    if (!METHODS.has(method))
+    const rawFallbackMethod = String(body.method ?? "");
+    const fallbackMethod = rawFallbackMethod ? (rawFallbackMethod as PaymentMethod) : undefined;
+    if (fallbackMethod && !isPaymentMethod(fallbackMethod))
       return NextResponse.json(
-        { error: "Select a payment method." },
+        { error: "The default payment method is invalid." },
         { status: 400 },
       );
     const requests = await createPaymentRequestBatch({
       batchKey: String(body.batchKey ?? "").trim(),
       tableId: String(body.tableId ?? "").trim(),
       cashier,
-      method,
+      method: fallbackMethod,
       payLater: body.payLater === true,
       lines: Array.isArray(body.lines)
         ? body.lines.map((line: Record<string, unknown>) => ({
@@ -52,6 +44,7 @@ export async function POST(request: Request) {
             payerPhone: String(line.payerPhone ?? ""),
             amount: Number(line.amount),
             tipAmount: Number(line.tipAmount ?? 0),
+            method: String(line.method ?? ""),
           }))
         : [],
     });
@@ -61,7 +54,7 @@ export async function POST(request: Request) {
         distinctId: cashier.id,
         event: "payment_check_started",
         properties: {
-          payment_method: method,
+          payment_methods: [...new Set(requests.map((item) => item.method))],
           payer_count: requests.length,
           pay_later: body.payLater === true,
           cashier_role: cashier.role,
@@ -80,16 +73,14 @@ export async function POST(request: Request) {
         tipAmount: Number(item.tipAmount),
         totalAmount: Number(item.expectedAmount),
         tipRecipientName: item.tipRecipientName,
+        method: item.method,
         status: item.status,
       })),
     });
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not start payment checks.",
+        error: error instanceof Error ? error.message : "Could not start payment checks.",
       },
       { status: 400 },
     );
@@ -98,14 +89,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const batchKey = new URL(request.url).searchParams.get("batchKey")?.trim();
-  if (!batchKey)
-    return NextResponse.json(
-      { error: "batchKey is required." },
-      { status: 400 },
-    );
+  if (!batchKey) return NextResponse.json({ error: "batchKey is required." }, { status: 400 });
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },
@@ -117,8 +103,15 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     requests: requests.map((item) => {
-      const receiptPaidAmount = item.mobileMoneyReceipts.reduce((sum, receipt) => sum + Number(receipt.amount ?? 0), 0);
-      const paidAmount = receiptPaidAmount || (item.status === "MATCHED" ? Number(item.expectedAmount) : item.payments.reduce((sum, payment) => sum + Number(payment.amountPaid), 0));
+      const receiptPaidAmount = item.mobileMoneyReceipts.reduce(
+        (sum, receipt) => sum + Number(receipt.amount ?? 0),
+        0,
+      );
+      const paidAmount =
+        receiptPaidAmount ||
+        (item.status === "MATCHED"
+          ? Number(item.expectedAmount)
+          : item.payments.reduce((sum, payment) => sum + Number(payment.amountPaid), 0));
       return {
         id: item.id,
         payerName: item.payerName,
@@ -129,6 +122,7 @@ export async function GET(request: Request) {
         tipRecipientName: item.tipRecipientName,
         paidAmount,
         remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
+        method: item.method,
         status: item.status,
         reference: item.providerReference,
       };

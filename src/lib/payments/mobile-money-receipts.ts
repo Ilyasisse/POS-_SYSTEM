@@ -131,11 +131,20 @@ export async function listMobileMoneyReceipts(now: Date = new Date()) {
   return prisma.mobileMoneyReceipt.findMany({
     where: {
       OR: [
+        { status: { in: ["NEEDS_REVIEW", "AVAILABLE"] } },
         { transactionAt: { gte: start, lt: end } },
         { transactionAt: null, receivedAt: { gte: start, lt: end } },
       ],
     },
     include: {
+      customerCheckout: {
+        select: {
+          id: true,
+          customerName: true,
+          payerPhone: true,
+          amount: true,
+        },
+      },
       paymentRequest: {
         select: {
           id: true,
@@ -162,7 +171,8 @@ export async function assignMobileMoneyReceipt(input: {
   const now = input.now ?? new Date();
   const { start, end } = getPaymentReceiptBusinessDayRange(now);
 
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(
+    async (tx) => {
     await tx.$queryRawUnsafe(
       'SELECT "id" FROM "PaymentRequest" WHERE "id" = $1 FOR UPDATE',
       input.paymentRequestId,
@@ -199,24 +209,32 @@ export async function assignMobileMoneyReceipt(input: {
       throw new Error("This payer row is no longer accepting payments.");
     }
     if (request.expiresAt < now) {
-      throw new Error("This payer row has expired. Start a new payment check.");
+        throw new Error(
+          "This payer row has expired. Start a new payment check.",
+        );
     }
     if (
       receipt.status !== MobileMoneyReceiptStatus.AVAILABLE ||
       receipt.direction !== MobileMoneyDirection.INCOMING ||
       receipt.assignedPaymentRequestId
     ) {
-      throw new Error("This receipt has already been assigned or is not selectable.");
+        throw new Error(
+          "This receipt has already been assigned or is not selectable.",
+        );
     }
     if (
       !receipt.transactionAt ||
       receipt.transactionAt < start ||
       receipt.transactionAt >= end
     ) {
-      throw new Error("Only receipts from the current payment business day are selectable.");
+        throw new Error(
+          "Only receipts from the current payment business day are selectable.",
+        );
     }
     if (receipt.method !== request.method || request.method !== "GOLIS") {
-      throw new Error("This receipt does not match the payer row payment method.");
+        throw new Error(
+          "This receipt does not match the payer row payment method.",
+        );
     }
     if (!receipt.amount || !receipt.providerReference) {
       throw new Error("This receipt is missing required payment details.");
@@ -280,11 +298,9 @@ export async function assignMobileMoneyReceipt(input: {
           cashierName: request.cashierName,
           method: request.method,
           amountPaid: decimal(allocationCents / 100),
-          reference: [
-            receipt.providerReference,
-            order.id,
-            receipt.id,
-          ].join(":"),
+            reference: [receipt.providerReference, order.id, receipt.id].join(
+              ":",
+            ),
           payerName: request.payerName,
           payerPhone: request.payerPhone,
           paymentRequestId: request.id,
@@ -337,10 +353,14 @@ export async function assignMobileMoneyReceipt(input: {
         where: { id: receipt.id },
       }),
       paidAmount: totalPaidCents / 100,
-      remainingAmount:
-        (cents(request.expectedAmount) - totalPaidCents) / 100,
+        remainingAmount: (cents(request.expectedAmount) - totalPaidCents) / 100,
     };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 5_000 });
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      timeout: 5_000,
+    },
+  );
 }
 
 export async function reverseMobileMoneyReceipt(input: {
@@ -353,7 +373,8 @@ export async function reverseMobileMoneyReceipt(input: {
   if (reason.length < 5) {
     throw new Error("Enter a correction reason of at least 5 characters.");
   }
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(
+    async (tx) => {
     await tx.$queryRawUnsafe(
       'SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = $1 FOR UPDATE',
       input.receiptId,
@@ -405,7 +426,9 @@ export async function reverseMobileMoneyReceipt(input: {
     const orderIds = [
       ...new Set(receipt.payments.map((payment) => payment.orderId)),
     ];
-    await tx.payment.deleteMany({ where: { mobileMoneyReceiptId: receipt.id } });
+      await tx.payment.deleteMany({
+        where: { mobileMoneyReceiptId: receipt.id },
+      });
     for (const orderId of orderIds) {
       const order = await tx.order.findUniqueOrThrow({
         where: { id: orderId },
@@ -499,7 +522,12 @@ export async function reverseMobileMoneyReceipt(input: {
       },
     });
     return available;
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 5_000 });
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      timeout: 5_000,
+    },
+  );
 }
 
 export async function reviewMobileMoneyReceipt(input: {
@@ -518,25 +546,42 @@ export async function reviewMobileMoneyReceipt(input: {
   const providerReference = input.providerReference.trim();
   const counterpartyLabel = input.counterpartyLabel.trim();
   const identifiers = [
-    ...new Set(input.counterpartyIdentifiers.map((value) => value.trim()).filter(Boolean)),
+    ...new Set(
+      input.counterpartyIdentifiers
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
   ];
-  if (reason.length < 5) throw new Error("Enter a review reason of at least 5 characters.");
-  if (!/^\d+$/.test(providerReference)) throw new Error("Enter the numeric SAHAL Tix reference.");
-  if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Enter a valid positive amount.");
-  if (!counterpartyLabel) throw new Error("Enter the complete counterparty label.");
-  if (Number.isNaN(input.transactionAt.getTime())) throw new Error("Enter a valid Nairobi transaction date and time.");
-  if (!Number.isFinite(input.providerBalance) || input.providerBalance < 0) throw new Error("Enter a valid provider balance.");
+  if (reason.length < 5)
+    throw new Error("Enter a review reason of at least 5 characters.");
+  if (!/^\d+$/.test(providerReference))
+    throw new Error("Enter the numeric SAHAL Tix reference.");
+  if (!Number.isFinite(input.amount) || input.amount <= 0)
+    throw new Error("Enter a valid positive amount.");
+  if (!counterpartyLabel)
+    throw new Error("Enter the complete counterparty label.");
+  if (Number.isNaN(input.transactionAt.getTime()))
+    throw new Error("Enter a valid Nairobi transaction date and time.");
+  if (!Number.isFinite(input.providerBalance) || input.providerBalance < 0)
+    throw new Error("Enter a valid provider balance.");
 
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(
+    async (tx) => {
     await tx.$queryRawUnsafe(
       'SELECT "id" FROM "MobileMoneyReceipt" WHERE "id" = $1 FOR UPDATE',
       input.receiptId,
     );
-    const receipt = await tx.mobileMoneyReceipt.findUnique({ where: { id: input.receiptId } });
-    if (!receipt || receipt.status !== MobileMoneyReceiptStatus.NEEDS_REVIEW) {
+      const receipt = await tx.mobileMoneyReceipt.findUnique({
+        where: { id: input.receiptId },
+      });
+      if (
+        !receipt ||
+        receipt.status !== MobileMoneyReceiptStatus.NEEDS_REVIEW
+      ) {
       throw new Error("This receipt is no longer waiting for review.");
     }
-    const nextStatus = input.direction === "INCOMING"
+      const nextStatus =
+        input.direction === "INCOMING"
       ? MobileMoneyReceiptStatus.AVAILABLE
       : MobileMoneyReceiptStatus.OUTGOING;
     const updated = await tx.mobileMoneyReceipt.update({
@@ -582,5 +627,10 @@ export async function reviewMobileMoneyReceipt(input: {
       },
     });
     return updated;
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 5_000 });
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      timeout: 5_000,
+    },
+  );
 }

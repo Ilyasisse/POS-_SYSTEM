@@ -32,6 +32,14 @@ function receiptDto(
     rawMessage: receipt.rawMessage,
     assignedAt: receipt.assignedAt?.toISOString() ?? null,
     assignedByName: receipt.assignedByName,
+    customerCheckout: receipt.customerCheckout
+      ? {
+          id: receipt.customerCheckout.id,
+          customerName: receipt.customerCheckout.customerName,
+          payerPhone: receipt.customerCheckout.payerPhone,
+          amount: Number(receipt.customerCheckout.amount),
+        }
+      : null,
     assignment: receipt.paymentRequest
       ? {
           paymentRequestId: receipt.paymentRequest.id,

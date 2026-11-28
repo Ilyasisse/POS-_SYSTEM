@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_FALLBACK_IMAGE_URL } from "@/lib/products/product-image-config";
 import type { ModifierGroup, Product, SelectedModifierLine } from "@/lib/types";
 
 export type SelectedModifiersMap = Record<string, string[]>;
@@ -31,7 +32,7 @@ export function getProductModifierGroups(product: Product): ModifierGroup[] {
 export function getProductImage(product: Product) {
   const imageUrl = product.imageUrl?.trim();
 
-  return imageUrl || "/newer_logo.png";
+  return imageUrl || PRODUCT_FALLBACK_IMAGE_URL;
 }
 
 export function hasProductImage(product: Product) {

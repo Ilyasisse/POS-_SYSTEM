@@ -142,8 +142,7 @@ export async function recordSupplierPaymentInTransaction(
   if (!supplier) throw new Error("Supplier not found.");
 
   const preferredBillId = input.preferredBillId?.trim() || null;
-  const preferredInstallmentId =
-    input.preferredInstallmentId?.trim() || null;
+  const preferredInstallmentId = input.preferredInstallmentId?.trim() || null;
   const targets = await getSupplierAllocationTargets(tx, supplierId);
   const preferredTarget = preferredInstallmentId
     ? targets.find(
@@ -218,12 +217,17 @@ export async function applyAvailableSupplierCreditToBillInTransaction(
   tx: Tx,
   input: { supplierId: string; billId: string; appliedByUserId: string },
 ) {
-  const targets = (await getSupplierAllocationTargets(tx, input.supplierId))
-    .filter((target) => target.billId === input.billId);
+  const targets = (
+    await getSupplierAllocationTargets(tx, input.supplierId)
+  ).filter((target) => target.billId === input.billId);
   if (!targets.length) return new Prisma.Decimal(0);
   const payments = await tx.supplierPayment.findMany({
     where: { supplierId: input.supplierId },
-    select: { id: true, amount: true, allocations: { select: { amount: true } } },
+    select: {
+      id: true,
+      amount: true,
+      allocations: { select: { amount: true } },
+    },
     orderBy: [{ paidAt: "asc" }, { id: "asc" }],
   });
   let applied = new Prisma.Decimal(0);
@@ -368,7 +372,7 @@ export async function updateSupplierBillDueDate(billId: string, dueDate: Date) {
   return { invoiceId: bill.invoiceId };
 }
 
- type SupplierInstallmentScheduleInput = {
+type SupplierInstallmentScheduleInput = {
   dueDate: Date;
   amount: number;
 };
@@ -390,10 +394,14 @@ export async function splitSupplierBillIntoInstallments(
         include: { installments: true },
       });
       if (!bill || bill.status === "PAID") {
-        throw new Error("Only unpaid supplier bills can be split into installments.");
+        throw new Error(
+          "Only unpaid supplier bills can be split into installments.",
+        );
       }
       if (bill.installments.length) {
-        throw new Error("This supplier bill already has an installment schedule.");
+        throw new Error(
+          "This supplier bill already has an installment schedule.",
+        );
       }
 
       const remaining = bill.totalAmount.sub(bill.paidAmount);
@@ -402,7 +410,9 @@ export async function splitSupplierBillIntoInstallments(
         new Prisma.Decimal(0),
       );
       if (!scheduled.equals(remaining)) {
-        throw new Error(`Installments must total the remaining balance of ${remaining.toFixed(2)}.`);
+        throw new Error(
+          `Installments must total the remaining balance of ${remaining.toFixed(2)}.`,
+        );
       }
 
       const dates = input.map((row) => row.dueDate);

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-export const SUPPLIER_ORDER_SCHEDULER_LEASE_KEY =
-  "supplier-order-scheduler";
+export const SUPPLIER_ORDER_SCHEDULER_LEASE_KEY = "supplier-order-scheduler";
 export const SUPPLIER_ORDER_SCHEDULER_LEASE_DURATION_MS = 180_000;
 
 export type SchedulerLeaseClaim = {
@@ -27,8 +26,7 @@ type ExecuteWithSchedulerLeaseOptions<T> = {
 };
 
 export type SchedulerLeaseExecution<T> =
-  | { alreadyRunning: true }
-  | { alreadyRunning: false; result: T };
+  { alreadyRunning: true } | { alreadyRunning: false; result: T };
 
 export async function executeWithSupplierOrderSchedulerLease<T>({
   lease,

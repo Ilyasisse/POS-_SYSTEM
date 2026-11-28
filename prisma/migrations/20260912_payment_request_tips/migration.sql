@@ -12,7 +12,7 @@ ALTER COLUMN "billAmount" SET NOT NULL;
 
 ALTER TABLE "PaymentRequest"
 ADD CONSTRAINT "PaymentRequest_tipRecipientId_fkey"
-FOREIGN KEY ("tipRecipientId") REFERENCES "User"("id")
+FOREIGN KEY ("tipRecipientId") REFERENCES "Staff"("id")
 ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE INDEX "PaymentRequest_tipRecipientId_matchedAt_idx"

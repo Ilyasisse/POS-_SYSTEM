@@ -4,8 +4,7 @@ import { Prisma, type SupplierOrderRecurrenceUnit } from "@prisma/client";
 export const DEFAULT_SUPPLIER_ORDER_TIME_ZONE = "Africa/Nairobi";
 export const MAX_ORDER_QUANTITY = new Prisma.Decimal("999999999.999");
 
-const LOCAL_DATE_TIME_PATTERN =
-  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+const LOCAL_DATE_TIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const QUANTITY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
 const E164_PATTERN = /^\+[1-9]\d{7,14}$/;
 
@@ -117,7 +116,9 @@ export function zonedDateTimeToUtc(value: string, timeZone: string) {
       actual.hour,
       actual.minute,
     );
-    candidate = new Date(candidate.getTime() + wallClockUtc - actualWallClockUtc);
+    candidate = new Date(
+      candidate.getTime() + wallClockUtc - actualWallClockUtc,
+    );
   }
   return sameParts(partsInTimeZone(candidate, timeZone), desired)
     ? candidate
@@ -141,7 +142,8 @@ export function advanceRecurringDate(
     Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute),
   );
   if (unit === "DAY") calendar.setUTCDate(calendar.getUTCDate() + interval);
-  if (unit === "WEEK") calendar.setUTCDate(calendar.getUTCDate() + 7 * interval);
+  if (unit === "WEEK")
+    calendar.setUTCDate(calendar.getUTCDate() + 7 * interval);
   if (unit === "MONTH") {
     const anchorDay = calendar.getUTCDate();
     calendar.setUTCDate(1);
@@ -186,7 +188,9 @@ export function isSupplierOrderReminderDue(input: {
 
 export function deriveRecipientToken(recipientId: string, secret: string) {
   if (secret.length < 32) {
-    throw new Error("SUPPLIER_ORDER_LINK_SECRET must contain at least 32 characters.");
+    throw new Error(
+      "SUPPLIER_ORDER_LINK_SECRET must contain at least 32 characters.",
+    );
   }
   return createHmac("sha256", secret).update(recipientId).digest("base64url");
 }
