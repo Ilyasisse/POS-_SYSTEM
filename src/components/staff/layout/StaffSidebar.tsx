@@ -3,12 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  ChevronRight,
-  ChevronsUpDown,
-  Coffee,
-  UserRound,
-} from "lucide-react";
+import { ChevronRight, ChevronsUpDown, Coffee, UserRound } from "lucide-react";
 
 import SignOutButton from "@/components/SignOutButton";
 import { Badge } from "@/components/ui/badge";
@@ -85,8 +80,8 @@ function ExpandedNavigationMenu({
   pathname,
 }: ExpandedNavigationMenuProps) {
   const [openGroupKey, setOpenGroupKey] =
-    useState<StaffNavigationGroupKey | null>(
-      () => getActiveStaffNavigationGroupKey(pathname, navigationNodes),
+    useState<StaffNavigationGroupKey | null>(() =>
+      getActiveStaffNavigationGroupKey(pathname, navigationNodes),
     );
 
   return (
@@ -304,64 +299,68 @@ export default function StaffSidebar({
 
                   return (
                     <SidebarMenuItem key={node.key}>
-                    <DropdownMenu
-                      modal={false}
-                      open={compactOpenGroupKey === node.key}
-                      onOpenChange={(open) =>
-                        setCompactOpenGroupKey(open ? node.key : null)
-                      }
-                    >
-                      <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton
-                          size="lg"
-                          tooltip={node.label}
-                          className="rounded-xl"
-                          isActive={groupActive}
-                          aria-label={`Open ${node.label} routes`}
+                      <DropdownMenu
+                        modal={false}
+                        open={compactOpenGroupKey === node.key}
+                        onOpenChange={(open) =>
+                          setCompactOpenGroupKey(open ? node.key : null)
+                        }
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <SidebarMenuButton
+                            size="lg"
+                            tooltip={node.label}
+                            className="rounded-xl"
+                            isActive={groupActive}
+                            aria-label={`Open ${node.label} routes`}
+                          >
+                            <Icon aria-hidden="true" />
+                            <span className="sr-only">{node.label}</span>
+                          </SidebarMenuButton>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="right"
+                          align="start"
+                          className="w-64"
                         >
-                          <Icon aria-hidden="true" />
-                          <span className="sr-only">{node.label}</span>
-                        </SidebarMenuButton>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="right" align="start" className="w-64">
-                        <DropdownMenuLabel>{node.label}</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {node.items.map((item) => {
-                          const Icon = item.icon;
-                          const count = item.countKey
-                            ? counts?.[item.countKey]
-                            : undefined;
+                          <DropdownMenuLabel>{node.label}</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {node.items.map((item) => {
+                            const Icon = item.icon;
+                            const count = item.countKey
+                              ? counts?.[item.countKey]
+                              : undefined;
 
-                          return (
-                            <DropdownMenuItem key={item.key} asChild>
-                              <Link
-                                href={item.href}
-                                prefetch={false}
-                                onClick={() => {
-                                  setCompactOpenGroupKey(null);
-                                  handleNavigate();
-                                }}
-                                className="flex w-full items-center gap-2"
-                                aria-current={
-                                  isStaffNavActive(pathname, item)
-                                    ? "page"
-                                    : undefined
-                                }
-                              >
-                                <Icon aria-hidden="true" />
-                                <span className="min-w-0 flex-1 truncate">
-                                  {item.label}
-                                </span>
-                                {typeof count === "number" ? (
-                                  <Badge variant="secondary">{count}</Badge>
-                                ) : null}
-                              </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </SidebarMenuItem>
+                            return (
+                              <DropdownMenuItem key={item.key} asChild>
+                                <Link
+                                  href={item.href}
+                                  prefetch={false}
+                                  onClick={() => {
+                                    setCompactOpenGroupKey(null);
+                                    handleNavigate();
+                                  }}
+                                  className="flex w-full items-center gap-2"
+                                  aria-current={
+                                    isStaffNavActive(pathname, item)
+                                      ? "page"
+                                      : undefined
+                                  }
+                                >
+                                  <Icon aria-hidden="true" />
+                                  <span className="min-w-0 flex-1 truncate">
+                                    {item.label}
+                                  </span>
+                                  {typeof count === "number" ? (
+                                    <Badge variant="secondary">{count}</Badge>
+                                  ) : null}
+                                </Link>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </SidebarMenuItem>
                   );
                 })}
               </SidebarMenu>
