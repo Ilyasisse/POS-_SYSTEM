@@ -14,7 +14,10 @@ import {
 import { queryStringWithoutPage } from "@/components/admin/shared/ui/queryStringWithoutPage";
 import { normalizeFilterChoice } from "@/lib/admin/admin-filters";
 import { prisma } from "@/lib/prisma";
-import Image from "next/image";
+import ProductImage from "@/components/products/ProductImage";
+import { getPublicProductImageUrl } from "@/lib/products/product-images";
+import ProductAvailabilityControl from "./ProductAvailabilityControl";
+import { isProductAvailableForSale } from "@/lib/products/availability";
 
 type AdminProductsPageProps = {
   searchParams: Promise<{
@@ -25,9 +28,7 @@ type AdminProductsPageProps = {
   }>;
 };
 
-export default async function AdminProductsPage({
-  searchParams,
-}: AdminProductsPageProps) {
+export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
   const params = await searchParams;
   const currentPage = Math.max(Number(params.page) || 1, 1);
   const pageSize = 10;
@@ -93,9 +94,7 @@ export default async function AdminProductsPage({
         <SearchToolbar
           placeholder="Search products..."
           defaultValue={q}
-          hasActiveFilters={Boolean(
-            q || category !== "all" || status !== "all",
-          )}
+          hasActiveFilters={Boolean(q || category !== "all" || status !== "all")}
           clearHref="/admin/products"
         >
           <AutoSubmitSelect name="category" defaultValue={category}>
@@ -120,7 +119,7 @@ export default async function AdminProductsPage({
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Availability</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead>Action</TableHead>
             </tr>
@@ -128,48 +127,66 @@ export default async function AdminProductsPage({
           <tbody>
             {productsList.length === 0 ? (
               <tr>
-                <TableCell colSpan={8} className="py-10 text-center">
+                <TableCell colSpan={9} className="py-10 text-center">
                   No products found.
                 </TableCell>
               </tr>
             ) : (
-              productsList.map((product, index) => (
-                <tr key={product.id} className="border-b border-slate-50">
-                  <TableCell className="font-bold text-slate-400">
-                    {(currentPage - 1) * pageSize + index + 1}
-                  </TableCell>
-                  <TableCell>
-                    {product.imageUrl ? (
-                      <Image
-                        src={product.imageUrl}
-                        alt=""
-                        width={40}
-                        height={40}
-                        unoptimized
-                        className="size-10 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="grid size-10 place-items-center rounded-lg bg-orange-50 text-lg">
-                        {product.name[0] ?? "P"}
+              productsList.map((product, index) => {
+                const unavailable = !isProductAvailableForSale(product);
+                return (
+                  <tr key={product.id} className="border-border border-b">
+                    <TableCell className="text-muted-foreground font-bold">
+                      {(currentPage - 1) * pageSize + index + 1}
+                    </TableCell>
+                    <TableCell>
+                      {product.imageUrl ? (
+                        <div className="relative size-10 shrink-0 overflow-hidden rounded-lg">
+                          <ProductImage
+                            src={getPublicProductImageUrl(product.imageUrl)}
+                            alt={product.name}
+                            sizes="40px"
+                          />
+                        </div>
+                      ) : (
+                        <div className="grid size-10 place-items-center rounded-lg bg-orange-50 text-lg">
+                          {product.name[0] ?? "P"}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-foreground font-black">{product.name}</TableCell>
+                    <TableCell>{product.category?.name ?? "-"}</TableCell>
+                    <TableCell>${Number(product.price).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <StatusBadge
+                          active={!unavailable}
+                          label={unavailable ? "Sold out" : "For sale"}
+                        />
+                        {unavailable ? (
+                          <p className="text-muted-foreground max-w-44 text-xs">
+                            {product.availabilityReason}
+                            {product.availabilityRestoresAt
+                              ? ` · until ${product.availabilityRestoresAt.toLocaleString()}`
+                              : " · manual restock"}
+                          </p>
+                        ) : null}
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-black text-slate-950">
-                    {product.name}
-                  </TableCell>
-                  <TableCell>{product.category?.name ?? "-"}</TableCell>
-                  <TableCell>${Number(product.price).toFixed(2)}</TableCell>
-                  <TableCell>
-                    <StatusBadge active={product.isActive} />
-                  </TableCell>
-                  <TableCell>
-                    {product.trackStock ? product.stockQty.toString() : "-"}
-                  </TableCell>
-                  <TableCell>
-                    <RowActions editHref={`/admin/products/${product.id}`} />
-                  </TableCell>
-                </tr>
-              ))
+                    </TableCell>
+                    <TableCell>{product.trackStock ? product.stockQty.toString() : "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ProductAvailabilityControl
+                          productId={product.id}
+                          productName={product.name}
+                          unavailable={unavailable}
+                        />
+                        <RowActions editHref={`/admin/products/${product.id}`} />
+                      </div>
+                    </TableCell>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </Table>
