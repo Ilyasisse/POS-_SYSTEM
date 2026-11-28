@@ -56,14 +56,16 @@ function toValidQuantity(value: number | Prisma.Decimal) {
  * @returns The current inventory alert status.
  */
 export function getInventoryAlertStatus(
-  stockQty: number,
-  lowStockThreshold: number,
+  stockQty: number | Prisma.Decimal,
+  lowStockThreshold: number | Prisma.Decimal,
 ): InventoryAlertStatus {
-  if (stockQty <= 0) {
+  const stock = new Prisma.Decimal(stockQty);
+  const threshold = new Prisma.Decimal(lowStockThreshold);
+  if (stock.lte(0)) {
     return "OUT";
   }
 
-  if (lowStockThreshold > 0 && stockQty <= lowStockThreshold) {
+  if (threshold.gt(0) && stock.lte(threshold)) {
     return "LOW";
   }
 
@@ -85,8 +87,8 @@ function buildInventoryAlert(
   item: InventoryTrackedItem,
   itemName: string,
   itemType: InventoryAlert["itemType"],
-  nextStockQty: number,
-  nextLowStockThreshold: number,
+  nextStockQty: number | Prisma.Decimal,
+  nextLowStockThreshold: number | Prisma.Decimal,
   delta: number,
 ): { status: InventoryAlertStatus; alert: InventoryAlert | null } {
   const status = getInventoryAlertStatus(nextStockQty, nextLowStockThreshold);
@@ -100,8 +102,8 @@ function buildInventoryAlert(
           itemName,
           itemType,
           status,
-          stockQty: nextStockQty,
-          lowStockThreshold: nextLowStockThreshold,
+          stockQty: Number(nextStockQty),
+          lowStockThreshold: Number(nextLowStockThreshold),
         }
       : null,
   };
@@ -510,6 +512,7 @@ export async function setSupplyInventoryLevel(
   reason: string,
   note?: string,
   actorUserId?: string | null,
+  occurredAt = new Date(),
 ) {
   const supply = await tx.inventorySupply.findUnique({
     where: { id: supplyId },
@@ -532,22 +535,20 @@ export async function setSupplyInventoryLevel(
 
   const quantityBeforeDecimal = decimalQuantity(supply.stockQty);
   const quantityAfterDecimal = decimalQuantity(nextStockQty);
-  const quantityBefore = Number(quantityBeforeDecimal);
-  const quantityAfter = Number(quantityAfterDecimal);
   const deltaDecimal = quantityAfterDecimal.sub(quantityBeforeDecimal);
   const delta = Number(deltaDecimal);
-  const lowStockThreshold = toValidQuantity(nextLowStockThreshold);
+  const lowStockThreshold = decimalQuantity(nextLowStockThreshold);
   const { status, alert } = buildInventoryAlert(
     supply,
     supply.name,
     "Supply",
-    quantityAfter,
+    quantityAfterDecimal,
     lowStockThreshold,
     delta,
   );
   const forcedZeroStockAlert =
     status === "OUT" &&
-    quantityAfter === 0 &&
+    quantityAfterDecimal.isZero() &&
     (delta < 0 || reason === "TAKEN");
   const supplyAlert =
     alert ??
@@ -556,8 +557,8 @@ export async function setSupplyInventoryLevel(
           itemName: supply.name,
           itemType: "Supply" as const,
           status,
-          stockQty: quantityAfter,
-          lowStockThreshold,
+          stockQty: Number(quantityAfterDecimal),
+          lowStockThreshold: Number(lowStockThreshold),
         }
       : null);
 
@@ -575,15 +576,17 @@ export async function setSupplyInventoryLevel(
       actorUserId,
       sourceType: "InventoryAdmin",
       sourceId: supply.id,
+      occurredAt,
     });
     await tx.inventoryMovement.create({
       data: {
         supplyId: supply.id,
+        occurredAt,
         itemName: `${supply.name} (${supply.unit})`,
         itemType: "Supply",
-        delta,
-        quantityBefore,
-        quantityAfter,
+        delta: deltaDecimal,
+        quantityBefore: quantityBeforeDecimal,
+        quantityAfter: quantityAfterDecimal,
         canonicalUnit: supply.canonicalUnit,
         dataCoverage: supply.quantityCoverage,
         standardUnitCostSnapshot: supply.standardUnitCost,
