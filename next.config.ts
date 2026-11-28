@@ -4,6 +4,9 @@ import { getProductImageRemotePatterns } from "./src/lib/products/product-image-
 const isVercelBuild = process.env.VERCEL === "1";
 
 const nextConfig: NextConfig = {
+  // Build a self-contained Node.js server only for Docker images.
+  // Keep the existing Vercel build configuration unchanged.
+  ...(process.env.DOCKER_BUILD === "1" ? { output: "standalone" as const } : {}),
   images: {
     // Optimize product images from the public Supabase bucket and optional
     // Cloudflare R2 host and path. Both sources must be publicly readable.
