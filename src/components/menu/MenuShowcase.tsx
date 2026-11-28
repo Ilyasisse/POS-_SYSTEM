@@ -5,9 +5,11 @@ import ProductCard from "@/components/menu/MenuProductCard";
 import FeaturedCard from "@/components/menu/FeaturedCard";
 import { Button } from "@/components/ui/button";
 
-import { useReducer } from "react";
+import { useReducer, useState } from "react";
 
 import type { MenuData, MenuProduct } from "@/types/menu/menu-types";
+
+import { searchMenuProducts } from "@/lib/menu/menu-search";
 
 type MenuShowcaseProps = {
   data: MenuData;
@@ -66,6 +68,10 @@ function menuShowcaseReducer(
 }
 
 export default function MenuShowcase({ data }: MenuShowcaseProps) {
+  const [search, setSearch] = useState("");
+  const [searchVisibleCount, setSearchVisibleCount] = useState(INITIAL_CATEGORY_ITEMS);
+  const isSearching = search.trim().length > 0;
+  const searchResults = searchMenuProducts(data.products, search);
   const hasFeaturedItems = data.featuredItems.length > 0;
 
   const firstCategoryId = data.categories[0]?.id ?? "";
@@ -89,10 +95,12 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
     ? (menuState.visibleCounts[selectedCategoryData.id] ?? INITIAL_CATEGORY_ITEMS)
     : 0;
 
-  const visibleProducts = selectedCategoryProducts.slice(0, visibleProductCount);
+  const visibleProducts = isSearching
+    ? searchResults.slice(0, searchVisibleCount)
+    : selectedCategoryProducts.slice(0, visibleProductCount);
 
   const remainingProductCount = Math.max(
-    selectedCategoryProducts.length - visibleProducts.length,
+    (isSearching ? searchResults.length : selectedCategoryProducts.length) - visibleProducts.length,
     0,
   );
 
@@ -101,6 +109,10 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
   }
 
   function loadMoreProducts() {
+    if (isSearching) {
+      setSearchVisibleCount((count) => count + LOAD_MORE_ITEMS);
+      return;
+    }
     if (!selectedCategoryData) {
       return;
     }
@@ -113,11 +125,44 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
 
   return (
     <>
-      <MenuCategoryTabs
-        categories={data.categories}
-        selectedCategory={menuState.selectedCategory}
-        onOpenCategory={openCategory}
-      />
+      <section className="relative z-10 mx-auto -mt-10 max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="border-border bg-card rounded-3xl border p-6">
+          <label htmlFor="menu-product-search" className="font-semibold">
+            Find something on the menu
+          </label>
+          <div className="mt-2 flex gap-3">
+            <input
+              id="menu-product-search"
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setSearchVisibleCount(INITIAL_CATEGORY_ITEMS);
+              }}
+              placeholder="Search food, drinks or categories"
+              className="border-border bg-background min-w-0 flex-1 rounded-full border px-5 py-3"
+            />
+            {isSearching ? (
+              <Button type="button" onClick={() => setSearch("")}>
+                Clear
+              </Button>
+            ) : null}
+          </div>
+          {isSearching ? (
+            <p role="status" className="mt-3 text-sm">
+              {searchResults.length} {searchResults.length === 1 ? "product" : "products"} found
+              across all categories
+            </p>
+          ) : null}
+        </div>
+      </section>
+      {!isSearching ? (
+        <MenuCategoryTabs
+          categories={data.categories}
+          selectedCategory={menuState.selectedCategory}
+          onOpenCategory={openCategory}
+        />
+      ) : null}
 
       <MenuProductSection
         visibleProducts={visibleProducts}
@@ -125,7 +170,7 @@ export default function MenuShowcase({ data }: MenuShowcaseProps) {
         onLoadMore={loadMoreProducts}
       />
 
-      {hasFeaturedItems ? <FeaturedSection items={data.featuredItems} /> : null}
+      {hasFeaturedItems && !isSearching ? <FeaturedSection items={data.featuredItems} /> : null}
     </>
   );
 }
