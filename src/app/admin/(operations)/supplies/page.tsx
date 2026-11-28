@@ -99,6 +99,8 @@ function statusNotice(status: string | undefined) {
         tone: "success",
         message: "Supply purchase deleted.",
       };
+    case "closed_day":
+      return { tone: "error", message: "Reopen this supply day before adding items." };
     case "invalid_date":
       return {
         tone: "error",
@@ -157,7 +159,10 @@ function SupplyDateControls({
             size="icon"
             aria-label="Previous day"
           >
-            <Link href={`/admin/supplies?date=${previousDate}`}>
+            <Link
+              prefetch={false}
+              href={`/admin/supplies?date=${previousDate}`}
+            >
               <ChevronLeft className="size-4" />
             </Link>
           </Button>
@@ -172,7 +177,7 @@ function SupplyDateControls({
             {selectedDate === today ? (
               <ChevronRight className="size-4" />
             ) : (
-              <Link href={`/admin/supplies?date=${nextDate}`}>
+              <Link prefetch={false} href={`/admin/supplies?date=${nextDate}`}>
                 <ChevronRight className="size-4" />
               </Link>
             )}
@@ -279,7 +284,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href="/admin/supplies/items">
+            <Link prefetch={false} href="/admin/supplies/items">
               <ListPlus className="size-4" />
               Manage supply items
             </Link>
@@ -330,6 +335,8 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
             </p>
           </div>
           <SupplyEntryForm
+                key={selectedDate}
+                today={today}
             purchaseDate={selectedDate}
             action={createSupplyPurchase}
             catalogItems={activeCatalogItems}
@@ -439,6 +446,7 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
           ) : (
             [...history.entries()].map(([dateKey, value]) => (
               <Link
+                prefetch={false}
                 key={dateKey}
                 href={`/admin/supplies?date=${dateKey}`}
                 className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 px-3 py-3 transition-colors hover:bg-muted"

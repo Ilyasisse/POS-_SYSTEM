@@ -20,9 +20,9 @@ export default function KitchenHeader({
   const canUseInventory = station === "CABITAAN" && currentUserRole !== "ADMIN";
 
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800/80 p-4">
+    <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/80 p-4">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Kitchen Screen
         </p>
         <h1 className="text-2xl font-bold">
@@ -35,6 +35,7 @@ export default function KitchenHeader({
       <div className="flex flex-wrap items-center gap-2">
         {canUseInventory ? (
           <Link
+            prefetch={false}
             href="/inventory"
             className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold uppercase text-white transition hover:bg-emerald-500"
           >
@@ -42,19 +43,19 @@ export default function KitchenHeader({
           </Link>
         ) : null}
 
-        <div className="rounded-xl  border-slate-700 bg-slate-900/70 px-3 py-2 text-right">
-          <p className="text-xs uppercase tracking-wide text-slate-400">
+        <div className="rounded-xl  border-border bg-card/70 px-3 py-2 text-right">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Welcome
           </p>
-          <p className="text-sm font-semibold text-slate-100">
+          <p className="text-sm font-semibold text-foreground">
             {currentUserName}
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             {translateUserRole(currentUserRole)}
           </p>
         </div>
 
-        <span className="rounded-full bg-slate-700 px-3 py-1 text-xs font-semibold uppercase">
+        <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase">
           Queue {queueCount}
         </span>
       </div>

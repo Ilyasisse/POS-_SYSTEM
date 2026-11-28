@@ -1,4 +1,4 @@
-export const CUSTOMER_MOBILE_MONEY_ACCOUNT = "43095";
+export const CUSTOMER_MOBILE_MONEY_ACCOUNT = "430935";
 
 export function normalizeSomaliPhone(value: string): string | null {
   const trimmed = value.trim();
@@ -38,16 +38,42 @@ export function isAndroidDevice(userAgent: string): boolean {
 
 export type CheckoutMatchCandidate = {
   id: string;
+  customerName: string;
   amount: number;
   payerPhone: string;
   createdAt: Date;
   expiresAt: Date;
 };
 
+/** Compare complete words, ignoring case, spacing, and surrounding punctuation. */
+export function customerPaymentNameMatches(
+  customerName: string,
+  payerLabel: string | null,
+): boolean {
+  const words = (value: string) =>
+    value
+      .normalize("NFKC")
+      .toLowerCase()
+      .match(/\p{L}+(?:['’\-]\p{L}+)*/gu) ?? [];
+  const customerWords = new Set(words(customerName));
+  const payerWords = new Set(words(payerLabel ?? ""));
+  return [...customerWords].filter((word) => payerWords.has(word)).length >= 2;
+}
+
+function exactCents(amount: number): number | null {
+  const cents = Math.round(amount * 100);
+  return Number.isSafeInteger(cents) &&
+    cents > 0 &&
+    Math.abs(amount * 100 - cents) < 0.0001
+    ? cents
+    : null;
+}
+
 export function chooseUniqueCustomerCheckout(
   receipt: {
     amount: number;
     identifiers: string[];
+    counterpartyLabel: string | null;
     transactionAt: Date;
   },
   candidates: CheckoutMatchCandidate[],
@@ -61,11 +87,21 @@ export function chooseUniqueCustomerCheckout(
   if (phones.size === 0) return null;
   const matches = candidates.filter(
     (checkout) =>
-      Math.round(checkout.amount * 100) === Math.round(receipt.amount * 100) &&
+      exactCents(receipt.amount) !== null &&
+      exactCents(checkout.amount) === exactCents(receipt.amount) &&
       phones.has(checkout.payerPhone) &&
+      customerPaymentNameMatches(
+        checkout.customerName,
+        receipt.counterpartyLabel,
+      ) &&
       receipt.transactionAt.getTime() >= checkout.createdAt.getTime() - 1000 &&
       receipt.transactionAt <= checkout.expiresAt &&
       now <= checkout.expiresAt,
   );
   return matches.length === 1 ? matches[0].id : null;
+}
+
+/** Customer input is local digits only; receipts may include the country code. */
+export function normalizeCustomerPaymentPhone(value: string): string | null {
+  return /^90\d{7}$/.test(value) ? `252${value}` : null;
 }
