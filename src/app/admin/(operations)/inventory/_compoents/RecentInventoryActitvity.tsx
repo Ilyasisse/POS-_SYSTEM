@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ToneBadge } from "@/components/admin/shared";
 import { Card } from "@/components/ui/card";
 import { InventoryMovementRow } from "@/types/admin/Inventory.types";
@@ -18,25 +19,25 @@ export default function RecentInventoryActivity({
 }) {
   return (
     <Card className="p-5">
-      <h2 className="text-lg font-black text-foreground">
-        Recent Inventory Activity
-      </h2>
+      <h2 className="text-foreground text-lg font-black">Recent Inventory Activity</h2>
+      <Link
+        href="/admin/inventory/activity"
+        className="text-primary text-sm font-semibold underline"
+      >
+        View all activity
+      </Link>
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         {movements.length === 0 ? (
-          <p className="text-sm font-medium text-muted-foreground">
-            No supply movements yet.
-          </p>
+          <p className="text-muted-foreground text-sm font-medium">No supply movements yet.</p>
         ) : (
           movements.map((movement) => (
             <div
               key={movement.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
+              className="border-border bg-card flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-foreground">
-                  {movement.itemName}
-                </p>
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="text-foreground truncate text-sm font-black">{movement.itemName}</p>
+                <p className="text-muted-foreground text-xs font-medium">
                   {movement.reason} ~ {formatDateTime(movement.occurredAt)}
                 </p>
               </div>
