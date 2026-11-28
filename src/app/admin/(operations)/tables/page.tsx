@@ -14,19 +14,25 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createActiveTableFromAdmin } from "./actions";
 import { ToastOnMount } from "@/components/ui/toast";
+import { filterTables, parseTableView, tableStatus } from "@/lib/tables/table-status-filter";
 
 type TablePageProps = {
   searchParams?: Promise<{
     tableStatus?: string;
     q?: string;
+    view?: string;
   }>;
 };
 
 function getTableStatus(table: { isActive: boolean; orders: unknown[] }) {
-  if (!table.isActive) return { label: "Hidden", tone: "slate" as const };
-  if (table.orders.length > 0)
-    return { label: "Occupied", tone: "red" as const };
-  return { label: "Available", tone: "green" as const };
+  switch (tableStatus(table)) {
+    case "hidden":
+      return { label: "Hidden", tone: "slate" as const };
+    case "occupied":
+      return { label: "Occupied", tone: "red" as const };
+    default:
+      return { label: "Available", tone: "green" as const };
+  }
 }
 
 function getTableStatusMessage(tableStatus?: string) {
@@ -58,65 +64,54 @@ function getTableStatusMessage(tableStatus?: string) {
 
 export default async function TablePage({ searchParams }: TablePageProps) {
   const params = await searchParams;
-  const q = params?.q?.trim().toLowerCase() ?? "";
+  const q = params?.q?.trim().slice(0, 80) ?? "";
+  const view = parseTableView(params?.view);
   const notice = getTableStatusMessage(params?.tableStatus);
-  const tables = (
-    await prisma.table.findMany({
-      orderBy: {
-        name: "asc",
-      },
-      include: {
-        orders: {
-          where: {
-            status: "OPEN",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          select: {
-            id: true,
-            orderNumber: true,
-            createdAt: true,
-            total: true,
-          },
+  const allTables = await prisma.table.findMany({
+    orderBy: {
+      name: "asc",
+    },
+    include: {
+      orders: {
+        where: {
+          status: "OPEN",
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+          orderNumber: true,
+          createdAt: true,
+          total: true,
         },
       },
-    })
-  ).filter((table) => !q || table.name.toLowerCase().includes(q));
+    },
+  });
+  const tables = filterTables(allTables, q, view);
 
-  const activeTables = tables.filter((table) => table.isActive).length;
-  const occupiedTables = tables.filter(
-    (table) => table.orders.length > 0,
-  ).length;
-  const openOrders = tables.reduce(
-    (sum, table) => sum + table.orders.length,
-    0,
-  );
+  const availableTables = allTables.filter((table) => tableStatus(table) === "available").length;
+  const openOrders = allTables.reduce((sum, table) => sum + table.orders.length, 0);
 
   return (
-    <AdminPage
-      title="Tables"
-      description="Manage dine-in tables and their status"
-    >
-      {notice ? (
-        <ToastOnMount tone={notice.tone} description={notice.message} />
-      ) : null}
+    <AdminPage title="Tables" description="Manage dine-in tables and their status">
+      {notice ? <ToastOnMount tone={notice.tone} description={notice.message} /> : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Total Tables" value={tables.length} />
-        <MetricCard label="Available" value={activeTables - occupiedTables} />
+        <MetricCard label="Total Tables" value={allTables.length} />
+        <MetricCard label="Available" value={availableTables} />
         <MetricCard label="Open Orders" value={openOrders} />
       </section>
 
       <form
         action={createActiveTableFromAdmin}
-        className="grid gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_auto]"
+        className="border-border bg-card grid gap-3 rounded-2xl border p-4 shadow-sm shadow-black/70 md:grid-cols-[1fr_auto]"
       >
         <Input
           aria-label="Table name or number"
           name="tableName"
           type="text"
-          className="h-11 rounded-lg border border-border px-3 text-sm font-medium outline-none focus:border-blue-400 dark:focus:border-blue-800 focus:ring-4 focus:ring-blue-50 dark:focus:ring-blue-800"
+          className="border-border h-11 rounded-lg border px-3 text-sm font-medium outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 dark:focus:border-blue-800 dark:focus:ring-blue-800"
           placeholder="Table name or number"
         />
         <Button type="submit">Add Table</Button>
@@ -125,17 +120,31 @@ export default async function TablePage({ searchParams }: TablePageProps) {
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <DataTableCard
           footer={
-            <p className="text-sm font-medium text-muted-foreground">
-              Showing 1 to {tables.length} of {tables.length} tables
+            <p className="text-muted-foreground text-sm font-medium">
+              Showing {tables.length} of {allTables.length} tables
             </p>
           }
         >
           <SearchToolbar
             placeholder="Search tables..."
-            defaultValue={params?.q ?? ""}
-            hasActiveFilters={Boolean(q)}
+            defaultValue={q}
+            hasActiveFilters={Boolean(q || view !== "all")}
             clearHref="/admin/tables"
-          />
+          >
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <span>Status</span>
+              <select
+                name="view"
+                defaultValue={view}
+                className="h-10 rounded-md border border-slate-300 bg-white px-3"
+              >
+                <option value="all">All tables</option>
+                <option value="available">Available</option>
+                <option value="occupied">Occupied</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+          </SearchToolbar>
           <Table>
             <thead>
               <tr>
@@ -158,20 +167,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
                 tables.map((table, index) => {
                   const status = getTableStatus(table);
                   return (
-                    <tr key={table.id} className="border-b border-border">
-                      <TableCell className="font-bold text-muted-foreground">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-black text-foreground">
-                        {table.name}
-                      </TableCell>
+                    <tr key={table.id} className="border-border border-b">
+                      <TableCell className="text-muted-foreground font-bold">{index + 1}</TableCell>
+                      <TableCell className="text-foreground font-black">{table.name}</TableCell>
                       <TableCell>{4 + (index % 4)}</TableCell>
                       <TableCell>
                         <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
                       </TableCell>
-                      <TableCell>
-                        {index % 2 === 0 ? "Main Floor" : "Outdoor"}
-                      </TableCell>
+                      <TableCell>{index % 2 === 0 ? "Main Floor" : "Outdoor"}</TableCell>
                       <TableCell>{table.orders.length}</TableCell>
                     </tr>
                   );
@@ -182,14 +185,14 @@ export default async function TablePage({ searchParams }: TablePageProps) {
         </DataTableCard>
 
         <Card className="p-5">
-          <h2 className="text-lg font-black text-foreground">Floor Plan</h2>
-          <p className="mt-1 text-sm font-medium text-muted-foreground">
+          <h2 className="text-foreground text-lg font-black">Floor Plan</h2>
+          <p className="text-muted-foreground mt-1 text-sm font-medium">
             Visual status map based on live table availability.
           </p>
           {/* REVIEW: This floor plan uses generated positions until editable table layout data is added. */}
-          <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="absolute inset-x-8 top-8 h-20 rounded-xl border border-border bg-card" />
-            <div className="absolute bottom-8 right-8 h-32 w-20 rounded-xl border border-border bg-card" />
+          <div className="border-border bg-card relative mt-5 aspect-[4/3] overflow-hidden rounded-2xl border">
+            <div className="border-border bg-card absolute inset-x-8 top-8 h-20 rounded-xl border" />
+            <div className="border-border bg-card absolute right-8 bottom-8 h-32 w-20 rounded-xl border" />
             {tables.slice(0, 8).map((table, index) => {
               const status = getTableStatus(table);
               const positions = [
@@ -219,7 +222,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               );
             })}
           </div>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs font-bold text-muted-foreground">
+          <div className="text-muted-foreground mt-4 flex flex-wrap gap-4 text-xs font-bold">
             <span className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-emerald-500" />
               Available
@@ -229,7 +232,7 @@ export default async function TablePage({ searchParams }: TablePageProps) {
               Occupied
             </span>
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-muted" />
+              <span className="bg-muted size-2 rounded-full" />
               Hidden
             </span>
           </div>
