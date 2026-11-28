@@ -1,3 +1,4 @@
+import { getPublicProductImageUrl } from "@/lib/products/product-images";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { availableForSaleWhere } from "@/lib/products/availability";
@@ -108,6 +109,7 @@ export async function GET() {
 
       return {
         ...product,
+        imageUrl: getPublicProductImageUrl(product.imageUrl),
         price: product.price ?? 0,
         cost: product.cost ?? null,
         trackStock: !!product.trackStock,
@@ -132,9 +134,6 @@ export async function GET() {
       console.error("GET /api/products error:", error);
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch products" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
 }

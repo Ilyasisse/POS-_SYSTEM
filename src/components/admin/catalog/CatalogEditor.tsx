@@ -1,23 +1,12 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-  type ReactNode,
-} from "react";
+import { PRODUCT_DESCRIPTION_MAX_LENGTH } from "@/lib/products/product-content";
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 import {
@@ -49,19 +38,12 @@ export function Field({
 }) {
   return (
     <div className="space-y-2">
-      <label
-        htmlFor={`catalog-${name}`}
-        className="block text-sm font-semibold"
-      >
+      <label htmlFor={`catalog-${name}`} className="block text-sm font-semibold">
         {label}
       </label>
       {children}
       {errors[name] && (
-        <p
-          id={`error-${name}`}
-          role="alert"
-          className="text-sm text-destructive"
-        >
+        <p id={`error-${name}`} role="alert" className="text-destructive text-sm">
           {errors[name]}
         </p>
       )}
@@ -130,11 +112,7 @@ export default function CatalogEditor({
         restoring = false;
         return;
       }
-      if (
-        window.location.href === href ||
-        (!dirtyRef.current && !pendingRef.current)
-      )
-        return;
+      if (window.location.href === href || (!dirtyRef.current && !pendingRef.current)) return;
       if (pendingRef.current) {
         event.stopImmediatePropagation();
         restoring = true;
@@ -165,7 +143,7 @@ export default function CatalogEditor({
       }}
     >
       <DialogContent
-        className="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 sm:max-w-none md:left-auto md:right-0 md:w-[36rem] md:rounded-l-2xl data-[state=open]:animate-none data-[state=closed]:animate-none"
+        className="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none p-0 data-[state=closed]:animate-none data-[state=open]:animate-none sm:max-w-none md:right-0 md:left-auto md:w-[36rem] md:rounded-l-2xl"
         showCloseButton={false}
         onEscapeKeyDown={(event) => {
           event.preventDefault();
@@ -178,9 +156,7 @@ export default function CatalogEditor({
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b p-5">
           <div>
-            <DialogTitle className="text-xl font-bold capitalize">
-              {title}
-            </DialogTitle>
+            <DialogTitle className="text-xl font-bold capitalize">{title}</DialogTitle>
             <DialogDescription className="mt-2">
               {record?.name ?? "Add a new item to your catalog."}
               {dirty ? " · Unsaved changes" : ""}
@@ -262,7 +238,7 @@ function CatalogForm({
         type="checkbox"
         name={name}
         defaultChecked={checked}
-        className="size-5 accent-primary"
+        className="accent-primary size-5"
       />
       {label}
     </label>
@@ -282,9 +258,7 @@ function CatalogForm({
     setMessage(result.message);
     toast({ tone: "error", description: result.message });
     const name = Object.keys(result.errors ?? {})[0];
-    requestAnimationFrame(() =>
-      document.getElementById(`catalog-${name}`)?.focus(),
-    );
+    requestAnimationFrame(() => document.getElementById(`catalog-${name}`)?.focus());
   }
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -327,10 +301,7 @@ function CatalogForm({
       onChange={onDirty}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <fieldset
-        disabled={pending}
-        className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5"
-      >
+      <fieldset disabled={pending} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
         {row && (
           <>
             <input type="hidden" name="id" value={row.id} />
@@ -358,7 +329,7 @@ function CatalogForm({
               step="0.01"
               defaultValue={row?.price ?? (kind === "modifiers" ? 0 : "")}
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {kind === "modifiers"
                 ? "A zero price is shown as Included."
                 : "Stock quantities are managed in Inventory."}
@@ -368,10 +339,7 @@ function CatalogForm({
         {kind === "products" && (
           <>
             <Field name="categoryId" label="Category" errors={errors}>
-              <NativeSelect
-                {...inputProps("categoryId")}
-                defaultValue={row?.categoryId ?? ""}
-              >
+              <NativeSelect {...inputProps("categoryId")} defaultValue={row?.categoryId ?? ""}>
                 {selectOptions(data.categories)}
               </NativeSelect>
             </Field>
@@ -379,7 +347,7 @@ function CatalogForm({
               <Textarea
                 {...inputProps("description")}
                 defaultValue={row?.description ?? ""}
-                maxLength={2000}
+                maxLength={PRODUCT_DESCRIPTION_MAX_LENGTH}
               />
             </Field>
             <Field name="imageUrl" label="Image URL" errors={errors}>
@@ -391,11 +359,11 @@ function CatalogForm({
             </Field>
             {checkbox("isPopular", "Featured product", row?.isPopular ?? false)}
             {checkbox("trackStock", "Track stock", row?.trackStock ?? false)}
-            <section className="space-y-4 rounded-xl border bg-muted/30 p-4">
+            <section className="bg-muted/30 space-y-4 rounded-xl border p-4">
               <h3 className="font-semibold">Sale availability</h3>
               <label className="flex min-h-11 items-center gap-3 text-sm">
                 <input
-                  className="size-5 accent-primary"
+                  className="accent-primary size-5"
                   type="checkbox"
                   name="availableForSale"
                   checked={available}
@@ -405,22 +373,14 @@ function CatalogForm({
               </label>
               {!available ? (
                 <>
-                  <Field
-                    name="availabilityReason"
-                    label="Reason for pausing sales"
-                    errors={errors}
-                  >
+                  <Field name="availabilityReason" label="Reason for pausing sales" errors={errors}>
                     <Textarea
                       {...inputProps("availabilityReason")}
                       defaultValue={row?.availabilityReason ?? ""}
                       maxLength={200}
                     />
                   </Field>
-                  <Field
-                    name="durationMinutes"
-                    label="Resume sales"
-                    errors={errors}
-                  >
+                  <Field name="durationMinutes" label="Resume sales" errors={errors}>
                     <NativeSelect
                       {...inputProps("durationMinutes")}
                       defaultValue={row && !saleAvailable(row) ? "keep" : ""}
@@ -436,9 +396,8 @@ function CatalogForm({
                     </NativeSelect>
                   </Field>
                   {row?.availabilityRestoresAt && (
-                    <p className="text-xs text-muted-foreground">
-                      Current schedule:{" "}
-                      {new Date(row.availabilityRestoresAt).toLocaleString()}
+                    <p className="text-muted-foreground text-xs">
+                      Current schedule: {new Date(row.availabilityRestoresAt).toLocaleString()}
                     </p>
                   )}
                 </>
@@ -448,9 +407,9 @@ function CatalogForm({
                   <input type="hidden" name="durationMinutes" value="" />
                 </>
               )}
-              <p className="text-xs text-muted-foreground">
-                Resuming sales leaves stock unchanged. Inactive products and
-                products in inactive categories stay hidden.
+              <p className="text-muted-foreground text-xs">
+                Resuming sales leaves stock unchanged. Inactive products and products in inactive
+                categories stay hidden.
               </p>
             </section>
           </>
@@ -458,10 +417,7 @@ function CatalogForm({
         {kind === "categories" && (
           <>
             <Field name="station" label="Kitchen station" errors={errors}>
-              <NativeSelect
-                {...inputProps("station")}
-                defaultValue={row?.station ?? ""}
-              >
+              <NativeSelect {...inputProps("station")} defaultValue={row?.station ?? ""}>
                 <option value="">No station</option>
                 {stations.map((station) => (
                   <option key={station} value={station}>
@@ -470,11 +426,7 @@ function CatalogForm({
                 ))}
               </NativeSelect>
             </Field>
-            <Field
-              name="sortOrder"
-              label="Menu position (starts at 0)"
-              errors={errors}
-            >
+            <Field name="sortOrder" label="Menu position (starts at 0)" errors={errors}>
               <Input
                 {...inputProps("sortOrder")}
                 type="number"
@@ -482,7 +434,7 @@ function CatalogForm({
                 step="1"
                 defaultValue={row?.sortOrder ?? data.ordering.length}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Use Reorder categories in the list to arrange the whole menu.
               </p>
             </Field>
@@ -498,57 +450,38 @@ function CatalogForm({
         )}
         {kind === "modifiers" && (
           <>
-            <Field
-              name="productIds"
-              label={row ? "Product" : "Products"}
-              errors={errors}
-            >
-              {row ? (
-                <NativeSelect
-                  {...inputProps("productIds")}
-                  defaultValue={row.productId}
-                >
-                  {selectOptions(data.products)}
-                </NativeSelect>
-              ) : (
-                <div
-                  id="catalog-productIds"
-                  tabIndex={-1}
-                  aria-describedby={
-                    errors.productIds ? "error-productIds" : undefined
-                  }
-                  className="max-h-64 overflow-y-auto rounded-lg border p-2"
-                >
-                  {data.products.length ? (
-                    data.products.map((product) => (
-                      <label
-                        key={product.id}
-                        className="flex min-h-11 items-center gap-3 rounded px-2 hover:bg-muted"
-                      >
-                        <input
-                          type="checkbox"
-                          className="size-5 accent-primary"
-                          name="productIds"
-                          value={product.id}
-                        />
-                        {product.name}
-                      </label>
-                    ))
-                  ) : (
-                    <p className="p-3 text-sm">Create a product first.</p>
-                  )}
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {!row &&
-                  "Creates a separate option for every selected product."}
+            <Field name="productIds" label="Products" errors={errors}>
+              <div
+                id="catalog-productIds"
+                tabIndex={-1}
+                aria-describedby={errors.productIds ? "error-productIds" : undefined}
+                className="max-h-64 overflow-y-auto rounded-lg border p-2"
+              >
+                {data.products.length ? (
+                  data.products.map((product) => (
+                    <label
+                      key={product.id}
+                      className="hover:bg-muted flex min-h-11 items-center gap-3 rounded px-2"
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-primary size-5"
+                        name="productIds"
+                        value={product.id}
+                        defaultChecked={row?.productIds?.includes(product.id)}
+                      />
+                      {product.name}
+                    </label>
+                  ))
+                ) : (
+                  <p className="p-3 text-sm">Create a product first.</p>
+                )}
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Changes to this shared option apply to every selected product.
               </p>
             </Field>
-            <Field
-              name="modifierGroupId"
-              label="Modifier group"
-              errors={errors}
-            >
+            <Field name="modifierGroupId" label="Modifier group" errors={errors}>
               <NativeSelect
                 {...inputProps("modifierGroupId")}
                 defaultValue={row?.modifierGroupId ?? ""}
@@ -560,11 +493,7 @@ function CatalogForm({
         )}
         {kind === "modifier-groups" && (
           <>
-            <Field
-              name="isRequired"
-              label="Selection requirement"
-              errors={errors}
-            >
+            <Field name="isRequired" label="Selection requirement" errors={errors}>
               <NativeSelect
                 {...inputProps("isRequired")}
                 value={required ? "on" : "off"}
@@ -600,7 +529,7 @@ function CatalogForm({
                 />
               </Field>
             </div>
-            <p className="rounded-lg bg-muted p-3 text-sm font-medium">
+            <p className="bg-muted rounded-lg p-3 text-sm font-medium">
               {selectionRule(Number(minimum), Number(maximum))}
             </p>
             <GroupPreview
@@ -629,18 +558,18 @@ function CatalogForm({
         {message && (
           <p
             role="alert"
-            className="rounded-lg border border-destructive/30 p-3 text-sm text-destructive"
+            className="border-destructive/30 text-destructive rounded-lg border p-3 text-sm"
           >
             {message}
           </p>
         )}
       </fieldset>
-      <footer className="flex shrink-0 flex-wrap items-center gap-3 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <footer className="bg-card flex shrink-0 flex-wrap items-center gap-3 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {onDelete && (
           <Button
             type="button"
             variant="ghost"
-            className="min-h-11 text-destructive"
+            className="text-destructive min-h-11"
             disabled={pending || audioBusy}
             onClick={onDelete}
           >
@@ -656,16 +585,8 @@ function CatalogForm({
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          className="min-h-11"
-          disabled={pending || audioBusy}
-        >
-          {pending
-            ? "Saving…"
-            : audioBusy
-              ? "Recording audio…"
-              : "Save changes"}
+        <Button type="submit" className="min-h-11" disabled={pending || audioBusy}>
+          {pending ? "Saving…" : audioBusy ? "Recording audio…" : "Save changes"}
         </Button>
       </footer>
     </form>
@@ -683,17 +604,12 @@ function GroupPreview({
 }) {
   const products = [
     ...new Map(
-      (row?.options ?? []).map((option) => [
-        option.productId,
-        option.productName,
-      ]),
+      (row?.options ?? []).map((option) => [option.productId, option.productName]),
     ).entries(),
   ];
   const [productId, setProductId] = useState(products[0]?.[0] ?? "");
   const [selected, setSelected] = useState<string[]>([]);
-  const options = (row?.options ?? []).filter(
-    (option) => option.productId === productId,
-  );
+  const options = (row?.options ?? []).filter((option) => option.productId === productId);
   const active = options.filter((option) => option.isActive);
   return (
     <section className="space-y-3 rounded-xl border p-4">
@@ -718,7 +634,7 @@ function GroupPreview({
               </option>
             ))}
           </NativeSelect>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {row?.isActive
               ? "Only active choices for this product appear to customers."
               : "This group is inactive and hidden from customers."}
@@ -737,24 +653,17 @@ function GroupPreview({
               </div>
             ))}
           </div>
-          <fieldset className="space-y-2 rounded-lg bg-muted/40 p-3">
-            <legend className="text-sm font-medium">
-              {selectionRule(minimum, maximum)}
-            </legend>
+          <fieldset className="bg-muted/40 space-y-2 rounded-lg p-3">
+            <legend className="text-sm font-medium">{selectionRule(minimum, maximum)}</legend>
             {active.map((option) => (
-              <label
-                key={option.id}
-                className="flex min-h-11 items-center gap-3 text-sm"
-              >
+              <label key={option.id} className="flex min-h-11 items-center gap-3 text-sm">
                 <input
                   type={maximum === 1 ? "radio" : "checkbox"}
                   name="customer-preview-choice"
-                  className="size-5 accent-primary"
+                  className="accent-primary size-5"
                   checked={selected.includes(option.id)}
                   disabled={
-                    maximum !== 1 &&
-                    selected.length >= maximum &&
-                    !selected.includes(option.id)
+                    maximum !== 1 && selected.length >= maximum && !selected.includes(option.id)
                   }
                   onChange={() =>
                     setSelected((current) =>
@@ -771,16 +680,15 @@ function GroupPreview({
               </label>
             ))}
             {active.length < minimum && (
-              <p className="text-sm text-destructive">
+              <p className="text-destructive text-sm">
                 This product needs more active options to meet the minimum.
               </p>
             )}
           </fieldset>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          No linked options. Create modifiers for this group and choose their
-          products.
+        <p className="text-muted-foreground text-sm">
+          No linked options. Create modifiers for this group and choose their products.
         </p>
       )}
     </section>

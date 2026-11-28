@@ -9,7 +9,5 @@ export default async function Page({
   searchParams: Promise<CatalogSearchParams>;
 }) {
   const { id } = await params;
-  return (
-    <CatalogPage kind="modifiers" searchParams={searchParams} editorId={id} />
-  );
+  return <CatalogPage kind="modifiers" searchParams={searchParams} editorId={id} />;
 }

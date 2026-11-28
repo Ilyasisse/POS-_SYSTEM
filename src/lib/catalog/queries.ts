@@ -11,7 +11,7 @@ export type CatalogSearchParams = Record<string, string | string[] | undefined>;
 const groupInclude = {
   modifiers: {
     orderBy: { name: "asc" as const },
-    include: { product: { select: { name: true } } },
+    include: { products: { select: { id: true, name: true } } },
   },
 };
 type ProductRow = Prisma.ProductGetPayload<{ include: { category: true } }>;
@@ -19,7 +19,7 @@ type CategoryRow = Prisma.CategoryGetPayload<{
   include: { _count: { select: { products: true } } };
 }>;
 type ModifierRow = Prisma.ModifierGetPayload<{
-  include: { product: true; modifierGroup: true };
+  include: { products: true; modifierGroup: true };
 }>;
 type GroupRow = Prisma.ModifierGroupGetPayload<{
   include: typeof groupInclude;
@@ -59,8 +59,8 @@ const modifierRecord = (row: ModifierRow): CatalogRecord => ({
   isActive: row.isActive,
   price: Number(row.price),
   pronunciationAudioUrl: row.pronunciationAudioUrl,
-  productId: row.productId,
-  productName: row.product.name,
+  productIds: row.products.map((product) => product.id),
+  productName: row.products.map((product) => product.name).join(", "),
   modifierGroupId: row.modifierGroupId,
   groupName: row.modifierGroup.name,
 });
@@ -72,14 +72,16 @@ const groupRecord = (row: GroupRow): CatalogRecord => ({
   isRequired: row.isRequired,
   minSelect: row.minSelect,
   maxSelect: row.maxSelect,
-  options: row.modifiers.map((option) => ({
-    id: option.id,
-    name: option.name,
-    productId: option.productId,
-    productName: option.product.name,
-    price: Number(option.price),
-    isActive: option.isActive,
-  })),
+  options: row.modifiers.flatMap((option) =>
+    option.products.map((product) => ({
+      id: option.id,
+      name: option.name,
+      productId: product.id,
+      productName: product.name,
+      price: Number(option.price),
+      isActive: option.isActive,
+    })),
+  ),
 });
 
 export async function getCatalogData(
@@ -102,8 +104,7 @@ export async function getCatalogData(
     "edit",
   ]) {
     const value = search[key];
-    if (typeof value === "string" && value && value.length <= 200)
-      params[key] = value;
+    if (typeof value === "string" && value && value.length <= 200) params[key] = value;
   }
   const q = params.q?.trim();
   const name = q ? { name: { contains: q, mode: "insensitive" as const } } : {};
@@ -160,9 +161,7 @@ export async function getCatalogData(
     const where: Prisma.ProductWhereInput = {
       ...name,
       ...active,
-      ...(params.category && params.category !== "all"
-        ? { categoryId: params.category }
-        : {}),
+      ...(params.category && params.category !== "all" ? { categoryId: params.category } : {}),
       ...(params.status === "hidden"
         ? { category: { isActive: false } }
         : params.status === "active"
@@ -173,10 +172,7 @@ export async function getCatalogData(
         : params.availability === "sold-out"
           ? {
               availableForSale: false,
-              OR: [
-                { availabilityRestoresAt: null },
-                { availabilityRestoresAt: { gt: now } },
-              ],
+              OR: [{ availabilityRestoresAt: null }, { availabilityRestoresAt: { gt: now } }],
             }
           : {}),
     };
@@ -222,11 +218,9 @@ export async function getCatalogData(
       ...name,
       ...active,
       ...(params.product && params.product !== "all"
-        ? { productId: params.product }
+        ? { products: { some: { id: params.product } } }
         : {}),
-      ...(params.group && params.group !== "all"
-        ? { modifierGroupId: params.group }
-        : {}),
+      ...(params.group && params.group !== "all" ? { modifierGroupId: params.group } : {}),
     };
     const pagination = paginate(await prisma.modifier.count({ where }));
     const [list, selected] = await Promise.all([
@@ -234,12 +228,12 @@ export async function getCatalogData(
         where,
         ...pagination,
         orderBy: [{ name: "asc" }, { id: "asc" }],
-        include: { product: true, modifierGroup: true },
+        include: { products: true, modifierGroup: true },
       }),
       editorId && editorId !== "new"
         ? prisma.modifier.findUnique({
             where: { id: editorId },
-            include: { product: true, modifierGroup: true },
+            include: { products: true, modifierGroup: true },
           })
         : null,
     ]);

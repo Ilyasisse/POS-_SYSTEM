@@ -1,12 +1,6 @@
 import CatalogPage from "@/components/admin/catalog/CatalogPage";
 import type { CatalogSearchParams } from "@/lib/catalog/queries";
 
-export default function Page({
-  searchParams,
-}: {
-  searchParams: Promise<CatalogSearchParams>;
-}) {
-  return (
-    <CatalogPage kind="modifiers" searchParams={searchParams} editorId="new" />
-  );
+export default function Page({ searchParams }: { searchParams: Promise<CatalogSearchParams> }) {
+  return <CatalogPage kind="modifiers" searchParams={searchParams} editorId="new" />;
 }

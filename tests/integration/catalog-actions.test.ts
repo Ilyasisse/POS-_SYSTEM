@@ -1,3 +1,4 @@
+import * as productContent from "../../src/lib/products/product-content";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -86,9 +87,7 @@ function harness() {
       },
       count: async (input: Query) => {
         capture("product", "count", input);
-        return input.where?.categoryId
-          ? state.categoryProductCount
-          : state.selectedProductCount;
+        return input.where?.categoryId ? state.categoryProductCount : state.selectedProductCount;
       },
       update: async (input: Query) => {
         capture("product", "update", input);
@@ -128,8 +127,7 @@ function harness() {
       },
       update: async (input: Query) => {
         capture("category", "update", input);
-        if (input.where?.id === state.failCategoryId)
-          throw new DatabaseError("P2034");
+        if (input.where?.id === state.failCategoryId) throw new DatabaseError("P2034");
         const row = state.categories.find((row) => row.id === input.where?.id);
         if (!row) throw new DatabaseError("P2025");
         Object.assign(row, input.data);
@@ -149,8 +147,8 @@ function harness() {
         capture("modifier", "count", input);
         return state.groupOptionCount;
       },
-      createMany: async (input: Query) => {
-        capture("modifier", "createMany", input);
+      create: async (input: Query) => {
+        capture("modifier", "create", input);
         return {};
       },
       update: async (input: Query) => {
@@ -207,10 +205,7 @@ function harness() {
   };
   const prisma = {
     ...tx,
-    $transaction: async (
-      run: (client: typeof tx) => Promise<unknown>,
-      options: unknown,
-    ) => {
+    $transaction: async (run: (client: typeof tx) => Promise<unknown>, options: unknown) => {
       capture("transaction", "begin", options);
       const before = {
         product: structuredClone(state.product),
@@ -252,19 +247,17 @@ function harness() {
       },
     },
     "@/lib/products/availability": availability,
+    "@/lib/products/product-content": productContent,
     "@/lib/catalog/catalog": catalog,
   };
   function load<T>(path: string): T {
-    const source = ts.transpileModule(
-      readFileSync(resolve(process.cwd(), path), "utf8"),
-      {
-        compilerOptions: {
-          target: ts.ScriptTarget.ES2020,
-          module: ts.ModuleKind.CommonJS,
-          esModuleInterop: true,
-        },
+    const source = ts.transpileModule(readFileSync(resolve(process.cwd(), path), "utf8"), {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.CommonJS,
+        esModuleInterop: true,
       },
-    ).outputText;
+    }).outputText;
     const exports = {};
     vm.runInNewContext(
       source,
@@ -293,8 +286,7 @@ function harness() {
 function form(values: Record<string, string | string[]>): FormData {
   const result = new FormData();
   for (const [name, value] of Object.entries(values))
-    for (const item of typeof value === "string" ? [value] : value)
-      result.append(name, item);
+    for (const item of typeof value === "string" ? [value] : value) result.append(name, item);
   return result;
 }
 const identity = { id: "coffee", updatedAt: version };
@@ -324,11 +316,7 @@ test("all catalog mutations authorize before validation or database access", asy
   ])
     await assert.rejects(call, (error) => error === h.authFailure);
   assert.equal(h.calls.length, 4);
-  assert.ok(
-    h.calls.every(
-      (call) => call.model === "auth" && call.input === "CATALOG_MANAGE",
-    ),
-  );
+  assert.ok(h.calls.every((call) => call.model === "auth" && call.input === "CATALOG_MANAGE"));
 });
 
 test("catalog list and direct editor reads authorize before option or item queries", async () => {
@@ -353,19 +341,14 @@ test("resuming sales clears pause state, records an audit, refreshes customers a
   assert.equal(h.state.product.availabilityReason, null);
   assert.equal(h.state.product.availabilityRestoresAt, null);
   assert.equal(h.state.product.stockQty, 7);
-  const write = h.calls.find(
-    (call) => call.model === "product" && call.method === "update",
-  )!.input as Query;
+  const write = h.calls.find((call) => call.model === "product" && call.method === "update")!
+    .input as Query;
   assert.deepEqual(Object.keys(write.data!).sort(), [
     "availabilityReason",
     "availabilityRestoresAt",
     "availableForSale",
   ]);
-  assert.ok(
-    h.calls.some(
-      (call) => call.model === "auditLog" && call.method === "create",
-    ),
-  );
+  assert.ok(h.calls.some((call) => call.model === "auditLog" && call.method === "create"));
   assert.ok(
     h.refreshed.includes("/menu") &&
       h.refreshed.includes("/api/GET/Product/all") &&
@@ -375,25 +358,16 @@ test("resuming sales clears pause state, records an audit, refreshes customers a
 
 test("manual and timed sold-out changes keep inventory intact", async () => {
   const manual = harness();
-  assert.equal(
-    (await manual.actions.changeCatalogAvailability(form(pause))).ok,
-    true,
-  );
+  assert.equal((await manual.actions.changeCatalogAvailability(form(pause))).ok, true);
   assert.equal(manual.state.product.availabilityRestoresAt, null);
   const timed = harness();
   const before = Date.now();
   assert.equal(
-    (
-      await timed.actions.changeCatalogAvailability(
-        form({ ...pause, durationMinutes: "60" }),
-      )
-    ).ok,
+    (await timed.actions.changeCatalogAvailability(form({ ...pause, durationMinutes: "60" }))).ok,
     true,
   );
   const restoresAt = timed.state.product.availabilityRestoresAt!.getTime();
-  assert.ok(
-    restoresAt >= before + 3_600_000 && restoresAt <= Date.now() + 3_600_000,
-  );
+  assert.ok(restoresAt >= before + 3_600_000 && restoresAt <= Date.now() + 3_600_000);
   assert.equal(timed.state.product.stockQty, 7);
 });
 
@@ -411,29 +385,15 @@ test("stale availability changes fail without updates or cache refresh", async (
 test("invalid mutation fields and unsupported catalog sections never open a transaction", async () => {
   const h = harness();
   assert.equal(
-    (
-      await h.actions.saveCatalogItem(
-        "modifiers",
-        form({ ...modifier, price: "Infinity" }),
-      )
-    ).ok,
+    (await h.actions.saveCatalogItem("modifiers", form({ ...modifier, price: "Infinity" }))).ok,
     false,
   );
   assert.equal(
-    (
-      await h.actions.saveCatalogItem(
-        "tables" as catalog.CatalogKind,
-        form(modifier),
-      )
-    ).ok,
+    (await h.actions.saveCatalogItem("tables" as catalog.CatalogKind, form(modifier))).ok,
     false,
   );
   assert.equal(
-    (
-      await h.actions.changeCatalogAvailability(
-        form({ ...pause, availabilityReason: "x" }),
-      )
-    ).ok,
+    (await h.actions.changeCatalogAvailability(form({ ...pause, availabilityReason: "x" }))).ok,
     false,
   );
   assert.ok(!h.calls.some((call) => call.model === "transaction"));
@@ -443,24 +403,17 @@ test("multi-product creation deduplicates selection and preserves pronunciation 
   const h = harness();
   const result = await h.actions.saveCatalogItem("modifiers", form(modifier));
   assert.equal(result.ok, true);
-  const write = h.calls.find(
-    (call) => call.model === "modifier" && call.method === "createMany",
-  )!.input as Query;
-  const data = write.data as Record<string, unknown>[];
+  const write = h.calls.find((call) => call.model === "modifier" && call.method === "create")!
+    .input as Query;
+  const data = write.data as Record<string, unknown>;
+  const products = data.products as { connect: { id: string }[] };
   assert.deepEqual(
-    data.map((row) => row.productId),
+    Array.from(products.connect, (row) => row.id),
     ["coffee", "tea"],
   );
-  assert.ok(
-    data.every(
-      (row) =>
-        row.pronunciationAudioUrl === "/uploads/milk.webm" && row.price === 0,
-    ),
-  );
-  assert.equal(
-    h.calls.filter((call) => call.model === "transaction").length,
-    1,
-  );
+  assert.equal(data.pronunciationAudioUrl, "/uploads/milk.webm");
+  assert.equal(data.price, 0);
+  assert.equal(h.calls.filter((call) => call.model === "transaction").length, 1);
 });
 
 test("product editor saves preserve pronunciation and never accept stock fields from the form", async () => {
@@ -484,9 +437,8 @@ test("product editor saves preserve pronunciation and never accept stock fields 
     }),
   );
   assert.equal(result.ok, true);
-  const write = h.calls.find(
-    (call) => call.model === "product" && call.method === "update",
-  )!.input as Query;
+  const write = h.calls.find((call) => call.model === "product" && call.method === "update")!
+    .input as Query;
   assert.equal(
     (write.data as Record<string, unknown>).pronunciationAudioUrl,
     "/uploads/coffee.webm",
@@ -496,20 +448,17 @@ test("product editor saves preserve pronunciation and never accept stock fields 
   assert.equal(h.state.product.stockQty, 7);
 });
 
-test("an existing modifier cannot be reassigned to multiple products in one edit", async () => {
+test("editing a shared modifier updates all selected product links together", async () => {
   const h = harness();
-  const result = await h.actions.saveCatalogItem(
-    "modifiers",
-    form({ ...modifier, ...identity }),
-  );
-  assert.equal(result.ok, false);
-  assert.match(result.message, /exactly one product/);
-  assert.ok(
-    !h.calls.some(
-      (call) =>
-        call.model === "modifier" &&
-        ["update", "createMany"].includes(call.method),
-    ),
+  const result = await h.actions.saveCatalogItem("modifiers", form({ ...modifier, ...identity }));
+  assert.equal(result.ok, true);
+  const writes = h.calls.filter((call) => call.model === "modifier" && call.method === "update");
+  assert.equal(writes.length, 1);
+  const data = (writes[0].input as Query).data as Record<string, unknown>;
+  const products = data.products as { set: { id: string }[] };
+  assert.deepEqual(
+    Array.from(products.set, (row) => row.id),
+    ["coffee", "tea"],
   );
 });
 
@@ -518,40 +467,23 @@ test("missing product or group links reject modifier creation before writes", as
     const h = harness();
     if (missing === "product") h.state.selectedProductCount = 1;
     else h.state.groupExists = false;
-    assert.equal(
-      (await h.actions.saveCatalogItem("modifiers", form(modifier))).ok,
-      false,
-    );
-    assert.ok(
-      !h.calls.some((call) =>
-        ["createMany", "update", "create"].includes(call.method),
-      ),
-    );
+    assert.equal((await h.actions.saveCatalogItem("modifiers", form(modifier))).ok, false);
+    assert.ok(!h.calls.some((call) => ["create", "update", "create"].includes(call.method)));
   }
 });
 
 test("deletion requires explicit confirmation and a current item version", async () => {
   const h = harness();
+  assert.equal((await h.actions.deleteCatalogItem("products", form(identity))).ok, false);
   assert.equal(
-    (await h.actions.deleteCatalogItem("products", form(identity))).ok,
-    false,
-  );
-  assert.equal(
-    (
-      await h.actions.deleteCatalogItem(
-        "products",
-        form({ id: "coffee", confirmed: "yes" }),
-      )
-    ).ok,
+    (await h.actions.deleteCatalogItem("products", form({ id: "coffee", confirmed: "yes" }))).ok,
     false,
   );
   assert.ok(!h.calls.some((call) => call.model === "transaction"));
 });
 
 test("referenced products are deactivated while orders, inventory and stock are preserved", async () => {
-  for (const reference of Object.keys(
-    initialCounts,
-  ) as (keyof typeof initialCounts)[]) {
+  for (const reference of Object.keys(initialCounts) as (keyof typeof initialCounts)[]) {
     const h = harness();
     h.state.product.stockQty = 0;
     h.state.product._count[reference] = 1;
@@ -570,12 +502,8 @@ test("referenced products are deactivated while orders, inventory and stock are 
 test("products with remaining stock are deactivated; empty unreferenced products may be deleted", async () => {
   const stocked = harness();
   assert.equal(
-    (
-      await stocked.actions.deleteCatalogItem(
-        "products",
-        form({ ...identity, confirmed: "yes" }),
-      )
-    ).ok,
+    (await stocked.actions.deleteCatalogItem("products", form({ ...identity, confirmed: "yes" })))
+      .ok,
     true,
   );
   assert.equal(stocked.state.product.stockQty, 7);
@@ -583,19 +511,10 @@ test("products with remaining stock are deactivated; empty unreferenced products
   const empty = harness();
   empty.state.product.stockQty = 0;
   assert.equal(
-    (
-      await empty.actions.deleteCatalogItem(
-        "products",
-        form({ ...identity, confirmed: "yes" }),
-      )
-    ).ok,
+    (await empty.actions.deleteCatalogItem("products", form({ ...identity, confirmed: "yes" }))).ok,
     true,
   );
-  assert.ok(
-    empty.calls.some(
-      (call) => call.model === "product" && call.method === "delete",
-    ),
-  );
+  assert.ok(empty.calls.some((call) => call.model === "product" && call.method === "delete"));
 });
 
 test("order-linked modifiers are deactivated instead of deleting historical records", async () => {
@@ -607,11 +526,7 @@ test("order-linked modifiers are deactivated instead of deleting historical reco
   );
   assert.equal(result.ok, true);
   assert.match(result.message, /deactivated/);
-  assert.ok(
-    h.calls.some(
-      (call) => call.model === "modifier" && call.method === "update",
-    ),
-  );
+  assert.ok(h.calls.some((call) => call.model === "modifier" && call.method === "update"));
   assert.ok(!h.calls.some((call) => call.method === "delete"));
 });
 
@@ -620,10 +535,7 @@ test("categories containing products and groups containing options cannot be del
     const h = harness();
     h.state.categoryProductCount = 1;
     h.state.groupOptionCount = 1;
-    const result = await h.actions.deleteCatalogItem(
-      kind,
-      form({ ...identity, confirmed: "yes" }),
-    );
+    const result = await h.actions.deleteCatalogItem(kind, form({ ...identity, confirmed: "yes" }));
     assert.equal(result.ok, false);
     assert.match(result.message, /deactivate/);
     assert.ok(!h.calls.some((call) => call.method === "delete"));
@@ -658,18 +570,13 @@ test("category reordering persists the complete menu within one serializable tra
     (transactions[0].input as { isolationLevel: string }).isolationLevel,
     "Serializable",
   );
-  assert.ok(
-    h.refreshed.includes("/menu") && h.refreshed.includes("/api/GET/Category"),
-  );
+  assert.ok(h.refreshed.includes("/menu") && h.refreshed.includes("/api/GET/Category"));
 });
 
 test("category reorder rejects conflicting snapshots and invalid permutations before updating", async () => {
   for (const ids of [["drinks", "drinks"], ["food"], ["food", "unknown"]]) {
     const h = harness();
-    assert.equal(
-      (await h.actions.saveCategoryOrder(orderInput(h, ids))).ok,
-      false,
-    );
+    assert.equal((await h.actions.saveCategoryOrder(orderInput(h, ids))).ok, false);
     assert.ok(!h.calls.some((call) => call.method === "update"));
   }
   const h = harness();
@@ -704,9 +611,8 @@ test("product filters combine category, hidden menu status and sale availability
   assert.equal(data.page, 4);
   assert.equal(data.pages, 4);
   assert.equal(data.total, 37);
-  const read = h.calls.find(
-    (call) => call.model === "product" && call.method === "findMany",
-  )!.input as {
+  const read = h.calls.find((call) => call.model === "product" && call.method === "findMany")!
+    .input as {
     skip: number;
     take: number;
     where: {
@@ -743,9 +649,8 @@ test("quick status changes authorize before validation and preserve inventory", 
   assert.equal(h.state.product.isActive, false);
   assert.equal(h.state.product.stockQty, 7);
   assert.equal(h.state.product.availableForSale, false);
-  const write = h.calls.find(
-    (call) => call.model === "product" && call.method === "update",
-  )!.input as Query;
+  const write = h.calls.find((call) => call.model === "product" && call.method === "update")!
+    .input as Query;
   assert.deepEqual(Object.keys(write.data!), ["isActive"]);
   assert.equal(write.where!.updatedAt!.toISOString(), version);
   assert.ok(h.refreshed.includes("/menu"));
@@ -757,10 +662,7 @@ test("quick status rejects malformed versions and statuses without writes", asyn
     { ...identity, isActive: "invalid" },
   ]) {
     const h = harness();
-    assert.equal(
-      (await h.actions.changeCatalogStatus("products", form(values))).ok,
-      false,
-    );
+    assert.equal((await h.actions.changeCatalogStatus("products", form(values))).ok, false);
     assert.ok(!h.calls.some((call) => call.method === "update"));
   }
 });
@@ -773,9 +675,8 @@ test("category station filters accept only known kitchen stations", async () => 
     const h = harness();
     const result = await h.queries.getCatalogData("categories", { station });
     assert.equal(result.params.station, station);
-    const read = h.calls.find(
-      (call) => call.model === "category" && call.method === "count",
-    )!.input as { where: { station?: string } };
+    const read = h.calls.find((call) => call.model === "category" && call.method === "count")!
+      .input as { where: { station?: string } };
     assert.equal(read.where.station, expected);
   }
 });

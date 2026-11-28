@@ -1,11 +1,10 @@
+import {
+  PRODUCT_DESCRIPTION_MAX_LENGTH,
+  productImageUrlError,
+} from "@/lib/products/product-content";
 import { z } from "zod";
 
-export const catalogKinds = [
-  "products",
-  "categories",
-  "modifiers",
-  "modifier-groups",
-] as const;
+export const catalogKinds = ["products", "categories", "modifiers", "modifier-groups"] as const;
 export type CatalogKind = (typeof catalogKinds)[number];
 export const catalogLabels: Record<
   CatalogKind,
@@ -32,12 +31,7 @@ export const catalogLabels: Record<
     description: "Set clear selection rules for each product.",
   },
 };
-export const stations = [
-  "CUNTO_SOOMAALI",
-  "FAST_FOOD",
-  "CABITAAN",
-  "BARISTA",
-] as const;
+export const stations = ["CUNTO_SOOMAALI", "FAST_FOOD", "CABITAAN", "BARISTA"] as const;
 export const stationLabels: Record<string, string> = {
   CUNTO_SOOMAALI: "Cunto Soomaali",
   FAST_FOOD: "Fast food",
@@ -71,6 +65,7 @@ export type CatalogRecord = CatalogOption & {
   sortOrder?: number;
   productCount?: number;
   productId?: string;
+  productIds?: string[];
   productName?: string;
   modifierGroupId?: string;
   groupName?: string;
@@ -98,23 +93,15 @@ export type CatalogData = {
   editor: CatalogRecord | "new" | null;
 };
 export type CatalogResult =
-  | { ok: true; message: string }
-  | { ok: false; message: string; errors?: Record<string, string> };
+  { ok: true; message: string } | { ok: false; message: string; errors?: Record<string, string> };
 
 const id = z.string().trim().min(1, "Choose an item.").max(128);
-const text = z
-  .string()
-  .trim()
-  .min(1, "Name is required.")
-  .max(120, "Use 120 characters or fewer.");
+const text = z.string().trim().min(1, "Name is required.").max(120, "Use 120 characters or fewer.");
 const amount = z
   .string()
   .trim()
   .min(1, "Enter a price.")
-  .regex(
-    /^\d+(\.\d{1,2})?$/,
-    "Use a positive price with up to two decimal places.",
-  )
+  .regex(/^\d+(\.\d{1,2})?$/, "Use a positive price with up to two decimal places.")
   .transform(Number)
   .pipe(z.number().finite().min(0).max(1_000_000));
 const integer = z
@@ -142,10 +129,7 @@ const asset = z
 const base = { name: text, isActive: checkbox };
 const availabilityFields = {
   availableForSale: checkbox,
-  availabilityReason: z
-    .string()
-    .trim()
-    .max(200, "Use 200 characters or fewer."),
+  availabilityReason: z.string().trim().max(200, "Use 200 characters or fewer."),
   durationMinutes: z.enum(["keep", "", "60", "180", "720", "1440"]),
 };
 function validatePause(
@@ -165,8 +149,11 @@ const productSchema = z
     price: amount,
     categoryId: id,
     trackStock: checkbox,
-    imageUrl: asset,
-    description: z.string().trim().max(2000),
+    imageUrl: asset.refine(
+      (value) => !productImageUrlError(value),
+      "Use an approved public product image URL.",
+    ),
+    description: z.string().trim().max(PRODUCT_DESCRIPTION_MAX_LENGTH),
     pronunciationAudioUrl: asset,
     isPopular: checkbox,
     ...availabilityFields,
@@ -230,13 +217,7 @@ export const identitySchema = z.object({ id, updatedAt: z.iso.datetime() });
 
 export function catalogFormValues(data: FormData) {
   const values: Record<string, unknown> = Object.fromEntries(data.entries());
-  for (const key of [
-    "isActive",
-    "trackStock",
-    "isPopular",
-    "isRequired",
-    "availableForSale",
-  ])
+  for (const key of ["isActive", "trackStock", "isPopular", "isRequired", "availableForSale"])
     values[key] = data.get(key) ?? "off";
   values.productIds = [
     ...new Set(
@@ -250,10 +231,7 @@ export function catalogFormValues(data: FormData) {
 }
 export function fieldErrors(error: z.ZodError): Record<string, string> {
   return Object.fromEntries(
-    error.issues.map((issue) => [
-      String(issue.path[0] ?? "form"),
-      issue.message,
-    ]),
+    error.issues.map((issue) => [String(issue.path[0] ?? "form"), issue.message]),
   );
 }
 export function selectionRule(minimum = 0, maximum = 1) {
@@ -267,14 +245,10 @@ export function priceLabel(price = 0) {
 export function saleAvailable(row: CatalogRecord, now = Date.now()) {
   return (
     row.availableForSale === true ||
-    (row.availabilityRestoresAt != null &&
-      Date.parse(row.availabilityRestoresAt) <= now)
+    (row.availabilityRestoresAt != null && Date.parse(row.availabilityRestoresAt) <= now)
   );
 }
-export function orderingMatches(
-  expected: CategoryVersion[],
-  actual: CategoryVersion[],
-) {
+export function orderingMatches(expected: CategoryVersion[], actual: CategoryVersion[]) {
   return (
     expected.length === actual.length &&
     expected.every(

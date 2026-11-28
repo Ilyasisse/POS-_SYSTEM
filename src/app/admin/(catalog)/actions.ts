@@ -1,5 +1,6 @@
 "use server";
 
+import { parseProductMenuContent } from "@/lib/products/product-content";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -40,8 +41,7 @@ function failure(error: unknown): CatalogResult {
         message:
           "This item is linked to other records. Deactivate it instead, or check its linked items.",
       };
-    if (error.code === "P2034" || error.code === "P2025")
-      return { ok: false, message: conflict };
+    if (error.code === "P2034" || error.code === "P2025") return { ok: false, message: conflict };
   }
   console.error("Catalog mutation failed", error);
   return {
@@ -66,9 +66,7 @@ function refreshCatalog() {
     revalidatePath(path);
 }
 function availabilityData(
-  value:
-    | z.infer<typeof availabilitySchema>
-    | z.infer<typeof catalogSchemas.products>,
+  value: z.infer<typeof availabilitySchema> | z.infer<typeof catalogSchemas.products>,
   previous?: {
     availabilityRestoresAt: Date | null;
     availableForSale: boolean;
@@ -82,9 +80,7 @@ function availabilityData(
     throw new CatalogInputError("Choose when sales should resume.");
   return {
     availableForSale: value.availableForSale,
-    availabilityReason: value.availableForSale
-      ? null
-      : value.availabilityReason,
+    availabilityReason: value.availableForSale ? null : value.availabilityReason,
     availabilityRestoresAt: value.availableForSale
       ? null
       : value.durationMinutes === "keep"
@@ -109,12 +105,10 @@ async function auditAvailability(
     value
       ? {
           ...value,
-          availabilityRestoresAt:
-            value.availabilityRestoresAt?.toISOString() ?? null,
+          availabilityRestoresAt: value.availabilityRestoresAt?.toISOString() ?? null,
         }
       : {};
-  if (JSON.stringify(serialize(previous)) === JSON.stringify(serialize(next)))
-    return;
+  if (JSON.stringify(serialize(previous)) === JSON.stringify(serialize(next))) return;
   await tx.auditLog.create({
     data: {
       actorUserId: actorId,
@@ -153,9 +147,7 @@ export async function saveCatalogItem(
       message: "Invalid item version. Close and reopen the editor.",
     };
   const itemId = identity?.success ? identity.data.id : null;
-  const version = identity?.success
-    ? new Date(identity.data.updatedAt)
-    : undefined;
+  const version = identity?.success ? new Date(identity.data.updatedAt) : undefined;
   try {
     await prisma.$transaction(
       async (tx) => {
@@ -170,13 +162,8 @@ export async function saveCatalogItem(
           void _duration;
           void _reason;
           void _sale;
-          const previous = itemId
-            ? await tx.product.findUnique({ where: { id: itemId } })
-            : null;
-          if (
-            itemId &&
-            (!previous || previous.updatedAt.getTime() !== version!.getTime())
-          )
+          const previous = itemId ? await tx.product.findUnique({ where: { id: itemId } }) : null;
+          if (itemId && (!previous || previous.updatedAt.getTime() !== version!.getTime()))
             throw new CatalogConflict(conflict);
           if (
             !(await tx.category.findUnique({
@@ -184,15 +171,12 @@ export async function saveCatalogItem(
               select: { id: true },
             }))
           )
-            throw new CatalogInputError(
-              "The selected category no longer exists.",
-            );
+            throw new CatalogInputError("The selected category no longer exists.");
           const availability = availabilityData(parsedProduct, previous);
           const data = {
             ...fields,
-            imageUrl: fields.imageUrl || null,
+            ...parseProductMenuContent(fields.description, fields.imageUrl),
             pronunciationAudioUrl: fields.pronunciationAudioUrl || null,
-            description: fields.description || null,
             ...availability,
           };
           const product = itemId
@@ -225,10 +209,6 @@ export async function saveCatalogItem(
           else await tx.category.create({ data });
         } else if (kind === "modifiers") {
           const value = catalogSchemas.modifiers.parse(values);
-          if (itemId && value.productIds.length !== 1)
-            throw new CatalogInputError(
-              "An existing modifier must belong to exactly one product.",
-            );
           const [productCount, group] = await Promise.all([
             tx.product.count({ where: { id: { in: value.productIds } } }),
             tx.modifierGroup.findUnique({
@@ -248,11 +228,11 @@ export async function saveCatalogItem(
           if (itemId)
             await tx.modifier.update({
               where: { id: itemId, updatedAt: version },
-              data: { ...data, productId: productIds[0] },
+              data: { ...data, products: { set: productIds.map((id) => ({ id })) } },
             });
           else
-            await tx.modifier.createMany({
-              data: productIds.map((productId) => ({ ...data, productId })),
+            await tx.modifier.create({
+              data: { ...data, products: { connect: productIds.map((id) => ({ id })) } },
             });
         } else {
           const data = catalogSchemas["modifier-groups"].parse(values);
@@ -276,9 +256,7 @@ export async function saveCatalogItem(
   }
 }
 
-export async function changeCatalogAvailability(
-  formData: FormData,
-): Promise<CatalogResult> {
+export async function changeCatalogAvailability(formData: FormData): Promise<CatalogResult> {
   const actor = await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const values = catalogFormValues(formData);
   const parsed = availabilitySchema.safeParse(values),
@@ -289,18 +267,14 @@ export async function changeCatalogAvailability(
       message: "Check the highlighted fields.",
       errors: fieldErrors(parsed.error),
     };
-  if (!identity.success)
-    return { ok: false, message: "Invalid item version. Refresh the list." };
+  if (!identity.success) return { ok: false, message: "Invalid item version. Refresh the list." };
   try {
     await prisma.$transaction(
       async (tx) => {
         const previous = await tx.product.findUnique({
           where: { id: identity.data.id },
         });
-        if (
-          !previous ||
-          previous.updatedAt.toISOString() !== identity.data.updatedAt
-        )
+        if (!previous || previous.updatedAt.toISOString() !== identity.data.updatedAt)
           throw new CatalogConflict(conflict);
         const next = availabilityData(parsed.data, previous);
         // Sale availability never writes stockQty or inventory records.
@@ -427,10 +401,8 @@ export async function changeCatalogStatus(
   const data = { isActive: isActive === "on" };
   try {
     if (kind === "products") await prisma.product.update({ where, data });
-    else if (kind === "categories")
-      await prisma.category.update({ where, data });
-    else if (kind === "modifiers")
-      await prisma.modifier.update({ where, data });
+    else if (kind === "categories") await prisma.category.update({ where, data });
+    else if (kind === "modifiers") await prisma.modifier.update({ where, data });
     else await prisma.modifierGroup.update({ where, data });
     refreshCatalog();
     return {
@@ -449,16 +421,12 @@ export async function changeCatalogStatus(
   }
 }
 
-export async function saveCategoryOrder(
-  input: unknown,
-): Promise<CatalogResult> {
+export async function saveCategoryOrder(input: unknown): Promise<CatalogResult> {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
   const parsed = z
     .object({
       ids: z.array(z.string().min(1).max(128)).max(10000),
-      expected: z
-        .array(identitySchema.extend({ sortOrder: z.number().int() }))
-        .max(10000),
+      expected: z.array(identitySchema.extend({ sortOrder: z.number().int() })).max(10000),
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, message: "Invalid category order." };
