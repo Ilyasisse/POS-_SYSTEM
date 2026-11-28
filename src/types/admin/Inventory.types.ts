@@ -32,6 +32,7 @@ export type InventoryMovementRow = {
 
 export type AdminInventoryPageProps = {
   searchParams?: Promise<{
+    page?: string;
     date?: string;
     inventoryEmail?: string;
     q?: string;

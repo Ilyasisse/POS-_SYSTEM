@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { paginateInventorySupplies } from "@/lib/admin/inventory-pagination";
 import { useId, useState } from "react";
 import { Package, Search } from "lucide-react";
 import { displayFont } from "@/components/customer/customer-order-styles";
@@ -26,7 +28,7 @@ export type CatalogSupply = {
   hasUnitMapping: boolean;
 };
 
-const stockFilters: ("ALL" | StockStatus)[] = ["ALL", "OK", "LOW", "OUT",];
+const stockFilters: ("ALL" | StockStatus)[] = ["ALL", "OK", "LOW", "OUT"];
 
 export default function SupplyCatalog<T extends CatalogSupply>({
   supplies,
@@ -38,6 +40,7 @@ export default function SupplyCatalog<T extends CatalogSupply>({
   mappingMessage = "Ask an admin to configure the stock unit.",
   initialSearch = "",
   initialFilter = "ALL",
+  pagination,
 }: {
   supplies: T[];
   selectedId: string | null;
@@ -48,10 +51,12 @@ export default function SupplyCatalog<T extends CatalogSupply>({
   mappingMessage?: string;
   initialSearch?: string;
   initialFilter?: "ALL" | StockStatus;
+  pagination?: { page: string; date: string };
 }) {
   const searchId = useId();
   const [search, setSearch] = useState(initialSearch);
   const [filter, setFilter] = useState<(typeof stockFilters)[number]>(initialFilter);
+  const [page, setPage] = useState(pagination?.page ?? "1");
   const term = search.trim().toLowerCase();
   const visibleSupplies = supplies.filter(
     (supply) =>
@@ -59,6 +64,17 @@ export default function SupplyCatalog<T extends CatalogSupply>({
       (supply.name + " " + supply.unit).toLowerCase().includes(term),
   );
 
+  const supplyPage = paginateInventorySupplies(visibleSupplies, page);
+  const displayedSupplies = pagination ? supplyPage.items : visibleSupplies;
+  function pageHref(nextPage: number) {
+    const params = new URLSearchParams({
+      q: search.trim(),
+      status: filter.toLowerCase(),
+      page: String(nextPage),
+      date: pagination?.date ?? "",
+    });
+    return `/admin/inventory?${params}`;
+  }
   return (
     <section
       aria-labelledby={searchId + "-heading"}
@@ -91,7 +107,10 @@ export default function SupplyCatalog<T extends CatalogSupply>({
             className="bg-card h-10 rounded-full pl-9"
             placeholder="Search supplies…"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage("1");
+            }}
           />
         </div>
       </div>
@@ -104,7 +123,10 @@ export default function SupplyCatalog<T extends CatalogSupply>({
             variant={filter === status ? "default" : "outline"}
             className="rounded-full"
             aria-pressed={filter === status}
-            onClick={() => setFilter(status)}
+            onClick={() => {
+              setFilter(status);
+              setPage("1");
+            }}
           >
             {status === "ALL" ? "All supplies" : stockLabels[status]}
           </Button>
@@ -122,7 +144,7 @@ export default function SupplyCatalog<T extends CatalogSupply>({
         </p>
       ) : (
         <div className="mt-2 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-          {visibleSupplies.map((supply) => {
+          {displayedSupplies.map((supply) => {
             const isSelected = selectedId === supply.id;
             return (
               <Card
@@ -177,6 +199,27 @@ export default function SupplyCatalog<T extends CatalogSupply>({
           })}
         </div>
       )}
+      {pagination ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <p>
+            Showing {supplyPage.first} to {supplyPage.last} of {visibleSupplies.length} matching
+            items
+          </p>
+          {supplyPage.pageCount > 1 ? (
+            <nav aria-label="Inventory pages" className="flex gap-3">
+              {supplyPage.page > 1 ? (
+                <Link href={pageHref(supplyPage.page - 1)}>Previous</Link>
+              ) : null}
+              <span>
+                Page {supplyPage.page} of {supplyPage.pageCount}
+              </span>
+              {supplyPage.page < supplyPage.pageCount ? (
+                <Link href={pageHref(supplyPage.page + 1)}>Next</Link>
+              ) : null}
+            </nav>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -29,6 +29,7 @@ function subscribeToDesktop(callback: () => void) {
 
 export default function InventorySupplyWorkspace({
   supplies,
+  initialPage,
   movementDate,
   initialSearch,
   initialFilter,
@@ -36,6 +37,7 @@ export default function InventorySupplyWorkspace({
   restock,
 }: {
   supplies: InventorySupplyRow[];
+  initialPage: string;
   movementDate: string;
   initialSearch: string;
   initialFilter: "ALL" | InventoryStatus;
@@ -78,6 +80,7 @@ export default function InventorySupplyWorkspace({
   return (
     <div className="grid items-start gap-4 pb-14 lg:grid-cols-[minmax(0,1fr)_23rem] lg:pb-0 xl:grid-cols-[minmax(0,1fr)_25rem]">
       <SupplyCatalog
+        pagination={{ page: initialPage, date: movementDate }}
         supplies={supplies}
         selectedId={selected?.id ?? null}
         pending={pending}

@@ -138,7 +138,8 @@ export default async function AdminInventoryPage({ searchParams }: AdminInventor
       />
       <CreateSupplyForm />
       <InventorySupplyWorkspace
-        key={JSON.stringify([params?.q ?? "", statusFilter, selectedDate])}
+        key={JSON.stringify([params?.q ?? "", statusFilter, selectedDate, params?.page ?? "1"])}
+        initialPage={params?.page ?? "1"}
         supplies={enrichedSupplies}
         movementDate={selectedDate}
         updateStock={updateSupplyInventory}
