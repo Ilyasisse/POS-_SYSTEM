@@ -134,7 +134,7 @@ function ExpandedNavigationMenu({
                       <SidebarMenuSubButton
                         asChild
                         isActive={active}
-                        className="h-9"
+                        className="min-h-11"
                       >
                         <Link
                           href={item.href}
@@ -233,7 +233,7 @@ export default function StaffSidebar({
   return (
     <>
       <SidebarHeader>
-        <div className="flex items-center gap-3 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center gap-3 py-1 pl-2 pr-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
             <Coffee className="size-5" aria-hidden="true" />
           </div>
