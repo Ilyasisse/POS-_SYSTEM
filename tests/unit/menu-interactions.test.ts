@@ -11,6 +11,7 @@ function product(id: string): MenuProduct {
   return {
     id,
     name: id,
+    allergenInfo: null,
     description: "",
     price: 1,
     imageUrl: null,

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { availabilityRestorationTime } from "@/lib/products/availability";
+import { parseAllergenInfo } from "@/lib/products/allergen-info";
 import {
   PRODUCT_DESCRIPTION_MAX_LENGTH,
   parseProductMenuContent,
@@ -34,8 +35,7 @@ export async function setProductAvailability(formData: FormData) {
   const durationMinutes = rawDuration ? Number(rawDuration) : null;
   if (
     mode === "UNAVAILABLE" &&
-    (reason.length < 3 ||
-      (durationMinutes !== null && !ALLOWED_DURATIONS.has(durationMinutes)))
+    (reason.length < 3 || (durationMinutes !== null && !ALLOWED_DURATIONS.has(durationMinutes)))
   ) {
     throw new Error("Choose a valid duration and provide a short reason.");
   }
@@ -69,16 +69,13 @@ export async function setProductAvailability(formData: FormData) {
     await tx.auditLog.create({
       data: {
         actorUserId: actor.id,
-        action: availableForSale
-          ? "product.availability.restored"
-          : "product.availability.paused",
+        action: availableForSale ? "product.availability.restored" : "product.availability.paused",
         entityType: "Product",
         entityId: id,
         reason: availableForSale ? "Restored for sale" : reason,
         previousValue: {
           availableForSale: previous.availableForSale,
-          availabilityRestoresAt:
-            previous.availabilityRestoresAt?.toISOString() ?? null,
+          availabilityRestoresAt: previous.availabilityRestoresAt?.toISOString() ?? null,
           availabilityReason: previous.availabilityReason,
         },
         newValue: {
@@ -95,13 +92,12 @@ export async function setProductAvailability(formData: FormData) {
 
 export async function createProduct(formData: FormData) {
   await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const allergenInfo = parseAllergenInfo(formData.get("allergenInfo"));
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
   const trackStock = formData.get("trackStock") === "on";
   const categoryId = String(formData.get("categoryId") || "").trim();
-  const pronunciationAudioUrl = String(
-    formData.get("pronunciationAudioUrl") || "",
-  ).trim();
+  const pronunciationAudioUrl = String(formData.get("pronunciationAudioUrl") || "").trim();
 
   if (!name) {
     throw new Error("Product name is required.");
@@ -122,6 +118,7 @@ export async function createProduct(formData: FormData) {
   await prisma.product.create({
     data: {
       name,
+      allergenInfo,
       price,
       trackStock,
       pronunciationAudioUrl: pronunciationAudioUrl || null,
@@ -133,19 +130,19 @@ export async function createProduct(formData: FormData) {
   });
 
   revalidateProductMenus();
+  revalidatePath("/customer");
   redirect("/admin/products");
 }
 
 export async function updateProduct(formData: FormData) {
-  await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const actor = await requirePermission(PERMISSIONS.CATALOG_MANAGE);
+  const allergenInfo = parseAllergenInfo(formData.get("allergenInfo"));
   const id = String(formData.get("id") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const price = Number(formData.get("price") || 0);
   const trackStock = formData.get("trackStock") === "on";
   const categoryId = String(formData.get("categoryId") || "").trim();
-  const pronunciationAudioUrl = String(
-    formData.get("pronunciationAudioUrl") || "",
-  ).trim();
+  const pronunciationAudioUrl = String(formData.get("pronunciationAudioUrl") || "").trim();
 
   if (!id) {
     throw new Error("Product id is required.");
@@ -165,8 +162,7 @@ export async function updateProduct(formData: FormData) {
 
   let description = formData.get("description")?.toString() ?? null;
   let imageUrl = formData.get("imageUrl")?.toString() ?? null;
-  const invalidDescription =
-    (description?.trim().length ?? 0) > PRODUCT_DESCRIPTION_MAX_LENGTH;
+  const invalidDescription = (description?.trim().length ?? 0) > PRODUCT_DESCRIPTION_MAX_LENGTH;
   const invalidImageUrl = imageUrl !== null && productImageUrlError(imageUrl);
 
   // Keep existing content that predates validation when staff leave it as-is.
@@ -182,21 +178,41 @@ export async function updateProduct(formData: FormData) {
   }
 
   const menuContent = parseProductMenuContent(description, imageUrl);
-  await prisma.product.update({
-    where: { id },
-    data: {
-      name,
-      price,
-      trackStock,
-      pronunciationAudioUrl: pronunciationAudioUrl || null,
-      ...menuContent,
-      category: {
-        connect: { id: categoryId },
+  await prisma.$transaction(async (tx) => {
+    const previous = await tx.product.findUnique({
+      where: { id },
+      select: { allergenInfo: true },
+    });
+    if (!previous) throw new Error("Product not found.");
+    await tx.product.update({
+      where: { id },
+      data: {
+        name,
+        allergenInfo,
+        price,
+        trackStock,
+        pronunciationAudioUrl: pronunciationAudioUrl || null,
+        ...menuContent,
+        category: { connect: { id: categoryId } },
       },
-    },
+    });
+    if (previous.allergenInfo !== allergenInfo) {
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: "product.allergen_info.updated",
+          entityType: "Product",
+          entityId: id,
+          reason: "Catalog allergen information changed",
+          previousValue: { allergenInfo: previous.allergenInfo },
+          newValue: { allergenInfo },
+        },
+      });
+    }
   });
 
   revalidateProductMenus();
+  revalidatePath("/customer");
   redirect(`/admin/products`);
 }
 

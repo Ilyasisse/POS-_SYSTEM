@@ -37,11 +37,11 @@ function ProductCard({
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[linear-gradient(135deg,#fbf7ef_0%,#ece0d1_48%,#d9b980_100%)]">
         <ProductImage
-          src={getProductImage(product)}
-          alt={product.name}
+              src={getProductImage(product)}
+              alt={product.name}
           sizes="(min-width: 1280px) 400px, (min-width: 640px) 50vw, 100vw"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
         <div className="absolute top-3 right-3 flex max-w-[70%] flex-wrap justify-end gap-2 sm:top-4 sm:right-4">
           <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-white uppercase">
             {product.category?.name ?? "Menu"}
@@ -73,6 +73,15 @@ function ProductCard({
         <p className="text-muted-foreground min-h-0 text-sm leading-6 sm:min-h-12">
           {product.description?.trim() ||
             "Freshly prepared with a warm cafe finish and ready to customize."}
+        </p>
+
+        <p className="text-xs font-semibold leading-5 text-amber-800 dark:text-amber-200">
+          {product.allergenInfo
+            ? `Allergen information: ${product.allergenInfo}`
+            : "Allergen information unavailable. Ask staff before ordering."}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Ask staff about modifiers and shared equipment.
         </p>
 
         <div className="flex flex-wrap gap-2">

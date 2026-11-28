@@ -5,6 +5,7 @@ export type MenuProduct = {
   id: string;
   name: string;
   description: string;
+  allergenInfo: string | null;
   price: number;
   categoryName: string;
   categorySlug: string;

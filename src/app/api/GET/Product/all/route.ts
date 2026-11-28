@@ -19,6 +19,7 @@ export async function GET() {
         cost: true,
         isActive: true,
         description: true,
+        allergenInfo: true,
         trackStock: true,
         stockQty: true,
         imageUrl: true,

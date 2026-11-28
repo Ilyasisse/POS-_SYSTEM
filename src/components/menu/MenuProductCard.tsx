@@ -20,7 +20,7 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
           src={product.imageUrl}
           alt={product.name}
           sizes="(min-width: 1280px) 400px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-        />
+          />
 
         {/* Dark overlay added on top of image for readability */}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(25,14,7,0.04)_10%,rgba(25,14,7,0.18)_48%,rgba(25,14,7,0.82)_100%)]">
@@ -46,6 +46,16 @@ export default function ProductCard({ product }: { product: MenuProduct }) {
         {/* Product description */}
         <p className="text-muted-foreground text-lg leading-6 break-words sm:text-base xl:text-lg">
           {product.description}
+        </p>
+
+        <p className="break-words text-sm font-semibold leading-6 text-amber-900 dark:text-amber-200">
+          {product.allergenInfo
+            ? `Allergen information: ${product.allergenInfo}`
+            : "Allergen information unavailable. Ask staff before ordering."}
+        </p>
+        <p className="text-xs text-[#6c5a4f]">
+          Ingredients and preparation can change. Ask staff about shared
+          equipment.
         </p>
 
         {/* Product price */}

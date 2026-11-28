@@ -11,6 +11,7 @@ export type Product = {
   name: string;
   price: number;
   description?: string | null;
+  allergenInfo?: string | null;
   imageUrl?: string | null;
   pronunciationAudioUrl?: string | null;
   isPopular: boolean;

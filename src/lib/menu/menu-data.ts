@@ -43,6 +43,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
             id: true,
             name: true,
             description: true,
+            allergenInfo: true,
             price: true,
             imageUrl: true,
             isPopular: true,
@@ -70,6 +71,7 @@ async function loadLiveMenuData(): Promise<MenuData | null> {
               id: product.id,
               name: product.name,
               description: product.description?.trim() || "NOTHING FOUND",
+              allergenInfo: product.allergenInfo,
               price: Number(product.price),
               categoryName: category.name,
               categorySlug: slug,
@@ -116,3 +118,5 @@ export async function getMenuData(): Promise<MenuData> {
         hasLiveData: false,
       };
 }
+
+export type { MenuProduct, MenuData, MenuCategory } from "@/types/menu/menu-types";
