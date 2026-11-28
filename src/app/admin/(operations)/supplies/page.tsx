@@ -99,6 +99,8 @@ function statusNotice(status: string | undefined) {
         tone: "success",
         message: "Supply purchase deleted.",
       };
+    case "closed_day":
+      return { tone: "error", message: "Reopen this supply day before adding items." };
     case "invalid_date":
       return {
         tone: "error",
@@ -333,6 +335,8 @@ export default async function SuppliesPage({ searchParams }: SupplyPageProps) {
             </p>
           </div>
           <SupplyEntryForm
+                key={selectedDate}
+                today={today}
             purchaseDate={selectedDate}
             action={createSupplyPurchase}
             catalogItems={activeCatalogItems}
