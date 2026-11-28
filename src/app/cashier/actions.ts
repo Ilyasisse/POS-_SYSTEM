@@ -7,16 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { lockCashierTable, TableOwnershipError } from "@/lib/cashier/table-ownership";
 import { transferOpenTableService } from "@/lib/cashier/table-transfer";
 import { getPostHogClient } from "@/lib/posthog-server";
 
 function isPaymentMethod(value: string): value is PaymentMethod {
-  return (
-    value === "MYCASH" ||
-    value === "GOLIS" ||
-    value === "Dahabshiil" ||
-    value === "OTHER"
-  );
+  return value === "MYCASH" || value === "GOLIS" || value === "Dahabshiil" || value === "OTHER";
 }
 
 function toDecimal(value: number) {
@@ -44,9 +40,7 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
 
   try {
     const paidOrderCount = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw<Array<{ id: string }>>(
-        Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${tableId} FOR UPDATE`,
-      );
+      await lockCashierTable(tx, tableId, currentUser, true);
 
       const orders = await tx.order.findMany({
         where: {
@@ -115,7 +109,10 @@ async function payOpenTableOrdersFromCashier(formData: FormData) {
     }
   } catch (error) {
     console.error("Failed to pay open table orders:", error);
-    paymentStatus = "payment_failed";
+    paymentStatus =
+      error instanceof TableOwnershipError && error.status === 409
+        ? "table_owned_elsewhere"
+        : "payment_failed";
   }
 
   redirect(`/cashier?paymentStatus=${paymentStatus}`);

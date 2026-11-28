@@ -9,6 +9,7 @@ import type { SelectedModifierLine } from "@/lib/types";
 import { selectEffectiveRecipe, snapshotInventoryCost } from "@/lib/inventory/inventory-domain";
 import { deductProductInventoryForSale, sendInventoryAlerts } from "@/lib/inventory/inventory";
 import { resolveTableCheckIdentity } from "@/lib/cashier/table-checks";
+import { lockCashierTable, TableOwnershipError } from "@/lib/cashier/table-ownership";
 import {
   ModifierSelectionError,
   validateModifierSelections,
@@ -354,9 +355,7 @@ export async function POST(request: Request) {
 
     const result = await prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw<Array<{ id: string }>>(
-          Prisma.sql`SELECT "id" FROM "Table" WHERE "id" = ${table.id} FOR UPDATE`,
-        );
+        await lockCashierTable(tx, table.id, currentUser, true);
 
         const latestOpenOrder = await tx.order.findFirst({
           where: {
@@ -565,7 +564,7 @@ export async function POST(request: Request) {
       {
         error: error instanceof Error ? error.message : "Failed to create table order.",
       },
-      { status: 500 },
+      { status: error instanceof TableOwnershipError ? error.status : 500 },
     );
   }
 }

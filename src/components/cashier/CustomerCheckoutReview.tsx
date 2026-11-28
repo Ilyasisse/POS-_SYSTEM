@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  customerPaymentNameMatches,
-  normalizeSomaliPhone,
-} from "@/lib/payments/customer-ussd";
+import { customerPaymentNameMatches, normalizeSomaliPhone } from "@/lib/payments/customer-ussd";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
@@ -29,11 +26,7 @@ type Receipt = {
   transactionAt: string | null;
 };
 
-export default function CustomerCheckoutReview({
-  admin = false,
-}: {
-  admin?: boolean;
-}) {
+export default function CustomerCheckoutReview({ admin = false }: { admin?: boolean }) {
   const { toast } = useToast();
   const [checkouts, setCheckouts] = useState<Checkout[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -74,10 +67,7 @@ export default function CustomerCheckoutReview({
     } catch (error) {
       toast({
         tone: "error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Could not load customer payments.",
+        description: error instanceof Error ? error.message : "Could not load customer payments.",
       });
     }
   }, [toast, checkoutPage, receiptPage]);
@@ -93,15 +83,12 @@ export default function CustomerCheckoutReview({
     };
   }, [refresh]);
 
-  const selectedCheckout = checkouts.find(
-    (checkout) => checkout.id === checkoutId,
-  );
+  const selectedCheckout = checkouts.find((checkout) => checkout.id === checkoutId);
   const selectedReceipt = receipts.find((receipt) => receipt.id === receiptId);
   const amountMatches = Boolean(
     selectedCheckout &&
     selectedReceipt &&
-    Math.round(selectedCheckout.amount * 100) ===
-      Math.round(selectedReceipt.amount * 100),
+    Math.round(selectedCheckout.amount * 100) === Math.round(selectedReceipt.amount * 100),
   );
 
   async function submit() {
@@ -124,8 +111,7 @@ export default function CustomerCheckoutReview({
         },
       );
       const data = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new Error(data.error || "Could not assign receipt.");
+      if (!response.ok) throw new Error(data.error || "Could not assign receipt.");
       toast({
         tone: "success",
         description: "Receipt assigned to customer checkout.",
@@ -137,8 +123,7 @@ export default function CustomerCheckoutReview({
     } catch (error) {
       toast({
         tone: "error",
-        description:
-          error instanceof Error ? error.message : "Could not assign receipt.",
+        description: error instanceof Error ? error.message : "Could not assign receipt.",
       });
     } finally {
       setBusy(false);
@@ -165,8 +150,7 @@ export default function CustomerCheckoutReview({
     } catch (error) {
       toast({
         tone: "error",
-        description:
-          error instanceof Error ? error.message : "Could not finish order.",
+        description: error instanceof Error ? error.message : "Could not finish order.",
       });
     } finally {
       setBusy(false);
@@ -178,9 +162,8 @@ export default function CustomerCheckoutReview({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Customer payment review</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Compare the SMS reference, payer, amount, and time before assigning
-            a receipt.
+          <p className="text-muted-foreground mt-1 text-sm">
+            Compare the SMS reference, payer, amount, and time before assigning a receipt.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -218,12 +201,10 @@ export default function CustomerCheckoutReview({
             </Button>
           </div>
           {checkouts.length === 0 ? (
-            <p className="rounded-xl border p-4">
-              No pending customer checkouts.
-            </p>
+            <p className="rounded-xl border p-4">No pending customer checkouts.</p>
           ) : null}
           {checkouts.map((checkout) => (
-            <div key={checkout.id} className="rounded-xl border bg-card p-4">
+            <div key={checkout.id} className="bg-card rounded-xl border p-4">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="radio"
@@ -236,15 +217,12 @@ export default function CustomerCheckoutReview({
                   disabled={Boolean(checkout.receiptId)}
                 />
                 <span>
-                  <strong>{checkout.customerName}</strong> · $
-                  {checkout.amount.toFixed(2)}
+                  <strong>{checkout.customerName}</strong> · ${checkout.amount.toFixed(2)}
                   <span className="block text-sm">
-                    {checkout.payerPhone} ·{" "}
-                    {checkout.status.replaceAll("_", " ")}
+                    {checkout.payerPhone} · {checkout.status.replaceAll("_", " ")}
                   </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {new Date(checkout.createdAt).toLocaleString()} ·{" "}
-                    {checkout.id}
+                  <span className="text-muted-foreground block text-xs">
+                    {new Date(checkout.createdAt).toLocaleString()} · {checkout.id}
                   </span>
                 </span>
               </label>
@@ -262,9 +240,7 @@ export default function CustomerCheckoutReview({
           ))}
         </section>
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">
-            Unassigned incoming receipts
-          </h2>
+          <h2 className="text-lg font-semibold">Unassigned incoming receipts</h2>
           <div className="flex items-center gap-2 text-sm">
             <Button
               variant="outline"
@@ -292,14 +268,14 @@ export default function CustomerCheckoutReview({
           </div>
           {receipts.length === 0 ? (
             <p className="rounded-xl border p-4">
-              No unassigned incoming receipts. Check the manager review inbox
-              for malformed messages.
+              No unassigned incoming receipts. Check the manager review inbox for malformed
+              messages.
             </p>
           ) : null}
           {receipts.map((receipt) => (
             <label
               key={receipt.id}
-              className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-4"
+              className="bg-card flex cursor-pointer items-start gap-3 rounded-xl border p-4"
             >
               <input
                 type="radio"
@@ -311,36 +287,32 @@ export default function CustomerCheckoutReview({
                 }}
               />
               <span className="min-w-0">
-                <strong>Tix {receipt.providerReference ?? "unknown"}</strong> ·
-                ${receipt.amount.toFixed(2)}
+                <strong>Tix {receipt.providerReference ?? "unknown"}</strong> · $
+                {receipt.amount.toFixed(2)}
                 <span className="block text-sm">
                   {receipt.counterpartyLabel ?? "Payer unknown"}
                 </span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="text-muted-foreground block text-xs">
                   Numbers:{" "}
                   {Array.isArray(receipt.counterpartyIdentifiers)
                     ? receipt.counterpartyIdentifiers.join(", ")
                     : "none"}
                 </span>
-                <span className="block text-xs text-muted-foreground">
+                <span className="text-muted-foreground block text-xs">
                   {receipt.transactionAt
                     ? new Date(receipt.transactionAt).toLocaleString()
                     : "Time unknown"}
                 </span>
-                <span className="mt-2 block break-words text-xs">
-                  {receipt.rawMessage}
-                </span>
+                <span className="mt-2 block text-xs break-words">{receipt.rawMessage}</span>
               </span>
             </label>
           ))}
         </section>
       </div>
       {selectedCheckout && selectedReceipt ? (
-        <section className="rounded-xl border bg-card p-4">
+        <section className="bg-card rounded-xl border p-4">
           <p className="font-semibold">
-            {amountMatches
-              ? "Amounts match"
-              : "Amounts differ — choose another receipt"}
+            {amountMatches ? "Amounts match" : "Amounts differ — choose another receipt"}
           </p>
           <p className="mt-2 text-sm">
             Name:{" "}
@@ -361,8 +333,7 @@ export default function CustomerCheckoutReview({
               : "differs — manager review required"}
             . Window:{" "}
             {selectedReceipt.transactionAt &&
-            new Date(selectedReceipt.transactionAt) <=
-              new Date(selectedCheckout.expiresAt) &&
+            new Date(selectedReceipt.transactionAt) <= new Date(selectedCheckout.expiresAt) &&
             checkedAt <= new Date(selectedCheckout.expiresAt).getTime()
               ? "within 15 minutes"
               : "expired — manager review required"}
@@ -373,14 +344,14 @@ export default function CustomerCheckoutReview({
             <input
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              className="mt-1 block w-full rounded-lg border bg-background p-3"
+              className="bg-background mt-1 block w-full rounded-lg border p-3"
               placeholder="Explain the evidence used to verify this payment"
             />
           </label>
           {canManage ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Admin/manager review can resolve name, phone, or time exceptions.
-              Amount and receipt uniqueness are always enforced.
+            <p className="text-muted-foreground mt-2 text-xs">
+              Admin/manager review can resolve name, phone, or time exceptions. Amount and receipt
+              uniqueness are always enforced.
             </p>
           ) : null}
           <label className="mt-3 flex items-start gap-3 text-sm">
@@ -390,16 +361,13 @@ export default function CustomerCheckoutReview({
               onChange={(event) => setConfirmed(event.target.checked)}
             />
             <span>
-              I checked the SMS reference, payer, amount, and time for this
-              customer checkout.
+              I checked the SMS reference, payer, amount, and time for this customer checkout.
             </span>
           </label>
           <Button
             type="button"
             className="mt-4"
-            disabled={
-              !confirmed || !amountMatches || reason.trim().length < 5 || busy
-            }
+            disabled={!confirmed || !amountMatches || reason.trim().length < 5 || busy}
             onClick={() => void submit()}
           >
             Assign receipt and finish paid order

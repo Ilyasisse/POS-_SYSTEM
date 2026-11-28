@@ -3,8 +3,10 @@ import {
   MobileMoneyReceiptStatus,
   PaymentRequestStatus,
   Prisma,
+  type UserRole,
 } from "@prisma/client";
 import { closeSettledTableChecks } from "@/lib/cashier/table-checks";
+import { lockCashierTable } from "@/lib/cashier/table-ownership";
 import { getPaymentReceiptBusinessDayRange } from "@/lib/cashier/cashier-business-day";
 import { prisma } from "@/lib/prisma";
 import { MACRODROID_GATEWAY_ID } from "@/lib/payments/macrodroid-auth";
@@ -161,7 +163,7 @@ export async function listMobileMoneyReceipts(now: Date = new Date()) {
 export async function assignMobileMoneyReceipt(input: {
   receiptId: string;
   paymentRequestId: string;
-  cashier: { id: string; fullName: string };
+  cashier: { id: string; fullName: string; role: UserRole };
   now?: Date;
 }) {
   const now = input.now ?? new Date();
@@ -191,6 +193,7 @@ export async function assignMobileMoneyReceipt(input: {
       if (request.cashierId !== input.cashier.id) {
         throw new Error("This payer row belongs to another cashier.");
       }
+      await lockCashierTable(tx, request.tableId, input.cashier, false);
       if (
         request.status === PaymentRequestStatus.CANCELLED ||
         request.status === PaymentRequestStatus.EXPIRED ||

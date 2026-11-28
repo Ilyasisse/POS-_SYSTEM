@@ -8,6 +8,10 @@ import {
   resolveTableCheckIdentity,
 } from "@/lib/cashier/table-checks";
 import { getPostHogClient } from "@/lib/posthog-server";
+import {
+  lockCashierTable,
+  TableOwnershipError,
+} from "@/lib/cashier/table-ownership";
 
 type PayOrderBody = {
   orderId?: string;
@@ -85,6 +89,7 @@ export async function POST(request: Request) {
       },
       select: {
         id: true,
+        tableId: true,
         orderNumber: true,
         tableCheckId: true,
         tableCheckRound: true,
@@ -107,6 +112,16 @@ export async function POST(request: Request) {
 
     const closedAt = new Date();
     await prisma.$transaction(async (tx) => {
+      if (order.tableId) {
+        await lockCashierTable(tx, order.tableId, currentUser, true);
+      }
+      const currentOrder = await tx.order.findUnique({
+        where: { id: order.id },
+        select: { status: true },
+      });
+      if (currentOrder?.status !== "OPEN") {
+        throw new TableOwnershipError("Only open orders can be paid.", 400);
+      }
       await tx.payment.create({
         data: {
           orderId: order.id,
@@ -117,15 +132,13 @@ export async function POST(request: Request) {
         },
       });
 
-      await tx.order.update({
-        where: {
-          id: order.id,
-        },
-        data: {
-          status: "PAID",
-          closedAt,
-        },
+      const paidOrder = await tx.order.updateMany({
+        where: { id: order.id, status: "OPEN" },
+        data: { status: "PAID", closedAt },
       });
+      if (paidOrder.count !== 1) {
+        throw new TableOwnershipError("Only open orders can be paid.", 400);
+      }
 
       await closeSettledTableChecks(tx, [order.tableCheckId], closedAt);
     });
@@ -163,7 +176,7 @@ export async function POST(request: Request) {
       {
         error: error instanceof Error ? error.message : "Failed to pay order.",
       },
-      { status: 500 },
+      { status: error instanceof TableOwnershipError ? error.status : 500 },
     );
   }
 }
