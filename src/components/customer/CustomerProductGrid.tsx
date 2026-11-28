@@ -4,16 +4,11 @@ import { useCustomerTranslations } from "@/components/customer/i18n/CustomerLang
 
 import { Button } from "@/components/ui/button";
 
-import Image from "next/image";
+import ProductImage from "@/components/products/ProductImage";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Product, StaffSummary } from "@/lib/types";
-import {
-  formatCurrency,
-  getProductImage,
-  getProductModifierGroups,
-  hasProductImage,
-} from "./customer-order-utils";
+import { formatCurrency, getProductImage, getProductModifierGroups } from "./customer-order-utils";
 
 type CustomerProductGridProps = {
   loading: boolean;
@@ -39,7 +34,6 @@ function ProductCard({
     modifierGroups.length > 0 || product.category?.station === "BARISTA"
       ? t("customize")
       : t("add");
-  const hasImage = hasProductImage(product);
 
   return (
     <Card
@@ -47,37 +41,12 @@ function ProductCard({
       className="border-border/80 bg-card gap-0 overflow-hidden rounded-[1.25rem] border py-0 shadow-[0_18px_45px_rgba(44,28,17,0.11)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(44,28,17,0.16)] sm:rounded-[1.5rem]"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-[linear-gradient(135deg,#fbf7ef_0%,#ece0d1_48%,#d9b980_100%)]">
-        {hasImage ? (
-          <>
-            <Image
-              src={getProductImage(product)}
-              alt={product.name}
-              fill
-              sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
-              unoptimized
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
-          </>
-        ) : (
-          <>
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.88)_0%,rgba(249,239,219,0.78)_50%,rgba(177,117,44,0.26)_100%)]" />
-            <div className="border-border bg-card/75 absolute top-5 left-5 h-16 w-16 rounded-2xl border p-2 shadow-[0_14px_30px_rgba(44,28,17,0.12)]">
-              <Image
-                src="/newer_logo.png"
-                alt=""
-                width={64}
-                height={64}
-                className="h-full w-full object-contain"
-              />
-            </div>
-            <div className="absolute top-20 right-5 h-px w-24 rotate-[-18deg] bg-stone-900/10" />
-            <div className="bg-card/45 text-foreground absolute right-5 bottom-14 rounded-full border border-amber-900/10 px-4 py-2 text-xs font-semibold tracking-[0.22em] uppercase backdrop-blur-sm">
-              {t("freshlyMade")}
-            </div>
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,14,10,0)_24%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.72)_100%)]" />
-          </>
-        )}
+        <ProductImage
+          src={getProductImage(product)}
+          alt={product.name}
+          sizes="(min-width: 1280px) 400px, (min-width: 640px) 50vw, 100vw"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,8,0.02)_18%,rgba(20,14,10,0.08)_56%,rgba(20,14,10,0.78)_100%)]" />
         <div className="absolute top-3 right-3 flex max-w-[70%] flex-wrap justify-end gap-2 sm:top-4 sm:right-4">
           <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-[11px] font-semibold tracking-[0.2em] text-white uppercase">
             {product.category?.name ?? t("menu")}

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Sheet,
   SheetContent,
@@ -45,6 +46,9 @@ type CustomerCartSheetProps = {
   onCheckout: () => void;
   mode?: "customer" | "cashier";
   tableName?: string;
+  paymentMethod?: string;
+  checkoutLabel?: string;
+  onPaymentMethodChange?: (value: string) => void;
 };
 
 type CustomerCartContentProps = Omit<CustomerCartSheetProps, "open"> & {
@@ -332,18 +336,25 @@ function CartFooter({
   isCashier,
   onCheckout,
   onClearCart,
-}: Pick<CustomerCartSheetProps, "cartSubtotal" | "isSubmitting" | "onCheckout" | "onClearCart"> & {
-  cartIsEmpty: boolean;
-  isCashier: boolean;
-}) {
+  paymentMethod,
+  checkoutLabel: customCheckoutLabel,
+  onPaymentMethodChange,
+}: Pick<
+  CustomerCartSheetProps,
+  | "cartSubtotal"
+  | "isSubmitting"
+  | "onCheckout"
+  | "onClearCart"
+  | "paymentMethod"
+  | "checkoutLabel"
+  | "onPaymentMethodChange"
+> & { cartIsEmpty: boolean; isCashier: boolean }) {
   const t = useCustomerTranslations();
   const checkoutLabel = isSubmitting
     ? isCashier
       ? "Sending to kitchen…"
       : t("preparingPayment")
-    : isCashier
-      ? "Send to kitchen"
-      : t("checkout");
+    : (customCheckoutLabel ?? (isCashier ? "Send to kitchen" : t("checkout")));
 
   return (
     <div className="border-border bg-card shrink-0 border-t px-4 py-4 sm:px-6 sm:py-5">
@@ -351,6 +362,21 @@ function CartFooter({
         <span>{t("total")}</span>
         <span>{formatCurrency(cartSubtotal)}</span>
       </div>
+      {isCashier && onPaymentMethodChange ? (
+        <label className="mt-4 grid gap-1.5 text-sm font-medium">
+          Payment method
+          <NativeSelect
+            value={paymentMethod ?? ""}
+            onChange={(event) => onPaymentMethodChange(event.target.value)}
+          >
+            <option value="">Select payment method</option>
+            <option value="GOLIS">GOLIS</option>
+            <option value="MYCASH">MYCASH</option>
+            <option value="Dahabshiil">Dahabshiil</option>
+            <option value="OTHER">OTHER</option>
+          </NativeSelect>
+        </label>
+      ) : null}
       <div className="mt-5 grid gap-3">
         <Button
           type="button"
@@ -398,6 +424,9 @@ function CustomerCartContent({
         isCashier={isCashier}
         onCheckout={props.onCheckout}
         onClearCart={props.onClearCart}
+        paymentMethod={props.paymentMethod}
+        checkoutLabel={props.checkoutLabel}
+        onPaymentMethodChange={props.onPaymentMethodChange}
       />
     </div>
   );

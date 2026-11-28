@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 import { NativeSelect } from "@/components/ui/native-select";
 
-import Image from "next/image";
+import ProductImage from "@/components/products/ProductImage";
 import { useMemo, useState } from "react";
 import {
   Dialog,
@@ -113,12 +113,10 @@ function CustomerModifierHero({ product, onClose }: CustomerModifierHeroProps) {
   const t = useCustomerTranslations();
   return (
     <div className="relative min-h-[18rem] overflow-hidden bg-stone-950 text-white md:min-h-[22rem] lg:h-full lg:min-h-[32rem] lg:self-stretch">
-      <Image
+      <ProductImage
         src={getProductImage(product)}
         alt={product.name}
-        fill
         sizes="(min-width: 1024px) 45vw, 100vw"
-        unoptimized
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,12,8,0.25)_0%,rgba(20,12,8,0.42)_28%,rgba(20,12,8,0.78)_70%,rgba(20,12,8,0.92)_100%)]" />

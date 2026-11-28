@@ -14,27 +14,33 @@ export default function CustomerFulfillmentBoard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const refresh = useCallback(async () => {
-    try {
-      const response = await fetch("/api/staff/customer-fulfillment", {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Could not load paid customer orders.");
-      const data = (await response.json()) as { orders: Order[] };
-      setOrders(data.orders);
-      setError("");
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Could not load orders.",
-      );
-    }
-  }, []);
+  const refresh = useCallback(
+    (signal?: AbortSignal) =>
+      fetch("/api/staff/customer-fulfillment", { cache: "no-store", signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Could not load paid customer orders.");
+          const data = (await response.json()) as { orders: Order[] };
+          if (signal?.aborted) return;
+          setOrders(data.orders);
+          setError("");
+        })
+        .catch((cause: unknown) => {
+          if (!signal?.aborted) {
+            setError(cause instanceof Error ? cause.message : "Could not load orders.");
+          }
+        }),
+    [],
+  );
   useEffect(() => {
-    void refresh();
+    const controller = new AbortController();
+    void refresh(controller.signal);
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") void refresh(controller.signal);
     }, 5000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      controller.abort();
+    };
   }, [refresh]);
   async function update(order: Order, status: string) {
     setBusy(true);
