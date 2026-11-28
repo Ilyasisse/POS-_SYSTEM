@@ -38,9 +38,7 @@ export default async function SupplierPurchaseOrdersPage({
 }) {
   await requirePermission(PERMISSIONS.SUPPLIER_MANAGE);
   const query = (await searchParams) ?? {};
-  const status = ORDER_STATUSES.includes(
-    query.status as SupplierPurchaseOrderStatus,
-  )
+  const status = ORDER_STATUSES.includes(query.status as SupplierPurchaseOrderStatus)
     ? (query.status as SupplierPurchaseOrderStatus)
     : undefined;
   const [orders, suppliers] = await Promise.all([
@@ -63,13 +61,8 @@ export default async function SupplierPurchaseOrdersPage({
     }),
   ]);
   const openOrders = orders.filter((order) => order.status === "OPEN");
-  const openTotal = openOrders.reduce(
-    (total, order) => total + Number(order.totalAmount),
-    0,
-  );
-  const completedCount = orders.filter(
-    (order) => order.status === "COMPLETED",
-  ).length;
+  const openTotal = openOrders.reduce((total, order) => total + Number(order.totalAmount), 0);
+  const completedCount = orders.filter((order) => order.status === "COMPLETED").length;
 
   return (
     <AdminPage
@@ -88,6 +81,11 @@ export default async function SupplierPurchaseOrdersPage({
             </Link>
           </Button>
           <Button asChild variant="outline">
+            <Link prefetch={false} href="/admin/supplier-deliveries">
+              Delivery review
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link prefetch={false} href="/admin/supplier-order-schedules">
               WhatsApp schedules
             </Link>
@@ -97,7 +95,7 @@ export default async function SupplierPurchaseOrdersPage({
     >
       <form
         method="get"
-        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+        className="bg-card grid gap-3 rounded-xl border p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
       >
         <AutoSubmitSelect
           name="supplier"
@@ -157,36 +155,28 @@ export default async function SupplierPurchaseOrdersPage({
                     <Link
                       prefetch={false}
                       href={`/admin/supplier-purchase-orders/${order.id}`}
-                      className="font-semibold text-primary hover:underline"
+                      className="text-primary font-semibold hover:underline"
                     >
                       PO #{order.orderNumber}
                     </Link>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-muted-foreground text-xs">
                       {order.createdAt.toLocaleDateString()}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {order.supplier.name}
-                  </TableCell>
-                  <TableCell>
-                    {DATE_FORMATTER.format(order.expectedDeliveryDate)}
-                  </TableCell>
+                  <TableCell className="font-medium">{order.supplier.name}</TableCell>
+                  <TableCell>{DATE_FORMATTER.format(order.expectedDeliveryDate)}</TableCell>
                   <TableCell>{order._count.items}</TableCell>
                   <TableCell className="font-semibold tabular-nums">
                     {formatMoney(Number(order.totalAmount))}
                   </TableCell>
                   <TableCell>
-                    <ToneBadge tone={statusTone(order.status)}>
-                      {order.status}
-                    </ToneBadge>
+                    <ToneBadge tone={statusTone(order.status)}>{order.status}</ToneBadge>
                   </TableCell>
                 </tr>
               ))
             ) : (
               <tr>
-                <TableCell colSpan={7}>
-                  No supplier purchase orders match these filters.
-                </TableCell>
+                <TableCell colSpan={7}>No supplier purchase orders match these filters.</TableCell>
               </tr>
             )}
           </tbody>
