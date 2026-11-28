@@ -84,6 +84,8 @@ function component(path: string, fetcher: typeof fetch, overrides: Record<string
       crypto: globalThis.crypto,
       fetch: fetcher,
       require: (name: string) => {
+        if (name === "@/app/cashier/actions")
+          return { transferOpenTableServiceFromCashier: async () => {} };
         if (name in overrides) return overrides[name];
         if (name === "next/navigation") return { useRouter: () => router };
         if (name === "@/components/ui/toast") return { useToast: () => toasts };
@@ -348,6 +350,7 @@ test("table search hides rather than unmounts payment state and rounds start col
   );
   await mount(Component, {
     showEqualSplit: false,
+    availableTables: [],
     tables: [
       {
         id: "t2",

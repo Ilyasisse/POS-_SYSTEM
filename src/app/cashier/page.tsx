@@ -18,6 +18,7 @@ type CashierPageProps = {
   searchParams?: Promise<{
     paymentStatus?: string;
     orderStatus?: string;
+    transferStatus?: string;
   }>;
 };
 
@@ -58,6 +59,23 @@ function getPaymentStatusMessage(paymentStatus?: string) {
   }
 }
 
+function getTransferStatusMessage(transferStatus?: string) {
+  switch (transferStatus) {
+    case "table_moved":
+      return {
+        tone: "success" as const,
+        message: "The open service was moved to the new table.",
+      };
+    case "table_move_failed":
+      return {
+        tone: "error" as const,
+        message: "The table could not be moved. The destination may now be occupied.",
+      };
+    default:
+      return null;
+  }
+}
+
 function getOrderStatusMessage(orderStatus?: string) {
   if (orderStatus === "takeaway_paid") {
     return {
@@ -85,45 +103,61 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
   ]);
   const showEqualSplit = await canShowEqualBillSplit(currentUser);
   const paymentNotice = getPaymentStatusMessage(params?.paymentStatus);
+  const transferNotice = getTransferStatusMessage(params?.transferStatus);
   const orderNotice = getOrderStatusMessage(params?.orderStatus);
-  const notice = paymentNotice ?? orderNotice;
+  const notice = paymentNotice ?? transferNotice ?? orderNotice;
 
-  const tables = await prisma.table.findMany({
-    where: {
-      isActive: true,
-      orders: {
-        some: {
-          status: "OPEN",
-          type: "DINE_IN",
+  const [tables, availableTables] = await Promise.all([
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          some: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
         },
       },
-    },
-    orderBy: { name: "asc" },
-    include: {
-      orders: {
-        where: {
-          status: "OPEN",
-          type: "DINE_IN",
-        },
-        orderBy: { createdAt: "desc" },
-        include: {
-          cashier: { select: { fullName: true } },
-          tableCheck: { select: { checkNumber: true } },
-          orderItems: {
-            select: {
-              id: true,
-              productName: true,
-              qty: true,
+      orderBy: { name: "asc" },
+      include: {
+        orders: {
+          where: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+          orderBy: { createdAt: "desc" },
+          include: {
+            cashier: { select: { fullName: true } },
+            tableCheck: { select: { checkNumber: true } },
+            orderItems: {
+              select: {
+                id: true,
+                productName: true,
+                qty: true,
+              },
+              orderBy: { createdAt: "asc" },
             },
-            orderBy: { createdAt: "asc" },
-          },
-          payments: {
-            select: { amountPaid: true },
+            payments: {
+              select: { amountPaid: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.table.findMany({
+      where: {
+        isActive: true,
+        orders: {
+          none: {
+            status: "OPEN",
+            type: "DINE_IN",
+          },
+        },
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const openChecksByTable = new Map(
     tables.map((table) => [
@@ -194,6 +228,7 @@ export default async function CashierPage({ searchParams }: CashierPageProps) {
 
       <CashierTableBoard
         showEqualSplit={showEqualSplit}
+        availableTables={availableTables}
         tables={tables.map((table) => ({
           id: table.id,
           name: table.name,

@@ -1,5 +1,6 @@
 "use client";
 
+import { transferOpenTableServiceFromCashier } from "@/app/cashier/actions";
 import { useState } from "react";
 import Link from "next/link";
 import CashierPaymentDialog from "./CashierPaymentDialog";
@@ -27,9 +28,11 @@ const money = (value: number) => `$${value.toFixed(2)}`;
 
 export default function CashierTableBoard({
   tables,
+  availableTables,
   showEqualSplit,
 }: {
   tables: SettlementTable[];
+  availableTables: { id: string; name: string }[];
   showEqualSplit: boolean;
 }) {
   const [search, setSearch] = useState("");
@@ -136,6 +139,33 @@ export default function CashierTableBoard({
                     Add order
                   </Link>
                 </Button>
+                {availableTables.length ? (
+                  <form
+                    action={transferOpenTableServiceFromCashier}
+                    className="grid grid-cols-[1fr_auto] gap-2"
+                  >
+                    <input type="hidden" name="sourceTableId" value={table.id} />
+                    <select
+                      name="targetTableId"
+                      required
+                      aria-label={`Move ${table.name} to an available table`}
+                      className="border-border bg-background h-11 min-w-0 rounded-xl border px-3 text-sm"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Move to table…
+                      </option>
+                      {availableTables.map((target) => (
+                        <option key={target.id} value={target.id}>
+                          {target.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="submit" variant="outline">
+                      Move
+                    </Button>
+                  </form>
+                ) : null}
                 <CashierPaymentDialog
                   tableId={table.id}
                   tableName={table.name}

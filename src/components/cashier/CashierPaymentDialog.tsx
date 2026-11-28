@@ -22,12 +22,14 @@ type Line = {
   payerName: string;
   payerPhone: string;
   amount: string;
+  method: string;
 };
 type RequestLine = {
   id: string;
   payerName: string;
   payerPhone: string;
   amount: number;
+  method: string;
   paidAmount: number;
   remainingAmount: number;
   status: string;
@@ -88,7 +90,6 @@ export default function CashierPaymentDialog({
   const [syncError, setSyncError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState("");
   const [equalSplitCount, setEqualSplitCount] = useState("2");
   const [lines, setLines] = useState<Line[]>([
     {
@@ -96,6 +97,7 @@ export default function CashierPaymentDialog({
       payerName: "",
       payerPhone: "",
       amount: amountDue.toFixed(2),
+      method: "",
     },
   ]);
   const [payLater, setPayLater] = useState(false);
@@ -196,6 +198,7 @@ export default function CashierPaymentDialog({
           payerName: "",
           payerPhone: "",
           amount: amount.toFixed(2),
+          method: "",
         })),
       );
       setPayLater(false);
@@ -221,7 +224,8 @@ export default function CashierPaymentDialog({
       setError("Check the highlighted payer fields.");
       return;
     }
-    if (!method) return setError("Select a payment method first.");
+    if (lines.some((line) => !(line.method || method)))
+      return setError("Select a payment method first.");
     const key = crypto.randomUUID();
     mutationRef.current = true;
     setSubmitting(true);
@@ -232,12 +236,12 @@ export default function CashierPaymentDialog({
         body: JSON.stringify({
           batchKey: key,
           tableId,
-          method,
           payLater,
           lines: lines.map((line) => ({
             payerName: line.payerName,
             payerPhone: line.payerPhone,
             amount: Number(line.amount),
+            method: line.method || method,
           })),
         }),
       });
@@ -437,6 +441,18 @@ export default function CashierPaymentDialog({
                 {lines.map((line, index) => (
                   <div key={line.id} className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2">
                     <h3 className="font-semibold sm:col-span-2">Payer {index + 1}</h3>
+                    <NativeSelect
+                      aria-label={`Payer ${index + 1} payment method`}
+                      value={line.method || method}
+                      onChange={(event) => updateLine(line.id, "method", event.target.value)}
+                    >
+                      <option value="">Method</option>
+                      <option value="GOLIS">GOLIS / SAHAL</option>
+                      <option value="MYCASH">MYCASH</option>
+                      <option value="Dahabshiil">Dahabshiil</option>
+                      <option value="OTHER">OTHER</option>
+                    </NativeSelect>
+
                     <label className="text-sm">
                       Name
                       <Input
@@ -506,6 +522,7 @@ export default function CashierPaymentDialog({
                         payerName: "",
                         payerPhone: "",
                         amount: remaining ? remaining.toFixed(2) : "",
+                        method: current.at(-1)?.method ?? "",
                       },
                     ])
                   }
@@ -582,7 +599,8 @@ export default function CashierPaymentDialog({
                     <option value="">Select a payer</option>
                     {requests.map((request) => (
                       <option key={request.id} value={request.id}>
-                        {request.payerName} · {money(request.remainingAmount)} remaining
+                        {request.payerName} · {request.method} · {money(request.remainingAmount)}{" "}
+                        remaining
                       </option>
                     ))}
                   </NativeSelect>

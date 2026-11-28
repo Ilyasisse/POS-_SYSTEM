@@ -5,6 +5,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createProduct } from "../actions";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
+import { ProductMenuFields } from "../ProductMenuFields";
 
 export default async function NewProductPage() {
   const categories = await prisma.category.findMany({
@@ -46,6 +47,8 @@ export default async function NewProductPage() {
                 required
               />
             </div>
+
+            <ProductMenuFields />
 
             <div>
               <label
