@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireRole as requireAuth } from "@/lib/auth/require-role";
 import { deleteModifier, updateModifier } from "../actions";
+import { DeleteCatalogItemSection } from "../../DeleteCatalogItemSection";
 import PronunciationRecorder from "@/components/admin/pronunciations/PronunciationRecorder";
 
 type ModifierDetailsPageProps = {
@@ -15,21 +16,16 @@ type ModifierDetailsPageProps = {
   }>;
 };
 
-export default async function ModifierDetailsPage({
-  params,
-}: ModifierDetailsPageProps) {
+export default async function ModifierDetailsPage({ params }: ModifierDetailsPageProps) {
   // Params can resolve with auth; modifier reads still need the resolved id.
-  const [resolvedParams] = await Promise.all([
-    params,
-    requireAuth(["ADMIN", "MANAGER"]),
-  ]);
+  const [resolvedParams] = await Promise.all([params, requireAuth(["ADMIN", "MANAGER"])]);
   const id = resolvedParams.id;
 
-  const [modifier, products, modifierGroups] = await Promise.all([
+  const [modifierUnique, products, modifierGroups] = await Promise.all([
     prisma.modifier.findUnique({
       where: { id },
       include: {
-        product: true,
+        products: { select: { id: true } },
         modifierGroup: true,
       },
     }),
@@ -39,70 +35,70 @@ export default async function ModifierDetailsPage({
       },
     }),
     prisma.modifierGroup.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
       orderBy: {
         name: "asc",
       },
     }),
   ]);
 
-  if (!modifier) {
+  if (!modifierUnique) {
     notFound();
   }
 
   return (
     <div
-      className="min-h-screen bg-background px-4 py-6 text-foreground md:px-6"
+      className="bg-background text-foreground min-h-screen px-4 py-6 md:px-6"
       style={{ fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif' }}
     >
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <header className="flex items-center justify-between rounded-2xl border border-border bg-card p-4 shadow-lg">
+        <header className="border-border bg-card flex items-center justify-between rounded-2xl border p-4 shadow-lg">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-muted-foreground text-xs tracking-[0.2em] uppercase">
               Admin Dashboard
             </p>
             <h1 className="text-2xl font-bold">Modifier Details</h1>
-            <p className="text-sm text-muted-foreground">{modifier.name}</p>
+            <p className="text-muted-foreground text-sm">{modifierUnique.name}</p>
           </div>
 
           <Link
             prefetch={false}
             href="/admin/modifiers"
-            className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-card"
+            className="border-border hover:bg-card rounded-lg border px-4 py-2 text-sm"
           >
             Back
           </Link>
         </header>
 
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-foreground">
-            Edit Modifier
-          </h2>
+        <section className="border-border bg-card rounded-2xl border p-6 shadow-lg">
+          <h2 className="text-foreground mb-4 text-lg font-bold">Edit Modifier</h2>
 
           <form action={updateModifier} className="space-y-4">
-            <Input type="hidden" name="id" value={modifier.id} />
+            <Input type="hidden" name="id" value={modifierUnique.id} />
+            <p className="text-muted-foreground text-sm">
+              Changes to this modifier, including its price and active status, apply to every linked
+              product.
+            </p>
 
             <div>
-              <label
-                htmlFor="modifier-name"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="modifier-name" className="mb-1 block text-sm font-medium">
                 Name
               </label>
               <Input
                 id="modifier-name"
                 name="name"
                 type="text"
-                defaultValue={modifier.name}
-                className="w-full rounded-lg border border-border px-3 py-2"
+                defaultValue={modifierUnique.name}
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
               />
             </div>
 
             <div>
-              <label
-                htmlFor="modifier-price"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="modifier-price" className="mb-1 block text-sm font-medium">
                 Price
               </label>
               <Input
@@ -110,46 +106,53 @@ export default async function ModifierDetailsPage({
                 name="price"
                 type="number"
                 step="0.01"
-                defaultValue={Number(modifier.price)}
-                className="w-full rounded-lg border border-border px-3 py-2"
+                min="0"
+                defaultValue={Number(modifierUnique.price)}
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="modifier-product"
-                className="mb-1 block text-sm font-medium"
-              >
-                Product
-              </label>
-              <NativeSelect
-                id="modifier-product"
-                name="productId"
-                defaultValue={modifier.productId}
-                className="w-full rounded-lg border border-border px-3 py-2"
-                required
-              >
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">Products</legend>
+              <div className="border-border max-h-72 space-y-2 overflow-y-auto rounded-lg border p-3">
+                {products.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No products found.</p>
+                ) : (
+                  products.map((product) => (
+                    <label
+                      key={product.id}
+                      className="text-md hover:bg-card flex items-center gap-2 rounded-md px-2 py-1"
+                    >
+                      <Input
+                        name="productIds"
+                        type="checkbox"
+                        className="h-4 w-4 shrink-0"
+                        value={product.id}
+                        defaultChecked={modifierUnique.products.some(
+                          (assignedProduct) => assignedProduct.id === product.id,
+                        )}
+                      />
+                      <span>{product.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-muted-foreground mt-1 text-xs">
+                Select at least one product. Removing a product only removes its link to this
+                modifier.
+              </p>
+            </fieldset>
 
             <div>
-              <label
-                htmlFor="modifier-group"
-                className="mb-1 block text-sm font-medium"
-              >
+              <label htmlFor="modifier-group" className="mb-1 block text-sm font-medium">
                 Modifier Group
               </label>
               <NativeSelect
                 id="modifier-group"
                 name="modifierGroupId"
-                defaultValue={modifier.modifierGroupId}
-                className="w-full rounded-lg border border-border px-3 py-2"
+                defaultValue={modifierUnique.modifierGroupId}
+                className="border-border w-full rounded-lg border px-3 py-2"
                 required
               >
                 {modifierGroups.map((group) => (
@@ -160,16 +163,13 @@ export default async function ModifierDetailsPage({
               </NativeSelect>
             </div>
 
-            <label
-              htmlFor="modifier-active"
-              className="flex items-center gap-2 text-md"
-            >
+            <label htmlFor="modifier-active" className="text-md flex items-center gap-2">
               <Input
                 id="modifier-active"
                 name="isActive"
                 type="checkbox"
                 className="h-4 w-4 shrink-0"
-                defaultChecked={modifier.isActive}
+                defaultChecked={modifierUnique.isActive}
               />
               Active
             </label>
@@ -177,14 +177,14 @@ export default async function ModifierDetailsPage({
             <PronunciationRecorder
               inputName="pronunciationAudioUrl"
               entityType="modifier"
-              label={modifier.name}
-              currentUrl={modifier.pronunciationAudioUrl}
+              label={modifierUnique.name}
+              currentUrl={modifierUnique.pronunciationAudioUrl}
             />
 
             <div className="flex gap-3 pt-2">
               <Button
                 type="submit"
-                className="rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2"
               >
                 Save Changes
               </Button>
@@ -192,26 +192,12 @@ export default async function ModifierDetailsPage({
           </form>
         </section>
 
-        <section className="rounded-2xl border border-red-200 dark:border-red-800 bg-card p-6 shadow-lg">
-          <h2 className="mb-4 text-lg font-bold text-red-600 dark:text-red-300">
-            Delete Modifier
-          </h2>
-
-          <p className="mb-4 text-sm text-muted-foreground">
-            This will permanently delete{" "}
-            <span className="font-semibold">{modifier.name}</span>.
-          </p>
-
-          <form action={deleteModifier}>
-            <Input type="hidden" name="id" value={modifier.id} />
-            <Button
-              type="submit"
-              className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Delete Modifier
-            </Button>
-          </form>
-        </section>
+        <DeleteCatalogItemSection
+          id={modifierUnique.id}
+          name={modifierUnique.name}
+          label="Delete Modifier"
+          action={deleteModifier}
+        />
       </div>
     </div>
   );

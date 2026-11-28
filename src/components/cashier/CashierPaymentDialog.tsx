@@ -23,12 +23,14 @@ type Line = {
   payerName: string;
   payerPhone: string;
   amount: string;
+  method: string;
 };
 type RequestLine = {
   id: string;
   payerName: string;
   payerPhone: string;
   amount: number;
+  method: string;
   paidAmount: number;
   remainingAmount: number;
   status: string;
@@ -83,7 +85,6 @@ export default function CashierPaymentDialog({
 }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState("");
   const [equalSplitCount, setEqualSplitCount] = useState("2");
   const [lines, setLines] = useState<Line[]>([
     {
@@ -91,6 +92,7 @@ export default function CashierPaymentDialog({
       payerName: "",
       payerPhone: "",
       amount: amountDue.toFixed(2),
+      method: "",
     },
   ]);
   const [payLater, setPayLater] = useState(false);
@@ -189,6 +191,7 @@ export default function CashierPaymentDialog({
           payerName: "",
           payerPhone: "",
           amount: amount.toFixed(2),
+          method: "",
         })),
       );
       setPayLater(false);
@@ -202,7 +205,9 @@ export default function CashierPaymentDialog({
 
   async function startChecks() {
     setError("");
-    if (!method) return setError("Select a payment method first.");
+    if (lines.some((line) => !line.method)) {
+      return setError("Select a payment method for every payer.");
+    }
     const key = crypto.randomUUID();
     setSubmitting(true);
     try {
@@ -212,12 +217,12 @@ export default function CashierPaymentDialog({
         body: JSON.stringify({
           batchKey: key,
           tableId,
-          method,
           payLater,
           lines: lines.map((line) => ({
             payerName: line.payerName,
             payerPhone: line.payerPhone,
             amount: Number(line.amount),
+            method: line.method,
           })),
         }),
       });
@@ -336,28 +341,11 @@ export default function CashierPaymentDialog({
             Payment for {tableName}
           </DialogTitle>
           <DialogDescription>
-            Create a row for each payer, then attach one or more incoming SAHAL
-            receipts.
+            Choose a provider for each payer, then attach incoming receipts.
           </DialogDescription>
         </DialogHeader>
         {!batchKey ? (
           <div className="space-y-5">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">
-                Payment method
-              </span>
-              <NativeSelect
-                value={method}
-                onChange={(event) => setMethod(event.target.value)}
-                className="w-full rounded-xl"
-              >
-                <option value="">Select payment method</option>
-                <option value="GOLIS">GOLIS / SAHAL</option>
-                <option value="MYCASH">MYCASH</option>
-                <option value="Dahabshiil">Dahabshiil</option>
-                <option value="OTHER">OTHER</option>
-              </NativeSelect>
-            </label>
             {showEqualSplit ? (
               <div className="rounded-2xl border bg-muted/30 p-4">
                 <p className="font-semibold">Split equally</p>
@@ -388,8 +376,21 @@ export default function CashierPaymentDialog({
               {lines.map((line, index) => (
                 <div
                   key={line.id}
-                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[1fr_1fr_7rem_auto]"
+                  className="grid gap-2 rounded-2xl border p-3 sm:grid-cols-[8rem_1fr_1fr_7rem_auto]"
                 >
+                  <NativeSelect
+                    aria-label={`Payer ${index + 1} payment method`}
+                    value={line.method}
+                    onChange={(event) =>
+                      updateLine(line.id, "method", event.target.value)
+                    }
+                  >
+                    <option value="">Method</option>
+                    <option value="GOLIS">GOLIS / SAHAL</option>
+                    <option value="MYCASH">MYCASH</option>
+                    <option value="Dahabshiil">Dahabshiil</option>
+                    <option value="OTHER">OTHER</option>
+                  </NativeSelect>
                   <Input
                     aria-label={`Payer ${index + 1} name`}
                     placeholder="Name"
@@ -442,6 +443,7 @@ export default function CashierPaymentDialog({
                     payerName: "",
                     payerPhone: "",
                     amount: remaining ? remaining.toFixed(2) : "",
+                    method: current.at(-1)?.method ?? "",
                   },
                 ])
               }
@@ -517,7 +519,7 @@ export default function CashierPaymentDialog({
                     {request.payerName} · {request.payerPhone}
                   </span>
                   <span className="mt-2 block text-sm">
-                    Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
+                    {request.method} · Paid {money(request.paidAmount)} of {money(request.amount)}{" "}
                     · Remaining {money(request.remainingAmount)}
                   </span>
                   <span

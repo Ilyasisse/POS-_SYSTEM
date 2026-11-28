@@ -209,13 +209,34 @@ export function restoreCustomerOrderDraft(
   };
 }
 
-export function saveCustomerFulfillment(orderType: "DINE_IN" | "TAKEOUT", tableId: string) {
-  try { sessionStorage.setItem("customer-fulfillment-v1", JSON.stringify({ orderType, tableId })); } catch { /* Storage is optional until OAuth. */ }
+export function saveCustomerFulfillment(
+  orderType: "DINE_IN" | "TAKEOUT",
+  tableId: string,
+) {
+  try {
+    sessionStorage.setItem(
+      "customer-fulfillment-v1",
+      JSON.stringify({ orderType, tableId }),
+    );
+  } catch {
+    /* Storage is optional until OAuth. */
+  }
 }
 
-export function restoreCustomerFulfillment(): { orderType: "DINE_IN" | "TAKEOUT"; tableId: string } | null {
+export function restoreCustomerFulfillment(): {
+  orderType: "DINE_IN" | "TAKEOUT";
+  tableId: string;
+} | null {
   try {
-    const value = JSON.parse(sessionStorage.getItem("customer-fulfillment-v1") || "null");
-    return value && (value.orderType === "DINE_IN" || value.orderType === "TAKEOUT") && typeof value.tableId === "string" ? value : null;
-  } catch { return null; }
+    const value = JSON.parse(
+      sessionStorage.getItem("customer-fulfillment-v1") || "null",
+    );
+    return value &&
+      (value.orderType === "DINE_IN" || value.orderType === "TAKEOUT") &&
+      typeof value.tableId === "string"
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
 }

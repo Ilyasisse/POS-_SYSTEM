@@ -17,34 +17,33 @@ async function currentCashier() {
     where: { id: user.id },
     select: { id: true, fullName: true, role: true, isActive: true },
   });
-  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE)
-    ? cashier
-    : null;
+  return cashier?.isActive && hasPermission(cashier, PERMISSIONS.PAYMENT_TAKE) ? cashier : null;
 }
 
 export async function POST(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   try {
     const body = await request.json();
-    const method = String(body.method ?? "") as PaymentMethod;
-    if (!isReceiptMatchPaymentMethod(method))
+    const rawFallbackMethod = String(body.method ?? "");
+    const fallbackMethod = rawFallbackMethod ? (rawFallbackMethod as PaymentMethod) : undefined;
+    if (fallbackMethod && !isReceiptMatchPaymentMethod(fallbackMethod))
       return NextResponse.json(
-        { error: "Select a payment method." },
+        { error: "The default payment method is invalid." },
         { status: 400 },
       );
     const requests = await createPaymentRequestBatch({
       batchKey: String(body.batchKey ?? "").trim(),
       tableId: String(body.tableId ?? "").trim(),
       cashier,
-      method,
+      method: fallbackMethod,
       payLater: body.payLater === true,
       lines: Array.isArray(body.lines)
         ? body.lines.map((line: Record<string, unknown>) => ({
             payerName: String(line.payerName ?? ""),
             payerPhone: String(line.payerPhone ?? ""),
             amount: Number(line.amount),
+            method: String(line.method ?? ""),
           }))
         : [],
     });
@@ -54,7 +53,7 @@ export async function POST(request: Request) {
         distinctId: cashier.id,
         event: "payment_check_started",
         properties: {
-          payment_method: method,
+          payment_methods: [...new Set(requests.map((item) => item.method))],
           payer_count: requests.length,
           pay_later: body.payLater === true,
           cashier_role: cashier.role,
@@ -70,16 +69,14 @@ export async function POST(request: Request) {
         payerName: item.payerName,
         payerPhone: item.payerPhone,
         amount: Number(item.expectedAmount),
+        method: item.method,
         status: item.status,
       })),
     });
   } catch (error) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not start payment checks.",
+        error: error instanceof Error ? error.message : "Could not start payment checks.",
       },
       { status: 400 },
     );
@@ -88,14 +85,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   const cashier = await currentCashier();
-  if (!cashier)
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!cashier) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const batchKey = new URL(request.url).searchParams.get("batchKey")?.trim();
-  if (!batchKey)
-    return NextResponse.json(
-      { error: "batchKey is required." },
-      { status: 400 },
-    );
+  if (!batchKey) return NextResponse.json({ error: "batchKey is required." }, { status: 400 });
   const requests = await prisma.paymentRequest.findMany({
     where: { batchKey, cashierId: cashier.id },
     orderBy: { lineIndex: "asc" },
@@ -115,6 +107,7 @@ export async function GET(request: Request) {
         amount: Number(item.expectedAmount),
         paidAmount,
         remainingAmount: Math.max(0, Number(item.expectedAmount) - paidAmount),
+        method: item.method,
         status: item.status,
         reference: item.providerReference,
       };
